@@ -1,18 +1,10 @@
 # Guide de connexion à GitHub
 
-## Étape 1 : Préparer le projet local
+## ✅ Étape 1 : Préparer le projet local (DÉJÀ FAIT)
 
-Tous les fichiers sont prêts. Vous devez maintenant :
-
-1. **Ajouter tous les fichiers au staging**
-   ```bash
-   git add .
-   ```
-
-2. **Faire un commit initial**
-   ```bash
-   git commit -m "Initial commit: Etsmart - Copilote IA pour Etsy"
-   ```
+✅ Tous les fichiers ont été ajoutés et committés !
+- Commit créé : "Initial commit: Etsmart - Copilote IA pour Etsy avec Supabase"
+- 51 fichiers ajoutés/modifiés
 
 ## Étape 2 : Créer un dépôt sur GitHub
 
@@ -27,11 +19,26 @@ Tous les fichiers sont prêts. Vous devez maintenant :
 
 ## Étape 3 : Connecter le projet local à GitHub
 
-Après avoir créé le dépôt, GitHub vous donnera des instructions. Utilisez celles-ci :
+### Option A : Utiliser le script automatique (RECOMMANDÉ)
+
+Après avoir créé le dépôt sur GitHub, exécutez :
 
 ```bash
-# Remplacez YOUR_USERNAME par votre nom d'utilisateur GitHub
-git remote add origin https://github.com/YOUR_USERNAME/etsmart.git
+./connect-github.sh VOTRE_USERNAME NOM_DU_REPO
+```
+
+Exemple :
+```bash
+./connect-github.sh yacineelfahim etsmart
+```
+
+### Option B : Commandes manuelles
+
+Après avoir créé le dépôt, utilisez ces commandes :
+
+```bash
+# Remplacez YOUR_USERNAME et REPO_NAME par vos valeurs
+git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
 git branch -M main
 git push -u origin main
 ```
@@ -39,7 +46,7 @@ git push -u origin main
 **OU** si vous préférez utiliser SSH :
 
 ```bash
-git remote add origin git@github.com:YOUR_USERNAME/etsmart.git
+git remote add origin git@github.com:YOUR_USERNAME/REPO_NAME.git
 git branch -M main
 git push -u origin main
 ```
