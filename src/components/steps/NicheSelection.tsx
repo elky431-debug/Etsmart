@@ -28,6 +28,7 @@ import {
   Flower2
 } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { Logo } from '@/components/ui/Logo';
 import { niches } from '@/lib/niches';
 import { useStore } from '@/store/useStore';
 import type { Niche, NicheInfo } from '@/types';
@@ -248,7 +249,7 @@ export function NicheSelection() {
             <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
             <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-slate-200 shadow-2xl p-2">
               <div className="flex items-center gap-4 px-6">
-                <Search size={24} className="text-[#00d4ff] flex-shrink-0" />
+                <Logo size="sm" showText={false} />
                 <input
                   type="text"
                   placeholder="Rechercher une niche..."

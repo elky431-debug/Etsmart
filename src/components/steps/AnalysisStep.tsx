@@ -21,6 +21,9 @@ import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import type { Niche } from '@/types';
 import { analyzeProduct, AnalysisBlockedError } from '@/lib/mockAnalysis';
+import { supabase } from '@/lib/supabase';
+import { analysisDb } from '@/lib/db/analyses';
+import { productDb } from '@/lib/db/products';
 
 interface FailedProduct {
   productId: string;
@@ -60,7 +63,74 @@ export function AnalysisStep() {
 
       try {
         const analysis = await analyzeProduct(products[i], (niche || 'custom') as Niche);
-      addAnalysis(analysis);
+        addAnalysis(analysis);
+        
+        // Save to Supabase if user is authenticated
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          
+          if (authError) {
+            console.warn('Cannot get user for saving analysis:', authError.message);
+            // Continue without saving - user might not be logged in
+          } else if (user) {
+            try {
+              // First, save the product to database
+              let savedProduct = analysis.product;
+              try {
+                // Try to find product by URL (more reliable than ID for local products)
+                const { data: existingProducts } = await supabase
+                  .from('products')
+                  .select('*')
+                  .eq('user_id', user.id)
+                  .eq('url', analysis.product.url)
+                  .limit(1);
+                
+                if (existingProducts && existingProducts.length > 0) {
+                  // Product exists, use it
+                  savedProduct = {
+                    ...analysis.product,
+                    id: existingProducts[0].id,
+                  };
+                  console.log('✅ Product already exists in database');
+                } else {
+                  // Product doesn't exist, create it
+                  savedProduct = await productDb.createProduct(user.id, analysis.product);
+                  console.log('✅ Product saved to database');
+                }
+              } catch (productError: any) {
+                console.warn('⚠️ Error saving product to database:', {
+                  message: productError?.message,
+                  code: productError?.code,
+                });
+                // Continue anyway - might be a duplicate or other non-critical error
+                // Use original product ID
+              }
+              
+              // Then save the analysis (with the saved product)
+              const analysisWithSavedProduct = {
+                ...analysis,
+                product: savedProduct,
+              };
+              
+              await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
+              console.log('✅ Analysis saved to database successfully');
+            } catch (saveError: any) {
+              // Log detailed error information
+              console.error('❌ Error saving analysis to database:', {
+                message: saveError?.message || 'Unknown error',
+                code: saveError?.code,
+                details: saveError?.details,
+                hint: saveError?.hint,
+                error: saveError
+              });
+              // Don't fail the analysis if DB save fails - it's not critical
+            }
+          }
+        } catch (error: any) {
+          console.warn('Error checking authentication for saving analysis:', error?.message || error);
+          // Continue without saving - not critical
+        }
+        
         setCompletedProducts(prev => [...prev, products[i].id]);
       } catch (error) {
         console.error(`Analysis failed for product ${products[i].title}:`, error);

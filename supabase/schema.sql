@@ -150,24 +150,32 @@ ALTER TABLE public.product_analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.boutique_analyses ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies: Users can only access their own data
+-- Drop existing policies if they exist, then create them
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 CREATE POLICY "Users can view own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own products" ON public.products;
 CREATE POLICY "Users can insert own products" ON public.products
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own products" ON public.products;
 CREATE POLICY "Users can view own products" ON public.products
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own products" ON public.products;
 CREATE POLICY "Users can update own products" ON public.products
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own products" ON public.products;
 CREATE POLICY "Users can delete own products" ON public.products
   FOR DELETE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own product variants" ON public.product_variants;
 CREATE POLICY "Users can manage own product variants" ON public.product_variants
   FOR ALL USING (
     EXISTS (
@@ -177,9 +185,11 @@ CREATE POLICY "Users can manage own product variants" ON public.product_variants
     )
   );
 
+DROP POLICY IF EXISTS "Users can manage own product analyses" ON public.product_analyses;
 CREATE POLICY "Users can manage own product analyses" ON public.product_analyses
   FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own boutique analyses" ON public.boutique_analyses;
 CREATE POLICY "Users can manage own boutique analyses" ON public.boutique_analyses
   FOR ALL USING (auth.uid() = user_id);
 
@@ -192,16 +202,72 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Function to automatically create user profile when user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, full_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'full_name'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to create user profile on signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- Triggers to update updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_products_updated_at ON public.products;
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_product_analyses_updated_at ON public.product_analyses;
 CREATE TRIGGER update_product_analyses_updated_at BEFORE UPDATE ON public.product_analyses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_boutique_analyses_updated_at ON public.boutique_analyses;
 CREATE TRIGGER update_boutique_analyses_updated_at BEFORE UPDATE ON public.boutique_analyses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- User settings table
+CREATE TABLE IF NOT EXISTS public.user_settings (
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
+  target_country TEXT DEFAULT 'FR',
+  currency TEXT DEFAULT 'EUR',
+  preferred_channel TEXT DEFAULT 'auto' CHECK (preferred_channel IN ('auto', 'tiktok', 'facebook', 'instagram', 'pinterest')),
+  ai_prudence_level TEXT DEFAULT 'balanced' CHECK (ai_prudence_level IN ('conservative', 'balanced', 'aggressive')),
+  language TEXT DEFAULT 'fr',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+DROP TRIGGER IF EXISTS update_user_settings_updated_at ON public.user_settings;
+CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS for user_settings
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own settings" ON public.user_settings;
+CREATE POLICY "Users can view own settings" ON public.user_settings
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own settings" ON public.user_settings;
+CREATE POLICY "Users can update own settings" ON public.user_settings
+  FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own settings" ON public.user_settings;
+CREATE POLICY "Users can insert own settings" ON public.user_settings
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 

@@ -72,11 +72,11 @@ export const analysisDb = {
       marketing_occasions: analysis.marketing?.occasions || [],
       strategic_marketing: analysis.marketing?.strategic || null,
       acquisition_marketing: analysis.marketing?.acquisition || null,
-      viral_title_en: analysis.seo?.viralTitleEN,
-      viral_title_fr: analysis.seo?.viralTitleFR,
-      seo_tags: analysis.seo?.seoTags || [],
+      viral_title_en: analysis.verdict.viralTitleEN,
+      viral_title_fr: analysis.verdict.viralTitleFR,
+      seo_tags: analysis.verdict.seoTags || [],
       launch_simulation: analysis.launchSimulation || null,
-      etsy_search_query: analysis.etsySearchQuery,
+      etsy_search_query: analysis.verdict.etsySearchQuery,
       full_analysis_data: analysis, // Store complete analysis as backup
     };
 
@@ -129,13 +129,6 @@ export const analysisDb = {
       .from('boutique_analyses')
       .upsert({
         user_id: userId,
-        total_products: analysis.totalProducts,
-        total_revenue_3m: analysis.totalRevenue3m,
-        total_profit_3m: analysis.totalProfit3m,
-        average_margin: analysis.averageMargin,
-        dominant_niche: analysis.dominantNiche,
-        market_opportunities: analysis.marketOpportunities,
-        risk_factors: analysis.riskFactors,
         boutique_data: analysis,
       }, {
         onConflict: 'user_id',
@@ -160,10 +153,12 @@ function transformAnalysisFromDb(dbAnalysis: any): ProductAnalysis {
 
   // Otherwise, reconstruct from individual fields
   // This is a simplified version - you may need to adjust based on your types
-  return {
+  const reconstructed: ProductAnalysis = {
+    id: dbAnalysis.id || `analysis-${dbAnalysis.product_id}`,
     product: transformProductFromDb(dbAnalysis.products),
+    niche: dbAnalysis.products?.niche || 'custom',
     verdict: {
-      verdict: dbAnalysis.verdict,
+      verdict: dbAnalysis.verdict as 'launch' | 'test' | 'avoid',
       confidenceScore: dbAnalysis.confidence_score,
       summary: dbAnalysis.summary,
       aiComment: dbAnalysis.ai_comment,
@@ -172,26 +167,82 @@ function transformAnalysisFromDb(dbAnalysis: any): ProductAnalysis {
       estimatedSupplierPrice: dbAnalysis.estimated_supplier_price,
       estimatedShippingCost: dbAnalysis.estimated_shipping_cost,
       supplierPriceReasoning: dbAnalysis.supplier_price_reasoning,
+      viralTitleEN: dbAnalysis.viral_title_en,
+      viralTitleFR: dbAnalysis.viral_title_fr,
+      seoTags: dbAnalysis.seo_tags || [],
+      etsySearchQuery: dbAnalysis.etsy_search_query || '',
+      strengths: [],
+      risks: [],
+      improvements: [],
     },
     competitors: {
-      totalCompetitors: dbAnalysis.total_competitors,
-      competitorEstimationReliable: dbAnalysis.competitor_estimation_reliable,
-      competitorEstimationReasoning: dbAnalysis.competitor_estimation_reasoning,
-      averageMarketPrice: dbAnalysis.average_market_price,
+      totalCompetitors: dbAnalysis.total_competitors || 0,
+      competitorEstimationReliable: dbAnalysis.competitor_estimation_reliable ?? true,
+      competitorEstimationReasoning: dbAnalysis.competitor_estimation_reasoning || '',
+      averageMarketPrice: dbAnalysis.average_market_price || 0,
       marketPriceRange: dbAnalysis.market_price_range_min && dbAnalysis.market_price_range_max
         ? { min: dbAnalysis.market_price_range_min, max: dbAnalysis.market_price_range_max }
-        : undefined,
-      marketStructure: dbAnalysis.market_structure,
+        : { min: 0, max: 0 },
+      marketStructure: dbAnalysis.market_structure as 'dominated' | 'fragmented' | 'open' || 'fragmented',
+      competitors: [],
+      dominantSellers: 0,
+      avgPrice: dbAnalysis.average_market_price || 0,
+      priceRange: dbAnalysis.market_price_range_min && dbAnalysis.market_price_range_max
+        ? { min: dbAnalysis.market_price_range_min, max: dbAnalysis.market_price_range_max }
+        : { min: 0, max: 0 },
+      avgReviews: 0,
+      avgRating: 0,
+      marketPriceReasoning: dbAnalysis.market_price_reasoning || '',
     },
     pricing: {
-      recommendedPrice: dbAnalysis.recommended_price,
-      aggressivePrice: dbAnalysis.aggressive_price,
-      premiumPrice: dbAnalysis.premium_price,
-      justification: dbAnalysis.pricing_justification,
+      recommendedPrice: dbAnalysis.recommended_price || 0,
+      aggressivePrice: dbAnalysis.aggressive_price || 0,
+      premiumPrice: dbAnalysis.premium_price || 0,
+      justification: dbAnalysis.pricing_justification || '',
+      currency: 'USD',
+      competitorPriceAnalysis: {
+        below25: 0,
+        median: 0,
+        above75: 0,
+      },
+      priceStrategy: {
+        launch: dbAnalysis.aggressive_price || 0,
+        stable: dbAnalysis.recommended_price || 0,
+        premium: dbAnalysis.premium_price || 0,
+      },
+      marginAnalysis: {
+        atRecommendedPrice: 0,
+        atAggressivePrice: 0,
+        atPremiumPrice: 0,
+      },
     },
     saturation: {
-      phase: dbAnalysis.saturation_phase,
-      saturationProbability: dbAnalysis.saturation_probability,
+      phase: dbAnalysis.saturation_phase as 'launch' | 'growth' | 'saturation' | 'decline' || 'launch',
+      phasePercentage: 0,
+      newSellersRate: 0,
+      listingGrowthRate: 0,
+      saturationProbability: dbAnalysis.saturation_probability || 0,
+      estimatedSaturationDate: undefined,
+      declineRisk: 'low' as const,
+      seasonality: {
+        isSeasonalProduct: false,
+        peakMonths: [],
+        lowMonths: [],
+        currentSeasonImpact: 'neutral' as const,
+      },
+    },
+    launchSimulation: dbAnalysis.launch_simulation || {
+      timeToFirstSale: {
+        withoutAds: { min: 7, max: 14, expected: 10 },
+        withAds: { min: 1, max: 3, expected: 2 },
+      },
+      threeMonthProjection: {
+        conservative: { estimatedSales: 0, estimatedRevenue: 0, estimatedProfit: 0, marginPercentage: 0 },
+        realistic: { estimatedSales: 0, estimatedRevenue: 0, estimatedProfit: 0, marginPercentage: 0 },
+        optimistic: { estimatedSales: 0, estimatedRevenue: 0, estimatedProfit: 0, marginPercentage: 0 },
+      },
+      successProbability: 50,
+      keyFactors: [],
     },
     marketing: {
       angles: dbAnalysis.marketing_angles || [],
@@ -201,14 +252,12 @@ function transformAnalysisFromDb(dbAnalysis: any): ProductAnalysis {
       strategic: dbAnalysis.strategic_marketing,
       acquisition: dbAnalysis.acquisition_marketing,
     },
-    seo: {
-      viralTitleEN: dbAnalysis.viral_title_en,
-      viralTitleFR: dbAnalysis.viral_title_fr,
-      seoTags: dbAnalysis.seo_tags || [],
-    },
-    launchSimulation: dbAnalysis.launch_simulation,
-    etsySearchQuery: dbAnalysis.etsy_search_query,
-  } as ProductAnalysis;
+    analyzedAt: new Date(dbAnalysis.created_at || Date.now()),
+    analysisVersion: '1.0',
+    dataSource: 'real' as const,
+  };
+  
+  return reconstructed;
 }
 
 function transformProductFromDb(dbProduct: any) {

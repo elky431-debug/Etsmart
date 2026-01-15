@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { Stepper } from '@/components/layout/Stepper';
@@ -9,9 +11,33 @@ import { ProductImport } from '@/components/steps/ProductImport';
 import { AnalysisStep } from '@/components/steps/AnalysisStep';
 import { ResultsStep } from '@/components/steps/ResultsStep';
 import { useStore } from '@/store/useStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AppPage() {
   const { currentStep } = useStore();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d4ff]"></div>
+          <p className="mt-4 text-slate-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect
+  }
 
   if (currentStep === 4) {
     return <ResultsStep />;

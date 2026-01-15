@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   ArrowRight, 
   Check, 
@@ -27,6 +28,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
@@ -176,15 +178,28 @@ export default function HomePage() {
 
               {/* CTA */}
               <div className="flex items-center gap-4">
-                <Link href="/login" className="hidden sm:block text-slate-600 hover:text-slate-900 transition-colors">
-                  Connexion
-                </Link>
-                <Link href="/app">
-                  <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                    Démarrer
-                    <ArrowRight size={16} />
-                  </button>
-                </Link>
+                {!loading && user ? (
+                  // Utilisateur connecté - afficher seulement Dashboard
+                  <Link href="/dashboard">
+                    <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
+                      <span className="text-white">Dashboard</span>
+                      <ArrowRight size={16} className="text-white" />
+                    </button>
+                  </Link>
+                ) : (
+                  // Utilisateur non connecté - afficher Connexion et Créer un compte
+                  <>
+                    <Link href="/login" className="hidden sm:block text-slate-600 hover:text-slate-900 transition-colors">
+                      Connexion
+                    </Link>
+                    <Link href="/register">
+                      <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
+                        <span className="text-white">Créer un compte</span>
+                        <ArrowRight size={16} className="text-white" />
+                      </button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -564,9 +579,9 @@ export default function HomePage() {
               prendre de meilleures décisions et maximiser leurs profits.
             </p>
             <Link href="/app">
-              <button className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
+              <button className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
                 Commencer gratuitement
-                <ArrowUpRight size={20} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight size={20} className="text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
             </Link>
             <p className="mt-6 text-white/60 text-sm flex items-center justify-center gap-2">

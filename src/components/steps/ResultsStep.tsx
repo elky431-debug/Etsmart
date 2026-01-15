@@ -349,10 +349,13 @@ function VerdictBadge({ verdict, competitors }: { verdict: string; competitors?:
   );
 }
 
-function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
+export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
   const [activeTab, setActiveTab] = useState<MainTab>('analyse');
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
+  const [etsyDescription, setEtsyDescription] = useState<string | null>(null);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [copiedDescription, setCopiedDescription] = useState(false);
   
   // Priorité au prix renseigné par l'utilisateur, sinon estimation IA
   const userSupplierPrice = analysis.product.price > 0 ? analysis.product.price : (analysis.verdict.estimatedSupplierPrice ?? 0);
@@ -429,14 +432,56 @@ function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
     };
   }, [sellingPrice, shippingCost, supplierPrice, analysis.launchSimulation.threeMonthProjection]);
 
-  const copyToClipboard = (text: string, type: 'title' | 'tags') => {
-    navigator.clipboard.writeText(text);
-    if (type === 'title') {
-      setCopiedTitle(true);
-      setTimeout(() => setCopiedTitle(false), 2000);
-    } else {
-      setCopiedTags(true);
-      setTimeout(() => setCopiedTags(false), 2000);
+  const copyToClipboard = async (text: string, type: 'title' | 'tags' | 'description') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === 'title') {
+        setCopiedTitle(true);
+        setTimeout(() => setCopiedTitle(false), 2000);
+      } else if (type === 'tags') {
+        setCopiedTags(true);
+        setTimeout(() => setCopiedTags(false), 2000);
+      } else {
+        setCopiedDescription(true);
+        setTimeout(() => setCopiedDescription(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const generateEtsyDescription = async () => {
+    if (etsyDescription) return; // Already generated
+    
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/generate-etsy-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productVisualDescription: analysis.verdict.productVisualDescription || analysis.product.title,
+          niche: analysis.niche,
+          positioning: analysis.marketing?.strategic?.positioning?.mainPositioning,
+          psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
+          buyerMirror: undefined, // buyerMirror not available in current structure
+          recommendedPrice: analysis.pricing.recommendedPrice,
+          strengths: analysis.verdict.strengths,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate description');
+      }
+
+      const data = await response.json();
+      setEtsyDescription(data.description);
+    } catch (error) {
+      console.error('Error generating description:', error);
+      alert('Erreur lors de la génération de la description. Veuillez réessayer.');
+    } finally {
+      setIsGeneratingDescription(false);
     }
   };
 
@@ -854,6 +899,74 @@ function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
                   </div>
                 )}
 
+                {/* DESCRIPTION ETSY */}
+                {analysis.verdict.verdict !== 'avoid' && (
+                  <div className="p-5 rounded-xl bg-white border border-slate-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+                          <FileText size={20} className="text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Description Etsy</h3>
+                          <p className="text-xs text-slate-500">Description optimisée pour Etsy (en anglais)</p>
+                        </div>
+                      </div>
+                      {etsyDescription && (
+                        <button
+                          onClick={() => copyToClipboard(etsyDescription, 'description')}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            copiedDescription 
+                              ? 'bg-emerald-500 text-white' 
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
+                          {copiedDescription ? 'Copié' : 'Copier'}
+                        </button>
+                      )}
+                    </div>
+
+                    {!etsyDescription ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-slate-600 mb-4">
+                          Cette description est générée par l&apos;IA à partir de l&apos;analyse du produit et des comportements d&apos;achat sur Etsy.
+                        </p>
+                        <button
+                          onClick={generateEtsyDescription}
+                          disabled={isGeneratingDescription}
+                          className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isGeneratingDescription ? (
+                            <span className="flex items-center gap-2">
+                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              Génération en cours...
+                            </span>
+                          ) : (
+                            'Générer la description'
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-sm text-slate-600 mb-2">
+                            Vous pouvez la copier et l&apos;utiliser directement dans votre fiche produit.
+                          </p>
+                          <div className="p-4 bg-white rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
+                            <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                              {etsyDescription}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {analysis.verdict.seoTags && analysis.verdict.seoTags.length > 0 && (
                   <div className="p-5 rounded-xl bg-white border border-slate-200">
                     <div className="flex items-center justify-between mb-4">
@@ -912,25 +1025,6 @@ function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
                     ))}
                   </div>
                 </div>
-
-                {analysis.verdict.launchTips && analysis.verdict.launchTips.length > 0 && (
-                  <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Lightbulb size={20} className="text-amber-500" />
-                      <h3 className="text-base font-bold text-slate-900">Conseils de lancement</h3>
-                    </div>
-                    <div className="space-y-2">
-                      {analysis.verdict.launchTips.map((tip, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-white border border-amber-200">
-                          <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">
-                            {i + 1}
-                          </div>
-                          <p className="text-sm text-slate-700">{tip}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* PROMPT CRÉATIF POUR IMAGES PUBLICITAIRES */}
                 <CreativePromptGenerator 

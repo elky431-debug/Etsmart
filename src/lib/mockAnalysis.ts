@@ -719,90 +719,107 @@ const fetchAIAnalysis = async (
   // ═══════════════════════════════════════════════════════════════════════════
   
   if (!response.ok) {
-    console.error('❌ API Error:', response.status, data);
+    // Gestion des erreurs HTTP
+    if (response.status === 503) {
+      throw new AnalysisBlockedError(
+        'Service temporairement indisponible',
+        'Le service d\'analyse est temporairement indisponible (503).',
+        'Veuillez réessayer dans quelques instants. Si le problème persiste, vérifiez que le serveur est en cours d\'exécution.'
+      );
+    }
+    
+    if (response.status === 500) {
+      throw new AnalysisBlockedError(
+        'Erreur serveur',
+        'Une erreur interne s\'est produite sur le serveur (500).',
+        'Veuillez réessayer plus tard ou contacter le support si le problème persiste.'
+      );
+    }
+    
+    if (response.status === 429) {
+      throw new AnalysisBlockedError(
+        'Trop de requêtes',
+        'Vous avez effectué trop de requêtes (429).',
+        'Veuillez patienter quelques instants avant de réessayer.'
+      );
+    }
+    
+    // Tenter de parser la réponse JSON si possible
+    let errorData: any = {};
+    try {
+      if (data && typeof data === 'object') {
+        errorData = data;
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+    
+    console.error('❌ API Error:', response.status, errorData);
     
     // Erreur OpenAI spécifique
-    if (data.error === 'OPENAI_ERROR' || data.error === 'INVALID_API_KEY' || data.error === 'QUOTA_EXCEEDED' || data.error === 'MODEL_NOT_AVAILABLE' || data.error === 'BAD_REQUEST') {
+    if (errorData.error === 'OPENAI_ERROR' || errorData.error === 'INVALID_API_KEY' || errorData.error === 'QUOTA_EXCEEDED' || errorData.error === 'MODEL_NOT_AVAILABLE' || errorData.error === 'BAD_REQUEST') {
       throw new AnalysisBlockedError(
         'Erreur API OpenAI',
-        data.message || 'L\'API OpenAI a retourné une erreur.',
-        data.details?.message || 'Vérifiez votre clé API et vos crédits OpenAI.'
+        errorData.message || 'L\'API OpenAI a retourné une erreur.',
+        errorData.details?.message || 'Vérifiez votre clé API et vos crédits OpenAI.'
       );
     }
     
     // Erreur spécifique: champs manquants
-    if (data.error === 'MISSING_FIELDS') {
+    if (errorData.error === 'MISSING_FIELDS') {
       throw new AnalysisBlockedError(
         'Données manquantes',
-        data.message || 'Prix ou niche non définis.',
+        errorData.message || 'Prix ou niche non définis.',
         'Vérifiez que le produit a un prix et qu\'une niche est sélectionnée.'
       );
     }
     
     // Erreur spécifique: produit non identifiable
-    if (data.error === 'PRODUCT_NOT_IDENTIFIABLE') {
+    if (errorData.error === 'PRODUCT_NOT_IDENTIFIABLE') {
       throw new AnalysisBlockedError(
         'Produit non identifiable',
-        data.reason || 'L\'IA ne peut pas identifier clairement le produit dans l\'image.',
-        data.suggestion || 'Veuillez fournir une image plus claire du produit.'
+        errorData.reason || 'L\'IA ne peut pas identifier clairement le produit dans l\'image.',
+        errorData.suggestion || 'Veuillez fournir une image plus claire du produit.'
       );
     }
     
     // Erreur spécifique: pas de requête Etsy générée
-    if (data.error === 'NO_ETSY_QUERY') {
+    if (errorData.error === 'NO_ETSY_QUERY') {
       throw new AnalysisBlockedError(
         'Impossible de générer une recherche Etsy',
-        data.productDescription || 'L\'IA n\'a pas pu générer une requête Etsy fiable.',
-        data.suggestion || 'Veuillez fournir une image plus claire du produit.'
+        errorData.productDescription || 'L\'IA n\'a pas pu générer une requête Etsy fiable.',
+        errorData.suggestion || 'Veuillez fournir une image plus claire du produit.'
       );
     }
     
     // Erreur spécifique: image requise
-    if (data.error === 'IMAGE_REQUIRED') {
+    if (errorData.error === 'IMAGE_REQUIRED') {
       throw new AnalysisBlockedError(
         'Image obligatoire',
-        data.message || 'Une image du produit est requise.',
+        errorData.message || 'Une image du produit est requise.',
         'Importez un produit avec une image valide.'
       );
     }
     
-    // Erreur OpenAI
-    if (data.error === 'OPENAI_ERROR' || data.error === 'OPENAI_API_KEY_MISSING') {
-      const details = data.details ? JSON.stringify(data.details) : '';
+    // Erreur OpenAI (fallback si pas déjà gérée)
+    if (errorData.error === 'OPENAI_ERROR' || errorData.error === 'OPENAI_API_KEY_MISSING') {
+      const details = errorData.details ? JSON.stringify(errorData.details) : '';
       throw new AnalysisBlockedError(
         'Erreur OpenAI',
-        `${data.message || 'L\'API OpenAI a retourné une erreur.'} ${details ? `(${details.substring(0, 100)})` : ''}`,
-        data.httpStatus === 401 
+        `${errorData.message || 'L\'API OpenAI a retourné une erreur.'} ${details ? `(${details.substring(0, 100)})` : ''}`,
+        errorData.httpStatus === 401 
           ? 'Votre clé API est invalide. Créez-en une nouvelle sur platform.openai.com'
-          : data.httpStatus === 403
+          : errorData.httpStatus === 403
           ? 'Votre compte OpenAI n\'a pas accès à GPT-4o. Vérifiez vos crédits.'
           : 'Vérifiez votre clé API et vos crédits OpenAI.'
       );
     }
     
-    // Réponse vide ou inattendue
-    if (!data || Object.keys(data).length === 0) {
-      throw new AnalysisBlockedError(
-        'Réponse API vide',
-        `L'API a retourné une réponse vide (status: ${response.status})`,
-        'Vérifiez que votre clé OpenAI est valide et a accès à GPT-4o Vision.'
-      );
-    }
-    
-    // Erreur 500 - Erreur serveur
-    if (response.status === 500) {
-      throw new AnalysisBlockedError(
-        'Erreur serveur',
-        data.message || `Erreur interne du serveur (${response.status})`,
-        'Vérifiez que votre clé OpenAI est configurée et que le serveur fonctionne correctement.'
-      );
-    }
-    
-    // Autre erreur API
+    // Erreur générique pour les autres codes HTTP (fallback final)
     throw new AnalysisBlockedError(
-      'Erreur d\'analyse IA',
-      data?.message || `Erreur API: ${response.status}`,
-      'Réessayez ou vérifiez votre connexion internet.'
+      `Erreur HTTP ${response.status}`,
+      `Le serveur a retourné une erreur ${response.status}.`,
+      errorData.message || errorData.error || 'Veuillez réessayer plus tard ou contacter le support si le problème persiste.'
     );
   }
   

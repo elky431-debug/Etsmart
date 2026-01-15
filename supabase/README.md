@@ -26,13 +26,38 @@
 3. Copiez tout le contenu et exécutez-le dans l'éditeur SQL
 4. Vérifiez que toutes les tables ont été créées dans **Table Editor**
 
-## 4. Configurer l'authentification (optionnel)
+## 4. Configurer l'authentification
 
-Si vous voulez utiliser l'authentification Supabase :
+### 4.1 Authentification Email (déjà activée par défaut)
 
-1. Allez dans **Authentication > Providers**
-2. Activez les providers que vous souhaitez (Email, Google, etc.)
-3. Configurez les URLs de redirection dans **Authentication > URL Configuration**
+L'authentification par email est déjà configurée et fonctionnelle.
+
+### 4.2 Configurer Google OAuth
+
+Pour activer la connexion avec Google :
+
+1. Allez dans **Authentication > Providers** dans votre projet Supabase
+2. Activez le provider **Google**
+3. Vous devez créer un projet Google Cloud :
+   - Allez sur [Google Cloud Console](https://console.cloud.google.com/)
+   - Créez un nouveau projet ou sélectionnez-en un existant
+   - Allez dans **APIs & Services > Credentials**
+   - Cliquez sur **Create Credentials > OAuth client ID**
+   - Type d'application : **Web application**
+   - **Authorized redirect URIs** : Ajoutez l'URL suivante :
+     ```
+     https://[VOTRE-PROJECT-REF].supabase.co/auth/v1/callback
+     ```
+     (Remplacez `[VOTRE-PROJECT-REF]` par votre référence de projet Supabase)
+   - Copiez le **Client ID** et le **Client Secret**
+4. Retournez dans Supabase et collez ces valeurs dans les champs correspondants
+5. Sauvegardez
+
+### 4.3 URLs de redirection
+
+Dans **Authentication > URL Configuration**, ajoutez ces URLs autorisées :
+- `http://localhost:3000/auth/callback` (pour le développement)
+- `https://votre-domaine.com/auth/callback` (pour la production)
 
 ## 5. Vérifier la configuration
 
@@ -64,4 +89,5 @@ const products = await productDb.getProducts(userId);
 - Les utilisateurs ne peuvent accéder qu'à leurs propres données
 - Les timestamps `created_at` et `updated_at` sont automatiquement gérés
 - Le schéma utilise UUID pour tous les IDs
+
 

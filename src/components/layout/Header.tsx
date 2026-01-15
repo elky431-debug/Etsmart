@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { RotateCcw, Home, Cpu } from 'lucide-react';
+import { RotateCcw, Home, Cpu, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Logo } from '@/components/ui/Logo';
 import { useStore } from '@/store/useStore';
@@ -37,6 +37,17 @@ export function Header() {
                   className="text-xs"
                 >
                   Accueil
+                </Button>
+              </Link>
+              
+              <Link href="/dashboard">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<LayoutDashboard size={14} />}
+                  className="text-xs"
+                >
+                  Dashboard
                 </Button>
               </Link>
             </motion.div>

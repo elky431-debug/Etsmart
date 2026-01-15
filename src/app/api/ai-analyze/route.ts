@@ -564,40 +564,69 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
   "warningIfAny": "Avertissement ou null"
 }`;
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tu es un expert en analyse de produits e-commerce et estimation de prix. Tu réponds UNIQUEMENT en JSON valide.'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: productImageUrl,
-                  detail: 'high'
+    let openaiResponse: Response;
+    try {
+      openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un expert en analyse de produits e-commerce et estimation de prix. Tu réponds UNIQUEMENT en JSON valide.'
+            },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: productImageUrl,
+                    detail: 'high'
+                  }
+                },
+                {
+                  type: 'text',
+                  text: prompt
                 }
-              },
-              {
-                type: 'text',
-                text: prompt
-              }
-            ]
-          }
-        ],
-        temperature: 0.5,
-        max_tokens: 2500,
-      }),
-    });
+              ]
+            }
+          ],
+          temperature: 0.5,
+          max_tokens: 2500,
+        }),
+        signal: AbortSignal.timeout(60000), // 60 secondes timeout
+      });
+    } catch (fetchError: any) {
+      // Gestion des erreurs de réseau/timeout
+      if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+        return NextResponse.json({
+          success: false,
+          error: 'TIMEOUT',
+          message: 'La requête a expiré (timeout). Le service OpenAI est peut-être surchargé.',
+        }, { status: 503 });
+      }
+      
+      if (fetchError.message?.includes('fetch failed') || fetchError.message?.includes('network')) {
+        return NextResponse.json({
+          success: false,
+          error: 'NETWORK_ERROR',
+          message: 'Erreur de connexion au service OpenAI. Vérifiez votre connexion internet.',
+        }, { status: 503 });
+      }
+      
+      // Autre erreur de fetch
+      return NextResponse.json({
+        success: false,
+        error: 'FETCH_ERROR',
+        message: 'Impossible de contacter le service OpenAI.',
+        details: fetchError.message,
+      }, { status: 503 });
+    }
 
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({ error: 'parse_failed' }));
