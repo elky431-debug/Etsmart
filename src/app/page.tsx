@@ -44,62 +44,62 @@ export default function HomePage() {
   const features = [
     {
       icon: Cpu,
-      title: 'Analyse IA avancée',
-      description: 'Notre IA analyse en profondeur le marché Etsy et prédit le potentiel de vos produits.',
+      title: 'Advanced AI Analysis',
+      description: 'Our AI deeply analyzes the Etsy market and predicts your products\' potential.',
     },
     {
       icon: LineChart,
-      title: 'Simulation réaliste',
-      description: 'Simulez vos ventes avec des projections prudentes, réalistes et optimistes.',
+      title: 'Realistic Simulation',
+      description: 'Simulate your sales with conservative, realistic, and optimistic projections.',
     },
     {
       icon: Target,
-      title: 'Prix optimal',
-      description: 'Recevez des recommandations de prix basées sur la concurrence et vos marges.',
+      title: 'Optimal Pricing',
+      description: 'Receive pricing recommendations based on competition and your margins.',
     },
     {
       icon: Shield,
-      title: 'Détection des risques',
-      description: 'Identifiez les marchés saturés et évitez les erreurs coûteuses avant de lancer.',
+      title: 'Risk Detection',
+      description: 'Identify saturated markets and avoid costly mistakes before launching.',
     },
     {
       icon: ShoppingBag,
-      title: 'Analyse concurrents',
-      description: 'Découvrez qui domine votre niche et comment vous différencier efficacement.',
+      title: 'Competitor Analysis',
+      description: 'Discover who dominates your niche and how to differentiate effectively.',
     },
     {
       icon: Sparkles,
-      title: 'Verdict intelligent',
-      description: 'Un verdict clair et actionnable : Lancer, Marché concurrentiel, ou Éviter.',
+      title: 'Intelligent Verdict',
+      description: 'A clear and actionable verdict: Launch, Competitive Market, or Avoid.',
     },
   ];
 
   const stats = [
-    { value: '10K+', label: 'Produits analysés' },
-    { value: '2.5K+', label: 'Vendeurs actifs' },
-    { value: '95%', label: 'Précision IA' },
-    { value: '24/7', label: 'Disponibilité' },
+    { value: '10K+', label: 'Products analyzed' },
+    { value: '2.5K+', label: 'Active sellers' },
+    { value: '95%', label: 'AI accuracy' },
+    { value: '24/7', label: 'Availability' },
   ];
 
   const testimonials = [
     {
       name: 'Marie Laurent',
-      role: 'Vendeuse Etsy Pro',
-      content: 'Etsmart m\'a évité de lancer 3 produits qui auraient été des échecs. L\'analyse IA est bluffante de précision.',
+      role: 'Etsy Pro Seller',
+      content: 'Etsmart saved me from launching 3 products that would have been failures. The AI analysis is impressively accurate.',
       avatar: 'M',
       rating: 5,
     },
     {
       name: 'Thomas Dubois',
       role: 'Dropshipper',
-      content: 'Le verdict Lancer/Éviter me fait gagner des heures de recherche. Indispensable pour tout vendeur sérieux.',
+      content: 'The Launch/Avoid verdict saves me hours of research. Essential for any serious seller.',
       avatar: 'T',
       rating: 5,
     },
     {
       name: 'Sophie Martin',
-      role: 'Créatrice POD',
-      content: 'Les recommandations de prix sont spot-on. J\'ai augmenté mes marges de 40% grâce à Etsmart.',
+      role: 'POD Creator',
+      content: 'The pricing recommendations are spot-on. I increased my margins by 40% thanks to Etsmart.',
       avatar: 'S',
       rating: 5,
     },
@@ -108,29 +108,29 @@ export default function HomePage() {
   const plans = [
     {
       name: 'Starter',
-      price: '0€',
-      period: 'gratuit',
-      description: 'Pour découvrir la puissance d\'Etsmart',
-      features: ['3 analyses / mois', 'Analyse IA basique', 'Verdict simplifié', 'Support communauté'],
-      cta: 'Commencer',
+      price: '$0',
+      period: 'free',
+      description: 'To discover the power of Etsmart',
+      features: ['3 analyses / month', 'Basic AI analysis', 'Simplified verdict', 'Community support'],
+      cta: 'Get started',
       popular: false,
     },
     {
       name: 'Pro',
-      price: '29€',
-      period: '/mois',
-      description: 'Pour les vendeurs qui veulent dominer',
-      features: ['Analyses illimitées', 'IA avancée GPT-4', 'Simulation complète', 'Titres SEO viraux', 'Support prioritaire'],
-      cta: 'Essayer 7 jours',
+      price: '$29',
+      period: '/month',
+      description: 'For sellers who want to dominate',
+      features: ['Unlimited analyses', 'Advanced GPT-4 AI', 'Complete simulation', 'Viral SEO titles', 'Priority support'],
+      cta: 'Try 7 days',
       popular: true,
     },
     {
       name: 'Agency',
-      price: '79€',
-      period: '/mois',
-      description: 'Pour les équipes et agences',
-      features: ['Tout dans Pro', 'Multi-boutiques', 'API access', 'Export rapports', 'Account manager dédié'],
-      cta: 'Nous contacter',
+      price: '$79',
+      period: '/month',
+      description: 'For teams and agencies',
+      features: ['Everything in Pro', 'Multi-shops', 'API access', 'Report export', 'Dedicated account manager'],
+      cta: 'Contact us',
       popular: false,
     },
   ];
@@ -163,16 +163,16 @@ export default function HomePage() {
               {/* Navigation */}
               <nav className="hidden md:flex items-center gap-8">
                 <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Fonctionnalités
+                  Features
                 </a>
                 <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Tarifs
+                  Pricing
                 </a>
                 <a href="#testimonials" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Témoignages
+                  Testimonials
                 </a>
                 <Link href="/about" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  À propos
+                  About
                 </Link>
               </nav>
 
@@ -187,14 +187,14 @@ export default function HomePage() {
                     </button>
                   </Link>
                 ) : (
-                  // Utilisateur non connecté - afficher Connexion et Créer un compte
+                  // User not logged in - show Login and Create account
                   <>
                     <Link href="/login" className="hidden sm:block text-slate-600 hover:text-slate-900 transition-colors">
-                      Connexion
+                      Login
                     </Link>
                     <Link href="/register">
                       <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                        <span className="text-white">Créer un compte</span>
+                        <span className="text-white">Create account</span>
                         <ArrowRight size={16} className="text-white" />
                       </button>
                     </Link>
@@ -222,7 +222,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-8"
             >
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Propulsé par l&apos;IA • GPT-4</span>
+              <span className="text-sm text-slate-700">Powered by AI • GPT-4</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </motion.div>
 
@@ -233,9 +233,9 @@ export default function HomePage() {
               transition={{ delay: 0.1, duration: 0.6 }}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-8"
             >
-              <span className="text-slate-900">Lancez des produits</span>
+              <span className="text-slate-900">Launch profitable products</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">rentables sur Etsy</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">on Etsy</span>
             </motion.h1>
 
             {/* Subheadline */}
@@ -245,10 +245,10 @@ export default function HomePage() {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed"
             >
-              Notre IA analyse vos produits AliExpress et vous révèle{' '}
-              <span className="text-slate-900 font-medium">leur potentiel réel</span> sur Etsy.
+              Our AI analyzes your AliExpress products and reveals{' '}
+              <span className="text-slate-900 font-medium">their real potential</span> on Etsy.
               <br className="hidden sm:block" />
-              Fini les échecs coûteux, lancez en toute confiance.
+              No more costly failures, launch with confidence.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -261,13 +261,13 @@ export default function HomePage() {
               <Link href="/app">
                 <button className="group flex items-center gap-3 px-8 py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all">
                   <Play size={18} className="fill-white" />
-                  Analyser mon produit
+                  Analyze my product
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
               <a href="#features">
                 <button className="flex items-center gap-2 px-8 py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all">
-                  Découvrir les fonctionnalités
+                  Discover features
                   <ChevronRight size={18} />
                 </button>
               </a>
@@ -314,15 +314,15 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-20"
           >
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Fonctionnalités</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Features</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Tout ce qu&apos;il faut pour</span>
+              <span className="text-slate-900">Everything you need to</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominer sur Etsy</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominate on Etsy</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-              Une suite complète d&apos;outils IA pour analyser, simuler et optimiser 
-              vos lancements de produits.
+              A complete suite of AI tools to analyze, simulate and optimize 
+              your product launches.
             </p>
           </motion.div>
 
@@ -358,10 +358,10 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-20"
           >
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Comment ça marche</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">How it works</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Analysez en</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 étapes</span>
+              <span className="text-slate-900">Analyze in</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 steps</span>
             </h2>
           </motion.div>
 
@@ -370,20 +370,20 @@ export default function HomePage() {
               {
                 step: '01',
                 icon: ShoppingBag,
-                title: 'Choisissez votre niche',
-                description: 'Sélectionnez parmi nos niches populaires ou entrez la vôtre.',
+                title: 'Choose your niche',
+                description: 'Select from our popular niches or enter your own.',
               },
               {
                 step: '02',
                 icon: Globe,
-                title: 'Ajoutez vos produits',
-                description: 'Collez le lien AliExpress ou entrez les détails de votre produit.',
+                title: 'Add your products',
+                description: 'Paste the AliExpress link or enter your product details.',
               },
               {
                 step: '03',
                 icon: Sparkles,
-                title: 'Recevez votre verdict',
-                description: 'Notre IA analyse et vous donne un verdict clair et actionnable.',
+                title: 'Get your verdict',
+                description: 'Our AI analyzes and gives you a clear and actionable verdict.',
               },
             ].map((item, index) => (
               <motion.div
@@ -426,7 +426,7 @@ export default function HomePage() {
           >
             <Link href="/app">
               <button className="inline-flex items-center gap-2 px-8 py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
-                Commencer maintenant
+                Get started now
                 <ArrowRight size={18} />
               </button>
             </Link>
@@ -443,13 +443,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-20"
           >
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Tarifs</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pricing</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Des prix</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">transparents</span>
+              <span className="text-slate-900">Transparent</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">pricing</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-              Commencez gratuitement, évoluez quand vous êtes prêt.
+              Start for free, upgrade when you're ready.
             </p>
           </motion.div>
 
@@ -470,7 +470,7 @@ export default function HomePage() {
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="px-4 py-1.5 bg-[#00d4ff] text-white text-sm font-semibold rounded-full shadow-lg">
-                      Le plus populaire
+                      Most popular
                     </span>
                   </div>
                 )}
@@ -520,10 +520,10 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-20"
           >
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Témoignages</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Testimonials</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Ils nous font</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">confiance</span>
+              <span className="text-slate-900">They trust</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">us</span>
             </h2>
           </motion.div>
 
@@ -570,23 +570,23 @@ export default function HomePage() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 text-white">
-              Prêt à lancer votre
+              Ready to launch your
               <br />
-              prochain succès ?
+              next success?
             </h2>
             <p className="text-white/80 text-lg mb-12 max-w-2xl mx-auto">
-              Rejoignez des milliers de vendeurs qui utilisent Etsmart pour 
-              prendre de meilleures décisions et maximiser leurs profits.
+              Join thousands of sellers using Etsmart to 
+              make better decisions and maximize their profits.
             </p>
             <Link href="/app">
               <button className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
-                Commencer gratuitement
+                Start for free
                 <ArrowUpRight size={20} className="text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
             </Link>
             <p className="mt-6 text-white/60 text-sm flex items-center justify-center gap-2">
               <Lock size={14} />
-              Aucune carte bancaire requise
+              No credit card required
             </p>
           </motion.div>
         </div>
@@ -606,13 +606,13 @@ export default function HomePage() {
             </Link>
             
             <div className="flex items-center gap-8 text-sm text-slate-500">
-              <a href="#" className="hover:text-slate-900 transition-colors">Mentions légales</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Confidentialité</a>
+              <a href="#" className="hover:text-slate-900 transition-colors">Legal</a>
+              <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
               <a href="#" className="hover:text-slate-900 transition-colors">Contact</a>
             </div>
             
             <p className="text-sm text-slate-400">
-              © 2026 Etsmart. Tous droits réservés.
+              © 2026 Etsmart. All rights reserved.
             </p>
           </div>
         </div>

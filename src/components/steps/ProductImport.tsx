@@ -59,11 +59,11 @@ export function ProductImport() {
         addProduct(product);
         setUrl('');
       } else {
-        setError('Impossible de charger ce produit automatiquement');
+        setError('Unable to load this product automatically');
         setShowManualEntry(true);
       }
     } catch {
-      setError('Erreur lors du chargement');
+      setError('Error loading product');
       setShowManualEntry(true);
     } finally {
       setIsLoading(false);
@@ -126,7 +126,7 @@ export function ProductImport() {
             className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-8"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 2 SUR 3</span>
+            <span className="text-sm font-bold text-[#00d4ff]">STEP 2 OF 3</span>
             {currentNiche && (
               <>
                 <span className="text-slate-300">•</span>
@@ -142,10 +142,10 @@ export function ProductImport() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <span className="text-slate-900">Importez</span>
+            <span className="text-slate-900">Import</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-              vos produits
+              your products
             </span>
           </motion.h1>
           
@@ -155,7 +155,7 @@ export function ProductImport() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Collez les liens AliExpress ou Alibaba pour analyser leur potentiel sur Etsy
+            Paste AliExpress or Alibaba links to analyze their potential on Etsy
           </motion.p>
         </motion.div>
 
@@ -206,7 +206,7 @@ export function ProductImport() {
                   {isLoading ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Chargement...
+                      Loading...
                     </>
                   ) : (
                     <>
@@ -236,7 +236,7 @@ export function ProductImport() {
                       onClick={() => setShowManualEntry(true)}
                       className="text-xs text-red-600 hover:text-red-700 underline font-medium"
                     >
-                      Ajouter manuellement
+                      Add manually
                     </button>
                   </div>
                 </div>
@@ -251,7 +251,7 @@ export function ProductImport() {
               className="flex items-center gap-2 text-sm text-slate-500 hover:text-[#00d4ff] transition-colors font-medium"
             >
               <Edit3 size={16} />
-              Ou ajouter un produit manuellement
+              Or add a product manually
             </button>
           </div>
         </motion.div>
@@ -265,10 +265,10 @@ export function ProductImport() {
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-900">
-              Produits à analyser
+              Products to analyze
             </h2>
             <span className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-2 border-[#00d4ff]/20 text-[#00d4ff] font-bold text-sm shadow-sm">
-              {products.length} produit{products.length !== 1 ? 's' : ''}
+              {products.length} product{products.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -281,7 +281,7 @@ export function ProductImport() {
               >
                 <Package className="w-12 h-12 text-[#00d4ff]" />
               </motion.div>
-              <p className="text-lg font-bold text-slate-700 mb-2">Aucun produit ajouté</p>
+              <p className="text-lg font-bold text-slate-700 mb-2">No products added</p>
               <p className="text-sm text-slate-500">Collez un lien AliExpress ci-dessus pour commencer</p>
             </div>
           ) : (
@@ -336,7 +336,7 @@ export function ProductImport() {
                             <div className="flex flex-col gap-2">
                               <button
                                 onClick={() => {
-                                  const newPrice = prompt('Entrez le prix du produit (USD):', '');
+                                  const newPrice = prompt('Enter the product price (USD):', '');
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
                                     const updatedProduct = { ...product, price: parseFloat(newPrice) };
                                     removeProduct(product.id);
@@ -348,9 +348,9 @@ export function ProductImport() {
                                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors font-semibold text-sm"
                               >
                                 <AlertCircle size={16} />
-                                Prix requis - Cliquez pour ajouter
+                                Price required - Click to add
                               </button>
-                              <p className="text-xs text-amber-600">Le prix est obligatoire pour continuer</p>
+                              <p className="text-xs text-amber-600">Price is required to continue</p>
                             </div>
                           ) : (
                             <div className="flex items-center gap-3">
@@ -359,7 +359,7 @@ export function ProductImport() {
                               </span>
                               <button
                                 onClick={() => {
-                                  const newPrice = prompt('Modifier le prix du produit (USD):', product.price.toString());
+                                  const newPrice = prompt('Edit product price (USD):', product.price.toString());
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
                                     const updatedProduct = { ...product, price: parseFloat(newPrice) };
                                     removeProduct(product.id);
@@ -369,7 +369,7 @@ export function ProductImport() {
                                   }
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-lg transition-all"
-                                title="Modifier le prix"
+                                title="Edit price"
                               >
                                 <Edit3 size={14} />
                               </button>
@@ -431,7 +431,7 @@ export function ProductImport() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium"
               >
                 <AlertCircle size={16} />
-                Tous les produits doivent avoir un prix renseigné
+                All products must have a price entered
               </motion.div>
             )}
             <motion.button
@@ -453,7 +453,7 @@ export function ProductImport() {
                 />
               )}
               <span className="relative z-10 flex items-center gap-3">
-                Analyser {products.length > 0 && `(${products.length})`}
+                Analyze {products.length > 0 && `(${products.length})`}
                 <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
               </span>
             </motion.button>
@@ -490,10 +490,10 @@ export function ProductImport() {
               
               <div className="p-8 space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Titre du produit</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-3">Product title</label>
                   <input
                     type="text"
-                    placeholder="Nom du produit..."
+                    placeholder="Product name..."
                     value={manualProduct.title}
                     onChange={(e) => setManualProduct({ ...manualProduct, title: e.target.value })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 focus:outline-none transition-all text-lg"
@@ -501,7 +501,7 @@ export function ProductImport() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Prix (USD)</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-3">Price (USD)</label>
                   <div className="relative">
                     <DollarSign size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input

@@ -33,7 +33,7 @@ export default function RegisterPage() {
       // Redirect to dashboard is handled by AuthContext
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de la création du compte');
+      setError(err.message || 'An error occurred while creating the account');
       setIsLoading(false);
     }
   };
@@ -42,7 +42,7 @@ export default function RegisterPage() {
     try {
       await signInWithGoogle();
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue avec la connexion Google');
+      setError(err.message || 'An error occurred with Google sign-in');
     }
   };
 
@@ -81,10 +81,10 @@ export default function RegisterPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Créer un compte
+              Create an account
             </h1>
             <p className="text-slate-600">
-              Commencez à analyser vos produits gratuitement
+              Start analyzing your products for free
             </p>
           </div>
 
@@ -97,7 +97,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Nom complet</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Full name</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <User size={18} />
@@ -131,7 +131,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Mot de passe</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <Lock size={18} />
@@ -157,9 +157,9 @@ export default function RegisterPage() {
               {password && (
                 <div className="mt-3 space-y-2">
                   {[
-                    { check: passwordStrength.length, text: 'Au moins 8 caractères' },
-                    { check: passwordStrength.uppercase, text: 'Une majuscule' },
-                    { check: passwordStrength.number, text: 'Un chiffre' },
+                    { check: passwordStrength.length, text: 'At least 8 characters' },
+                    { check: passwordStrength.uppercase, text: 'One uppercase letter' },
+                    { check: passwordStrength.number, text: 'One number' },
                   ].map((item) => (
                     <div key={item.text} className="flex items-center gap-2 text-sm">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
@@ -183,10 +183,10 @@ export default function RegisterPage() {
                 required
               />
               <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">
-                J&apos;accepte les{' '}
-                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">conditions d&apos;utilisation</a>
-                {' '}et la{' '}
-                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">politique de confidentialité</a>
+                I accept the{' '}
+                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">terms of service</a>
+                {' '}and{' '}
+                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">privacy policy</a>
               </span>
             </label>
 
@@ -204,7 +204,7 @@ export default function RegisterPage() {
                 </svg>
               ) : (
                 <>
-                  Créer mon compte
+                  Create my account
                   <ArrowRight size={18} />
                 </>
               )}
@@ -227,13 +227,13 @@ export default function RegisterPage() {
             whileTap={{ scale: 0.98 }}
             className="w-full py-3.5 bg-white text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
           >
-            Continuer avec Google
+            Continue with Google
           </motion.button>
 
           <p className="text-center text-slate-600 mt-8">
-            Déjà un compte ?{' '}
+            Already have an account?{' '}
             <Link href="/login" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Se connecter
+              Sign in
             </Link>
           </p>
         </motion.div>

@@ -77,3 +77,4 @@ Si le build échoue encore :
 3. Vérifiez les logs de build dans Netlify pour voir les erreurs spécifiques
 4. Assurez-vous que toutes les variables requises sont présentes
 
+

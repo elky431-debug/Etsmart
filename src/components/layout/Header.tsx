@@ -24,7 +24,7 @@ export function Header() {
                 <div className="flex items-center gap-2">
                   <Logo size="sm" showText={true} />
                   <p className="text-[10px] text-slate-400 hidden sm:block">
-                    Copilote IA pour Etsy
+                    AI Copilot for Etsy
                   </p>
                 </div>
               </Link>
@@ -36,7 +36,7 @@ export function Header() {
                   leftIcon={<Home size={14} />}
                   className="text-xs"
                 >
-                  Accueil
+                  Home
                 </Button>
               </Link>
               
@@ -65,12 +65,12 @@ export function Header() {
                   leftIcon={<RotateCcw size={14} />}
                   className="text-xs"
                 >
-                  Recommencer
+                  Restart
                 </Button>
               )}
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
                 <Cpu className="w-3.5 h-3.5 text-[#00d4ff]" />
-                <span>IA active</span>
+                <span>AI active</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
               </div>
             </motion.div>

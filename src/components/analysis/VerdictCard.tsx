@@ -164,14 +164,14 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-[#00c9b7]" />
-              <span className="text-sm font-medium text-white">Titre SEO</span>
+              <span className="text-sm font-medium text-white">SEO Title</span>
             </div>
             <button
               onClick={() => copyToClipboard(verdict.viralTitleEN!, 'title')}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#00d4ff]/10 text-[#00c9b7] text-xs hover:bg-[#00d4ff]/20 transition-colors"
             >
               {copiedTitle ? <Check size={12} /> : <Copy size={12} />}
-              {copiedTitle ? 'Copié' : 'Copier'}
+              {copiedTitle ? 'Copied' : 'Copy'}
             </button>
           </div>
           
@@ -206,7 +206,7 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 text-slate-400 text-xs hover:text-white transition-colors"
             >
               {copiedTags ? <Check size={12} /> : <Copy size={12} />}
-              {copiedTags ? 'Copié' : 'Copier'}
+              {copiedTags ? 'Copied' : 'Copy'}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">

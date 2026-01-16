@@ -26,7 +26,7 @@ export default function LoginPage() {
       // Redirect to dashboard is handled by AuthContext
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Email ou mot de passe incorrect');
+      setError(err.message || 'Incorrect email or password');
       setIsLoading(false);
     }
   };
@@ -35,7 +35,7 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue avec la connexion Google');
+      setError(err.message || 'An error occurred with Google sign-in');
     }
   };
 
@@ -74,10 +74,10 @@ export default function LoginPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Bon retour !
+              Welcome back!
             </h1>
             <p className="text-slate-600">
-              Connectez-vous pour accéder à votre dashboard
+              Sign in to access your dashboard
             </p>
           </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Mot de passe</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <Lock size={18} />
@@ -136,10 +136,10 @@ export default function LoginPage() {
                   type="checkbox" 
                   className="w-4 h-4 rounded border-slate-300 text-[#00d4ff] focus:ring-[#00d4ff] focus:ring-2 cursor-pointer" 
                 />
-                <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Se souvenir de moi</span>
+                <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Remember me</span>
               </label>
               <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] transition-colors font-medium">
-                Mot de passe oublié ?
+                Forgot password?
               </a>
             </div>
 
@@ -157,7 +157,7 @@ export default function LoginPage() {
                 </svg>
               ) : (
                 <>
-                  Se connecter
+                  Sign in
                   <ArrowRight size={18} />
                 </>
               )}
@@ -180,20 +180,20 @@ export default function LoginPage() {
             whileTap={{ scale: 0.98 }}
             className="w-full py-3.5 bg-white text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
           >
-            Continuer avec Google
+            Continue with Google
           </motion.button>
 
           <p className="text-center text-slate-600 mt-8">
-            Pas encore de compte ?{' '}
+            Don't have an account?{' '}
             <Link href="/register" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Créer un compte
+              Create account
             </Link>
           </p>
         </motion.div>
 
         <p className="text-center text-slate-400 text-sm mt-8">
-          En vous connectant, vous acceptez nos{' '}
-          <a href="#" className="text-slate-500 hover:text-[#00d4ff] transition-colors">conditions d&apos;utilisation</a>
+          By signing in, you agree to our{' '}
+          <a href="#" className="text-slate-500 hover:text-[#00d4ff] transition-colors">terms of service</a>
         </p>
       </motion.div>
     </div>

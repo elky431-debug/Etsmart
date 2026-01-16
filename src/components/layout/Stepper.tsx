@@ -7,9 +7,9 @@ import { useStore } from '@/store/useStore';
 
 const steps = [
   { id: 1, label: 'Niche' },
-  { id: 2, label: 'Produits' },
-  { id: 3, label: 'Analyse' },
-  { id: 4, label: 'Résultats' },
+  { id: 2, label: 'Products' },
+  { id: 3, label: 'Analysis' },
+  { id: 4, label: 'Results' },
 ];
 
 export function Stepper() {

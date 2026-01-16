@@ -104,7 +104,7 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error deleting analysis:', error);
-      alert('Erreur lors de la suppression');
+      alert('Error deleting analysis');
     }
   };
 
@@ -118,7 +118,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d4ff]"></div>
-          <p className="mt-4 text-slate-600">Chargement...</p>
+          <p className="mt-4 text-slate-600">Loading...</p>
         </div>
       </div>
     );
@@ -129,11 +129,11 @@ export default function DashboardPage() {
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'analyze', label: 'Commencer à analyser', icon: Sparkles },
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'subscription', label: 'Abonnement', icon: CreditCard },
-    { id: 'history', label: 'Historique', icon: History },
-    { id: 'settings', label: 'Réglages', icon: Settings },
+    { id: 'analyze', label: 'Start analyzing', icon: Sparkles },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'subscription', label: 'Subscription', icon: CreditCard },
+    { id: 'history', label: 'History', icon: History },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -154,7 +154,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <Home size={18} />
-                <span className="font-medium">Retourner à l'accueil</span>
+                <span className="font-medium">Return to home</span>
               </Link>
               
               <button
@@ -162,7 +162,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <LogOut size={18} />
-                <span className="font-medium">Déconnexion</span>
+                <span className="font-medium">Sign out</span>
               </button>
             </div>
           </div>
@@ -219,16 +219,16 @@ export default function DashboardPage() {
                     <Sparkles className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-4xl font-bold text-slate-900 mb-4">
-                    Comment fonctionne l'analyse ?
+                    How does the analysis work?
                   </h2>
                   <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-                    Notre IA analyse en profondeur vos produits AliExpress pour vous donner toutes les informations nécessaires à une décision éclairée
+                    Our AI deeply analyzes your AliExpress products to give you all the information needed for an informed decision
                   </p>
                 </div>
 
                 {/* Process Steps */}
                 <div className="mb-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">Le processus en 3 étapes</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-6">The process in 3 steps</h3>
                   <div className="grid md:grid-cols-3 gap-6">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -239,9 +239,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <Eye className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">1. Analyse visuelle</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">1. Visual analysis</h4>
                       <p className="text-slate-600 text-sm">
-                        Notre IA examine l'image de votre produit pour comprendre ce que c'est, identifier sa niche et estimer sa valeur
+                        Our AI examines your product image to understand what it is, identify its niche and estimate its value
                       </p>
                     </motion.div>
 
@@ -254,9 +254,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <TrendingUp className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">2. Analyse du marché</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">2. Market analysis</h4>
                       <p className="text-slate-600 text-sm">
-                        Recherche des concurrents sur Etsy, analyse de la saturation du marché et estimation du potentiel de vente
+                        Search for competitors on Etsy, analyze market saturation and estimate sales potential
                       </p>
                     </motion.div>
 
@@ -269,9 +269,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <FileText className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">3. Rapport complet</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">3. Complete report</h4>
                       <p className="text-slate-600 text-sm">
-                        Vous recevez un verdict clair avec toutes les données nécessaires : prix, marketing, SEO et stratégie
+                        You receive a clear verdict with all necessary data: pricing, marketing, SEO and strategy
                       </p>
                     </motion.div>
                   </div>
@@ -279,7 +279,7 @@ export default function DashboardPage() {
 
                 {/* Information Sections */}
                 <div className="mb-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">Les informations que vous recevrez</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-6">The information you'll receive</h3>
                   
                   <div className="space-y-4">
                     {/* Verdict */}
@@ -294,12 +294,12 @@ export default function DashboardPage() {
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Verdict final</h4>
+                          <h4 className="text-lg font-bold text-slate-900 mb-2">Final verdict</h4>
                           <p className="text-slate-600 text-sm mb-2">
-                            Une recommandation claire : <strong>Lancer rapidement</strong>, <strong>Lancer mais optimiser</strong>, ou <strong>Ne pas lancer</strong>
+                            A clear recommendation: <strong>Launch quickly</strong>, <strong>Launch but optimize</strong>, or <strong>Don't launch</strong>
                           </p>
                           <p className="text-slate-500 text-xs">
-                            Basé sur l'analyse de la concurrence, la saturation du marché et le potentiel de vente
+                            Based on competitor analysis, market saturation and sales potential
                           </p>
                         </div>
                       </div>
@@ -317,19 +317,19 @@ export default function DashboardPage() {
                           <TrendingUp className="w-5 h-5 text-blue-600" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Analyse du marché</h4>
+                          <h4 className="text-lg font-bold text-slate-900 mb-2">Market analysis</h4>
                           <ul className="text-slate-600 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Nombre approximatif de concurrents sur Etsy
+                              Approximate number of competitors on Etsy
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Niveau de saturation du marché (non saturé, concurrentiel, saturé)
+                              Market saturation level (not saturated, competitive, saturated)
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Prix moyen du marché et fourchette de prix
+                              Average market price and price range
                             </li>
                           </ul>
                         </div>
@@ -348,19 +348,19 @@ export default function DashboardPage() {
                           <DollarSign className="w-5 h-5 text-purple-600" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Stratégie de prix</h4>
+                          <h4 className="text-lg font-bold text-slate-900 mb-2">Pricing strategy</h4>
                           <ul className="text-slate-600 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Prix fournisseur estimé (coût d'achat)
+                              Estimated supplier price (purchase cost)
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Prix de vente recommandé (optimal, min, max)
+                              Recommended selling price (optimal, min, max)
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Marge estimée et niveau de risque
+                              Estimated margin and risk level
                             </li>
                           </ul>
                         </div>
@@ -379,15 +379,15 @@ export default function DashboardPage() {
                           <Calculator className="w-5 h-5 text-orange-600" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Simulation de lancement</h4>
+                          <h4 className="text-lg font-bold text-slate-900 mb-2">Launch simulation</h4>
                           <ul className="text-slate-600 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Temps estimé avant la première vente (avec et sans publicité)
+                              Estimated time before first sale (with and without advertising)
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Ventes estimées après 3 mois (scénarios prudent, réaliste, optimiste)
+                              Estimated sales after 3 months (conservative, realistic, optimistic scenarios)
                             </li>
                           </ul>
                         </div>
@@ -406,23 +406,23 @@ export default function DashboardPage() {
                           <Megaphone className="w-5 h-5 text-pink-600" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Stratégie marketing complète</h4>
+                          <h4 className="text-lg font-bold text-slate-900 mb-2">Complete marketing strategy</h4>
                           <ul className="text-slate-600 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Positionnement stratégique et angles sous-exploités
+                              Strategic positioning and underexploited angles
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Titres viraux (FR et EN) et tags SEO optimisés
+                              Viral titles (FR and EN) and optimized SEO tags
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Idées de publicités TikTok/Facebook et prompts pour images pub
+                              TikTok/Facebook ad ideas and prompts for ad images
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Triggers psychologiques et erreurs des concurrents à éviter
+                              Psychological triggers and competitor mistakes to avoid
                             </li>
                           </ul>
                         </div>
@@ -434,10 +434,10 @@ export default function DashboardPage() {
                 {/* CTA */}
                 <div className="text-center bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-2xl p-8 border border-[#00d4ff]/20">
                   <h3 className="text-2xl font-bold text-slate-900 mb-3">
-                    Prêt à découvrir le potentiel de vos produits ?
+                    Ready to discover your products' potential?
                   </h3>
                   <p className="text-slate-600 mb-6 max-w-xl mx-auto">
-                    Lancez votre première analyse en quelques clics et recevez un rapport complet en moins de 2 minutes
+                    Launch your first analysis in a few clicks and receive a complete report in less than 2 minutes
                   </p>
                   <Link href="/app">
                     <motion.button
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                       className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
                     >
                       <Sparkles size={20} />
-                      <span>Commencer à analyser</span>
+                      <span>Start analyzing</span>
                       <ArrowRight size={18} />
                     </motion.button>
                   </Link>

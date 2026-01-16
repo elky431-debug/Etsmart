@@ -215,7 +215,7 @@ function CreativePromptGenerator({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900">Prompt créatif IA</h2>
-            <p className="text-slate-500 text-xs">Pour générer vos images publicitaires Etsy</p>
+            <p className="text-slate-500 text-xs">To generate your Etsy ad images</p>
           </div>
         </div>
       </div>
@@ -223,7 +223,7 @@ function CreativePromptGenerator({
       {/* Prompt principal */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Prompt principal</span>
+          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Main prompt</span>
           <button
             onClick={() => copyToClipboard(prompts.main, 'main')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -233,7 +233,7 @@ function CreativePromptGenerator({
             }`}
           >
             {copiedMain ? <Check size={12} /> : <Copy size={12} />}
-            {copiedMain ? 'Copié !' : 'Copier'}
+            {copiedMain ? 'Copied!' : 'Copy'}
           </button>
         </div>
         <div className="p-4 bg-white rounded-lg border border-violet-200 max-h-48 overflow-y-auto">
@@ -251,13 +251,13 @@ function CreativePromptGenerator({
             className="flex items-center gap-2 text-xs text-violet-600 hover:text-violet-700 mb-2"
           >
             <ChevronRight size={14} className={`transition-transform ${showVariant ? 'rotate-90' : ''}`} />
-            <span className="font-medium">Voir la variante émotionnelle</span>
+            <span className="font-medium">See emotional variant</span>
           </button>
           
           {showVariant && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Variante</span>
+                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Variant</span>
                 <button
                   onClick={() => copyToClipboard(prompts.variant!, 'variant')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -267,7 +267,7 @@ function CreativePromptGenerator({
                   }`}
                 >
                   {copiedVariant ? <Check size={12} /> : <Copy size={12} />}
-                  {copiedVariant ? 'Copié !' : 'Copier'}
+                  {copiedVariant ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               <div className="p-4 bg-white rounded-lg border border-indigo-200 max-h-40 overflow-y-auto">
@@ -284,28 +284,28 @@ function CreativePromptGenerator({
       <div className="p-4 bg-white rounded-lg border border-violet-200">
         <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
           <Info size={14} className="text-violet-500" />
-          Comment utiliser ce prompt ?
+          How to use this prompt?
         </h4>
         <ol className="space-y-2 text-xs text-slate-600">
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">1</span>
-            <span>Copiez le prompt ci-dessus</span>
+            <span>Copy the prompt above</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
-            <span>Ouvrez ChatGPT, Midjourney ou autre IA image</span>
+            <span>Open ChatGPT, Midjourney or other image AI</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
-            <span>Importez la photo de votre produit</span>
+            <span>Import your product photo</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">4</span>
-            <span>Collez le prompt et générez l&apos;image</span>
+            <span>Paste the prompt and generate the image</span>
           </li>
         </ol>
         <p className="mt-3 text-[10px] text-slate-500 italic">
-          Ce prompt est conçu pour produire une image publicitaire inspirée des meilleures pratiques Etsy.
+          This prompt is designed to produce an ad image inspired by Etsy best practices.
         </p>
       </div>
     </div>
@@ -313,9 +313,9 @@ function CreativePromptGenerator({
 }
 
 const mainTabs = [
-  { id: 'analyse' as MainTab, label: 'Analyse', icon: Activity },
+  { id: 'analyse' as MainTab, label: 'Analysis', icon: Activity },
   { id: 'marketing' as MainTab, label: 'Marketing', icon: Megaphone },
-  { id: 'conception' as MainTab, label: 'Fiche produit', icon: FileText },
+  { id: 'conception' as MainTab, label: 'Product Sheet', icon: FileText },
   { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
 ];
 
@@ -324,11 +324,11 @@ function VerdictBadge({ verdict, competitors }: { verdict: string; competitors?:
   let config;
   if (competitors !== undefined) {
     if (competitors <= 80) {
-      config = { label: 'Lancer rapidement', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 };
+      config = { label: 'Launch quickly', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 };
     } else if (competitors <= 130) {
-      config = { label: 'Lancer mais optimiser', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle };
+      config = { label: 'Launch but optimize', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle };
     } else {
-      config = { label: 'Ne pas lancer', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
+      config = { label: 'Don\'t launch', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
     }
   } else {
     // Fallback sur les anciens labels si pas de nombre de concurrents
@@ -496,7 +496,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
           transition={{ duration: 0.6 }}
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-            Résultats
+            Results
           </span>
         </motion.h1>
       </div>
@@ -538,7 +538,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* ONGLET ANALYSE */}
+            {/* ANALYSIS TAB */}
             {activeTab === 'analyse' && (
               <div className="space-y-4">
                 {/* Verdict */}
@@ -598,7 +598,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                               : 'bg-white/90 border-red-300 text-red-800'
                           }`}
                         >
-                          {analysis.verdict.confidenceScore}% confiance
+                          {analysis.verdict.confidenceScore}% confidence
                         </motion.span>
                       </div>
                       <motion.p
@@ -608,10 +608,10 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className="text-base text-slate-700 leading-relaxed font-medium"
                       >
                         {analysis.competitors.totalCompetitors <= 80 
-                          ? 'Lancer rapidement car il n\'y a pas beaucoup de concurrence.'
+                          ? 'Launch quickly as there isn\'t much competition.'
                           : analysis.competitors.totalCompetitors <= 130
-                          ? 'Lancer mais il y a un peu de concurrence, il faut optimiser votre stratégie.'
-                          : 'Ne pas lancer le produit car le marché est saturé.'
+                          ? 'Launch but there is some competition, you need to optimize your strategy.'
+                          : 'Don\'t launch the product as the market is saturated.'
                         }
                       </motion.p>
                     </div>
@@ -621,10 +621,10 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 {/* KPIs */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { icon: Users, label: 'Boutiques concurrentes', value: `≈${analysis.competitors.totalCompetitors}`, sub: analysis.competitors.competitorEstimationReliable !== false ? 'Estimation fiable' : 'Estimation approximative', highlight: false, reliable: analysis.competitors.competitorEstimationReliable !== false },
-                    { icon: CircleDollarSign, label: 'Prix moyen marché', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Fourchette', highlight: false },
-                    { icon: TrendingUp, label: 'Prix conseillé', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'Pour votre boutique', highlight: true },
-                    { icon: Star, label: 'Phase marché', value: getPhaseLabel(analysis.saturation.phase), sub: 'Tendance', highlight: false },
+                    { icon: Users, label: 'Competitor shops', value: `≈${analysis.competitors.totalCompetitors}`, sub: analysis.competitors.competitorEstimationReliable !== false ? 'Reliable estimate' : 'Approximate estimate', highlight: false, reliable: analysis.competitors.competitorEstimationReliable !== false },
+                    { icon: CircleDollarSign, label: 'Average market price', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Range', highlight: false },
+                    { icon: TrendingUp, label: 'Recommended price', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'For your shop', highlight: true },
+                    { icon: Star, label: 'Market phase', value: getPhaseLabel(analysis.saturation.phase), sub: 'Trend', highlight: false },
                   ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (
@@ -747,7 +747,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
               </div>
             )}
 
-            {/* ONGLET MARKETING */}
+            {/* MARKETING TAB */}
             {activeTab === 'marketing' && (
               <div className="space-y-6">
                 {/* Marketing Acquisition IA */}
@@ -789,7 +789,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <AlertTriangle size={20} className="text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-slate-900">Erreurs des concurrents</h2>
+                        <h2 className="text-base font-bold text-slate-900">Competitor mistakes</h2>
                         <p className="text-slate-600 text-xs">Ce que tu ne dois PAS faire</p>
                       </div>
                     </div>
@@ -816,7 +816,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <Lightbulb size={20} className="text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-slate-900">Angles sous-exploités</h2>
+                        <h2 className="text-base font-bold text-slate-900">Underexploited angles</h2>
                         <p className="text-slate-500 text-xs">Comment te différencier intelligemment</p>
                       </div>
                     </div>
@@ -856,7 +856,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
               </div>
             )}
 
-            {/* ONGLET FICHE PRODUIT */}
+            {/* PRODUCT SHEET TAB */}
             {activeTab === 'conception' && (
               <div className="space-y-6">
                 {analysis.verdict.viralTitleEN && (
@@ -866,7 +866,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center">
                           <PenTool size={20} className="text-white" />
                         </div>
-                        <h2 className="text-base font-bold text-slate-900">Titre SEO optimisé</h2>
+                        <h2 className="text-base font-bold text-slate-900">Optimized SEO Title</h2>
                       </div>
                       <button
                         onClick={() => copyToClipboard(analysis.verdict.viralTitleEN!, 'title')}
@@ -877,13 +877,13 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         }`}
                       >
                         {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
-                        {copiedTitle ? 'Copié' : 'Copier'}
+                        {copiedTitle ? 'Copied' : 'Copy'}
                       </button>
                     </div>
                     <div className="space-y-3">
                       <div className="p-4 rounded-lg bg-cyan-50 border border-cyan-200">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600">Anglais</span>
+                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600">English</span>
                           <span className="text-xs text-slate-500">{analysis.verdict.viralTitleEN.length}/140</span>
                         </div>
                         <p className="text-sm font-medium text-slate-900">{analysis.verdict.viralTitleEN}</p>
@@ -891,7 +891,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       
                       {analysis.verdict.viralTitleFR && (
                         <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Français</span>
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">French</span>
                           <p className="text-sm text-slate-700">{analysis.verdict.viralTitleFR}</p>
                         </div>
                       )}
@@ -908,8 +908,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           <FileText size={20} className="text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">Description Etsy</h3>
-                          <p className="text-xs text-slate-500">Description optimisée pour Etsy (en anglais)</p>
+                          <h3 className="text-base font-bold text-slate-900">Etsy Description</h3>
+                          <p className="text-xs text-slate-500">Optimized description for Etsy (in English)</p>
                         </div>
                       </div>
                       {etsyDescription && (
@@ -922,7 +922,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           }`}
                         >
                           {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedDescription ? 'Copié' : 'Copier'}
+                          {copiedDescription ? 'Copied' : 'Copy'}
                         </button>
                       )}
                     </div>
@@ -946,7 +946,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                               Génération en cours...
                             </span>
                           ) : (
-                            'Générer la description'
+                            'Generate description'
                           )}
                         </button>
                       </div>
@@ -954,7 +954,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <div className="space-y-4">
                         <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
                           <p className="text-sm text-slate-600 mb-2">
-                            Vous pouvez la copier et l&apos;utiliser directement dans votre fiche produit.
+                            You can copy and use it directly in your product listing.
                           </p>
                           <div className="p-4 bg-white rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
                             <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
@@ -983,7 +983,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         }`}
                       >
                         {copiedTags ? <Check size={12} /> : <Copy size={12} />}
-                        {copiedTags ? 'Copié' : 'Copier'}
+                        {copiedTags ? 'Copied' : 'Copy'}
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -1037,7 +1037,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
               </div>
             )}
 
-            {/* ONGLET SIMULATION */}
+            {/* SIMULATION TAB */}
             {activeTab === 'simulation' && (
               <div className="space-y-6">
                 <div className="p-5 rounded-xl bg-white border border-slate-200">
@@ -1046,8 +1046,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <Calculator size={20} className="text-white" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-slate-900">Calculateur de profit</h2>
-                      <p className="text-slate-500 text-xs">Ajustez les valeurs pour voir les projections</p>
+                      <h2 className="text-base font-bold text-slate-900">Profit calculator</h2>
+                      <p className="text-slate-500 text-xs">Adjust values to see projections</p>
                     </div>
                   </div>
                   
@@ -1068,8 +1068,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           ? `Prix renseigné: ${formatCurrency(analysis.product.price)}` 
                           : `Est IA: ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
                       },
-                      { label: 'Frais livraison', value: shippingCost, setValue: setShippingCost, hint: `Est: ${formatCurrency(aiEstimatedShippingCost)}` },
-                      { label: 'Prix de vente', value: sellingPrice, setValue: setSellingPrice, hint: `Rec: ${formatCurrency(analysis.pricing.recommendedPrice)}`, highlight: true },
+                      { label: 'Shipping cost', value: shippingCost, setValue: setShippingCost, hint: `Est: ${formatCurrency(aiEstimatedShippingCost)}` },
+                      { label: 'Selling price', value: sellingPrice, setValue: setSellingPrice, hint: `Rec: ${formatCurrency(analysis.pricing.recommendedPrice)}`, highlight: true },
                     ].map((field, i) => (
                       <div key={i}>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
@@ -1097,11 +1097,11 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   
                   <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
                     <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Coût unitaire</p>
+                      <p className="text-xs text-slate-500 mb-1">Unit cost</p>
                       <p className="text-xl font-bold text-slate-900">{formatCurrency(simulationData.costPerUnit)}</p>
                     </div>
                     <div className="text-center border-x border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Profit unitaire</p>
+                      <p className="text-xs text-slate-500 mb-1">Unit profit</p>
                       <p className={`text-xl font-bold ${simulationData.profitPerUnit > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {formatCurrency(simulationData.profitPerUnit)}
                       </p>
@@ -1120,16 +1120,16 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     <div className="flex items-center gap-3 mb-3">
                       <Clock size={20} className="text-slate-400" />
                       <div>
-                        <h4 className="text-sm font-bold text-slate-900">Sans publicité</h4>
-                        <p className="text-xs text-slate-500">Croissance organique</p>
+                        <h4 className="text-sm font-bold text-slate-900">Without advertising</h4>
+                        <p className="text-xs text-slate-500">Organic growth</p>
                       </div>
                     </div>
                     <p className="text-3xl font-bold text-slate-900 mb-1">
                       {analysis.launchSimulation.timeToFirstSale.withoutAds.expected}
-                      <span className="text-sm font-normal text-slate-400 ml-2">jours</span>
+                      <span className="text-sm font-normal text-slate-400 ml-2">days</span>
                     </p>
                     <p className="text-xs text-slate-500">
-                      Entre {analysis.launchSimulation.timeToFirstSale.withoutAds.min} et {analysis.launchSimulation.timeToFirstSale.withoutAds.max} jours
+                      Between {analysis.launchSimulation.timeToFirstSale.withoutAds.min} and {analysis.launchSimulation.timeToFirstSale.withoutAds.max} days
                     </p>
                   </div>
 
@@ -1137,16 +1137,16 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     <div className="flex items-center gap-3 mb-3">
                       <Zap size={20} className="text-white" />
                       <div>
-                        <h4 className="text-sm font-bold">Avec Etsy Ads</h4>
-                        <p className="text-xs text-white/70">Croissance accélérée</p>
+                        <h4 className="text-sm font-bold">With Etsy Ads</h4>
+                        <p className="text-xs text-white/70">Accelerated growth</p>
                       </div>
                     </div>
                     <p className="text-3xl font-bold mb-1">
                       {analysis.launchSimulation.timeToFirstSale.withAds.expected}
-                      <span className="text-sm font-normal text-white/60 ml-2">jours</span>
+                      <span className="text-sm font-normal text-white/60 ml-2">days</span>
                     </p>
                     <p className="text-xs text-white/70">
-                      Entre {analysis.launchSimulation.timeToFirstSale.withAds.min} et {analysis.launchSimulation.timeToFirstSale.withAds.max} jours
+                      Between {analysis.launchSimulation.timeToFirstSale.withAds.min} and {analysis.launchSimulation.timeToFirstSale.withAds.max} days
                     </p>
                   </div>
                 </div>
@@ -1155,18 +1155,18 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
                       <TrendingUp size={20} className="text-[#00d4ff]" />
-                      <h3 className="text-base font-bold text-slate-900">Projection sur 3 mois</h3>
+                      <h3 className="text-base font-bold text-slate-900">3 Month Projection</h3>
                     </div>
                     <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                      {formatPercentage(analysis.launchSimulation.successProbability)} de réussite
+                      {formatPercentage(analysis.launchSimulation.successProbability)} success rate
                     </span>
                   </div>
 
                   <div className="space-y-3">
                     {[
-                      { key: 'prudent', label: 'Prudent', sublabel: 'Pessimiste', data: simulationData.prudent, highlight: false },
-                      { key: 'realiste', label: 'Réaliste', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
-                      { key: 'optimise', label: 'Optimiste', sublabel: 'Meilleur', data: simulationData.optimise, highlight: false },
+                      { key: 'prudent', label: 'Conservative', sublabel: 'Pessimistic', data: simulationData.prudent, highlight: false },
+                      { key: 'realiste', label: 'Realistic', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
+                      { key: 'optimise', label: 'Optimistic', sublabel: 'Best', data: simulationData.optimise, highlight: false },
                     ].map((scenario) => (
                       <div 
                         key={scenario.key}
@@ -1191,11 +1191,11 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         </div>
                         <div className="grid grid-cols-5 gap-3">
                           {[
-                            { label: 'Ventes', value: scenario.data.sales },
-                            { label: 'CA', value: formatCurrency(scenario.data.revenue) },
-                            { label: 'Coûts', value: formatCurrency(scenario.data.costs) },
+                            { label: 'Sales', value: scenario.data.sales },
+                            { label: 'Revenue', value: formatCurrency(scenario.data.revenue) },
+                            { label: 'Costs', value: formatCurrency(scenario.data.costs) },
                             { label: 'Profit', value: formatCurrency(scenario.data.profit), profit: true },
-                            { label: 'Marge', value: `${scenario.data.margin.toFixed(0)}%` },
+                            { label: 'Margin', value: `${scenario.data.margin.toFixed(0)}%` },
                           ].map((metric, i) => (
                             <div key={i} className="text-center">
                               <p className={`text-lg font-bold ${

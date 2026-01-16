@@ -16,13 +16,13 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Etsmart - Copilote IA pour Etsy",
-  description: "Analysez le potentiel de vos produits sur Etsy avec l'IA. Détection concurrents, simulation de ventes, prix optimal et verdict intelligent.",
-  keywords: ["Etsy", "dropshipping", "analyse IA", "e-commerce", "AliExpress", "Alibaba", "POD"],
+  title: "Etsmart - AI Copilot for Etsy",
+  description: "Analyze your products' potential on Etsy with AI. Competitor detection, sales simulation, optimal pricing and intelligent verdict.",
+  keywords: ["Etsy", "dropshipping", "AI analysis", "e-commerce", "AliExpress", "Alibaba", "POD"],
   authors: [{ name: "Etsmart" }],
   openGraph: {
-    title: "Etsmart - Copilote IA pour Etsy",
-    description: "Sachez AVANT de lancer si un produit peut réussir sur Etsy grâce à l'IA",
+    title: "Etsmart - AI Copilot for Etsy",
+    description: "Know BEFORE launching if a product can succeed on Etsy with AI",
     type: "website",
   },
 };
@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${sora.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
       <body 
         className="antialiased bg-mesh noise"
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}

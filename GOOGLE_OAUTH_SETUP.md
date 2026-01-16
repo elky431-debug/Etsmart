@@ -93,3 +93,4 @@ Une fois configuré :
 - Pour la production, vous devrez peut-être soumettre votre application pour vérification Google
 - En mode test, seuls les utilisateurs ajoutés dans "Test users" pourront se connecter
 
+

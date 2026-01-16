@@ -26,7 +26,7 @@ export function DashboardAnalysisDetail({
             className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <ArrowLeft size={20} />
-            <span>Retour à l'historique</span>
+            <span>Back to history</span>
           </button>
 
           <button
@@ -34,7 +34,7 @@ export function DashboardAnalysisDetail({
             className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
           >
             <Trash2 size={18} />
-            <span>Supprimer</span>
+            <span>Delete</span>
           </button>
         </div>
 

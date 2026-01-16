@@ -42,9 +42,9 @@ export function AnalysisStep() {
   const [failedProducts, setFailedProducts] = useState<FailedProduct[]>([]);
 
   const phases = [
-    { text: 'Analyse de l\'image produit', icon: Eye },
-    { text: 'Évaluation du marché Etsy', icon: BarChart3 },
-    { text: 'Analyse de la concurrence', icon: TrendingUp },
+    { text: 'Product image analysis', icon: Eye },
+    { text: 'Etsy market evaluation', icon: BarChart3 },
+    { text: 'Competitor analysis', icon: TrendingUp },
     { text: 'Génération des recommandations IA', icon: Sparkles },
   ];
 
@@ -135,12 +135,12 @@ export function AnalysisStep() {
       } catch (error) {
         console.error(`Analysis failed for product ${products[i].title}:`, error);
         
-        let errorMessage = 'Une erreur inattendue est survenue';
+        let errorMessage = 'An unexpected error occurred';
         let suggestion = 'Veuillez réessayer ou contacter le support.';
         
         if (error instanceof AnalysisBlockedError) {
           errorMessage = error.message;
-          suggestion = error.suggestion || 'Vérifiez que le produit a une image valide.';
+          suggestion = error.suggestion || 'Make sure the product has a valid image.';
         } else if (error instanceof Error) {
           errorMessage = error.message;
         }
@@ -199,7 +199,7 @@ export function AnalysisStep() {
             className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-8"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 3 SUR 3</span>
+            <span className="text-sm font-bold text-[#00d4ff]">STEP 3 OF 3</span>
             <Zap size={16} className="text-[#00c9b7]" />
           </motion.div>
           
@@ -211,21 +211,21 @@ export function AnalysisStep() {
           >
             {isAnalyzing ? (
               <>
-                <span className="text-slate-900">Analyse</span>
+                <span className="text-slate-900">Analysis</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-                  en cours
+                  in progress
                 </span>
               </>
             ) : allFailed ? (
               <>
-                <span className="text-red-600">Analyse</span>
+                <span className="text-red-600">Analysis</span>
                 <br />
                 <span className="text-red-500">échouée</span>
               </>
           ) : (
             <>
-                <span className="text-slate-900">Analyse</span>
+                <span className="text-slate-900">Analysis</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
                   terminée
@@ -241,10 +241,10 @@ export function AnalysisStep() {
             transition={{ delay: 0.4 }}
           >
             {isAnalyzing 
-              ? `Analyse de ${products.length} produit${products.length > 1 ? 's' : ''} avec l'IA`
+              ? `AI analysis of ${products.length} product${products.length > 1 ? 's' : ''}`
               : allFailed 
-                ? 'Tous les produits ont échoué à l\'analyse'
-                : `${completedProducts.length} produit${completedProducts.length > 1 ? 's' : ''} analysé${completedProducts.length > 1 ? 's' : ''} avec succès`
+                ? 'All products failed analysis'
+                : `${completedProducts.length} product${completedProducts.length > 1 ? 's' : ''} analyzed successfully`
             }
           </motion.p>
         </motion.div>
@@ -270,7 +270,7 @@ export function AnalysisStep() {
                   </div>
                   <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[#00d4ff] mb-2 uppercase tracking-wide">
-                    Produit {currentIndex + 1}/{products.length}
+                    Product {currentIndex + 1}/{products.length}
                   </p>
                   <p className="text-xl font-bold text-slate-900 truncate">{currentProduct.title}</p>
                 </div>

@@ -129,3 +129,4 @@ Votre système d'authentification est maintenant fonctionnel. Les utilisateurs p
 - Vérifiez que votre `.env.local` contient les bonnes clés Supabase
 
 
+

@@ -62,3 +62,4 @@ La table `user_settings` contient :
 - Les valeurs par défaut sont déjà définies dans le schéma
 - La table est liée à la table `users` via une clé étrangère
 
+

@@ -38,3 +38,4 @@ DROP POLICY IF EXISTS "Users can insert own settings" ON public.user_settings;
 CREATE POLICY "Users can insert own settings" ON public.user_settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+
