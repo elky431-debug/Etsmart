@@ -55,7 +55,7 @@ export const PLAN_LIMITS: Record<PlanId, number> = {
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   smart: 'price_1SqHYZCn17QPHnzEGz8Ehdzz', // Etsmart Smart - $29.99/month
   pro: 'price_1SqHfuCn17QPHnzErxhIM918', // Etsmart Pro - $49.99/month
-  scale: null, // TODO: Add Stripe Price ID for Scale plan
+  scale: 'price_1SqOqYCn17QPHnzEplHYB7CK', // Etsmart Scale - $79.99/month
 };
 
 // Plan features configuration
