@@ -86,8 +86,8 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
             <Users size={20} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Personnes principalement visées</h2>
-            <p className="text-slate-500 text-xs">Profil dominant de l&apos;acheteur</p>
+            <h2 className="text-base font-bold text-slate-900">Target Audience</h2>
+            <p className="text-slate-500 text-xs">Dominant buyer profile</p>
           </div>
         </div>
         
@@ -95,7 +95,7 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
           <p className="text-sm text-slate-700 leading-relaxed">{targetAudience.description}</p>
           <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-200">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Âge:</span>
+              <span className="text-xs font-semibold text-slate-500">Age:</span>
               <span className="text-sm font-medium text-slate-900">{targetAudience.ageRange}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -103,11 +103,11 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
               <span className="text-sm font-medium text-slate-900">{targetAudience.situation}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Comportement:</span>
+              <span className="text-xs font-semibold text-slate-500">Behavior:</span>
               <span className={`text-sm font-medium ${
                 targetAudience.buyingBehavior === 'impulsive' ? 'text-amber-600' : 'text-blue-600'
               }`}>
-                {targetAudience.buyingBehavior === 'impulsive' ? 'Impulsif' : 'Réfléchi'}
+                {targetAudience.buyingBehavior === 'impulsive' ? 'Impulsive' : 'Reflective'}
               </span>
             </div>
           </div>
@@ -126,8 +126,8 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
             <Target size={20} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Canal d&apos;acquisition recommandé</h2>
-            <p className="text-slate-500 text-xs">Où investir votre temps et votre budget</p>
+            <h2 className="text-base font-bold text-slate-900">Recommended Acquisition Channel</h2>
+            <p className="text-slate-500 text-xs">Where to invest your time and budget</p>
           </div>
         </div>
 
@@ -143,13 +143,13 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                   <p className="text-sm font-bold text-slate-900">
                     {channelNames[acquisitionChannel.primary] || acquisitionChannel.primary}
                   </p>
-                  <p className="text-xs text-slate-500">Canal prioritaire</p>
+                  <p className="text-xs text-slate-500">Priority channel</p>
                 </div>
               </div>
               {acquisitionChannel.notSuitableForTikTok && (
                 <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
                   <AlertCircle size={12} />
-                  Non adapté
+                  Not suitable
                 </div>
               )}
             </div>
@@ -167,7 +167,7 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                   <p className="text-sm font-semibold text-slate-900">
                     {channelNames[acquisitionChannel.secondary] || acquisitionChannel.secondary}
                   </p>
-                  <p className="text-xs text-slate-500">Canal secondaire</p>
+                  <p className="text-xs text-slate-500">Secondary channel</p>
                 </div>
               </div>
             </div>
@@ -188,8 +188,8 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
               <Video size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold">Idées de TikToks originaux</h2>
-              <p className="text-white/60 text-xs">Concepts créatifs et potentiellement viraux</p>
+              <h2 className="text-base font-bold">Original TikTok Ideas</h2>
+              <p className="text-white/60 text-xs">Creative and potentially viral concepts</p>
             </div>
           </div>
 
@@ -211,12 +211,12 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                 
                 <div className="space-y-2">
                   <div>
-                    <p className="text-xs font-semibold text-white/70 mb-1">Principe</p>
+                    <p className="text-xs font-semibold text-white/70 mb-1">Principle</p>
                     <p className="text-sm text-white/90">{idea.concept}</p>
                   </div>
                   
                   <div>
-                    <p className="text-xs font-semibold text-white/70 mb-1">Ce qu&apos;on montre</p>
+                    <p className="text-xs font-semibold text-white/70 mb-1">What to show</p>
                     <p className="text-sm text-white/80">{idea.whatToShow}</p>
                   </div>
                   
@@ -224,7 +224,7 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                     <div className="flex items-start gap-2">
                       <TrendingUp size={14} className="text-[#00d4ff] flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-[#00d4ff] mb-1">Pourquoi ça peut devenir viral</p>
+                        <p className="text-xs font-semibold text-[#00d4ff] mb-1">Why it can go viral</p>
                         <p className="text-xs text-white/80">{idea.whyViral}</p>
                       </div>
                     </div>
@@ -249,8 +249,8 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
               <Facebook size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Idées de contenus Facebook</h2>
-              <p className="text-slate-600 text-xs">Contenus rassurants et explicatifs</p>
+              <h2 className="text-base font-bold text-slate-900">Facebook Content Ideas</h2>
+              <p className="text-slate-600 text-xs">Reassuring and explanatory content</p>
             </div>
           </div>
 
@@ -272,12 +272,12 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                 
                 <div className="space-y-2">
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 mb-1">Principe</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Principle</p>
                     <p className="text-sm text-slate-700">{idea.concept}</p>
                   </div>
                   
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 mb-1">Ce qu&apos;on montre</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">What to show</p>
                     <p className="text-sm text-slate-600">{idea.whatToShow}</p>
                   </div>
                   
@@ -285,7 +285,7 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
                     <div className="flex items-start gap-2">
                       <CheckCircle2 size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-blue-700 mb-1">Pourquoi c&apos;est efficace sur Facebook</p>
+                        <p className="text-xs font-semibold text-blue-700 mb-1">Why it's effective on Facebook</p>
                         <p className="text-xs text-slate-600">{idea.whyEffective}</p>
                       </div>
                     </div>
@@ -309,10 +309,10 @@ export function AcquisitionMarketing({ acquisition }: AcquisitionMarketingProps)
             <Info size={16} className="text-slate-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-700 mb-1">Note importante</p>
+            <p className="text-xs font-semibold text-slate-700 mb-1">Important note</p>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Ces idées sont basées sur le comportement des acheteurs et les formats performants sur chaque plateforme.
-              Elles servent de guide créatif, pas de garantie de viralité.
+              These ideas are based on buyer behavior and high-performing formats on each platform.
+              They serve as a creative guide, not a guarantee of virality.
             </p>
           </div>
         </div>

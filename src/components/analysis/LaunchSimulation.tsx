@@ -116,7 +116,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <TrendingUp size={12} />
-                    <span className="text-[10px]">Ventes</span>
+                    <span className="text-[10px]">Sales</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {formatNumber(scenario.data.estimatedSales)}
@@ -125,7 +125,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <DollarSign size={12} />
-                    <span className="text-[10px]">Revenu</span>
+                    <span className="text-[10px]">Revenue</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {formatCurrency(scenario.data.estimatedRevenue)}
@@ -143,7 +143,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <Percent size={12} />
-                    <span className="text-[10px]">Marge</span>
+                    <span className="text-[10px]">Margin</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {scenario.data.marginPercentage}%

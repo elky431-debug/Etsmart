@@ -18,7 +18,7 @@ import { Logo } from '@/components/ui/Logo';
 import type { ProductAnalysis, Verdict, Niche } from '@/types';
 import { getNicheById } from '@/lib/niches';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 
 interface DashboardHistoryProps {
   analyses: ProductAnalysis[];
@@ -58,7 +58,7 @@ export function DashboardHistory({
   const getVerdictDisplay = (verdict: Verdict, competitors: number) => {
     if (competitors <= 80) {
       return {
-        label: 'LANCER RAPIDEMENT',
+        label: 'LAUNCH QUICKLY',
         color: 'bg-green-600',
         icon: CheckCircle2,
         textColor: 'text-green-700',
@@ -67,7 +67,7 @@ export function DashboardHistory({
       };
     } else if (competitors <= 130) {
       return {
-        label: 'LANCER MAIS OPTIMISER',
+        label: 'LAUNCH BUT OPTIMIZE',
         color: 'bg-amber-500',
         icon: AlertTriangle,
         textColor: 'text-amber-700',
@@ -76,7 +76,7 @@ export function DashboardHistory({
       };
     } else {
       return {
-        label: 'NE PAS LANCER',
+        label: 'DON\'T LAUNCH',
         color: 'bg-red-500',
         icon: XCircle,
         textColor: 'text-red-700',
@@ -106,16 +106,16 @@ export function DashboardHistory({
               <Eye className="w-10 h-10 text-slate-400" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              Aucune analyse pour le moment
+              No analysis yet
             </h2>
             <p className="text-slate-600 mb-6">
-              Commencez par analyser un produit pour voir votre historique ici.
+              Start by analyzing a product to see your history here.
             </p>
             <a
               href="/app"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
             >
-              Analyser un produit
+              Analyze a product
             </a>
           </div>
         </div>
@@ -128,9 +128,9 @@ export function DashboardHistory({
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Historique des analyses</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Analysis History</h1>
           <p className="text-slate-600">
-            {analyses.length} {analyses.length === 1 ? 'produit analysé' : 'produits analysés'}
+            {analyses.length} {analyses.length === 1 ? 'product analyzed' : 'products analyzed'}
           </p>
         </div>
 
@@ -143,7 +143,7 @@ export function DashboardHistory({
             </div>
             <input
               type="text"
-              placeholder="Rechercher un produit..."
+              placeholder="Search for a product..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-14 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
@@ -160,7 +160,7 @@ export function DashboardHistory({
                 onChange={(e) => setVerdictFilter(e.target.value as Verdict | 'all')}
                 className="px-4 py-2 bg-white border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
               >
-                <option value="all">Tous les verdicts</option>
+                <option value="all">All verdicts</option>
                 <option value="launch">Lancer</option>
                 <option value="test">Tester</option>
                 <option value="avoid">Éviter</option>
@@ -173,7 +173,7 @@ export function DashboardHistory({
               onChange={(e) => setNicheFilter(e.target.value as Niche | 'all')}
               className="px-4 py-2 bg-white border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
             >
-              <option value="all">Toutes les niches</option>
+              <option value="all">All niches</option>
               {Array.from(new Set(analyses.map(a => a.niche))).map(niche => {
                 const nicheInfo = getNicheById(niche);
                 return (
@@ -189,7 +189,7 @@ export function DashboardHistory({
         {/* Results count */}
         {filteredAnalyses.length !== analyses.length && (
           <div className="mb-4 text-sm text-slate-600">
-            {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'résultat' : 'résultats'}
+            {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'result' : 'results'}
           </div>
         )}
 
@@ -235,7 +235,7 @@ export function DashboardHistory({
                           {analysis.product.title}
                         </h3>
                         <p className="text-sm text-slate-600 mb-3 line-clamp-2">
-                          {analysis.verdict.summary || 'Analyse complète disponible'}
+                          {analysis.verdict.summary || 'Complete analysis available'}
                         </p>
 
                         {/* Meta info */}
@@ -247,11 +247,11 @@ export function DashboardHistory({
                           <div className="flex items-center gap-1.5">
                             <Calendar size={14} />
                             <span>
-                              {format(new Date(analysis.analyzedAt), 'd MMM yyyy', { locale: fr })}
+                              {format(new Date(analysis.analyzedAt), 'MMM d, yyyy', { locale: enUS })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span>{analysis.competitors.totalCompetitors} concurrents</span>
+                            <span>{analysis.competitors.totalCompetitors} competitors</span>
                           </div>
                         </div>
                       </div>

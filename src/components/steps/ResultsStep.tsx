@@ -66,107 +66,107 @@ interface PromptGeneratorProps {
 function generateCreativePrompt(props: PromptGeneratorProps): { main: string; variant?: string } {
   const { productDescription, niche, positioning, psychologicalTriggers, competitorMistakes } = props;
 
-  // Déterminer le moteur d'achat
+  // Determine purchase motivation
   const isForPleasure = psychologicalTriggers?.some(t => 
-    t.trigger.toLowerCase().includes('plaisir') || 
+    t.trigger.toLowerCase().includes('pleasure') || 
     t.trigger.toLowerCase().includes('fun') ||
-    t.trigger.toLowerCase().includes('joie') ||
-    t.trigger.toLowerCase().includes('cadeau') ||
-    t.trigger.toLowerCase().includes('bonheur')
+    t.trigger.toLowerCase().includes('joy') ||
+    t.trigger.toLowerCase().includes('gift') ||
+    t.trigger.toLowerCase().includes('happiness')
   );
 
-  // Déterminer l'ambiance selon la niche
+  // Determine ambiance based on niche
   const nicheAmbiance: Record<string, string> = {
-    'home-decor': 'intérieur chaleureux et accueillant, lumière douce de fin d\'après-midi',
-    'jewelry': 'lumière naturelle délicate, arrière-plan épuré et élégant',
-    'pets': 'ambiance joyeuse et vivante, environnement familial',
-    'baby': 'atmosphère douce et tendre, tons pastels naturels',
-    'wedding': 'ambiance romantique et élégante, lumière dorée',
-    'personalized-gifts': 'moment émotionnel et authentique, cadre intime',
-    'wellness': 'ambiance zen et apaisante, lumière naturelle douce',
-    'art': 'mise en valeur artistique, éclairage de galerie naturel',
-    'vintage': 'atmosphère nostalgique et authentique, lumière chaude',
-    'crafts': 'environnement créatif et artisanal, lumière naturelle d\'atelier',
+    'home-decor': 'warm and welcoming interior, soft late afternoon light',
+    'jewelry': 'delicate natural light, clean and elegant background',
+    'pets': 'joyful and lively atmosphere, family environment',
+    'baby': 'soft and tender atmosphere, natural pastel tones',
+    'wedding': 'romantic and elegant atmosphere, golden light',
+    'personalized-gifts': 'emotional and authentic moment, intimate setting',
+    'wellness': 'zen and soothing atmosphere, soft natural light',
+    'art': 'artistic showcase, natural gallery lighting',
+    'vintage': 'nostalgic and authentic atmosphere, warm light',
+    'crafts': 'creative and artisanal environment, natural workshop light',
   };
 
-  const ambiance = nicheAmbiance[niche] || 'lumière naturelle, ambiance lifestyle authentique';
+  const ambiance = nicheAmbiance[niche] || 'natural light, authentic lifestyle ambiance';
 
-  // Déterminer l'émotion
+  // Determine emotion
   const emotion = isForPleasure 
-    ? 'joie, plaisir et satisfaction'
-    : 'confort, sérénité et bien-être';
+    ? 'joy, pleasure and satisfaction'
+    : 'comfort, serenity and well-being';
 
-  // Construire le prompt principal
-  const mainPrompt = `Tu es un photographe lifestyle spécialisé dans les photos produits pour Etsy.
+  // Build the main prompt
+  const mainPrompt = `You are a lifestyle photographer specializing in product photos for Etsy.
 
-PRODUIT À PHOTOGRAPHIER :
-Utilise la photo du produit fournie comme référence principale. Le produit est : ${productDescription}
+PRODUCT TO PHOTOGRAPH:
+Use the provided product photo as the main reference. The product is: ${productDescription}
 
-⚠️ RÈGLE CRITIQUE - REPRODUCTION EXACTE :
-- Reprends EXACTEMENT le produit tel qu'il apparaît sur la photo importée
-- Si le produit a des écritures, textes, logos ou inscriptions dessus, REPRODUIS-LES EXACTEMENT
-- Le produit sur l'image générée doit être IDENTIQUE au produit de la photo importée
-- Place le produit exactement comme sur la photo de référence
-- Conserve toutes les caractéristiques visuelles du produit original (couleurs, textures, détails, écritures)
+⚠️ CRITICAL RULE - EXACT REPRODUCTION:
+- Reproduce EXACTLY the product as it appears in the imported photo
+- If the product has writing, text, logos or inscriptions on it, REPRODUCE THEM EXACTLY
+- The product in the generated image must be IDENTICAL to the product in the imported photo
+- Place the product exactly as in the reference photo
+- Preserve all visual characteristics of the original product (colors, textures, details, writing)
 
-SCÈNE À CRÉER :
-Crée une mise en situation réaliste et naturelle montrant le produit en cours d'utilisation ou dans son contexte d'usage idéal.
-${positioning ? `Positionnement marketing : ${positioning}` : ''}
+SCENE TO CREATE:
+Create a realistic and natural setting showing the product in use or in its ideal usage context.
+${positioning ? `Marketing positioning: ${positioning}` : ''}
 
-AMBIANCE :
+AMBIANCE:
 - ${ambiance}
-- Émotion à transmettre : ${emotion}
-- Style : photo lifestyle premium pour Etsy, authentique et aspirationnel
+- Emotion to convey: ${emotion}
+- Style: premium lifestyle photo for Etsy, authentic and aspirational
 
-CONSIGNES TECHNIQUES :
-- Lumière naturelle douce, pas de flash artificiel
-- Rendu photo ultra-réaliste
-- Profondeur de champ naturelle
-- Couleurs fidèles et harmonieuses
-- Angle de vue engageant
+TECHNICAL GUIDELINES:
+- Soft natural light, no artificial flash
+- Ultra-realistic photo rendering
+- Natural depth of field
+- Faithful and harmonious colors
+- Engaging viewing angle
 
-INTERDICTIONS ABSOLUES (sauf sur le produit lui-même) :
-- NO text ajouté en dehors du produit
-- NO logo ajouté en dehors du produit
-- NO brand name ajouté en dehors du produit
+ABSOLUTE PROHIBITIONS (except on the product itself):
+- NO text added outside the product
+- NO logo added outside the product
+- NO brand name added outside the product
 - NO watermark
-- NO price tag, NO badge, NO sticker ajoutés
-- NO artificial marketing elements ajoutés
+- NO price tag, NO badge, NO sticker added
+- NO artificial marketing elements added
 - NO frames, NO borders, NO overlays
 - NO catalog-style flat photography
 
-L'image doit donner envie de cliquer et d'acheter sur Etsy.`;
+The image should make people want to click and buy on Etsy.`;
 
   // Construire une variante si possible
   let variantPrompt: string | undefined;
   
   if (psychologicalTriggers && psychologicalTriggers.length > 0) {
     const mainTrigger = psychologicalTriggers[0].trigger;
-    variantPrompt = `Tu es un photographe lifestyle spécialisé dans les photos produits pour Etsy.
+    variantPrompt = `You are a lifestyle photographer specializing in product photos for Etsy.
 
-PRODUIT :
-Utilise la photo du produit fournie comme référence. Produit : ${productDescription}
+PRODUCT:
+Use the provided product photo as a reference. Product: ${productDescription}
 
-⚠️ RÈGLE CRITIQUE - REPRODUCTION EXACTE :
-- Reprends EXACTEMENT le produit tel qu'il apparaît sur la photo importée
-- Si le produit a des écritures, textes, logos ou inscriptions dessus, REPRODUIS-LES EXACTEMENT
-- Le produit sur l'image générée doit être IDENTIQUE au produit de la photo importée
-- Place le produit exactement comme sur la photo de référence
-- Conserve toutes les caractéristiques visuelles du produit original (couleurs, textures, détails, écritures)
+⚠️ CRITICAL RULE - EXACT REPRODUCTION:
+- Reproduce EXACTLY the product as it appears in the imported photo
+- If the product has writing, text, logos or inscriptions on it, REPRODUCE THEM EXACTLY
+- The product in the generated image must be IDENTICAL to the product in the imported photo
+- Place the product exactly as in the reference photo
+- Preserve all visual characteristics of the original product (colors, textures, details, writing)
 
-CONCEPT CRÉATIF :
-Mets en avant l'aspect "${mainTrigger}" du produit. Montre comment ce produit transforme un moment ordinaire en moment spécial.
+CREATIVE CONCEPT:
+Highlight the "${mainTrigger}" aspect of the product. Show how this product transforms an ordinary moment into a special moment.
 
-AMBIANCE :
-- Scène de vie quotidienne sublimée
-- Lumière naturelle, atmosphère chaleureuse
-- Focus sur l'émotion et l'usage réel
+AMBIANCE:
+- Elevated everyday life scene
+- Natural light, warm atmosphere
+- Focus on emotion and real usage
 
-STYLE :
-Photo lifestyle Etsy, authentique, émotionnelle, professionnelle.
+STYLE:
+Etsy lifestyle photo, authentic, emotional, professional.
 
-INTERDICTIONS (sauf sur le produit lui-même) :
-NO text ajouté, NO logo ajouté, NO watermark, NO price, NO badge, NO artificial elements ajoutés.`;
+PROHIBITIONS (except on the product itself):
+NO text added, NO logo added, NO watermark, NO price, NO badge, NO artificial elements added.`;
   }
 
   return { main: mainPrompt, variant: variantPrompt };
@@ -214,7 +214,7 @@ function CreativePromptGenerator({
             <Sparkles size={20} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Prompt créatif IA</h2>
+            <h2 className="text-base font-bold text-slate-900">Creative AI Prompt</h2>
             <p className="text-slate-500 text-xs">To generate your Etsy ad images</p>
           </div>
         </div>
@@ -657,7 +657,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <Info size={14} className="text-slate-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-xs font-medium text-slate-700 mb-1">Méthodologie d&apos;estimation</p>
+                        <p className="text-xs font-medium text-slate-700 mb-1">Estimation methodology</p>
                         <p className="text-xs text-slate-600 leading-relaxed">{analysis.competitors.competitorEstimationReasoning}</p>
                         {analysis.competitors.marketPriceReasoning && (
                           <p className="text-xs text-slate-500 mt-2 italic">{analysis.competitors.marketPriceReasoning}</p>
@@ -676,8 +676,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           <Eye size={20} className="text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">Vision IA</h3>
-                          <p className="text-xs text-slate-500">Recherche optimisée pour Etsy</p>
+                          <h3 className="text-base font-bold text-slate-900">AI Vision</h3>
+                          <p className="text-xs text-slate-500">Optimized search for Etsy</p>
                         </div>
                       </div>
                       <a
@@ -687,7 +687,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors"
                       >
                         <Search size={14} />
-                        Voir sur Etsy
+                        View on Etsy
                       </a>
                     </div>
                     {analysis.verdict.productVisualDescription && (
@@ -711,7 +711,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <div className="w-9 h-9 rounded-lg bg-emerald-500 flex items-center justify-center">
                         <Award size={18} className="text-white" />
                       </div>
-                      <h3 className="text-base font-bold text-slate-900">Points forts</h3>
+                      <h3 className="text-base font-bold text-slate-900">Strengths</h3>
                     </div>
                     <ul className="space-y-2">
                       {analysis.verdict.strengths.map((s, i) => (
@@ -730,7 +730,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center">
                         <AlertTriangle size={18} className="text-white" />
                       </div>
-                      <h3 className="text-base font-bold text-slate-900">Points de vigilance</h3>
+                      <h3 className="text-base font-bold text-slate-900">Watchpoints</h3>
                     </div>
                     <ul className="space-y-2">
                       {analysis.verdict.risks.map((r, i) => (
@@ -1002,13 +1002,13 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-white border border-slate-200">
                   <div className="flex items-center gap-3 mb-5">
                     <CircleDollarSign size={20} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Stratégie de prix</h3>
+                    <h3 className="text-base font-bold text-slate-900">Pricing Strategy</h3>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: 'Lancement', sublabel: 'Pénétration', price: analysis.pricing.aggressivePrice, active: false },
-                      { label: 'Optimal', sublabel: 'Recommandé', price: analysis.pricing.recommendedPrice, active: true },
-                      { label: 'Premium', sublabel: 'Marge max', price: analysis.pricing.premiumPrice, active: false },
+                      { label: 'Launch', sublabel: 'Penetration', price: analysis.pricing.aggressivePrice, active: false },
+                      { label: 'Optimal', sublabel: 'Recommended', price: analysis.pricing.recommendedPrice, active: true },
+                      { label: 'Premium', sublabel: 'Max margin', price: analysis.pricing.premiumPrice, active: false },
                     ].map((p, i) => (
                       <div 
                         key={i} 
@@ -1061,11 +1061,11 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="grid grid-cols-3 gap-4 mb-5">
                     {[
                       { 
-                        label: 'Prix fournisseur', 
+                        label: 'Supplier price', 
                         value: supplierPrice, 
                         setValue: setSupplierPrice, 
                         hint: analysis.product.price > 0 
-                          ? `Prix renseigné: ${formatCurrency(analysis.product.price)}` 
+                          ? `Price entered: ${formatCurrency(analysis.product.price)}` 
                           : `Est IA: ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
                       },
                       { label: 'Shipping cost', value: shippingCost, setValue: setShippingCost, hint: `Est: ${formatCurrency(aiEstimatedShippingCost)}` },
@@ -1107,7 +1107,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Marge</p>
+                      <p className="text-xs text-slate-500 mb-1">Margin</p>
                       <p className={`text-xl font-bold ${simulationData.marginPercent > 30 ? 'text-emerald-600' : 'text-slate-900'}`}>
                         {simulationData.marginPercent.toFixed(1)}%
                       </p>
@@ -1185,7 +1185,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           </div>
                           {scenario.highlight && (
                             <span className="px-2 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
-                              Recommandé
+                              Recommended
                             </span>
                           )}
                         </div>
@@ -1219,7 +1219,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
                   <div className="flex items-center gap-3 mb-4">
                     <Award size={20} className="text-amber-500" />
-                    <h3 className="text-base font-bold text-slate-900">Facteurs clés de succès</h3>
+                    <h3 className="text-base font-bold text-slate-900">Key Success Factors</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {analysis.launchSimulation.keyFactors.map((factor, i) => (
@@ -1253,12 +1253,12 @@ export function ResultsStep() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-2xl text-slate-900 mb-4">Aucune analyse disponible</p>
+          <p className="text-2xl text-slate-900 mb-4">No analysis available</p>
           <button
             onClick={() => setStep(2)}
             className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white rounded-xl font-semibold"
           >
-            Retourner à l&apos;import
+            Return to import
           </button>
         </div>
       </div>

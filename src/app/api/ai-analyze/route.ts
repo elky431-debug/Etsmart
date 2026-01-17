@@ -181,31 +181,31 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const prompt = `Tu es l'EXPERT VISION d'Etsmart - Analyse e-commerce avancée.
+    const prompt = `You are Etsmart's VISION EXPERT - Advanced e-commerce analysis.
 
 ═══════════════════════════════════════════════════════════════════════════════
-📸 ÉTAPE 1 - ANALYSE VISUELLE DU PRODUIT
+📸 STEP 1 - VISUAL PRODUCT ANALYSIS
 ═══════════════════════════════════════════════════════════════════════════════
 
-Regarde attentivement l'image et identifie:
-1. Le TYPE de produit (bijou, décoration, accessoire, etc.)
-2. Les MATÉRIAUX visibles (métal, bois, plastique, tissu, etc.)
-3. La COMPLEXITÉ de fabrication (simple, moyenne, complexe)
-4. Les OPTIONS de personnalisation visibles
+Look carefully at the image and identify:
+1. The TYPE of product (jewelry, decoration, accessory, etc.)
+2. Visible MATERIALS (metal, wood, plastic, fabric, etc.)
+3. Manufacturing COMPLEXITY (simple, medium, complex)
+4. Visible customization options
 
-Décris en 1-2 phrases ce que tu vois.
+Describe in 1-2 sentences what you see.
 
 ═══════════════════════════════════════════════════════════════════════════════
-💰 ÉTAPE 2 - ESTIMATION DU PRIX FOURNISSEUR (CRITIQUE!)
+💰 STEP 2 - SUPPLIER PRICE ESTIMATION (CRITICAL!)
 ═══════════════════════════════════════════════════════════════════════════════
 
-${productPrice > 0 ? `Prix indiqué par l'utilisateur: $${productPrice}` : 'Aucun prix fourni par l\'utilisateur.'}
+${productPrice > 0 ? `Price indicated by user: $${productPrice}` : 'No price provided by user.'}
 
-Tu dois ESTIMER le prix typique sur AliExpress/Alibaba pour ce produit basé sur:
+You must ESTIMATE the typical price on AliExpress/Alibaba for this product based on:
 
-📊 TABLE DE RÉFÉRENCE PRIX FOURNISSEUR (AliExpress 2024-2025):
+📊 SUPPLIER PRICE REFERENCE TABLE (AliExpress 2024-2025):
 
-| Type de produit | Prix bas | Prix moyen | Prix élevé |
+| Product type | Low price | Average price | High price |
 |-----------------|----------|------------|------------|
 | Bijoux simples (bagues, boucles basiques) | $0.50-1 | $1-3 | $3-8 |
 | Bijoux personnalisés (gravure, nom) | $2-4 | $4-8 | $8-15 |
@@ -221,42 +221,42 @@ Tu dois ESTIMER le prix typique sur AliExpress/Alibaba pour ce produit basé sur
 | Outils cuisine | $2-5 | $5-15 | $15-35 |
 | Sacs/pochettes | $3-8 | $8-20 | $20-50 |
 
-📦 ESTIMATION FRAIS DE LIVRAISON:
-- Petit article léger (<100g): $1-3
-- Article moyen (100-500g): $3-8  
-- Article volumineux/lourd (>500g): $8-20
-- ePacket standard: +$2-5
-- Livraison rapide: +$5-15
+📦 SHIPPING COST ESTIMATION:
+- Light item (<100g): $1-3
+- Medium item (100-500g): $3-8  
+- Large/heavy item (>500g): $8-20
+- Standard ePacket: +$2-5
+- Express shipping: +$5-15
 
-FOURNIS:
-- "estimatedSupplierPrice": ton estimation du prix produit seul
-- "estimatedShippingCost": ton estimation des frais de livraison
-- "supplierPriceReasoning": explique en 1-2 phrases ton raisonnement
-
-═══════════════════════════════════════════════════════════════════════════════
-🎯 ÉTAPE 3 - REQUÊTE ETSY
-═══════════════════════════════════════════════════════════════════════════════
-
-Génère une requête de recherche Etsy:
-- En anglais, 4-7 mots
-- Comme un acheteur chercherait
-- PAS de mots marketing (hot, sale, 2024, fashion)
+PROVIDE:
+- "estimatedSupplierPrice": your estimation of the product price alone
+- "estimatedShippingCost": your estimation of shipping costs
+- "supplierPriceReasoning": explain your reasoning in 1-2 sentences
 
 ═══════════════════════════════════════════════════════════════════════════════
-📊 ÉTAPE 4 - ESTIMATION CONCURRENTS (MÉTHODOLOGIE STRICTE)
+🎯 STEP 3 - ETSY SEARCH QUERY
 ═══════════════════════════════════════════════════════════════════════════════
 
-⚠️ PRINCIPE FONDAMENTAL: Tu ne dois JAMAIS inventer un chiffre.
-Tu dois OBSERVER, EXTRAPOLER PRUDEMMENT et RESTER CONSERVATEUR.
-L'objectif: FIABILITÉ DÉCISIONNELLE, pas exactitude parfaite.
+Generate an Etsy search query:
+- In English, 4-7 words
+- As a buyer would search
+- NO marketing words (hot, sale, 2024, fashion)
 
-🚨 RÈGLE CRITIQUE DE VARIATION:
-- Chaque produit est UNIQUE - son nombre de concurrents doit refléter sa réalité
-- Un bracelet personnalisé avec prénom = 15-40 concurrents (ex: 23, 31, 38)
-- Un mug personnalisé = 80-150 concurrents (ex: 94, 112, 143)
-- Un t-shirt générique = 200-400 concurrents (ex: 234, 287, 356)
-- JAMAIS utiliser le même nombre (120) pour tous les produits
-- Sois PRÉCIS et NATUREL dans tes estimations
+═══════════════════════════════════════════════════════════════════════════════
+📊 STEP 4 - COMPETITOR ESTIMATION (STRICT METHODOLOGY)
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️ FUNDAMENTAL PRINCIPLE: You must NEVER invent a number.
+You must OBSERVE, EXTRAPOLATE CAUTIOUSLY and REMAIN CONSERVATIVE.
+The goal: DECISIONAL RELIABILITY, not perfect accuracy.
+
+🚨 CRITICAL VARIATION RULE:
+- Each product is UNIQUE - its competitor count must reflect its reality
+- A personalized bracelet with name = 15-40 competitors (ex: 23, 31, 38)
+- A personalized mug = 80-150 competitors (ex: 94, 112, 143)
+- A generic t-shirt = 200-400 competitors (ex: 234, 287, 356)
+- NEVER use the same number (120) for all products
+- Be PRECISE and NATURAL in your estimations
 
 🔍 MÉTHODE EN 4 ÉTAPES:
 
