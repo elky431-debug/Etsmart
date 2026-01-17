@@ -1,11 +1,59 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, Crown, Zap, Sparkles } from 'lucide-react';
-import { PLANS, type Plan } from '@/types/subscription';
-import Link from 'next/link';
+import { Check, X, Crown, Zap, Sparkles, Loader2 } from 'lucide-react';
+import { PLANS, type Plan, type PlanId } from '@/types/subscription';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function PricingPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
+
+  const handleSubscribe = async (planId: PlanId) => {
+    // Check if user is logged in
+    if (!user) {
+      // Redirect to login with return URL
+      router.push(`/login?redirect=/pricing&plan=${planId}`);
+      return;
+    }
+
+    setLoadingPlan(planId);
+
+    try {
+      // Create Stripe Checkout Session
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planId,
+          userId: user.id,
+          userEmail: user.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      alert(error.message || 'Failed to start checkout. Please try again.');
+      setLoadingPlan(null);
+    }
+  };
   // Feature comparison table data
   const featureComparison = [
     { id: 'analyses', name: 'Analyses / month', smart: '15', pro: '30', scale: '100' },
@@ -110,18 +158,26 @@ export default function PricingPage() {
               </div>
 
               {/* CTA Button */}
-              <Link
-                href="/dashboard?tab=subscription"
+              <button
+                onClick={() => handleSubscribe(plan.id)}
+                disabled={loadingPlan === plan.id}
                 className={`
-                  w-full py-4 rounded-xl font-semibold transition-all text-center block
+                  w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2
                   ${plan.popular
-                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white hover:shadow-lg hover:shadow-[#00d4ff]/30'
-                    : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white hover:shadow-lg hover:shadow-[#00d4ff]/30 disabled:opacity-70'
+                    : 'bg-slate-100 text-slate-900 hover:bg-slate-200 disabled:opacity-70'
                   }
                 `}
               >
-                {plan.popular ? 'Get Started' : 'Choose Plan'}
-              </Link>
+                {loadingPlan === plan.id ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <span>{plan.popular ? 'Get Started' : 'Choose Plan'}</span>
+                )}
+              </button>
 
               {/* Limitations */}
               {plan.limitations && plan.limitations.length > 0 && (
