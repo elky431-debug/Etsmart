@@ -34,6 +34,7 @@ export interface Plan {
   features: PlanFeature[];
   limitations?: string[];
   popular?: boolean;
+  stripePriceId?: string; // Stripe Price ID for payment integration
 }
 
 export interface PlanFeature {
@@ -48,6 +49,13 @@ export const PLAN_LIMITS: Record<PlanId, number> = {
   smart: 15,
   pro: 30,
   scale: 100,
+};
+
+// Stripe Price IDs for each plan
+export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
+  smart: 'price_1SqHYZCn17QPHnzEGz8Ehdzz', // Etsmart Smart - $29.99/month
+  pro: null, // TODO: Add Stripe Price ID for Pro plan
+  scale: null, // TODO: Add Stripe Price ID for Scale plan
 };
 
 // Plan features configuration
@@ -101,6 +109,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     analysesPerMonth: 15,
     features: PLAN_FEATURES.smart,
+    stripePriceId: STRIPE_PRICE_IDS.smart || undefined,
     limitations: [
       'No advanced simulation',
       'Simplified marketing',
@@ -115,6 +124,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     analysesPerMonth: 30,
     features: PLAN_FEATURES.pro,
+    stripePriceId: STRIPE_PRICE_IDS.pro || undefined,
     popular: true,
     limitations: [
       'No global risk simulation',
@@ -129,6 +139,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     analysesPerMonth: 100,
     features: PLAN_FEATURES.scale,
+    stripePriceId: STRIPE_PRICE_IDS.scale || undefined,
   },
 ];
 
@@ -147,5 +158,12 @@ export function hasFeature(planId: PlanId, featureId: string): boolean {
   
   const feature = plan.features.find(f => f.id === featureId);
   return feature?.available || false;
+}
+
+/**
+ * Get Stripe Price ID for a plan
+ */
+export function getStripePriceId(planId: PlanId): string | null {
+  return STRIPE_PRICE_IDS[planId] || null;
 }
 
