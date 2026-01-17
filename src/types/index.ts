@@ -1,5 +1,8 @@
 // Etsmart Types
 
+// Re-export subscription types
+export * from './subscription';
+
 export type Niche = 
   | 'personalized-gifts'
   | 'wedding'
