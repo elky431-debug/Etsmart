@@ -494,7 +494,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 
-                <Link href="/app">
+                <Link href="/pricing">
                   <button 
                     className={`w-full py-3.5 rounded-full font-semibold transition-all ${
                       plan.popular 

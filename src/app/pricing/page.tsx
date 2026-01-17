@@ -111,7 +111,7 @@ export default function PricingPage() {
 
               {/* CTA Button */}
               <Link
-                href={`/pricing?plan=${plan.id}`}
+                href="/dashboard?tab=subscription"
                 className={`
                   w-full py-4 rounded-xl font-semibold transition-all text-center block
                   ${plan.popular
