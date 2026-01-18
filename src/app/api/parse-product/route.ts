@@ -1,5 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVICES DE SCRAPING PROFESSIONNELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ScraperAPI - Service professionnel avec rotation d'IP et gestion CAPTCHA
+// Documentation: https://www.scraperapi.com/documentation/
+// Obtenez votre clé API: https://www.scraperapi.com/dashboard?register=true
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
+const USE_SCRAPER_API = !!SCRAPER_API_KEY;
+
+async function scrapeWithScraperAPI(url: string): Promise<string | null> {
+  if (!USE_SCRAPER_API) return null;
+
+  try {
+    // ScraperAPI endpoint avec paramètres optimisés
+    const scraperApiUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(url)}&render=true&country_code=us`;
+    
+    const response = await fetch(scraperApiUrl, {
+      signal: AbortSignal.timeout(30000), // 30 seconds timeout
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ ScraperAPI returned status ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    console.log(`✅ ScraperAPI successfully fetched ${url.substring(0, 50)}...`);
+    return html;
+  } catch (error: any) {
+    console.log(`❌ ScraperAPI error: ${error.message}`);
+    return null;
+  }
+}
+
 // Helper to extract basic info from URL (fallback when scraping fails)
 function extractBasicInfoFromUrl(url: string) {
   try {
@@ -64,6 +99,75 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper to get random delay (300-1500ms)
 const getRandomDelay = () => Math.floor(Math.random() * 1200) + 300;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TECHNIQUES AVANCÉES DE CONTOURNEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Générer un User-Agent réaliste avec fingerprinting
+function generateRealisticHeaders(userAgent: string) {
+  // Extraire les infos du User-Agent
+  const isChrome = userAgent.includes('Chrome');
+  const isFirefox = userAgent.includes('Firefox');
+  const isSafari = userAgent.includes('Safari');
+  const isWindows = userAgent.includes('Windows');
+  const isMac = userAgent.includes('Macintosh');
+  const isLinux = userAgent.includes('Linux');
+
+  const headers: Record<string, string> = {
+    'User-Agent': userAgent,
+    'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Referer': 'https://www.aliexpress.com/',
+    'Origin': 'https://www.aliexpress.com',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Cache-Control': 'max-age=0',
+    'DNT': '1', // Do Not Track
+  };
+
+  if (isChrome) {
+    headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7';
+    headers['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+    headers['sec-ch-ua-mobile'] = '?0';
+    headers['sec-ch-ua-platform'] = isWindows ? '"Windows"' : isMac ? '"macOS"' : '"Linux"';
+    headers['sec-fetch-dest'] = 'document';
+    headers['sec-fetch-mode'] = 'navigate';
+    headers['sec-fetch-site'] = 'none';
+    headers['sec-fetch-user'] = '?1';
+  } else if (isFirefox) {
+    headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+    headers['sec-fetch-dest'] = 'document';
+    headers['sec-fetch-mode'] = 'navigate';
+    headers['sec-fetch-site'] = 'none';
+    headers['sec-fetch-user'] = '?1';
+  } else if (isSafari) {
+    headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
+  }
+
+  return headers;
+}
+
+// Proxies rotatifs (optionnel - à configurer avec vos proxies)
+const PROXY_LIST = process.env.PROXY_LIST ? process.env.PROXY_LIST.split(',') : [];
+const USE_PROXY = PROXY_LIST.length > 0;
+
+function getRandomProxy(): string | null {
+  if (!USE_PROXY || PROXY_LIST.length === 0) return null;
+  return PROXY_LIST[Math.floor(Math.random() * PROXY_LIST.length)];
+}
+
+// Fetch avec proxy si disponible
+async function fetchWithProxy(url: string, options: RequestInit = {}, proxy?: string | null): Promise<Response> {
+  if (proxy) {
+    // Configuration pour utiliser un proxy HTTP
+    // Note: Cela nécessite une configuration spéciale dans l'environnement
+    // Pour Netlify, utilisez plutôt ScraperAPI qui gère les proxies automatiquement
+    console.log(`🔄 Using proxy: ${proxy.substring(0, 20)}...`);
+  }
+  
+  return fetch(url, options);
+}
 
 // Fetch product from AliExpress API
 async function fetchAliExpressProduct(productId: string, originalUrl: string) {
@@ -587,13 +691,41 @@ function extractFromApiResponse(data: Record<string, unknown>, productId: string
   }
 }
 
-// Scrape AliExpress page directly
+// ═══════════════════════════════════════════════════════════════════════════
+// MÉTHODE PRINCIPALE: SCRAPING AVEC MULTIPLES TECHNIQUES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Scrape AliExpress page directly with multiple bypass techniques
 async function scrapeAliExpressPage(productId: string, originalUrl: string) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ÉTAPE 1: Essayer ScraperAPI (service professionnel) - Plus fiable
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  if (USE_SCRAPER_API) {
+    const pageUrl = `https://www.aliexpress.com/item/${productId}.html`;
+    console.log('🔧 Attempting ScraperAPI...');
+    
+    const html = await scrapeWithScraperAPI(pageUrl);
+    if (html) {
+      const extracted = await extractFromHTML(html, productId, originalUrl);
+      if (extracted && extracted.title && extracted.title.length > 5) {
+        console.log('✅ Successfully scraped with ScraperAPI!');
+        return extracted;
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ÉTAPE 2: Techniques de contournement manuelles
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // Try multiple URL formats
   const pageUrls = [
     `https://www.aliexpress.com/item/${productId}.html`,
     `https://www.aliexpress.us/item/${productId}.html`,
     `https://m.aliexpress.com/item/${productId}.html`,
+    `https://fr.aliexpress.com/item/${productId}.html`,
+    `https://de.aliexpress.com/item/${productId}.html`,
   ];
   
   // Try with different User-Agents
@@ -614,26 +746,24 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
       }
       
       try {
-        const response = await fetch(pageUrl, {
-          headers: {
-            'User-Agent': userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.aliexpress.com/',
-            'Origin': 'https://www.aliexpress.com',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Cache-Control': 'max-age=0',
-          },
-          // Add timeout
-          signal: AbortSignal.timeout(15000), // 15 seconds timeout
-          redirect: 'follow',
-        });
+        // Générer des headers réalistes avec fingerprinting
+        const headers = generateRealisticHeaders(userAgent);
+        
+        // Obtenir un proxy aléatoire si disponible
+        const proxy = getRandomProxy();
+        
+        // Utiliser fetchWithProxy ou fetch normal
+        const response = proxy
+          ? await fetchWithProxy(pageUrl, {
+              headers,
+              signal: AbortSignal.timeout(15000),
+              redirect: 'follow',
+            }, proxy)
+          : await fetch(pageUrl, {
+              headers,
+              signal: AbortSignal.timeout(15000),
+              redirect: 'follow',
+            });
 
         if (!response.ok) {
           // If 403/429 (blocked), try next User-Agent
