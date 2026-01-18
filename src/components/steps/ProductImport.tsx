@@ -447,28 +447,12 @@ export function ProductImport() {
                   <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-red-700 mb-1">{error}</p>
-                    <button
-                      onClick={() => setShowManualEntry(true)}
-                      className="text-xs text-red-600 hover:text-red-700 underline font-medium"
-                    >
-                      Add manually
-                    </button>
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Manual entry link */}
-          <div className="flex items-center justify-center mt-6">
-            <button
-              onClick={() => setShowManualEntry(true)}
-              className="flex items-center gap-2 text-sm text-slate-500 hover:text-[#00d4ff] transition-colors font-medium"
-            >
-              <Edit3 size={16} />
-              Or add a product manually
-            </button>
-          </div>
         </motion.div>
 
         {/* Products List */}
