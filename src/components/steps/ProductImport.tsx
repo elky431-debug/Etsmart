@@ -4,26 +4,20 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
-  Link2, 
   Package, 
   Trash2, 
   ExternalLink,
-  Plus,
   Loader2,
   Edit3,
-  DollarSign,
   ChevronRight,
   AlertCircle,
-  CheckCircle2,
   X,
   Zap,
-  Sparkles,
   Upload,
   Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { parseProductUrl } from '@/lib/mockAnalysis';
 import { formatCurrency } from '@/lib/utils';
 import { niches } from '@/lib/niches';
 import type { SupplierProduct } from '@/types';
@@ -31,90 +25,11 @@ import type { SupplierProduct } from '@/types';
 export function ProductImport() {
   const { selectedNiche, products, addProduct, removeProduct, setStep } = useStore();
   
-  const [url, setUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState('');
-  const [showManualEntry, setShowManualEntry] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [manualProduct, setManualProduct] = useState({
-    title: '',
-    price: '',
-    imageUrl: '',
-  });
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
-
-  const handleAddProduct = async () => {
-    if (!url.trim()) return;
-
-    const isValidUrl = url.includes('aliexpress.com') || url.includes('alibaba.com') || url.includes('aliexpress.us');
-    if (!isValidUrl) {
-      setError('Entrez une URL AliExpress ou Alibaba valide');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const product = await parseProductUrl(url);
-      if (product && product.title && product.title !== 'Produit AliExpress') {
-        addProduct(product);
-        setUrl('');
-      } else {
-        // Try to get fallback info from API
-        try {
-          const response = await fetch('/api/parse-product', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-          const data = await response.json();
-          
-          if (data.fallback) {
-            // Pre-fill manual entry with extracted info
-            setManualProduct({
-              title: data.fallback.titleHint || '',
-              price: '',
-              imageUrl: data.fallback.url || url,
-            });
-          }
-        } catch (e) {
-          // Ignore fallback errors, still show manual entry
-        }
-        
-        setError('AliExpress bloque le scraping automatique. Utilisez l\'ajout manuel ci-dessous (champs pré-remplis).');
-        setShowManualEntry(true);
-      }
-    } catch (error: any) {
-      // Try to get fallback info from API
-      try {
-        const response = await fetch('/api/parse-product', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-        });
-        const data = await response.json();
-        
-        if (data.fallback) {
-          // Pre-fill manual entry with extracted info
-          setManualProduct({
-            title: data.fallback.titleHint || '',
-            price: '',
-            imageUrl: data.fallback.url || url,
-          });
-        }
-      } catch (e) {
-        // Ignore fallback errors
-      }
-      
-      setError('AliExpress bloque le scraping automatique. Utilisez l\'ajout manuel ci-dessous.');
-      setShowManualEntry(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,15 +97,6 @@ export function ProductImport() {
         // Extraire le message d'erreur
         const errorMessage = data.message || data.error || 'Impossible d\'extraire les informations du screenshot. Essayez de prendre une photo plus claire de la page produit.';
         setError(errorMessage);
-        
-        // Si on a quand même des données partielles, proposer l'ajout manuel
-        if (data.extracted && data.extracted.title) {
-          setManualProduct({
-            title: data.extracted.title || '',
-            price: String(data.extracted.price || ''),
-            imageUrl: uploadedImage || '',
-          });
-        }
       }
     } catch (error: any) {
       console.error('Image upload error:', error);
@@ -201,33 +107,6 @@ export function ProductImport() {
   };
 
 
-  const handleManualSubmit = () => {
-    if (!manualProduct.title.trim() || !manualProduct.price.trim()) return;
-
-    const price = parseFloat(manualProduct.price) || 0;
-    const product: SupplierProduct = {
-      id: `manual-${Date.now()}`,
-      url: url || 'https://www.aliexpress.com',
-      source: url.includes('alibaba') ? 'alibaba' : 'aliexpress',
-      title: manualProduct.title,
-      description: manualProduct.title,
-      images: manualProduct.imageUrl ? [manualProduct.imageUrl] : [],
-      price: price,
-      currency: 'USD',
-      variants: [{ id: 'v1', name: 'Standard', price }],
-      category: 'General',
-      shippingTime: '15-30 days',
-      minOrderQuantity: 1,
-      supplierRating: 4.5,
-      createdAt: new Date(),
-    };
-
-    addProduct(product);
-    setUrl('');
-    setManualProduct({ title: '', price: '', imageUrl: '' });
-    setShowManualEntry(false);
-    setError('');
-  };
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -286,7 +165,7 @@ export function ProductImport() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Importez vos produits depuis AliExpress ou Alibaba via URL ou screenshot
+            Prenez un screenshot de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
           </motion.p>
         </motion.div>
 
@@ -367,93 +246,24 @@ export function ProductImport() {
           </div>
         </motion.div>
 
-        {/* Divider */}
-        <div className="max-w-3xl mx-auto mb-8 flex items-center gap-4">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-          <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Ou</span>
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-        </div>
-
-        {/* Import Bar - Large and prominent */}
-        <motion.div 
-          className="max-w-3xl mx-auto mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-slate-200 shadow-2xl p-2">
-              <div className="flex items-center gap-4 px-6">
-                <Link2 size={24} className="text-[#00d4ff] flex-shrink-0" />
-                <input
-                  type="text"
-                  placeholder="https://aliexpress.com/item/..."
-                  value={url}
-                  onChange={(e) => { setUrl(e.target.value); setError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleAddProduct()}
-                  disabled={isLoading}
-                  className="flex-1 py-5 text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none disabled:opacity-50"
-                />
-                {url && (
-                  <motion.button
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    onClick={() => setUrl('')}
-                    className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
-                  >
-                    <X size={18} className="text-slate-400" />
-                  </motion.button>
-                )}
-                <motion.button
-                  onClick={handleAddProduct}
-                  disabled={isLoading || !url.trim()}
-                  whileHover={!isLoading && url.trim() ? { scale: 1.05 } : {}}
-                  whileTap={!isLoading && url.trim() ? { scale: 0.95 } : {}}
-                  className={`
-                    flex items-center gap-2 px-8 py-5 rounded-2xl font-bold text-lg transition-all
-                    ${isLoading || !url.trim()
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-xl shadow-[#00d4ff]/30 hover:shadow-[#00d4ff]/50'
-                    }
-                  `}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={20} />
-                      Ajouter
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </div>
-          </div>
-
-          {/* Error message */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mt-4 p-4 rounded-2xl bg-red-50 border-2 border-red-200"
-              >
-                <div className="flex items-start gap-3">
-                  <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-700 mb-1">{error}</p>
-                  </div>
+        {/* Error message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-3xl mx-auto mt-4 p-4 rounded-2xl bg-red-50 border-2 border-red-200"
+            >
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-700 mb-1">{error}</p>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-        </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Products List */}
         <motion.div 
@@ -481,7 +291,7 @@ export function ProductImport() {
                 <Package className="w-12 h-12 text-[#00d4ff]" />
               </motion.div>
               <p className="text-lg font-bold text-slate-700 mb-2">No products added</p>
-              <p className="text-sm text-slate-500">Collez un lien AliExpress ci-dessus pour commencer</p>
+              <p className="text-sm text-slate-500">Prenez un screenshot de la page produit AliExpress/Alibaba ci-dessus pour commencer</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -660,91 +470,6 @@ export function ProductImport() {
         </motion.div>
       </motion.div>
 
-      {/* Manual Entry Modal */}
-      <AnimatePresence>
-        {showManualEntry && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowManualEntry(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-2 border-slate-200 overflow-hidden"
-            >
-              <div className="px-8 py-6 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5">
-                <h3 className="text-2xl font-bold text-slate-900">Ajouter manuellement</h3>
-                <button
-                  onClick={() => setShowManualEntry(false)}
-                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-              
-              <div className="p-8 space-y-6">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Product title</label>
-                  <input
-                    type="text"
-                    placeholder="Product name..."
-                    value={manualProduct.title}
-                    onChange={(e) => setManualProduct({ ...manualProduct, title: e.target.value })}
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 focus:outline-none transition-all text-lg"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Price (USD)</label>
-                  <div className="relative">
-                    <DollarSign size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="5.99"
-                      value={manualProduct.price}
-                      onChange={(e) => setManualProduct({ ...manualProduct, price: e.target.value })}
-                      className="w-full pl-14 pr-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 focus:outline-none transition-all text-lg"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">URL de l&apos;image (optionnel)</label>
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={manualProduct.imageUrl}
-                    onChange={(e) => setManualProduct({ ...manualProduct, imageUrl: e.target.value })}
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 focus:outline-none transition-all text-lg"
-                  />
-                </div>
-              </div>
-              
-              <div className="px-8 pb-8 flex gap-4">
-                <button
-                  onClick={() => setShowManualEntry(false)}
-                  className="flex-1 px-6 py-4 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold transition-colors border-2 border-slate-200"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleManualSubmit}
-                  disabled={!manualProduct.title.trim() || !manualProduct.price.trim()}
-                  className="flex-1 px-6 py-4 text-white bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00b8e6] hover:to-[#00a89a] rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-                >
-                  Ajouter
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
