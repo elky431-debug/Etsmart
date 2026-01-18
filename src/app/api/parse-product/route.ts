@@ -101,30 +101,44 @@ async function scrapeWithZenRows(url: string): Promise<string | null> {
 // Google Cache - Fallback gratuit qui fonctionne souvent
 async function scrapeFromGoogleCache(url: string): Promise<string | null> {
   try {
-    const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
-    console.log(`🔧 [Method 4/6] Attempting Google Cache...`);
+    // Essayer plusieurs formats de Google Cache
+    const cacheUrls = [
+      `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`,
+      `https://webcache.googleusercontent.com/search?q=cache:${url.replace(/^https?:\/\//, '')}`,
+      `http://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`,
+    ];
     
-    const response = await fetch(cacheUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    for (const cacheUrl of cacheUrls) {
+      try {
+        console.log(`🔧 [Method 4/6] Attempting Google Cache: ${cacheUrl.substring(0, 80)}...`);
+        
+        const response = await fetch(cacheUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Referer': 'https://www.google.com/',
+          },
+          signal: AbortSignal.timeout(15000),
+        });
 
-    if (!response.ok) {
-      console.log(`⚠️ Google Cache returned status ${response.status}`);
-      return null;
-    }
+        if (!response.ok) {
+          continue; // Essayer le format suivant
+        }
 
-    const html = await response.text();
-    
-    // Google Cache ajoute du texte avant le HTML réel, l'extraire
-    const htmlMatch = html.match(/<!DOCTYPE[^]*$/i);
-    const cleanHtml = htmlMatch ? htmlMatch[0] : html;
-    
-    if (cleanHtml.length > 10000) {
-      console.log(`✅ Google Cache SUCCESS! (${cleanHtml.length} bytes)`);
-      return cleanHtml;
+        const html = await response.text();
+        
+        // Google Cache ajoute du texte avant le HTML réel, l'extraire
+        const htmlMatch = html.match(/<!DOCTYPE[^]*$/i) || html.match(/<html[^]*$/i);
+        const cleanHtml = htmlMatch ? htmlMatch[0] : html;
+        
+        // Vérifier que c'est vraiment du HTML AliExpress
+        if (cleanHtml.length > 10000 && (cleanHtml.includes('aliexpress') || cleanHtml.includes('runParams') || cleanHtml.includes('productId'))) {
+          console.log(`✅ Google Cache SUCCESS! (${cleanHtml.length} bytes)`);
+          return cleanHtml;
+        }
+      } catch (e) {
+        continue; // Essayer le format suivant
+      }
     }
     
     return null;
@@ -137,26 +151,41 @@ async function scrapeFromGoogleCache(url: string): Promise<string | null> {
 // Archive.org - Dernière sauvegarde du produit
 async function scrapeFromArchive(url: string): Promise<string | null> {
   try {
-    // Chercher la dernière version archivée
-    const archiveUrl = `https://web.archive.org/web/${url}`;
+    // Chercher la dernière version archivée avec plusieurs formats
+    const archiveUrls = [
+      `https://web.archive.org/web/${url}`,
+      `https://web.archive.org/web/*/${url}`,
+      `http://web.archive.org/web/${url}`,
+      `https://web.archive.org/web/2/${url}`, // Version récente
+    ];
+    
     console.log(`🔧 [Method 5/6] Attempting Archive.org...`);
     
-    const response = await fetch(archiveUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    for (const archiveUrl of archiveUrls) {
+      try {
+        const response = await fetch(archiveUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Referer': 'https://web.archive.org/',
+          },
+          signal: AbortSignal.timeout(15000),
+        });
 
-    if (!response.ok) {
-      console.log(`⚠️ Archive.org returned status ${response.status}`);
-      return null;
-    }
+        if (!response.ok) {
+          continue;
+        }
 
-    const html = await response.text();
-    if (html.length > 10000) {
-      console.log(`✅ Archive.org SUCCESS! (${html.length} bytes)`);
-      return html;
+        const html = await response.text();
+        
+        // Vérifier que c'est vraiment du HTML AliExpress
+        if (html.length > 10000 && (html.includes('aliexpress') || html.includes('runParams') || html.includes('productId'))) {
+          console.log(`✅ Archive.org SUCCESS! (${html.length} bytes)`);
+          return html;
+        }
+      } catch (e) {
+        continue; // Essayer le format suivant
+      }
     }
     
     return null;
