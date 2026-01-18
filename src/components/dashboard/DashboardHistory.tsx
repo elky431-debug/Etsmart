@@ -56,7 +56,7 @@ export function DashboardHistory({
   }, [analyses, searchQuery, verdictFilter, nicheFilter]);
 
   const getVerdictDisplay = (verdict: Verdict, competitors: number) => {
-    if (competitors <= 80) {
+    if (competitors <= 100) {
       return {
         label: 'LAUNCH QUICKLY',
         color: 'bg-green-600',

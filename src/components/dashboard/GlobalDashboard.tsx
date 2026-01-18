@@ -124,19 +124,19 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
           <BarChart3 className="w-8 h-8 text-white" />
         </motion.div>
         <h2 className="text-3xl font-bold text-white mb-2">
-          Dashboard Global Boutique
+          Global Shop Dashboard
         </h2>
         <p className="text-slate-400">
-          Vue consolidée de {analyses.length} produits analysés
+          Consolidated view of {analyses.length} analyzed products
         </p>
       </div>
 
       {/* Verdict Summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { verdict: 'launch', count: stats.launchCount, label: 'À lancer' },
-          { verdict: 'test', count: stats.testCount, label: 'À tester' },
-          { verdict: 'avoid', count: stats.avoidCount, label: 'À éviter' },
+          { verdict: 'launch', count: stats.launchCount, label: 'To launch' },
+          { verdict: 'test', count: stats.testCount, label: 'To test' },
+          { verdict: 'avoid', count: stats.avoidCount, label: 'To avoid' },
         ].map((item) => (
           <motion.div
             key={item.verdict}
@@ -166,7 +166,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <DollarSign className="w-5 h-5 text-[#00c9b7]" />
             </div>
             <div>
-              <p className="text-xs text-slate-400">Potentiel revenus 3 mois</p>
+              <p className="text-xs text-slate-400">Potential revenue 3 months</p>
               <p className="text-xl font-bold text-white">
                 {formatCurrency(stats.totalPotentialRevenue)}
               </p>
@@ -237,7 +237,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
           {/* Coherence Score */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400">Cohérence produits</span>
+              <span className="text-sm text-slate-400">Product coherence</span>
               <span className="text-sm font-medium text-white">{coherenceScore}%</span>
             </div>
             <Progress 
@@ -332,8 +332,8 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
         ) : (
           <div className="text-center py-8">
             <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-            <p className="text-slate-400">Aucun produit prioritaire identifié</p>
-            <p className="text-sm text-slate-500">Tous les produits sont à éviter</p>
+            <p className="text-slate-400">No priority products identified</p>
+            <p className="text-sm text-slate-500">All products should be avoided</p>
           </div>
         )}
       </Card>
@@ -343,7 +343,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-violet-400" />
-            <CardTitle className="text-violet-300">Stratégie recommandée</CardTitle>
+            <CardTitle className="text-violet-300">Recommended Strategy</CardTitle>
           </div>
         </CardHeader>
         
@@ -353,11 +353,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <ArrowUpRight className="w-5 h-5 text-[#00c9b7] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-[#4dd9cc]">
-                  Lancer en priorité
+                  Launch priority
                 </p>
                 <p className="text-sm text-slate-300">
-                  Commencez par les {stats.launchCount} produit{stats.launchCount > 1 ? 's' : ''} recommandés. 
-                  Ils présentent le meilleur rapport potentiel/risque.
+                  Start with the {stats.launchCount} recommended product{stats.launchCount > 1 ? 's' : ''}. 
+                  They present the best potential/risk ratio.
                 </p>
               </div>
             </div>
@@ -368,11 +368,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <ArrowUpRight className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-300">
-                  Tester avec prudence
+                  Test with caution
                 </p>
                 <p className="text-sm text-slate-300">
-                  Les {stats.testCount} produit{stats.testCount > 1 ? 's' : ''} à tester nécessitent une validation. 
-                  Commencez avec un stock limité.
+                  The {stats.testCount} product{stats.testCount > 1 ? 's' : ''} to test require validation. 
+                  Start with limited stock.
                 </p>
               </div>
             </div>
@@ -383,11 +383,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-rose-300">
-                  Éviter pour le moment
+                  Avoid for now
                 </p>
                 <p className="text-sm text-slate-300">
-                  {stats.avoidCount} produit{stats.avoidCount > 1 ? 's présentent' : ' présente'} trop de risques. 
-                  Cherchez des alternatives avec moins de concurrence.
+                  {stats.avoidCount} product{stats.avoidCount > 1 ? 's present' : ' presents'} too many risks. 
+                  Look for alternatives with less competition.
                 </p>
               </div>
             </div>

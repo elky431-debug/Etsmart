@@ -323,7 +323,7 @@ function VerdictBadge({ verdict, competitors }: { verdict: string; competitors?:
   // Déterminer les couleurs basées sur le nombre de concurrents
   let config;
   if (competitors !== undefined) {
-    if (competitors <= 80) {
+    if (competitors <= 100) {
       config = { label: 'Launch quickly', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 };
     } else if (competitors <= 130) {
       config = { label: 'Launch but optimize', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle };
@@ -333,10 +333,10 @@ function VerdictBadge({ verdict, competitors }: { verdict: string; competitors?:
   } else {
     // Fallback sur les anciens labels si pas de nombre de concurrents
     config = {
-      launch: { label: 'Lancer', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 },
-      test: { label: 'Tester', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle },
-      avoid: { label: 'Éviter', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-    }[verdict] || { label: 'Inconnu', bg: 'bg-slate-100', text: 'text-slate-700', icon: Info };
+      launch: { label: 'Launch', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 },
+      test: { label: 'Test', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle },
+      avoid: { label: 'Avoid', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
+    }[verdict] || { label: 'Unknown', bg: 'bg-slate-100', text: 'text-slate-700', icon: Info };
   }
 
   const Icon = config.icon;
@@ -363,7 +363,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
   
   // Déterminer les couleurs basées sur le nombre de concurrents
   const getVerdictColors = (competitors: number) => {
-    if (competitors <= 80) {
+    if (competitors <= 100) {
       return {
         bg: 'bg-green-100',
         border: 'border-green-300',
@@ -392,45 +392,56 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
   const [sellingPrice, setSellingPrice] = useState<number>(analysis.pricing.recommendedPrice);
   const [shippingCost, setShippingCost] = useState<number>(aiEstimatedShippingCost);
   const [supplierPrice, setSupplierPrice] = useState<number>(userSupplierPrice);
+  const [useEtsyAds, setUseEtsyAds] = useState<boolean>(false);
   
   const simulationData = useMemo(() => {
     const costPerUnit = supplierPrice + shippingCost;
-    const profitPerUnit = sellingPrice - costPerUnit;
+    
+    // Etsy Ads cost: typically 15-20% of revenue as advertising spend
+    const etsyAdsCostPercentage = 0.17; // 17% average
+    const etsyAdsCostPerUnit = useEtsyAds ? sellingPrice * etsyAdsCostPercentage : 0;
+    const totalCostPerUnit = costPerUnit + etsyAdsCostPerUnit;
+    
+    const profitPerUnit = sellingPrice - totalCostPerUnit;
     const marginPercent = sellingPrice > 0 ? (profitPerUnit / sellingPrice) * 100 : 0;
     
+    // Adjust sales estimates based on Etsy Ads (ads typically increase sales by 20-40%)
+    const adsMultiplier = useEtsyAds ? 1.3 : 1.0; // 30% increase with ads
+    
     const salesEstimates = {
-      prudent: analysis.launchSimulation.threeMonthProjection.conservative.estimatedSales,
-      realiste: analysis.launchSimulation.threeMonthProjection.realistic.estimatedSales,
-      optimise: analysis.launchSimulation.threeMonthProjection.optimistic.estimatedSales,
+      prudent: Math.round(analysis.launchSimulation.threeMonthProjection.conservative.estimatedSales * adsMultiplier),
+      realiste: Math.round(analysis.launchSimulation.threeMonthProjection.realistic.estimatedSales * adsMultiplier),
+      optimise: Math.round(analysis.launchSimulation.threeMonthProjection.optimistic.estimatedSales * adsMultiplier),
     };
     
     return {
       prudent: {
         sales: salesEstimates.prudent,
         revenue: sellingPrice * salesEstimates.prudent,
-        costs: costPerUnit * salesEstimates.prudent,
+        costs: totalCostPerUnit * salesEstimates.prudent,
         profit: profitPerUnit * salesEstimates.prudent,
         margin: marginPercent,
       },
       realiste: {
         sales: salesEstimates.realiste,
         revenue: sellingPrice * salesEstimates.realiste,
-        costs: costPerUnit * salesEstimates.realiste,
+        costs: totalCostPerUnit * salesEstimates.realiste,
         profit: profitPerUnit * salesEstimates.realiste,
         margin: marginPercent,
       },
       optimise: {
         sales: salesEstimates.optimise,
         revenue: sellingPrice * salesEstimates.optimise,
-        costs: costPerUnit * salesEstimates.optimise,
+        costs: totalCostPerUnit * salesEstimates.optimise,
         profit: profitPerUnit * salesEstimates.optimise,
         margin: marginPercent,
       },
-      costPerUnit,
+      costPerUnit: totalCostPerUnit,
       profitPerUnit,
       marginPercent,
+      etsyAdsCost: etsyAdsCostPerUnit,
     };
-  }, [sellingPrice, shippingCost, supplierPrice, analysis.launchSimulation.threeMonthProjection]);
+  }, [sellingPrice, shippingCost, supplierPrice, useEtsyAds, analysis.launchSimulation.threeMonthProjection]);
 
   const copyToClipboard = async (text: string, type: 'title' | 'tags' | 'description') => {
     try {
@@ -547,7 +558,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ duration: 0.5, type: 'spring' }}
                   className={`relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl ${
-                    analysis.competitors.totalCompetitors <= 80 
+                    analysis.competitors.totalCompetitors <= 100 
                       ? 'bg-gradient-to-br from-green-50 via-green-50/50 to-white border-green-300 shadow-green-200/50' 
                       : analysis.competitors.totalCompetitors <= 130
                       ? 'bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50'
@@ -556,7 +567,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 >
                   {/* Effet de glow */}
                   <div className={`absolute inset-0 opacity-20 ${
-                    analysis.competitors.totalCompetitors <= 80 
+                    analysis.competitors.totalCompetitors <= 100 
                       ? 'bg-gradient-to-r from-green-400/20 to-green-600/20' 
                       : analysis.competitors.totalCompetitors <= 130
                       ? 'bg-gradient-to-r from-amber-400/20 to-amber-600/20'
@@ -571,8 +582,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                       className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${verdictColors.iconBg}`}
                     >
-                      {analysis.competitors.totalCompetitors <= 80 && <CheckCircle2 size={32} className="text-white" />}
-                      {analysis.competitors.totalCompetitors > 80 && analysis.competitors.totalCompetitors <= 130 && <AlertTriangle size={32} className="text-white" />}
+                      {analysis.competitors.totalCompetitors <= 100 && <CheckCircle2 size={32} className="text-white" />}
+                      {analysis.competitors.totalCompetitors > 100 && analysis.competitors.totalCompetitors <= 130 && <AlertTriangle size={32} className="text-white" />}
                       {analysis.competitors.totalCompetitors > 130 && <XCircle size={32} className="text-white" />}
                     </motion.div>
                     
@@ -591,7 +602,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: 0.4 }}
                           className={`px-4 py-2 rounded-full font-bold text-xs border-2 backdrop-blur-sm ${
-                            analysis.competitors.totalCompetitors <= 80
+                            analysis.competitors.totalCompetitors <= 100
                               ? 'bg-white/90 border-green-300 text-green-800'
                               : analysis.competitors.totalCompetitors <= 130
                               ? 'bg-white/90 border-amber-300 text-amber-800'
@@ -607,7 +618,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         transition={{ delay: 0.5 }}
                         className="text-base text-slate-700 leading-relaxed font-medium"
                       >
-                        {analysis.competitors.totalCompetitors <= 80 
+                        {analysis.competitors.totalCompetitors <= 100 
                           ? 'Launch quickly as there isn\'t much competition.'
                           : analysis.competitors.totalCompetitors <= 130
                           ? 'Launch but there is some competition, you need to optimize your strategy.'
@@ -762,8 +773,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <XCircle size={20} className="text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-slate-900">Angles à éviter</h2>
-                        <p className="text-red-600 text-xs">Ne fais PAS ça</p>
+                        <h2 className="text-base font-bold text-slate-900">Angles to avoid</h2>
+                        <p className="text-red-600 text-xs">Don't do this</p>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -790,7 +801,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       </div>
                       <div>
                         <h2 className="text-base font-bold text-slate-900">Competitor mistakes</h2>
-                        <p className="text-slate-600 text-xs">Ce que tu ne dois PAS faire</p>
+                        <p className="text-slate-600 text-xs">What you should NOT do</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -1004,9 +1015,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     <CircleDollarSign size={20} className="text-[#00d4ff]" />
                     <h3 className="text-base font-bold text-slate-900">Pricing Strategy</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Launch', sublabel: 'Penetration', price: analysis.pricing.aggressivePrice, active: false },
                       { label: 'Optimal', sublabel: 'Recommended', price: analysis.pricing.recommendedPrice, active: true },
                       { label: 'Premium', sublabel: 'Max margin', price: analysis.pricing.premiumPrice, active: false },
                     ].map((p, i) => (
@@ -1099,6 +1109,9 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     <div className="text-center">
                       <p className="text-xs text-slate-500 mb-1">Unit cost</p>
                       <p className="text-xl font-bold text-slate-900">{formatCurrency(simulationData.costPerUnit)}</p>
+                      {useEtsyAds && simulationData.etsyAdsCost > 0 && (
+                        <p className="text-xs text-slate-400 mt-1">+ Ads: {formatCurrency(simulationData.etsyAdsCost)}</p>
+                      )}
                     </div>
                     <div className="text-center border-x border-slate-200">
                       <p className="text-xs text-slate-500 mb-1">Unit profit</p>
@@ -1115,39 +1128,83 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 rounded-xl bg-white border border-slate-200">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Clock size={20} className="text-slate-400" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Without advertising</h4>
-                        <p className="text-xs text-slate-500">Organic growth</p>
-                      </div>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900 mb-1">
-                      {analysis.launchSimulation.timeToFirstSale.withoutAds.expected}
-                      <span className="text-sm font-normal text-slate-400 ml-2">days</span>
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Between {analysis.launchSimulation.timeToFirstSale.withoutAds.min} and {analysis.launchSimulation.timeToFirstSale.withoutAds.max} days
-                    </p>
+                {/* Etsy Ads Sub-tab */}
+                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
+                    <Zap size={18} className="text-[#00d4ff]" />
+                    <h3 className="text-base font-bold text-slate-900">Etsy Ads</h3>
                   </div>
-
-                  <div className="p-5 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Zap size={20} className="text-white" />
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-bold">With Etsy Ads</h4>
-                        <p className="text-xs text-white/70">Accelerated growth</p>
+                        <h4 className="text-base font-bold text-slate-900 mb-1">Enable Etsy Ads</h4>
+                        <p className="text-sm text-slate-500">
+                          Activate advertising to accelerate growth and increase sales
+                        </p>
                       </div>
+                      {/* Toggle Switch */}
+                      <button
+                        onClick={() => setUseEtsyAds(!useEtsyAds)}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00d4ff] focus:ring-offset-2 ${
+                          useEtsyAds
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                            : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
+                            useEtsyAds ? 'translate-x-8' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <p className="text-3xl font-bold mb-1">
-                      {analysis.launchSimulation.timeToFirstSale.withAds.expected}
-                      <span className="text-sm font-normal text-white/60 ml-2">days</span>
-                    </p>
-                    <p className="text-xs text-white/70">
-                      Between {analysis.launchSimulation.timeToFirstSale.withAds.min} and {analysis.launchSimulation.timeToFirstSale.withAds.max} days
-                    </p>
+                  </div>
+                </div>
+
+                {/* Time to First Sale Sub-tab */}
+                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
+                    <Clock size={18} className="text-[#00d4ff]" />
+                    <h3 className="text-base font-bold text-slate-900">Time to First Sale</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className={`p-6 rounded-xl border-2 ${
+                      useEtsyAds
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-transparent shadow-lg shadow-[#00d4ff]/30'
+                        : 'bg-white border-[#00d4ff] shadow-lg shadow-[#00d4ff]/20'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        {useEtsyAds ? (
+                          <Zap size={24} className="text-white" />
+                        ) : (
+                          <Clock size={24} className="text-[#00d4ff]" />
+                        )}
+                        <div>
+                          <h4 className={`text-base font-bold ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
+                            {useEtsyAds ? 'With Etsy Ads' : 'Without advertising'}
+                          </h4>
+                          <p className={`text-xs ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
+                            {useEtsyAds ? 'Accelerated growth' : 'Organic growth'}
+                          </p>
+                        </div>
+                      </div>
+                      <p className={`text-4xl font-bold mb-2 ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
+                        {useEtsyAds 
+                          ? analysis.launchSimulation.timeToFirstSale.withAds.expected
+                          : analysis.launchSimulation.timeToFirstSale.withoutAds.expected
+                        }
+                        <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>days</span>
+                      </p>
+                      <p className={`text-sm ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
+                        Between {
+                          useEtsyAds
+                            ? `${analysis.launchSimulation.timeToFirstSale.withAds.min} and ${analysis.launchSimulation.timeToFirstSale.withAds.max}`
+                            : `${analysis.launchSimulation.timeToFirstSale.withoutAds.min} and ${analysis.launchSimulation.timeToFirstSale.withoutAds.max}`
+                        } days
+                      </p>
+                    </div>
                   </div>
                 </div>
 

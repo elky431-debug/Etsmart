@@ -157,7 +157,7 @@ export default function AboutPage() {
               {
                 icon: Target,
                 title: 'Verdict basé sur la concurrence',
-                description: 'Décision claire selon le nombre de concurrents : Lancer rapidement (0-80), Lancer mais optimiser (81-130), ou Ne pas lancer (131+).',
+                description: 'Décision claire selon le nombre de concurrents : Lancer rapidement (0-100), Lancer mais optimiser (100-130), ou Ne pas lancer (131+).',
                 color: 'from-[#00d4ff] to-[#00c9b7]',
               },
               {
@@ -217,12 +217,12 @@ export default function AboutPage() {
             </motion.div>
             
             <h2 className="text-4xl sm:text-5xl font-bold mb-6 text-white">
-              Prêt à lancer votre
+              Ready to launch your
               <br />
-              premier produit ?
+              first product?
             </h2>
             <p className="text-white/90 mb-8 text-lg max-w-2xl mx-auto">
-              Commencez gratuitement et découvrez le potentiel de vos produits en quelques secondes.
+              Start for free and discover your products' potential in seconds.
             </p>
             <Link href="/app">
               <motion.button
@@ -231,7 +231,7 @@ export default function AboutPage() {
                 className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-[#00d4ff] text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all"
               >
                 <Play size={20} className="fill-[#00d4ff]" />
-                Commencer maintenant
+                Start now
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </motion.button>
             </Link>

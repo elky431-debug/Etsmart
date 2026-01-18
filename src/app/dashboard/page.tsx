@@ -19,7 +19,8 @@ import {
   FileText,
   Calculator,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -129,7 +130,7 @@ export default function DashboardPage() {
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'analyze', label: 'Start analyzing', icon: Sparkles },
+    { id: 'analyze', label: 'Start analyzing', icon: BarChart3 },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'subscription', label: 'Subscription', icon: CreditCard },
     { id: 'history', label: 'History', icon: History },
@@ -216,15 +217,41 @@ export default function DashboardPage() {
                 {/* Header */}
                 <div className="text-center mb-12">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
-                    <Sparkles className="w-10 h-10 text-white" />
+                    <BarChart3 className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-4xl font-bold text-slate-900 mb-4">
                     How does the analysis work?
                   </h2>
-                  <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+                  <p className="text-slate-600 text-lg max-w-2xl mx-auto mb-8">
                     Our AI deeply analyzes your AliExpress products to give you all the information needed for an informed decision
                   </p>
                 </div>
+
+                {/* CTA - Moved to top */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-center bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-2xl p-8 border border-[#00d4ff]/20 mb-12"
+                >
+                  <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                    Ready to discover your products' potential?
+                  </h3>
+                  <p className="text-slate-600 mb-6 max-w-xl mx-auto">
+                    Launch your first analysis in a few clicks and receive a complete report in less than 2 minutes
+                  </p>
+                  <Link href="/app">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
+                    >
+                      <BarChart3 size={20} />
+                      <span>Start analyzing</span>
+                      <ArrowRight size={18} />
+                    </motion.button>
+                  </Link>
+                </motion.div>
 
                 {/* Process Steps */}
                 <div className="mb-12">
@@ -429,27 +456,6 @@ export default function DashboardPage() {
                       </div>
                     </motion.div>
                   </div>
-                </div>
-
-                {/* CTA */}
-                <div className="text-center bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-2xl p-8 border border-[#00d4ff]/20">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">
-                    Ready to discover your products' potential?
-                  </h3>
-                  <p className="text-slate-600 mb-6 max-w-xl mx-auto">
-                    Launch your first analysis in a few clicks and receive a complete report in less than 2 minutes
-                  </p>
-                  <Link href="/app">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
-                    >
-                      <Sparkles size={20} />
-                      <span>Start analyzing</span>
-                      <ArrowRight size={18} />
-                    </motion.button>
-                  </Link>
                 </div>
               </motion.div>
             </div>

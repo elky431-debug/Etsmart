@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Mail, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Sparkles, Mail, Lock, ArrowRight, Eye, EyeOff, AlertCircle, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
@@ -138,9 +138,6 @@ export default function LoginPage() {
                 />
                 <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Remember me</span>
               </label>
-              <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] transition-colors font-medium">
-                Forgot password?
-              </a>
             </div>
 
             <motion.button
@@ -162,6 +159,19 @@ export default function LoginPage() {
                 </>
               )}
             </motion.button>
+
+            {/* Forgot Password Button */}
+            <Link href="/forgot-password">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-white text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all shadow-sm"
+              >
+                <HelpCircle size={18} />
+                Forgot password?
+              </motion.button>
+            </Link>
           </form>
 
           <div className="relative my-8">

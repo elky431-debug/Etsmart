@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
-import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, signInWithGoogle } from '@/lib/auth';
+import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, signInWithGoogle, resetPassword, updatePassword } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,6 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Redirect will be handled by Supabase
   };
 
+  const handleResetPassword = async (email: string) => {
+    await resetPassword(email);
+  };
+
+  const handleUpdatePassword = async (newPassword: string) => {
+    await updatePassword(newPassword);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -79,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn: handleSignIn,
         signOut: handleSignOut,
         signInWithGoogle: handleSignInWithGoogle,
+        resetPassword: handleResetPassword,
+        updatePassword: handleUpdatePassword,
       }}
     >
       {children}

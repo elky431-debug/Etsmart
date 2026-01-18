@@ -66,36 +66,36 @@ export function getVerdictIcon(verdict: 'launch' | 'test' | 'avoid'): 'check' | 
 export function getVerdictLabel(verdict: 'launch' | 'test' | 'avoid', competitors?: number): string {
   // Si on a le nombre de concurrents, utiliser les nouveaux labels
   if (competitors !== undefined) {
-    if (competitors <= 80) {
-      return 'LANCER RAPIDEMENT';
+    if (competitors <= 100) {
+      return 'LAUNCH QUICKLY';
     } else if (competitors <= 130) {
-      return 'LANCER MAIS OPTIMISER';
+      return 'LAUNCH BUT OPTIMIZE';
     } else {
-      return 'NE PAS LANCER';
+      return 'DON\'T LAUNCH';
     }
   }
   
   // Fallback sur les anciens labels si pas de nombre de concurrents
   switch (verdict) {
     case 'launch':
-      return 'LANCER RAPIDEMENT';
+      return 'LAUNCH QUICKLY';
     case 'test':
-      return 'LANCER MAIS OPTIMISER';
+      return 'LAUNCH BUT OPTIMIZE';
     case 'avoid':
-      return 'NE PAS LANCER';
+      return 'DON\'T LAUNCH';
   }
 }
 
 export function getPhaseLabel(phase: 'launch' | 'growth' | 'saturation' | 'decline'): string {
   switch (phase) {
     case 'launch':
-      return 'Lancement';
+      return 'Launch';
     case 'growth':
-      return 'Croissance';
+      return 'Growth';
     case 'saturation':
       return 'Saturation';
     case 'decline':
-      return 'Déclin';
+      return 'Decline';
   }
 }
 
@@ -115,11 +115,11 @@ export function getPhaseColor(phase: 'launch' | 'growth' | 'saturation' | 'decli
 export function getMarketStructureLabel(structure: 'dominated' | 'fragmented' | 'open'): string {
   switch (structure) {
     case 'dominated':
-      return 'Dominé';
+      return 'Dominated';
     case 'fragmented':
-      return 'Fragmenté';
+      return 'Fragmented';
     case 'open':
-      return 'Ouvert';
+      return 'Open';
   }
 }
 

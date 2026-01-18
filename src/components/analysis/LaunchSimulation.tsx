@@ -162,7 +162,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
         transition={{ delay: 0.3 }}
         className="p-5 rounded-xl bg-slate-900/30 border border-white/5"
       >
-        <h4 className="text-sm font-medium text-white mb-4">Facteurs clés de succès</h4>
+        <h4 className="text-sm font-medium text-white mb-4">Key Success Factors</h4>
         <div className="grid sm:grid-cols-2 gap-2">
           {simulation.keyFactors.map((factor, index) => (
             <motion.div

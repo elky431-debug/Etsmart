@@ -63,3 +63,5 @@ La table `user_settings` contient :
 - La table est liée à la table `users` via une clé étrangère
 
 
+
+

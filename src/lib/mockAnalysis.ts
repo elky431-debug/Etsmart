@@ -189,13 +189,13 @@ const generateLaunchSimulation = (competitorAnalysis: CompetitorAnalysis, produc
       ? generateRandomFloat(60, 85) 
       : generateRandomFloat(35, 60),
     keyFactors: [
-      'Qualité des photos produit',
-      'Optimisation SEO des titres',
-      'Prix compétitif pour nouveau vendeur',
-      'Réactivité aux messages clients',
+      'Product photo quality',
+      'SEO optimization of titles',
+      'Competitive price for new seller',
+      'Responsiveness to customer messages',
       competitorAnalysis.marketStructure === 'open' 
-        ? 'Marché accessible aux nouveaux entrants'
-        : 'Marché concurrentiel - différenciation nécessaire',
+        ? 'Market accessible to new entrants'
+        : 'Competitive market - differentiation necessary',
     ],
   };
 };
@@ -331,13 +331,13 @@ const generateMarketingAnalysis = (niche: Niche): MarketingAnalysis => {
     default: [
       {
         id: 'handmade-quality',
-        title: 'Qualité Artisanale',
-        description: 'Mettez en avant le caractère unique et la qualité de fabrication',
-        whyItWorks: 'Les acheteurs Etsy valorisent l\'artisanat et l\'authenticité',
+        title: 'Artisan Quality',
+        description: 'Highlight the unique character and quality of craftsmanship',
+        whyItWorks: 'Etsy buyers value craftsmanship and authenticity',
         competitionLevel: 'medium',
-        emotionalTriggers: ['qualité', 'artisanat', 'authenticité'],
+        emotionalTriggers: ['quality', 'craftsmanship', 'authenticity'],
         suggestedKeywords: ['handmade', 'artisan', 'quality'],
-        targetAudience: 'Acheteurs recherchant la qualité',
+        targetAudience: 'Buyers seeking quality',
       },
       {
         id: 'perfect-gift',
@@ -388,13 +388,13 @@ const generateVerdict = (
   // === MARKET STRUCTURE IMPACT (major factor) ===
   if (competitorAnalysis.marketStructure === 'open') {
     score += 25;
-    strengths.push('Marché accessible aux nouveaux vendeurs');
+    strengths.push('Market accessible to new sellers');
   } else if (competitorAnalysis.marketStructure === 'fragmented') {
     score += 5;
     // Neutral - neither strength nor risk
   } else {
     score -= 20;
-    risks.push('Marché dominé par quelques gros vendeurs');
+    risks.push('Market dominated by a few large sellers');
   }
   
   // === COMPETITION LEVEL (critical factor) ===
@@ -485,7 +485,7 @@ const generateVerdict = (
   }
   
   // Force "test" maximum for high competition
-  if (totalCompetitors > 80 && verdict === 'launch') {
+  if (totalCompetitors > 100 && verdict === 'launch') {
     verdict = 'test';
   }
   
@@ -505,9 +505,9 @@ const generateVerdict = (
   
   // === GENERATE SUMMARY ===
   const summaries: Record<Verdict, string> = {
-    launch: `Ce produit présente un bon potentiel avec ${totalCompetitors < 30 ? 'une concurrence modérée' : 'un marché accessible'}. ${strengths.length > 0 ? 'Points forts: ' + strengths.slice(0, 2).join(', ') + '.' : ''} Lancez avec confiance en suivant les recommandations.`,
-    test: `Ce produit peut fonctionner mais présente des risques. ${risks.length > 0 ? 'Principaux risques: ' + risks.slice(0, 2).join(', ') + '.' : ''} Commencez avec un petit stock (5-10 unités) pour valider la demande avant d'investir.`,
-    avoid: `⚠️ Ce produit présente trop de risques pour un nouveau vendeur. ${risks.slice(0, 2).join('. ')}. La probabilité de succès est trop faible pour justifier l'investissement.`,
+    launch: `This product has good potential with ${totalCompetitors < 30 ? 'moderate competition' : 'an accessible market'}. ${strengths.length > 0 ? 'Strengths: ' + strengths.slice(0, 2).join(', ') + '.' : ''} Launch with confidence by following the recommendations.`,
+    test: `This product can work but presents risks. ${risks.length > 0 ? 'Main risks: ' + risks.slice(0, 2).join(', ') + '.' : ''} Start with a small stock (5-10 units) to validate demand before investing.`,
+    avoid: `⚠️ This product presents too many risks for a new seller. ${risks.slice(0, 2).join('. ')}. The probability of success is too low to justify the investment.`,
   };
   
   return {
@@ -661,13 +661,18 @@ interface AIAnalysisResult {
 
 // Erreur personnalisée pour les analyses bloquées
 export class AnalysisBlockedError extends Error {
+  public readonly reason: string;
+  public readonly suggestion: string;
+
   constructor(
     message: string,
-    public readonly reason: string,
-    public readonly suggestion: string
+    reason: string,
+    suggestion: string
   ) {
     super(message);
     this.name = 'AnalysisBlockedError';
+    this.reason = reason;
+    this.suggestion = suggestion;
   }
 }
 
@@ -688,6 +693,13 @@ const fetchAIAnalysis = async (
     );
   }
 
+  console.log('📤 Sending analysis request:', {
+    productPrice,
+    niche,
+    imageUrl: productImageUrl?.substring(0, 100),
+    hasImage: !!productImageUrl && productImageUrl.startsWith('http'),
+  });
+
   const response = await fetch('/api/ai-analyze', {
     method: 'POST',
     headers: {
@@ -701,16 +713,27 @@ const fetchAIAnalysis = async (
     }),
   });
   
+  console.log('📥 Response received:', {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+  });
+  
   let data: any = {};
+  let text = '';
   try {
-    const text = await response.text();
+    text = await response.text();
+    console.log('📥 API Response status:', response.status);
+    console.log('📥 API Response text (first 500 chars):', text.substring(0, 500));
     data = text ? JSON.parse(text) : {};
+    console.log('📥 Parsed data:', JSON.stringify(data).substring(0, 500));
   } catch (parseError) {
     console.error('❌ Failed to parse response:', parseError);
+    console.error('❌ Response text:', text?.substring(0, 500));
     throw new AnalysisBlockedError(
-      'Erreur de réponse API',
-      'La réponse de l\'API n\'est pas au format JSON valide.',
-      'Vérifiez que le serveur fonctionne correctement.'
+      'API response error',
+      'The API response is not in valid JSON format.',
+      'Check that the server is running correctly.'
     );
   }
   
@@ -824,10 +847,28 @@ const fetchAIAnalysis = async (
   }
   
   if (!data || !data.success || !data.analysis) {
+    console.error('❌ Analysis failed:', {
+      hasData: !!data,
+      success: data?.success,
+      hasAnalysis: !!data?.analysis,
+      error: data?.error,
+      message: data?.message,
+      status: response.status,
+    });
     throw new AnalysisBlockedError(
-      'Analyse échouée',
-      data?.message || 'L\'IA n\'a pas pu compléter l\'analyse.',
-      'Réessayez avec une image différente ou vérifiez votre clé API OpenAI.'
+      'Analysis failed',
+      data?.message || data?.error || 'The AI could not complete the analysis.',
+      data?.error === 'OPENAI_API_KEY_MISSING' 
+        ? 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables.'
+        : data?.error === 'INVALID_API_KEY'
+        ? 'Your OpenAI API key is invalid. Create a new one on platform.openai.com'
+        : data?.error === 'QUOTA_EXCEEDED'
+        ? 'Your OpenAI quota has been exceeded. Check your credits on platform.openai.com'
+        : data?.error === 'PRODUCT_NOT_IDENTIFIABLE'
+        ? 'The AI could not identify the product. Please provide a clearer image.'
+        : data?.error === 'NO_ETSY_QUERY'
+        ? 'Could not generate an Etsy search query. Please try with a different image.'
+        : 'Try again with a different image or check your OpenAI API key.'
     );
   }
   
@@ -922,11 +963,19 @@ export const analyzeProduct = async (
   
   const productImageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
   
+  console.log('🖼️ Product image check:', {
+    hasImages: !!product.images,
+    imagesLength: product.images?.length || 0,
+    imageUrl: productImageUrl,
+    isValid: productImageUrl && productImageUrl.startsWith('http'),
+  });
+  
   if (!productImageUrl || !productImageUrl.startsWith('http')) {
+    console.error('❌ Invalid product image:', productImageUrl);
     throw new AnalysisBlockedError(
-      'Image requise',
-      `Etsmart nécessite une image du produit pour fonctionner. Image reçue: ${productImageUrl || 'aucune'}`,
-      'Veuillez importer un produit avec une image valide (URL commençant par http).'
+      'Image required',
+      `Etsmart requires a product image to work. Image received: ${productImageUrl || 'none'}`,
+      'Please import a product with a valid image (URL starting with http).'
     );
   }
   
@@ -1071,8 +1120,8 @@ export const analyzeProduct = async (
         targetAudience: angle.targetAudience,
       })),
       topKeywords: aiAnalysis.seoTags?.slice(0, 7) || product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
-      emotionalHooks: ['Qualité artisanale', 'Cadeau unique', 'Fait avec soin'],
-      occasions: ['Anniversaire', 'Noël', 'Fête des mères', 'Cadeau'],
+      emotionalHooks: ['Artisan quality', 'Unique gift', 'Made with care'],
+      occasions: ['Birthday', 'Christmas', 'Mother\'s Day', 'Gift'],
       // Ajout du marketing stratégique si disponible
       strategic: aiAnalysis.strategicMarketing ? {
         positioning: aiAnalysis.strategicMarketing.positioning,
@@ -1106,8 +1155,21 @@ export const analyzeProduct = async (
     'ANALYSE_IMPOSSIBLE': 'avoid'
   };
   
+  // Force verdict based on competitor count (fallback if AI doesn't follow rules)
+  let finalVerdict: Verdict = verdictMap[aiAnalysis.decision] || 'test';
+  const competitorCount = aiAnalysis.estimatedCompetitors;
+  
+  // Override verdict based on competitor count if needed
+  if (competitorCount <= 100) {
+    finalVerdict = 'launch';
+  } else if (competitorCount <= 130) {
+    finalVerdict = 'test';
+  } else {
+    finalVerdict = 'avoid';
+  }
+  
   const verdict: ProductVerdict = {
-    verdict: verdictMap[aiAnalysis.decision] || 'test',
+    verdict: finalVerdict,
     confidenceScore: aiAnalysis.confidenceScore,
     strengths: aiAnalysis.strengths,
     risks: aiAnalysis.risks,
@@ -1116,8 +1178,8 @@ export const analyzeProduct = async (
     
     // AI-powered fields
     aiComment: aiAnalysis.warningIfAny || aiAnalysis.saturationAnalysis,
-    difficultyAnalysis: `Saturation: ${aiAnalysis.saturationLevel === 'non_sature' ? 'Marché non saturé (0-80 concurrents) - Lancer rapidement' : aiAnalysis.saturationLevel === 'concurrentiel' ? 'Marché concurrentiel (81-130 concurrents) - Optimiser avant de lancer' : aiAnalysis.saturationLevel === 'sature' ? 'Marché SATURÉ (131+ concurrents) - Ne pas lancer' : 'Marché TRÈS SATURÉ'}. ${aiAnalysis.saturationAnalysis}`,
-    competitionComment: `${aiAnalysis.estimatedCompetitors} concurrents estimés. ${aiAnalysis.pricingAnalysis}`,
+    difficultyAnalysis: `Saturation: ${aiAnalysis.saturationLevel === 'non_sature' ? 'Unsaturated market (0-100 competitors) - Launch quickly' : aiAnalysis.saturationLevel === 'concurrentiel' ? 'Competitive market (100-130 competitors) - Optimize before launching' : aiAnalysis.saturationLevel === 'sature' ? 'SATURATED market (131+ competitors) - Do not launch' : 'VERY SATURATED market'}. ${aiAnalysis.saturationAnalysis}`,
+    competitionComment: `${aiAnalysis.estimatedCompetitors} estimated competitors. ${aiAnalysis.pricingAnalysis}`,
     competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || '', // ✨ Comment l'IA a calculé
     viralTitleEN: aiAnalysis.viralTitleEN,
     viralTitleFR: aiAnalysis.viralTitleFR,
@@ -1151,7 +1213,7 @@ export const analyzeProduct = async (
     recommendedPrice: aiAnalysis.recommendedPrice.optimal,
     aggressivePrice: aiAnalysis.recommendedPrice.min,
     premiumPrice: aiAnalysis.recommendedPrice.max,
-    justification: `${aiAnalysis.pricingAnalysis} Risque prix: ${aiAnalysis.priceRiskLevel === 'faible' ? '🟢 Faible' : aiAnalysis.priceRiskLevel === 'moyen' ? '🟡 Moyen' : '🔴 Élevé'}`,
+    justification: `${aiAnalysis.pricingAnalysis} Price risk: ${aiAnalysis.priceRiskLevel === 'faible' ? '🟢 Low' : aiAnalysis.priceRiskLevel === 'moyen' ? '🟡 Medium' : '🔴 High'}`,
   };
   
   // Override saturation with AI analysis

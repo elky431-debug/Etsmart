@@ -79,11 +79,11 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
 
         <p className="text-slate-400 max-w-md mx-auto mb-8 text-sm">
           {competitors !== undefined 
-            ? (competitors <= 80 
-                ? 'Lancer rapidement car il n\'y a pas beaucoup de concurrence.'
+            ? (competitors <= 100 
+                ? 'Launch quickly as there isn\'t much competition.'
                 : competitors <= 130
-                ? 'Lancer mais il y a un peu de concurrence, il faut optimiser votre stratégie.'
-                : 'Ne pas lancer le produit car le marché est saturé.')
+                ? 'Launch but there is some competition, you need to optimize your strategy.'
+                : 'Don\'t launch the product as the market is saturated.')
             : verdict.summary
           }
         </p>

@@ -136,7 +136,7 @@ export function AnalysisStep() {
         console.error(`Analysis failed for product ${products[i].title}:`, error);
         
         let errorMessage = 'An unexpected error occurred';
-        let suggestion = 'Veuillez réessayer ou contacter le support.';
+        let suggestion = 'Please try again or contact support.';
         
         if (error instanceof AnalysisBlockedError) {
           errorMessage = error.message;
@@ -221,14 +221,14 @@ export function AnalysisStep() {
               <>
                 <span className="text-red-600">Analysis</span>
                 <br />
-                <span className="text-red-500">échouée</span>
+                <span className="text-red-500">failed</span>
               </>
           ) : (
             <>
                 <span className="text-slate-900">Analysis</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-                  terminée
+                  completed
                 </span>
             </>
           )}
@@ -288,7 +288,7 @@ export function AnalysisStep() {
         >
           <div className="p-8 rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-bold text-slate-700">Progression globale</span>
+              <span className="text-lg font-bold text-slate-700">Global progress</span>
               <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                 {Math.round(progress)}%
               </span>
@@ -405,9 +405,9 @@ export function AnalysisStep() {
               >
                 <CheckCircle2 className="w-16 h-16 text-white" />
               </motion.div>
-              <h3 className="text-4xl font-black text-slate-900 mb-4">Analyse terminée !</h3>
+              <h3 className="text-4xl font-black text-slate-900 mb-4">Analysis completed!</h3>
               <p className="text-lg text-slate-600 mb-8">
-                Redirection vers les résultats...
+                Redirecting to results...
               </p>
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
@@ -415,7 +415,7 @@ export function AnalysisStep() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold shadow-lg"
               >
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Chargement des résultats
+                Loading results
               </motion.div>
             </div>
           </motion.div>
@@ -437,9 +437,9 @@ export function AnalysisStep() {
               >
                 <AlertCircle className="w-16 h-16 text-red-500" />
               </motion.div>
-              <h3 className="text-4xl font-black text-red-600 mb-4">Analyse échouée</h3>
+              <h3 className="text-4xl font-black text-red-600 mb-4">Analysis failed</h3>
               <p className="text-lg text-slate-600 mb-8">
-                Tous les produits ont échoué à l&apos;analyse
+                All products failed analysis
               </p>
               <motion.button
                 onClick={() => setStep(2)}
@@ -448,7 +448,7 @@ export function AnalysisStep() {
                 className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-xl hover:shadow-2xl transition-all"
               >
                 <RefreshCw size={20} />
-                Réessayer avec d&apos;autres produits
+                Try again with other products
               </motion.button>
             </div>
           </motion.div>
@@ -467,8 +467,8 @@ export function AnalysisStep() {
                   <AlertCircle className="w-8 h-8 text-red-500" />
                 </div>
                 <div>
-                  <h4 className="font-black text-red-800 text-xl">Produits échoués</h4>
-                  <p className="text-sm font-semibold text-red-600">{failedProducts.length} produit{failedProducts.length > 1 ? 's' : ''}</p>
+                  <h4 className="font-black text-red-800 text-xl">Failed products</h4>
+                  <p className="text-sm font-semibold text-red-600">{failedProducts.length} product{failedProducts.length > 1 ? 's' : ''}</p>
                 </div>
               </div>
               
@@ -511,7 +511,7 @@ export function AnalysisStep() {
             `}
           >
             <ArrowLeft size={20} />
-            Retour aux produits
+            Back to products
           </motion.button>
         </motion.div>
     </motion.div>

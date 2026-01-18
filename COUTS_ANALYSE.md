@@ -97,3 +97,5 @@ Si vous facturez l'analyse aux utilisateurs :
 3. **Erreurs** : Les erreurs API peuvent nécessiter des retries (coût supplémentaire)
 4. **Monitoring** : Surveillez les coûts réels via le dashboard OpenAI
 
+
+
