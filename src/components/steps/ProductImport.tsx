@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   X,
   Zap,
-  Sparkles
+  Sparkles,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
@@ -31,8 +33,10 @@ export function ProductImport() {
   
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState('');
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [manualProduct, setManualProduct] = useState({
     title: '',
     price: '',
@@ -111,6 +115,64 @@ export function ProductImport() {
       setIsLoading(false);
     }
   };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier que c'est une image
+    if (!file.type.startsWith('image/')) {
+      setError('Veuillez sélectionner une image (PNG, JPG, etc.)');
+      return;
+    }
+
+    // Limiter la taille (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('L\'image est trop grande (max 10MB)');
+      return;
+    }
+
+    setIsLoadingImage(true);
+    setError('');
+    setUploadedImage(null);
+
+    try {
+      // Créer une preview de l'image
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setUploadedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Envoyer l'image à l'API
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/parse-product-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.product) {
+        addProduct(data.product);
+        setUploadedImage(null);
+        setError(data.warning || '');
+        
+        // Reset file input
+        e.target.value = '';
+      } else {
+        setError(data.error || 'Impossible d\'extraire les informations du screenshot. Essayez de prendre une photo plus claire.');
+      }
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      setError('Erreur lors de l\'upload de l\'image. Réessayez.');
+    } finally {
+      setIsLoadingImage(false);
+    }
+  };
+
 
   const handleManualSubmit = () => {
     if (!manualProduct.title.trim() || !manualProduct.price.trim()) return;
@@ -197,9 +259,93 @@ export function ProductImport() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Paste AliExpress or Alibaba links to analyze their potential on Etsy
+            Importez vos produits depuis AliExpress ou Alibaba via URL ou screenshot
           </motion.p>
         </motion.div>
+
+        {/* Image Upload Section */}
+        <motion.div 
+          className="max-w-3xl mx-auto mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-slate-200 shadow-2xl p-8">
+              <div className="text-center">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00c9b7]/10 to-[#00d4ff]/10 flex items-center justify-center mx-auto mb-4 border-2 border-[#00c9b7]/20"
+                >
+                  <ImageIcon className="w-10 h-10 text-[#00c9b7]" />
+                </motion.div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                  Prendre un screenshot
+                </h3>
+                <p className="text-slate-600 mb-6">
+                  Prenez une photo de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
+                </p>
+                
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isLoadingImage}
+                  className="hidden"
+                />
+                
+                <motion.label
+                  htmlFor="image-upload"
+                  whileHover={!isLoadingImage ? { scale: 1.02 } : {}}
+                  whileTap={!isLoadingImage ? { scale: 0.98 } : {}}
+                  className={`
+                    inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg cursor-pointer transition-all
+                    ${isLoadingImage
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] text-white shadow-xl shadow-[#00c9b7]/30 hover:shadow-[#00c9b7]/50'
+                    }
+                  `}
+                >
+                  {isLoadingImage ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Analyse en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={20} />
+                      Choisir une image
+                    </>
+                  )}
+                </motion.label>
+
+                {uploadedImage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6"
+                  >
+                    <img
+                      src={uploadedImage}
+                      alt="Uploaded product"
+                      className="max-w-full h-auto max-h-64 rounded-2xl border-2 border-slate-200 shadow-lg mx-auto"
+                    />
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Divider */}
+        <div className="max-w-3xl mx-auto mb-8 flex items-center gap-4">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+          <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Ou</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+        </div>
 
         {/* Import Bar - Large and prominent */}
         <motion.div 
