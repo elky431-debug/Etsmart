@@ -56,7 +56,7 @@ export default function PricingPage() {
   };
   // Feature comparison table data - only difference is number of analyses per month
   const featureComparison = [
-    { id: 'analyses', name: 'Analyses / month', smart: '15', pro: '30', scale: '100' },
+    { id: 'analyses', name: 'Analyses / month', smart: '20', pro: '50', scale: '100' },
     { id: 'competition', name: 'Competition & saturation analysis', smart: true, pro: true, scale: true },
     { id: 'basic_sim', name: 'Simplified launch simulation', smart: true, pro: true, scale: true },
     { id: 'full_sim', name: 'Complete launch simulation', smart: true, pro: true, scale: true },

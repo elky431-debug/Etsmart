@@ -46,8 +46,8 @@ export interface PlanFeature {
 
 // Plan limits per plan type
 export const PLAN_LIMITS: Record<PlanId, number> = {
-  smart: 15,
-  pro: 30,
+  smart: 20,
+  pro: 50,
   scale: 100,
 };
 
@@ -85,20 +85,20 @@ export const PLANS: Plan[] = [
   {
     id: 'smart',
     name: 'Etsmart Smart',
-    description: 'For Etsy sellers starting out or intermediate, who want to test products seriously without multiplying errors.',
-    price: 29.99,
+    description: 'Perfect for sellers who want to test products seriously. All features included.',
+    price: 19.99,
     currency: 'USD',
-    analysesPerMonth: 15,
+    analysesPerMonth: 20,
     features: PLAN_FEATURES.smart,
     stripePriceId: STRIPE_PRICE_IDS.smart || undefined,
   },
   {
     id: 'pro',
     name: 'Etsmart Pro',
-    description: 'For active sellers who want to structure their decisions and improve their marketing performance on Etsy.',
-    price: 49.99,
+    description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
+    price: 29.99,
     currency: 'USD',
-    analysesPerMonth: 30,
+    analysesPerMonth: 50,
     features: PLAN_FEATURES.pro,
     stripePriceId: STRIPE_PRICE_IDS.pro || undefined,
     popular: true,
@@ -106,8 +106,8 @@ export const PLANS: Plan[] = [
   {
     id: 'scale',
     name: 'Etsmart Scale',
-    description: 'For advanced sellers, high-volume shops, or users who want to test many products strategically.',
-    price: 79.99,
+    description: 'For high-volume shops testing many products strategically. All features included.',
+    price: 49.99,
     currency: 'USD',
     analysesPerMonth: 100,
     features: PLAN_FEATURES.scale,
