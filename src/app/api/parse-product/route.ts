@@ -600,15 +600,6 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
         signal: AbortSignal.timeout(15000), // 15 seconds timeout
       });
 
-      if (!response.ok) {
-        // If 403/429 (blocked), try next User-Agent
-        if (response.status === 403 || response.status === 429) {
-          console.log(`Blocked (${response.status}) with User-Agent, trying next...`);
-          continue;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       try {
         const response = await fetch(pageUrl, {
           headers: {
