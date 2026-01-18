@@ -79,64 +79,55 @@ export async function POST(request: NextRequest) {
     // PROMPT POUR EXTRACTION DES DONNÉES PRODUIT
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const prompt = `You are analyzing a screenshot of an AliExpress or Alibaba product page.
+    const prompt = `Analyze this screenshot of an AliExpress or Alibaba product page and extract product information.
 
-Your task is to EXTRACT ALL PRODUCT INFORMATION visible in the image.
+EXTRACT THE FOLLOWING:
 
-Look for and extract:
+1. TITLE - The product title/name (REQUIRED - must be at least 5 characters)
+   - Find the main product title on the page
+   - Copy EXACTLY as shown, don't summarize
+   - If unclear, describe what you see in detail
 
-1. **PRODUCT TITLE** (obligatoire)
-   - The full product name/title displayed on the page
-   - Usually at the top or in the product details section
-   - Extract EXACTLY as written, don't summarize
+2. PRICE - The current sale price (REQUIRED - return 0 if not visible)
+   - Look for price like "$12.99", "US $12.99", "€12.99", "£12.99"
+   - Extract ONLY the number (12.99), not the currency symbol
+   - Use the SALE/DISCOUNTED price, not the crossed-out original price
 
-2. **PRICE** (obligatoire)
-   - The current/sale price displayed
-   - Look for price in format like "$12.99", "US $12.99", "€12.99", etc.
-   - Extract the NUMBER ONLY (12.99), not the currency symbol
-   - If there's a crossed-out original price, extract the SALE price (not the original)
+3. CURRENCY - Currency code (REQUIRED)
+   - "USD" for $, "EUR" for €, "GBP" for £
+   - Default to "USD" if uncertain
 
-3. **CURRENCY** (obligatoire)
-   - The currency symbol used ($, €, £, etc.)
-   - Default to "USD" if unclear
+4. IMAGES - Product image URLs (optional, can be empty array)
+   - If URL visible, extract it
+   - Otherwise use empty array []
 
-4. **PRODUCT IMAGES** (optionnel mais recommandé)
-   - The main product image URL if visible
-   - Or describe the product image clearly so we can search for similar
+5. DESCRIPTION - Product description (optional)
+   - Key features visible on page
+   - Or brief description of what you see
 
-5. **DESCRIPTION** (optionnel)
-   - Key product features/description visible
-   - Or summarize what you see
+6. RATING - Star rating (optional, number 0-5)
+7. REVIEWS - Number of reviews (optional, number)
+8. URL - Product page URL if visible (optional)
+9. SOURCE - "aliexpress" or "alibaba" based on branding visible
 
-6. **RATING** (optionnel)
-   - Star rating if visible (e.g., 4.5, 4.8)
-   - Number of reviews if visible
+CRITICAL:
+- You MUST return ONLY valid JSON, no other text before or after
+- Title MUST be at least 5 characters (use description if title unclear)
+- Price MUST be a number (0 if not visible)
+- Be accurate - don't guess if something isn't visible
+- If you can't identify the product clearly, still return the JSON with your best guess
 
-7. **PRODUCT URL** (optionnel)
-   - If a URL is visible in the screenshot, extract it
-
-8. **SOURCE** (déterminer automatiquement)
-   - "aliexpress" if AliExpress logo/branding is visible
-   - "alibaba" if Alibaba logo/branding is visible
-
-CRITICAL RULES:
-- Extract ACCURATELY - don't invent or guess
-- If price is not clearly visible, return 0 and indicate in description
-- If title is not clearly visible, describe what you see
-- Be PRECISE with numbers
-- Preserve original text formatting when possible
-
-Return the data in this EXACT JSON format:
+Return ONLY this JSON (no markdown, no code blocks, no explanations):
 {
-  "title": "Exact product title as shown",
+  "title": "Product title here",
   "price": 12.99,
   "currency": "USD",
-  "images": ["URL if visible, or empty array"],
-  "description": "Product description or what you see",
+  "images": [],
+  "description": "Description here",
   "rating": 4.5,
-  "reviews": 123,
-  "url": "Product URL if visible",
-  "source": "aliexpress" or "alibaba"
+  "reviews": 0,
+  "url": "",
+  "source": "aliexpress"
 }`;
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -152,6 +143,10 @@ Return the data in this EXACT JSON format:
       body: JSON.stringify({
         model: 'gpt-4o', // GPT-4o avec vision
         messages: [
+          {
+            role: 'system',
+            content: 'You are a product data extraction expert. Always return ONLY valid JSON, no explanations, no markdown code blocks. Extract product information accurately from screenshots.',
+          },
           {
             role: 'user',
             content: [
@@ -169,8 +164,9 @@ Return the data in this EXACT JSON format:
             ],
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.1, // Bas pour plus de précision
+        response_format: { type: 'json_object' }, // Force JSON mode
       }),
     });
 
@@ -209,66 +205,117 @@ Return the data in this EXACT JSON format:
     console.log('✅ OpenAI Vision response received');
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // PARSER LA RÉPONSE JSON
+    // PARSER LA RÉPONSE JSON - VERSION ROBUSTE
     // ═══════════════════════════════════════════════════════════════════════════
 
     let productData: ProductImageData;
     
     try {
-      // Extraire le JSON de la réponse (peut être dans un code block)
+      // Nettoyer la réponse
       let jsonText = aiContent.trim();
       
       // Enlever les code blocks markdown si présents
-      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      jsonText = jsonText.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
       
-      // Essayer de trouver un objet JSON dans le texte
+      // Trouver le JSON dans le texte (même s'il y a du texte avant/après)
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonText = jsonMatch[0];
       }
       
+      // Parser le JSON
       productData = JSON.parse(jsonText);
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError);
-      console.error('Raw response:', aiContent);
       
-      // Fallback: essayer d'extraire manuellement les infos clés
-      const titleMatch = aiContent.match(/["']title["']:\s*["']([^"']+)["']/i);
-      const priceMatch = aiContent.match(/["']price["']:\s*([\d.]+)/i);
-      
-      if (!titleMatch) {
-        return NextResponse.json(
-          { 
-            error: 'Could not extract product information from image',
-            details: 'OpenAI response could not be parsed',
-            rawResponse: aiContent.substring(0, 500),
-          },
-          { status: 422 }
-        );
+      // Valider que les champs requis existent
+      if (!productData.title) {
+        throw new Error('Title missing in response');
       }
       
-      productData = {
-        title: titleMatch[1],
-        price: priceMatch ? parseFloat(priceMatch[1]) : 0,
-        currency: 'USD',
-        images: [],
-        description: aiContent.substring(0, 200),
-        source: aiContent.toLowerCase().includes('alibaba') ? 'alibaba' : 'aliexpress',
-      };
+      // S'assurer que les types sont corrects
+      productData.price = typeof productData.price === 'number' ? productData.price : (parseFloat(String(productData.price || 0)) || 0);
+      productData.currency = productData.currency || 'USD';
+      productData.images = Array.isArray(productData.images) ? productData.images : [];
+      productData.source = (productData.source === 'alibaba' || productData.source === 'aliexpress') ? productData.source : 'aliexpress';
+      
+    } catch (parseError: any) {
+      console.error('Failed to parse OpenAI response:', parseError);
+      console.error('Raw response (first 1000 chars):', aiContent.substring(0, 1000));
+      
+      // Fallback robuste: extraire manuellement avec regex multiples
+      const titleMatches = [
+        aiContent.match(/["']title["']\s*:\s*["']([^"']{5,})["']/i),
+        aiContent.match(/title["']?\s*[:=]\s*["']([^"']{5,})["']/i),
+        aiContent.match(/"title"\s*:\s*"([^"]{5,})"/i),
+        aiContent.match(/title:\s*"([^"]{5,})"/i),
+      ];
+      
+      const priceMatches = [
+        aiContent.match(/["']price["']\s*:\s*([\d.]+)/i),
+        aiContent.match(/price["']?\s*[:=]\s*([\d.]+)/i),
+        aiContent.match(/"price"\s*:\s*([\d.]+)/i),
+      ];
+      
+      const currencyMatches = [
+        aiContent.match(/["']currency["']\s*:\s*["']([^"']+)["']/i),
+        aiContent.match(/currency["']?\s*[:=]\s*["']([^"']+)["']/i),
+      ];
+      
+      const titleMatch = titleMatches.find(m => m && m[1] && m[1].length >= 5);
+      const priceMatch = priceMatches.find(m => m && m[1]);
+      const currencyMatch = currencyMatches.find(m => m && m[1]);
+      
+      if (!titleMatch) {
+        // Dernière tentative: chercher un titre dans le texte libre
+        const lines = aiContent.split('\n').filter(line => line.length > 10 && line.length < 200);
+        const potentialTitle = lines[0] || 'Produit AliExpress';
+        
+        productData = {
+          title: potentialTitle.substring(0, 200),
+          price: priceMatch ? parseFloat(priceMatch[1]) : 0,
+          currency: (currencyMatch?.[1] || 'USD').toUpperCase(),
+          images: [],
+          description: aiContent.substring(0, 300),
+          source: aiContent.toLowerCase().includes('alibaba') ? 'alibaba' : 'aliexpress',
+        };
+      } else {
+        productData = {
+          title: titleMatch[1].trim(),
+          price: priceMatch ? parseFloat(priceMatch[1]) : 0,
+          currency: (currencyMatch?.[1] || 'USD').toUpperCase(),
+          images: [],
+          description: aiContent.substring(0, 300),
+          source: aiContent.toLowerCase().includes('alibaba') ? 'alibaba' : 'aliexpress',
+        };
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // VALIDATION ET FORMATAGE
     // ═══════════════════════════════════════════════════════════════════════════
 
-    if (!productData.title || productData.title.trim().length < 5) {
-      return NextResponse.json(
-        { 
-          error: 'Product title not found or too short',
-          extracted: productData,
-        },
-        { status: 422 }
-      );
+    // Normaliser le titre
+    const cleanTitle = productData.title ? productData.title.trim() : '';
+    
+    // Si le titre est trop court, utiliser la description ou créer un titre par défaut
+    if (cleanTitle.length < 5) {
+      if (productData.description && productData.description.length >= 5) {
+        productData.title = productData.description.substring(0, 200);
+      } else {
+        productData.title = 'Produit AliExpress - Détails non disponibles';
+      }
+    }
+    
+    // S'assurer que le prix est valide
+    if (isNaN(productData.price) || productData.price < 0) {
+      productData.price = 0;
+    }
+    
+    // Normaliser la devise
+    const validCurrencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
+    if (!validCurrencies.includes(productData.currency?.toUpperCase())) {
+      productData.currency = 'USD';
+    } else {
+      productData.currency = productData.currency.toUpperCase();
     }
 
     // Formater le produit pour correspondre à SupplierProduct

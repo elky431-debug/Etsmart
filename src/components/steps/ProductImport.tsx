@@ -155,15 +155,42 @@ export function ProductImport() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        // Gérer les erreurs HTTP
+        const errorMessage = data.message || data.error || `Erreur ${response.status}`;
+        setError(errorMessage);
+        console.error('API Error:', response.status, data);
+        return;
+      }
+
       if (data.success && data.product) {
         addProduct(data.product);
         setUploadedImage(null);
-        setError(data.warning || '');
+        
+        // Afficher un warning si présent, mais ne pas bloquer
+        if (data.warning) {
+          setError(data.warning);
+          // Effacer le warning après 5 secondes
+          setTimeout(() => setError(''), 5000);
+        } else {
+          setError('');
+        }
         
         // Reset file input
         e.target.value = '';
       } else {
-        setError(data.error || 'Impossible d\'extraire les informations du screenshot. Essayez de prendre une photo plus claire.');
+        // Extraire le message d'erreur
+        const errorMessage = data.message || data.error || 'Impossible d\'extraire les informations du screenshot. Essayez de prendre une photo plus claire de la page produit.';
+        setError(errorMessage);
+        
+        // Si on a quand même des données partielles, proposer l'ajout manuel
+        if (data.extracted && data.extracted.title) {
+          setManualProduct({
+            title: data.extracted.title || '',
+            price: String(data.extracted.price || ''),
+            imageUrl: uploadedImage || '',
+          });
+        }
       }
     } catch (error: any) {
       console.error('Image upload error:', error);
