@@ -11,26 +11,48 @@ const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
 const USE_SCRAPER_API = !!SCRAPER_API_KEY;
 
 async function scrapeWithScraperAPI(url: string): Promise<string | null> {
-  if (!USE_SCRAPER_API) return null;
+  if (!USE_SCRAPER_API) {
+    console.log('⚠️ ScraperAPI not configured - IP blocking may occur on Netlify');
+    return null;
+  }
 
   try {
     // ScraperAPI endpoint avec paramètres optimisés
+    // render=true: Rendu JavaScript activé
+    // country_code=us: IP américaine (résidentielle)
     const scraperApiUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(url)}&render=true&country_code=us`;
+    
+    console.log(`🔧 Attempting ScraperAPI for ${url.substring(0, 50)}...`);
     
     const response = await fetch(scraperApiUrl, {
       signal: AbortSignal.timeout(30000), // 30 seconds timeout
     });
 
     if (!response.ok) {
-      console.log(`⚠️ ScraperAPI returned status ${response.status}`);
+      const errorText = await response.text().catch(() => '');
+      console.log(`⚠️ ScraperAPI returned status ${response.status}: ${errorText.substring(0, 100)}`);
+      
+      // Si quota dépassé ou clé invalide
+      if (response.status === 403 || response.status === 401) {
+        console.error('❌ ScraperAPI: Invalid API key or quota exceeded. Check your ScraperAPI dashboard.');
+      }
+      
       return null;
     }
 
     const html = await response.text();
-    console.log(`✅ ScraperAPI successfully fetched ${url.substring(0, 50)}...`);
+    console.log(`✅ ScraperAPI successfully fetched ${url.substring(0, 50)}... (${html.length} bytes)`);
     return html;
   } catch (error: any) {
     console.log(`❌ ScraperAPI error: ${error.message}`);
+    
+    // Détecter les erreurs spécifiques
+    if (error.message?.includes('fetch failed')) {
+      console.error('❌ ScraperAPI: Network error. Check your internet connection or ScraperAPI status.');
+    } else if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      console.error('❌ ScraperAPI: Timeout. The request took too long.');
+    }
+    
     return null;
   }
 }
