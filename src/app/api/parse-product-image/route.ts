@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     let imageFile: File | null = null;
     let imageUrl: string | null = null;
     let imageBase64: string | null = null;
+    let imageMimeType: string | null = null;
 
     if (contentType.includes('multipart/form-data')) {
       // Gérer FormData (upload de fichier)
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await imageFile.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         imageBase64 = buffer.toString('base64');
+        imageMimeType = imageFile.type || 'image/png';
       }
     } else {
       // Gérer JSON (URL d'image)
@@ -318,6 +320,17 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
       productData.currency = productData.currency.toUpperCase();
     }
 
+    // Utiliser l'image uploadée si disponible et si aucune URL n'a été extraite
+    let finalImages = productData.images && productData.images.length > 0 
+      ? productData.images 
+      : [];
+    
+    // Si pas d'URL extraite mais qu'on a une image uploadée, l'utiliser
+    if (finalImages.length === 0 && imageBase64) {
+      const mimeType = imageMimeType || (imageFile?.type || 'image/png');
+      finalImages = [`data:${mimeType};base64,${imageBase64}`];
+    }
+    
     // Formater le produit pour correspondre à SupplierProduct
     const product = {
       id: `screenshot-${Date.now()}`,
@@ -325,9 +338,7 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
       source: productData.source,
       title: productData.title.trim().substring(0, 200),
       description: productData.description || productData.title,
-      images: productData.images && productData.images.length > 0 
-        ? productData.images 
-        : [],
+      images: finalImages,
       price: productData.price || 0,
       currency: productData.currency || 'USD',
       variants: [{ 

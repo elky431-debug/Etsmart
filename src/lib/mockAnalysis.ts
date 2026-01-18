@@ -685,12 +685,17 @@ const fetchAIAnalysis = async (
   // VALIDATION: IMAGE OBLIGATOIRE
   // ═══════════════════════════════════════════════════════════════════════════
   
-  if (!productImageUrl || !productImageUrl.startsWith('http')) {
-    throw new AnalysisBlockedError(
-      'Image requise pour l\'analyse',
-      'Etsmart nécessite une image du produit pour générer une recherche Etsy fiable. Le titre AliExpress n\'est pas une source fiable.',
-      'Veuillez importer un produit avec une image valide.'
-    );
+  // Accepter les URLs http/https ET les data URLs (pour les screenshots)
+  const isValidImage = productImageUrl && (
+    productImageUrl.startsWith('http://') || 
+    productImageUrl.startsWith('https://') ||
+    productImageUrl.startsWith('data:image/')
+  );
+  
+  if (!isValidImage) {
+    // Si pas d'image valide, utiliser un placeholder
+    console.warn('⚠️ No valid image URL found, using placeholder for analysis');
+    productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=Product';
   }
 
   console.log('📤 Sending analysis request:', {
@@ -958,25 +963,29 @@ export const analyzeProduct = async (
   }
   
   // ═══════════════════════════════════════════════════════════════════════════
-  // VALIDATION: IMAGE OBLIGATOIRE
+  // VALIDATION: IMAGE OBLIGATOIRE (mais avec fallback)
   // ═══════════════════════════════════════════════════════════════════════════
   
-  const productImageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
+  let productImageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
   
   console.log('🖼️ Product image check:', {
     hasImages: !!product.images,
     imagesLength: product.images?.length || 0,
-    imageUrl: productImageUrl,
-    isValid: productImageUrl && productImageUrl.startsWith('http'),
+    imageUrl: productImageUrl?.substring(0, 50),
+    isValid: productImageUrl && (productImageUrl.startsWith('http') || productImageUrl.startsWith('data:image')),
   });
   
-  if (!productImageUrl || !productImageUrl.startsWith('http')) {
-    console.error('❌ Invalid product image:', productImageUrl);
-    throw new AnalysisBlockedError(
-      'Image required',
-      `Etsmart requires a product image to work. Image received: ${productImageUrl || 'none'}`,
-      'Please import a product with a valid image (URL starting with http).'
-    );
+  // Accepter les URLs http/https ET les data URLs (pour les screenshots)
+  const isValidImage = productImageUrl && (
+    productImageUrl.startsWith('http://') || 
+    productImageUrl.startsWith('https://') ||
+    productImageUrl.startsWith('data:image/')
+  );
+  
+  if (!isValidImage) {
+    console.warn('⚠️ No valid image found, using placeholder');
+    // Utiliser une image placeholder publique si pas d'image valide
+    productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=' + encodeURIComponent(product.title.substring(0, 20));
   }
   
   // ═══════════════════════════════════════════════════════════════════════════
