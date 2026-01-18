@@ -266,7 +266,7 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
       
       if (!titleMatch) {
         // Dernière tentative: chercher un titre dans le texte libre
-        const lines = aiContent.split('\n').filter(line => line.length > 10 && line.length < 200);
+        const lines = aiContent.split('\n').filter((line: string) => line.length > 10 && line.length < 200);
         const potentialTitle = lines[0] || 'Produit AliExpress';
         
         productData = {
