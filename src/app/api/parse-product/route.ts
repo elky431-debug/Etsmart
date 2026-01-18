@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SERVICES DE SCRAPING PROFESSIONNELS
+// SERVICES DE SCRAPING PROFESSIONNELS - SYSTÈME MULTI-MÉTHODES
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ScraperAPI - Service professionnel avec rotation d'IP et gestion CAPTCHA
@@ -10,51 +10,197 @@ import { NextRequest, NextResponse } from 'next/server';
 const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
 const USE_SCRAPER_API = !!SCRAPER_API_KEY;
 
+// ScrapingBee - Alternative service de scraping
+// Documentation: https://www.scrapingbee.com/documentation/
+const SCRAPINGBEE_API_KEY = process.env.SCRAPINGBEE_API_KEY;
+const USE_SCRAPINGBEE = !!SCRAPINGBEE_API_KEY;
+
+// ZenRows - Service de scraping avec proxy résidentiel
+const ZENROWS_API_KEY = process.env.ZENROWS_API_KEY;
+const USE_ZENROWS = !!ZENROWS_API_KEY;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVICES DE SCRAPING - TOUTES LES MÉTHODES
+// ═══════════════════════════════════════════════════════════════════════════
+
 async function scrapeWithScraperAPI(url: string): Promise<string | null> {
-  if (!USE_SCRAPER_API) {
-    console.log('⚠️ ScraperAPI not configured - IP blocking may occur on Netlify');
-    return null;
-  }
+  if (!USE_SCRAPER_API) return null;
 
   try {
-    // ScraperAPI endpoint avec paramètres optimisés
-    // render=true: Rendu JavaScript activé
-    // country_code=us: IP américaine (résidentielle)
     const scraperApiUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(url)}&render=true&country_code=us`;
-    
-    console.log(`🔧 Attempting ScraperAPI for ${url.substring(0, 50)}...`);
+    console.log(`🔧 [Method 1/6] Attempting ScraperAPI...`);
     
     const response = await fetch(scraperApiUrl, {
-      signal: AbortSignal.timeout(30000), // 30 seconds timeout
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      console.log(`⚠️ ScraperAPI returned status ${response.status}: ${errorText.substring(0, 100)}`);
-      
-      // Si quota dépassé ou clé invalide
-      if (response.status === 403 || response.status === 401) {
-        console.error('❌ ScraperAPI: Invalid API key or quota exceeded. Check your ScraperAPI dashboard.');
-      }
-      
+      console.log(`⚠️ ScraperAPI returned status ${response.status}`);
       return null;
     }
 
     const html = await response.text();
-    console.log(`✅ ScraperAPI successfully fetched ${url.substring(0, 50)}... (${html.length} bytes)`);
+    console.log(`✅ ScraperAPI SUCCESS! (${html.length} bytes)`);
     return html;
   } catch (error: any) {
-    console.log(`❌ ScraperAPI error: ${error.message}`);
+    console.log(`❌ ScraperAPI failed: ${error.message}`);
+    return null;
+  }
+}
+
+async function scrapeWithScrapingBee(url: string): Promise<string | null> {
+  if (!USE_SCRAPINGBEE) return null;
+
+  try {
+    const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(url)}&render_js=true&country_code=us`;
+    console.log(`🔧 [Method 2/6] Attempting ScrapingBee...`);
     
-    // Détecter les erreurs spécifiques
-    if (error.message?.includes('fetch failed')) {
-      console.error('❌ ScraperAPI: Network error. Check your internet connection or ScraperAPI status.');
-    } else if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-      console.error('❌ ScraperAPI: Timeout. The request took too long.');
+    const response = await fetch(scrapingBeeUrl, {
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ ScrapingBee returned status ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    console.log(`✅ ScrapingBee SUCCESS! (${html.length} bytes)`);
+    return html;
+  } catch (error: any) {
+    console.log(`❌ ScrapingBee failed: ${error.message}`);
+    return null;
+  }
+}
+
+async function scrapeWithZenRows(url: string): Promise<string | null> {
+  if (!USE_ZENROWS) return null;
+
+  try {
+    const zenRowsUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(url)}&js_render=true&premium_proxy=true`;
+    console.log(`🔧 [Method 3/6] Attempting ZenRows...`);
+    
+    const response = await fetch(zenRowsUrl, {
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ ZenRows returned status ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    console.log(`✅ ZenRows SUCCESS! (${html.length} bytes)`);
+    return html;
+  } catch (error: any) {
+    console.log(`❌ ZenRows failed: ${error.message}`);
+    return null;
+  }
+}
+
+// Google Cache - Fallback gratuit qui fonctionne souvent
+async function scrapeFromGoogleCache(url: string): Promise<string | null> {
+  try {
+    const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
+    console.log(`🔧 [Method 4/6] Attempting Google Cache...`);
+    
+    const response = await fetch(cacheUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ Google Cache returned status ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    
+    // Google Cache ajoute du texte avant le HTML réel, l'extraire
+    const htmlMatch = html.match(/<!DOCTYPE[^]*$/i);
+    const cleanHtml = htmlMatch ? htmlMatch[0] : html;
+    
+    if (cleanHtml.length > 10000) {
+      console.log(`✅ Google Cache SUCCESS! (${cleanHtml.length} bytes)`);
+      return cleanHtml;
     }
     
     return null;
+  } catch (error: any) {
+    console.log(`❌ Google Cache failed: ${error.message}`);
+    return null;
   }
+}
+
+// Archive.org - Dernière sauvegarde du produit
+async function scrapeFromArchive(url: string): Promise<string | null> {
+  try {
+    // Chercher la dernière version archivée
+    const archiveUrl = `https://web.archive.org/web/${url}`;
+    console.log(`🔧 [Method 5/6] Attempting Archive.org...`);
+    
+    const response = await fetch(archiveUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ Archive.org returned status ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    if (html.length > 10000) {
+      console.log(`✅ Archive.org SUCCESS! (${html.length} bytes)`);
+      return html;
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.log(`❌ Archive.org failed: ${error.message}`);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYSTÈME DE SCRAPING ULTRA-AGGRESSIF - TOUTES LES MÉTHODES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Essaie TOUTES les méthodes jusqu'à ce qu'une fonctionne
+async function scrapeWithAllMethods(url: string): Promise<string | null> {
+  const methods = [
+    () => scrapeWithScraperAPI(url),
+    () => scrapeWithScrapingBee(url),
+    () => scrapeWithZenRows(url),
+    () => scrapeFromGoogleCache(url),
+    () => scrapeFromArchive(url),
+  ];
+
+  console.log(`🚀 Starting aggressive scraping with ${methods.filter(m => m).length} methods...`);
+
+  // Essayer toutes les méthodes en parallèle puis en séquentiel si nécessaire
+  for (const method of methods) {
+    try {
+      const html = await method();
+      if (html && html.length > 10000) {
+        console.log(`✅ SUCCESS with one of the scraping methods!`);
+        return html;
+      }
+    } catch (error: any) {
+      console.log(`⚠️ Method failed: ${error.message}`);
+      continue;
+    }
+    
+    // Petit délai entre les méthodes
+    await delay(500);
+  }
+
+  console.log(`❌ All scraping services failed. Trying direct methods...`);
+  return null;
 }
 
 // Helper to extract basic info from URL (fallback when scraping fails)
@@ -720,20 +866,17 @@ function extractFromApiResponse(data: Record<string, unknown>, productId: string
 // Scrape AliExpress page directly with multiple bypass techniques
 async function scrapeAliExpressPage(productId: string, originalUrl: string) {
   // ═══════════════════════════════════════════════════════════════════════════
-  // ÉTAPE 1: Essayer ScraperAPI (service professionnel) - Plus fiable
+  // ÉTAPE 1: Essayer TOUS les services de scraping professionnels
   // ═══════════════════════════════════════════════════════════════════════════
   
-  if (USE_SCRAPER_API) {
-    const pageUrl = `https://www.aliexpress.com/item/${productId}.html`;
-    console.log('🔧 Attempting ScraperAPI...');
-    
-    const html = await scrapeWithScraperAPI(pageUrl);
-    if (html) {
-      const extracted = await extractFromHTML(html, productId, originalUrl);
-      if (extracted && extracted.title && extracted.title.length > 5) {
-        console.log('✅ Successfully scraped with ScraperAPI!');
-        return extracted;
-      }
+  const pageUrl = `https://www.aliexpress.com/item/${productId}.html`;
+  const htmlFromServices = await scrapeWithAllMethods(pageUrl);
+  
+  if (htmlFromServices) {
+    const extracted = await extractFromHTML(htmlFromServices, productId, originalUrl);
+    if (extracted && extracted.title && extracted.title.length > 5) {
+      console.log('✅ Successfully scraped with scraping service!');
+      return extracted;
     }
   }
 
@@ -771,6 +914,15 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
         // Générer des headers réalistes avec fingerprinting
         const headers = generateRealisticHeaders(userAgent);
         
+        // Ajouter des headers supplémentaires pour éviter la détection
+        headers['X-Requested-With'] = 'XMLHttpRequest';
+        headers['Pragma'] = 'no-cache';
+        headers['Accept-Charset'] = 'utf-8';
+        
+        // Simuler un cookie de session (peut aider à éviter certains blocages)
+        const sessionId = Math.random().toString(36).substring(2, 15);
+        headers['Cookie'] = `xman_us_f=x_l=1&x_locale=fr_FR&acs_usuc_t=${Date.now()}; aep_usuc_f=region=FR&b_locale=en_US&site=fr&c_tp=USD; aep_common_f=${sessionId}`;
+        
         // Obtenir un proxy aléatoire si disponible
         const proxy = getRandomProxy();
         
@@ -778,12 +930,12 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
         const response = proxy
           ? await fetchWithProxy(pageUrl, {
               headers,
-              signal: AbortSignal.timeout(15000),
+              signal: AbortSignal.timeout(20000), // Plus de temps
               redirect: 'follow',
             }, proxy)
           : await fetch(pageUrl, {
               headers,
-              signal: AbortSignal.timeout(15000),
+              signal: AbortSignal.timeout(20000), // Plus de temps
               redirect: 'follow',
             });
 
