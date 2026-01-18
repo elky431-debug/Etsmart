@@ -1007,6 +1007,15 @@ export const analyzeProduct = async (
   // Validation du prix
   const price = typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0;
   
+  // S'assurer que productImageUrl n'est jamais null
+  if (!productImageUrl) {
+    throw new AnalysisBlockedError(
+      'Image required',
+      'No valid image found for the product.',
+      'Please import a product with a valid image.'
+    );
+  }
+  
   const aiAnalysis = await fetchAIAnalysis(price, niche, productImageUrl);
   
   const dataSource: 'real' | 'estimated' = 'real'; // Toujours "real" car basé sur l'IA Vision
