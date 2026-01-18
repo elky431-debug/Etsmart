@@ -36,33 +36,59 @@ async function fetchAliExpressProduct(productId: string, originalUrl: string) {
     `https://www.aliexpress.com/fn/ws/product/page/v2?productId=${productId}`,
   ];
 
-  for (const apiUrl of endpoints) {
-    try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
-          'Referer': 'https://www.aliexpress.com/',
-          'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-          'sec-ch-ua-mobile': '?0',
-          'sec-ch-ua-platform': '"macOS"',
-        },
-      });
+  // Multiple User-Agent strings to rotate
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+  ];
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Try to extract product info from the API response
-        if (data) {
-          const productInfo = extractFromApiResponse(data, productId, originalUrl);
-          if (productInfo && productInfo.title && productInfo.title !== 'Produit AliExpress') {
-            return productInfo;
+  for (const apiUrl of endpoints) {
+    // Try with different User-Agents
+    for (const userAgent of userAgents) {
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            'User-Agent': userAgent,
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.aliexpress.com/',
+            'Origin': 'https://www.aliexpress.com',
+            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"macOS"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+          // Add timeout
+          signal: AbortSignal.timeout(10000), // 10 seconds timeout
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Try to extract product info from the API response
+          if (data) {
+            const productInfo = extractFromApiResponse(data, productId, originalUrl);
+            if (productInfo && productInfo.title && productInfo.title !== 'Produit AliExpress') {
+              return productInfo;
+            }
           }
         }
+      } catch (e: any) {
+        // If timeout, try next User-Agent
+        if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+          console.log(`Timeout for ${apiUrl} with User-Agent, trying next...`);
+          continue;
+        }
+        console.log(`API endpoint failed: ${apiUrl}`, e.message || e);
       }
-    } catch (e) {
-      console.log(`API endpoint failed: ${apiUrl}`, e);
     }
   }
 
@@ -281,23 +307,46 @@ function extractFromApiResponse(data: Record<string, unknown>, productId: string
 async function scrapeAliExpressPage(productId: string, originalUrl: string) {
   const pageUrl = `https://www.aliexpress.com/item/${productId}.html`;
   
-  try {
-    const response = await fetch(pageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    });
+  // Try with different User-Agents
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+  ];
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  for (const userAgent of userAgents) {
+    try {
+      const response = await fetch(pageUrl, {
+        headers: {
+          'User-Agent': userAgent,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://www.aliexpress.com/',
+          'Origin': 'https://www.aliexpress.com',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'max-age=0',
+        },
+        // Add timeout
+        signal: AbortSignal.timeout(15000), // 15 seconds timeout
+      });
 
-    const html = await response.text();
+      if (!response.ok) {
+        // If 403/429 (blocked), try next User-Agent
+        if (response.status === 403 || response.status === 429) {
+          console.log(`Blocked (${response.status}) with User-Agent, trying next...`);
+          continue;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const html = await response.text();
     
     // Try to extract data from embedded JSON
     let title = '';
@@ -447,50 +496,67 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
       }
     }
     
-    // Clean up title (remove HTML entities and AliExpress suffix)
-    title = title
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/\s*[-|]\s*AliExpress.*$/i, '')
-      .replace(/\s*[-|]\s*Alibaba.*$/i, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    if (!title || title.length < 5) {
-      throw new Error('Could not extract product title');
+      // Clean up title (remove HTML entities and AliExpress suffix)
+      title = title
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s*[-|]\s*AliExpress.*$/i, '')
+        .replace(/\s*[-|]\s*Alibaba.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (!title || title.length < 5) {
+        // Try next User-Agent if title not found
+        console.log('Title not found, trying next User-Agent...');
+        continue;
+      }
+      
+      // Log if price extraction failed
+      if (price === 0) {
+        console.warn(`⚠️ Price extraction failed from HTML for product ${productId}. Title: "${title}"`);
+        console.log('💡 Tip: Price might be in variants or require user selection. User will need to enter price manually.');
+      } else {
+        console.log(`✅ Price extracted from HTML: $${price} for product ${productId}`);
+      }
+      
+      // Success! Return the product
+      return {
+        id: `aliexpress-${productId}`,
+        url: originalUrl,
+        source: 'aliexpress' as const,
+        title: title.slice(0, 200),
+        description: title,
+        images: images.length > 0 ? images.slice(0, 5) : ['https://via.placeholder.com/600x600?text=AliExpress'],
+        price: price,
+        currency: 'USD',
+        variants: [{ id: 'v1', name: 'Standard', price: price }],
+        category: 'General',
+        shippingTime: '15-30 days',
+        minOrderQuantity: 1,
+        supplierRating: rating,
+        createdAt: new Date().toISOString(),
+      };
+    } catch (e: any) {
+      // If timeout or abort, try next User-Agent
+      if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+        console.log(`Timeout with User-Agent, trying next...`);
+        continue;
+      }
+      // If blocked, try next User-Agent
+      if (e.message?.includes('403') || e.message?.includes('429')) {
+        console.log(`Blocked with User-Agent, trying next...`);
+        continue;
+      }
+      // For other errors, log and continue to next User-Agent
+      console.log(`Error with User-Agent: ${e.message || e}, trying next...`);
     }
-    
-    // Log if price extraction failed
-    if (price === 0) {
-      console.warn(`⚠️ Price extraction failed from HTML for product ${productId}. Title: "${title}"`);
-      console.log('💡 Tip: Price might be in variants or require user selection. User will need to enter price manually.');
-    } else {
-      console.log(`✅ Price extracted from HTML: $${price} for product ${productId}`);
-    }
-    
-    return {
-      id: `aliexpress-${productId}`,
-      url: originalUrl,
-      source: 'aliexpress' as const,
-      title: title.slice(0, 200),
-      description: title,
-      images: images.length > 0 ? images.slice(0, 5) : ['https://via.placeholder.com/600x600?text=AliExpress'],
-      price: price,
-      currency: 'USD',
-      variants: [{ id: 'v1', name: 'Standard', price: price }],
-      category: 'General',
-      shippingTime: '15-30 days',
-      minOrderQuantity: 1,
-      supplierRating: rating,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (e) {
-    console.error('Scraping failed:', e);
-    throw e;
   }
+  
+  // If all User-Agents failed, throw error
+  throw new Error('All scraping methods failed. AliExpress may be blocking requests.');
 }
 
 // Scrape Alibaba product page  
