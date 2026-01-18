@@ -54,21 +54,20 @@ export default function PricingPage() {
       setLoadingPlan(null);
     }
   };
-  // Feature comparison table data
+  // Feature comparison table data - only difference is number of analyses per month
   const featureComparison = [
     { id: 'analyses', name: 'Analyses / month', smart: '15', pro: '30', scale: '100' },
     { id: 'competition', name: 'Competition & saturation analysis', smart: true, pro: true, scale: true },
     { id: 'basic_sim', name: 'Simplified launch simulation', smart: true, pro: true, scale: true },
-    { id: 'full_sim', name: 'Complete launch simulation', smart: false, pro: true, scale: true },
-    { id: 'advanced_sim', name: 'Advanced simulation (risk / effort)', smart: false, pro: false, scale: true },
-    { id: 'basic_sheet', name: 'Basic product sheet', smart: true, pro: false, scale: false },
-    { id: 'full_sheet', name: 'Complete product sheet', smart: false, pro: true, scale: true },
-    { id: 'advanced_marketing', name: 'Advanced marketing', smart: false, pro: true, scale: true },
-    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', smart: false, pro: true, scale: true },
-    { id: 'ad_prompt', name: 'AI ad image prompt', smart: false, pro: true, scale: true },
-    { id: 'extended_market', name: 'Extended market analysis', smart: false, pro: false, scale: true },
-    { id: 'advanced_history', name: 'Advanced history organization', smart: false, pro: false, scale: true },
-    { id: 'beta_access', name: 'Early access to new features (beta)', smart: false, pro: false, scale: true },
+    { id: 'full_sim', name: 'Complete launch simulation', smart: true, pro: true, scale: true },
+    { id: 'advanced_sim', name: 'Advanced simulation (risk / effort)', smart: true, pro: true, scale: true },
+    { id: 'full_sheet', name: 'Complete product sheet', smart: true, pro: true, scale: true },
+    { id: 'advanced_marketing', name: 'Advanced marketing', smart: true, pro: true, scale: true },
+    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', smart: true, pro: true, scale: true },
+    { id: 'ad_prompt', name: 'AI ad image prompt', smart: true, pro: true, scale: true },
+    { id: 'extended_market', name: 'Extended market analysis', smart: true, pro: true, scale: true },
+    { id: 'advanced_history', name: 'Advanced history organization', smart: true, pro: true, scale: true },
+    { id: 'beta_access', name: 'Early access to new features (beta)', smart: true, pro: true, scale: true },
   ];
 
   return (

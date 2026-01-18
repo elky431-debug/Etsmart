@@ -53,50 +53,31 @@ export const PLAN_LIMITS: Record<PlanId, number> = {
 
 // Stripe Price IDs for each plan
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
-  smart: 'price_1SqHYZCn17QPHnzEGz8Ehdzz', // Etsmart Smart - $29.99/month
-  pro: 'price_1SqHfuCn17QPHnzErxhIM918', // Etsmart Pro - $49.99/month
-  scale: 'price_1SqOqYCn17QPHnzEplHYB7CK', // Etsmart Scale - $79.99/month
+  smart: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
+  pro: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
+  scale: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Scale - $49.99/month
 };
 
-// Plan features configuration
+// All plans have access to all features - only difference is number of analyses per month
+const ALL_FEATURES: PlanFeature[] = [
+  { id: 'competition_analysis', name: 'Competition & saturation analysis', available: true },
+  { id: 'basic_simulation', name: 'Simplified launch simulation', available: true },
+  { id: 'full_simulation', name: 'Complete launch simulation', available: true },
+  { id: 'advanced_simulation', name: 'Advanced simulation (risk/effort)', available: true },
+  { id: 'full_product_sheet', name: 'Complete product sheet', available: true },
+  { id: 'advanced_marketing', name: 'Advanced marketing', available: true },
+  { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', available: true },
+  { id: 'ad_prompt', name: 'AI ad image prompt', available: true },
+  { id: 'extended_market', name: 'Extended market analysis', available: true },
+  { id: 'advanced_history', name: 'Advanced history organization', available: true },
+  { id: 'beta_features', name: 'Early access to new features (beta)', available: true },
+];
+
+// Plan features configuration - all plans have the same features
 export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
-  smart: [
-    { id: 'competition_analysis', name: 'Competition & saturation analysis', available: true },
-    { id: 'basic_simulation', name: 'Simplified launch simulation', available: true },
-    { id: 'basic_product_sheet', name: 'Basic product sheet', available: true },
-    { id: 'history', name: 'Analysis history', available: true },
-    { id: 'advanced_simulation', name: 'Advanced simulation (risk/effort)', available: false },
-    { id: 'full_product_sheet', name: 'Complete product sheet', available: false },
-    { id: 'advanced_marketing', name: 'Advanced marketing', available: false },
-    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', available: false },
-    { id: 'ad_prompt', name: 'AI ad image prompt', available: false },
-    { id: 'extended_market', name: 'Extended market analysis', available: false },
-  ],
-  pro: [
-    { id: 'competition_analysis', name: 'Competition & saturation analysis', available: true },
-    { id: 'basic_simulation', name: 'Simplified launch simulation', available: true },
-    { id: 'full_simulation', name: 'Complete launch simulation', available: true },
-    { id: 'full_product_sheet', name: 'Complete product sheet', available: true },
-    { id: 'advanced_marketing', name: 'Advanced marketing', available: true },
-    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', available: true },
-    { id: 'ad_prompt', name: 'AI ad image prompt', available: true },
-    { id: 'history', name: 'Complete analysis history', available: true },
-    { id: 'advanced_simulation', name: 'Advanced simulation (risk/effort)', available: false },
-    { id: 'extended_market', name: 'Extended market analysis', available: false },
-  ],
-  scale: [
-    { id: 'competition_analysis', name: 'Competition & saturation analysis', available: true },
-    { id: 'basic_simulation', name: 'Simplified launch simulation', available: true },
-    { id: 'full_simulation', name: 'Complete launch simulation', available: true },
-    { id: 'advanced_simulation', name: 'Advanced simulation (risk/effort)', available: true },
-    { id: 'full_product_sheet', name: 'Complete product sheet', available: true },
-    { id: 'advanced_marketing', name: 'Advanced marketing', available: true },
-    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', available: true },
-    { id: 'ad_prompt', name: 'AI ad image prompt', available: true },
-    { id: 'extended_market', name: 'Extended market analysis', available: true },
-    { id: 'advanced_history', name: 'Advanced history organization', available: true },
-    { id: 'beta_features', name: 'Early access to new features (beta)', available: true },
-  ],
+  smart: ALL_FEATURES,
+  pro: ALL_FEATURES,
+  scale: ALL_FEATURES,
 };
 
 // Plan definitions
@@ -110,11 +91,6 @@ export const PLANS: Plan[] = [
     analysesPerMonth: 15,
     features: PLAN_FEATURES.smart,
     stripePriceId: STRIPE_PRICE_IDS.smart || undefined,
-    limitations: [
-      'No advanced simulation',
-      'Simplified marketing',
-      'No in-depth buyer behavior analysis',
-    ],
   },
   {
     id: 'pro',
@@ -126,10 +102,6 @@ export const PLANS: Plan[] = [
     features: PLAN_FEATURES.pro,
     stripePriceId: STRIPE_PRICE_IDS.pro || undefined,
     popular: true,
-    limitations: [
-      'No global risk simulation',
-      'No estimated marketing effort',
-    ],
   },
   {
     id: 'scale',

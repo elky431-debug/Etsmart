@@ -105,13 +105,27 @@ export default function HomePage() {
     },
   ];
 
+  // All plans have the same features - only difference is number of analyses per month
+  const allFeatures = [
+    'Competition & saturation analysis',
+    'Complete launch simulation',
+    'Advanced simulation (risk/effort)',
+    'Complete product sheet',
+    'Advanced marketing',
+    'TikTok ideas & ad channel',
+    'AI ad image prompt',
+    'Extended market analysis',
+    'Advanced history organization',
+    'Early access to new features (beta)',
+  ];
+
   const plans = [
     {
       name: 'Smart',
       price: '$29.99',
       period: '/month',
       description: 'For Etsy sellers starting out or intermediate, who want to test products seriously without multiplying errors.',
-      features: ['15 analyses / month', 'Competition & saturation analysis', 'Simplified launch simulation', 'Basic product sheet', 'Analysis history'],
+      features: ['15 analyses / month', ...allFeatures],
       cta: 'Get started',
       popular: false,
     },
@@ -120,7 +134,7 @@ export default function HomePage() {
       price: '$49.99',
       period: '/month',
       description: 'For active sellers who want to structure their decisions and improve their marketing performance on Etsy.',
-      features: ['30 analyses / month', 'Complete launch simulation', 'Complete product sheet', 'Advanced marketing', 'TikTok ideas & ad channel', 'AI ad image prompt'],
+      features: ['30 analyses / month', ...allFeatures],
       cta: 'Choose plan',
       popular: true,
     },
@@ -129,7 +143,7 @@ export default function HomePage() {
       price: '$79.99',
       period: '/month',
       description: 'For advanced sellers, high-volume shops, or users who want to test many products strategically.',
-      features: ['100 analyses / month', 'Advanced simulation (risk/effort)', 'Extended market analysis', 'Advanced history organization', 'Early access to new features (beta)'],
+      features: ['100 analyses / month', ...allFeatures],
       cta: 'Choose plan',
       popular: false,
     },
