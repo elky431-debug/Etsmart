@@ -1,5 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper to extract basic info from URL (fallback when scraping fails)
+function extractBasicInfoFromUrl(url: string) {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    
+    // Extract product ID if possible
+    const productIdMatch = pathname.match(/\/(\d{10,})/);
+    const productId = productIdMatch ? productIdMatch[1] : null;
+    
+    // Extract some info from URL
+    const urlParts = pathname.split('/').filter(p => p);
+    const lastPart = urlParts[urlParts.length - 1];
+    const titleHint = lastPart
+      ? lastPart.replace(/\.html$/, '').replace(/-/g, ' ').substring(0, 100)
+      : null;
+    
+    return {
+      url: url,
+      productId: productId,
+      titleHint: titleHint || 'Produit AliExpress',
+      source: url.includes('aliexpress') ? 'aliexpress' : url.includes('alibaba') ? 'alibaba' : 'unknown',
+    };
+  } catch (e) {
+    return {
+      url: url,
+      productId: null,
+      titleHint: 'Produit AliExpress',
+      source: url.includes('aliexpress') ? 'aliexpress' : url.includes('alibaba') ? 'alibaba' : 'unknown',
+    };
+  }
+}
+
 // Helper to extract product ID from AliExpress URL
 function extractAliExpressProductId(url: string): string | null {
   // Clean URL and decode
@@ -817,10 +850,14 @@ export async function POST(request: NextRequest) {
     } catch (scrapeError) {
       console.error('All scraping methods failed:', scrapeError);
       
-      // Return error with helpful message
+      // Try to extract basic info from URL as fallback
+      const basicInfo = extractBasicInfoFromUrl(normalizedUrl);
+      
+      // Return error with helpful message and any basic info we could extract
       return NextResponse.json({
         success: false,
-        error: 'Could not fetch product data. AliExpress may be blocking the request. Please try again or enter product details manually.',
+        error: 'AliExpress bloque actuellement le scraping automatique. Utilisez l\'ajout manuel ci-dessous.',
+        fallback: basicInfo, // Return any info we could extract from URL
       }, { status: 422 });
     }
 

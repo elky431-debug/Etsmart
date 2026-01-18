@@ -1312,6 +1312,13 @@ export const parseProductUrl = async (url: string): Promise<SupplierProduct | nu
     });
     
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // If we have fallback data, throw a special error with that data
+      if (errorData.fallback) {
+        throw new Error(`SCRAPING_BLOCKED:${JSON.stringify(errorData.fallback)}`);
+      }
+      
       console.error('API error:', response.status);
       return null;
     }
@@ -1319,6 +1326,11 @@ export const parseProductUrl = async (url: string): Promise<SupplierProduct | nu
     const data = await response.json();
     
     if (!data.success || !data.product) {
+      // If we have fallback data, throw a special error with that data
+      if (data.fallback) {
+        throw new Error(`SCRAPING_BLOCKED:${JSON.stringify(data.fallback)}`);
+      }
+      
       console.error('Failed to parse product:', data.error);
       return null;
     }

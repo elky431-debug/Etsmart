@@ -59,11 +59,53 @@ export function ProductImport() {
         addProduct(product);
         setUrl('');
       } else {
-        setError('Unable to load this product automatically');
+        // Try to get fallback info from API
+        try {
+          const response = await fetch('/api/parse-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          const data = await response.json();
+          
+          if (data.fallback) {
+            // Pre-fill manual entry with extracted info
+            setManualProduct({
+              title: data.fallback.titleHint || '',
+              price: '',
+              imageUrl: data.fallback.url || url,
+            });
+          }
+        } catch (e) {
+          // Ignore fallback errors, still show manual entry
+        }
+        
+        setError('AliExpress bloque le scraping automatique. Utilisez l\'ajout manuel ci-dessous (champs pré-remplis).');
         setShowManualEntry(true);
       }
-    } catch {
-      setError('Error loading product');
+    } catch (error: any) {
+      // Try to get fallback info from API
+      try {
+        const response = await fetch('/api/parse-product', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await response.json();
+        
+        if (data.fallback) {
+          // Pre-fill manual entry with extracted info
+          setManualProduct({
+            title: data.fallback.titleHint || '',
+            price: '',
+            imageUrl: data.fallback.url || url,
+          });
+        }
+      } catch (e) {
+        // Ignore fallback errors
+      }
+      
+      setError('AliExpress bloque le scraping automatique. Utilisez l\'ajout manuel ci-dessous.');
       setShowManualEntry(true);
     } finally {
       setIsLoading(false);
