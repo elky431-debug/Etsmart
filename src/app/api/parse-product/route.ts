@@ -26,74 +26,325 @@ function extractAliExpressProductId(url: string): string | null {
   return null;
 }
 
+// Helper to delay between retries
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper to get random delay (300-1500ms)
+const getRandomDelay = () => Math.floor(Math.random() * 1200) + 300;
+
 // Fetch product from AliExpress API
 async function fetchAliExpressProduct(productId: string, originalUrl: string) {
-  // Try multiple API endpoints
+  // Try multiple API endpoints with various configurations
   const endpoints = [
     // AliExpress product detail API (used by mobile apps)
-    `https://www.aliexpress.com/aeglobal/api/web/product/detail?productId=${productId}&country=US&locale=en_US`,
+    {
+      url: `https://www.aliexpress.com/aeglobal/api/web/product/detail?productId=${productId}&country=US&locale=en_US`,
+      type: 'api',
+    },
     // Alternative API endpoint
-    `https://www.aliexpress.com/fn/ws/product/page/v2?productId=${productId}`,
+    {
+      url: `https://www.aliexpress.com/fn/ws/product/page/v2?productId=${productId}`,
+      type: 'api',
+    },
+    // Item page API endpoint
+    {
+      url: `https://www.aliexpress.com/wholesale?SearchText=${productId}&catId=0&g=y`,
+      type: 'search',
+    },
+    // Alternative country/locale combinations
+    {
+      url: `https://www.aliexpress.com/aeglobal/api/web/product/detail?productId=${productId}&country=FR&locale=fr_FR`,
+      type: 'api',
+    },
+    {
+      url: `https://www.aliexpress.com/aeglobal/api/web/product/detail?productId=${productId}&country=GB&locale=en_GB`,
+      type: 'api',
+    },
   ];
 
-  // Multiple User-Agent strings to rotate
+  // Multiple User-Agent strings to rotate (more realistic and diverse)
   const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
   ];
 
-  for (const apiUrl of endpoints) {
+  for (const endpoint of endpoints) {
     // Try with different User-Agents
-    for (const userAgent of userAgents) {
+    for (let i = 0; i < userAgents.length; i++) {
+      const userAgent = userAgents[i];
+      
+      // Add random delay between retries to avoid rate limiting
+      if (i > 0) {
+        await delay(getRandomDelay());
+      }
+      
       try {
-        const response = await fetch(apiUrl, {
-          headers: {
-            'User-Agent': userAgent,
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.aliexpress.com/',
-            'Origin': 'https://www.aliexpress.com',
-            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-          },
+        // Build headers based on endpoint type
+        const headers: Record<string, string> = {
+          'User-Agent': userAgent,
+          'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://www.aliexpress.com/',
+          'Origin': 'https://www.aliexpress.com',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'max-age=0',
+          'Upgrade-Insecure-Requests': '1',
+        };
+
+        if (endpoint.type === 'api') {
+          headers['Accept'] = 'application/json, text/plain, */*';
+          headers['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+          headers['sec-ch-ua-mobile'] = '?0';
+          headers['sec-ch-ua-platform'] = '"macOS"';
+          headers['sec-fetch-dest'] = 'empty';
+          headers['sec-fetch-mode'] = 'cors';
+          headers['sec-fetch-site'] = 'same-origin';
+        } else {
+          headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+          headers['sec-fetch-dest'] = 'document';
+          headers['sec-fetch-mode'] = 'navigate';
+          headers['sec-fetch-site'] = 'none';
+          headers['sec-fetch-user'] = '?1';
+        }
+
+        const response = await fetch(endpoint.url, {
+          headers,
           // Add timeout
-          signal: AbortSignal.timeout(10000), // 10 seconds timeout
+          signal: AbortSignal.timeout(12000), // 12 seconds timeout
+          // Add redirect handling
+          redirect: 'follow',
         });
 
         if (response.ok) {
-          const data = await response.json();
-          
-          // Try to extract product info from the API response
-          if (data) {
-            const productInfo = extractFromApiResponse(data, productId, originalUrl);
-            if (productInfo && productInfo.title && productInfo.title !== 'Produit AliExpress') {
-              return productInfo;
+          // Handle different response types
+          if (endpoint.type === 'api') {
+            const data = await response.json();
+            
+            // Try to extract product info from the API response
+            if (data) {
+              const productInfo = extractFromApiResponse(data, productId, originalUrl);
+              if (productInfo && productInfo.title && productInfo.title !== 'Produit AliExpress') {
+                console.log(`✅ Successfully fetched product via API: ${endpoint.url}`);
+                return productInfo;
+              }
+            }
+          } else {
+            // For search pages, extract from HTML
+            const html = await response.text();
+            const extracted = await extractFromHTML(html, productId, originalUrl);
+            if (extracted && extracted.title && extracted.title.length > 5) {
+              console.log(`✅ Successfully extracted product from search page`);
+              return extracted;
             }
           }
+        } else if (response.status === 403 || response.status === 429) {
+          // Rate limited or blocked - wait longer before retry
+          console.log(`⚠️ Blocked (${response.status}) with endpoint ${endpoint.url}, waiting...`);
+          await delay(2000); // Wait 2 seconds before trying next
+          continue;
         }
       } catch (e: any) {
         // If timeout, try next User-Agent
         if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-          console.log(`Timeout for ${apiUrl} with User-Agent, trying next...`);
+          console.log(`⏱️ Timeout for ${endpoint.url} with User-Agent, trying next...`);
           continue;
         }
-        console.log(`API endpoint failed: ${apiUrl}`, e.message || e);
+        // For network errors, try next
+        if (e.message?.includes('fetch failed') || e.message?.includes('ECONNREFUSED')) {
+          console.log(`🌐 Network error for ${endpoint.url}, trying next...`);
+          continue;
+        }
+        console.log(`❌ API endpoint failed: ${endpoint.url}`, e.message || e);
       }
     }
   }
 
   // If APIs fail, try scraping the page directly
   return await scrapeAliExpressPage(productId, originalUrl);
+}
+
+// Helper to extract product from HTML
+async function extractFromHTML(html: string, productId: string, originalUrl: string) {
+  let title = '';
+  let price = 0;
+  let images: string[] = [];
+  let rating = 4.5;
+  
+  // Method 1: Look for runParams data (most reliable)
+  const runParamsMatch = html.match(/window\.runParams\s*=\s*\{[\s\S]*?"data"\s*:\s*(\{[\s\S]*?\})\s*\}/);
+  if (runParamsMatch) {
+    try {
+      const dataStr = runParamsMatch[1];
+      
+      const titleMatch = dataStr.match(/"subject"\s*:\s*"([^"]+)"/);
+      if (titleMatch) title = titleMatch[1];
+      
+      const pricePatterns = [
+        /"formatedActivityPrice"\s*:\s*"[\$€£]?\s*([\d,]+\.?\d*)/,
+        /"formatedActivityPrice"\s*:\s*"([^"]*?)([\d,]+\.?\d*)/,
+        /"minAmount"\s*:\s*\{[^}]*"value"\s*:\s*([\d.]+)/,
+        /"minActivityAmount"\s*:\s*\{[^}]*"value"\s*:\s*([\d.]+)/,
+        /"discountPrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/,
+        /"originalPrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/,
+        /"price"\s*:\s*\{[^}]*"min"\s*:\s*([\d.]+)/,
+        /"price"\s*:\s*([\d.]+)/,
+      ];
+      
+      for (const pattern of pricePatterns) {
+        const priceMatch = dataStr.match(pattern);
+        if (priceMatch) {
+          const priceStr = (priceMatch[1] || priceMatch[0]).replace(/,/g, '');
+          const parsedPrice = parseFloat(priceStr);
+          if (parsedPrice > 0 && parsedPrice < 10000) {
+            price = parsedPrice;
+            break;
+          }
+        }
+      }
+      
+      const imagesMatch = dataStr.match(/"imagePathList"\s*:\s*\[([\s\S]*?)\]/);
+      if (imagesMatch) {
+        const imgUrls = imagesMatch[1].match(/"([^"]+)"/g);
+        if (imgUrls) {
+          images = imgUrls.map(url => {
+            const cleanUrl = url.replace(/"/g, '');
+            return cleanUrl.startsWith('//') ? 'https:' + cleanUrl : cleanUrl;
+          }).filter(url => url.includes('alicdn.com'));
+        }
+      }
+    } catch (e) {
+      console.log('Error parsing runParams:', e);
+    }
+  }
+  
+  // Method 2: Extract from JSON-LD structured data
+  if (price === 0) {
+    const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    if (jsonLdMatches) {
+      for (const jsonLd of jsonLdMatches) {
+        try {
+          const jsonContent = jsonLd.replace(/<script[^>]*>|<\/script>/gi, '');
+          const data = JSON.parse(jsonContent);
+          if (data.offers?.price || data.offers?.lowPrice) {
+            const foundPrice = parseFloat(data.offers.price || data.offers.lowPrice);
+            if (foundPrice > 0 && foundPrice < 10000) {
+              price = foundPrice;
+              break;
+            }
+          }
+        } catch (e) {
+          // Not valid JSON, continue
+        }
+      }
+    }
+  }
+  
+  // Method 3: Extract from meta tags
+  if (!title) {
+    const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                         html.match(/<meta\s+content="([^"]+)"\s+property="og:title"/i);
+    if (ogTitleMatch) title = ogTitleMatch[1];
+  }
+  
+  if (!title) {
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      title = titleMatch[1].split('|')[0].split('-')[0].trim();
+    }
+  }
+  
+  // Extract price from meta tags
+  if (price === 0) {
+    const priceMetaPatterns = [
+      /<meta\s+property="product:price:amount"\s+content="([^"]+)"/i,
+      /<meta\s+content="([^"]+)"\s+property="product:price:amount"/i,
+      /<meta\s+name="price"\s+content="([^"]+)"/i,
+      /<meta\s+content="([^"]+)"\s+name="price"/i,
+    ];
+    
+    for (const pattern of priceMetaPatterns) {
+      const priceMetaMatch = html.match(pattern);
+      if (priceMetaMatch) {
+        const parsedPrice = parseFloat(priceMetaMatch[1]);
+        if (parsedPrice > 0 && parsedPrice < 10000) {
+          price = parsedPrice;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Method 4: Extract price from visible HTML elements
+  if (price === 0) {
+    const htmlPricePatterns = [
+      /data-price=["']([\d.]+)["']/i,
+      /data-product-price=["']([\d.]+)["']/i,
+      /class="[^"]*price[^"]*"[^>]*>[\$€£]?\s*([\d,]+\.?\d*)/i,
+      /<span[^>]*class="[^"]*price[^"]*"[^>]*>[\$€£]?\s*([\d,]+\.?\d*)/i,
+      /price["']?\s*[:=]\s*["']?([\d.]+)/i,
+    ];
+    
+    for (const pattern of htmlPricePatterns) {
+      const priceMatch = html.match(pattern);
+      if (priceMatch) {
+        const priceStr = (priceMatch[1] || priceMatch[0]).replace(/,/g, '');
+        const parsedPrice = parseFloat(priceStr);
+        if (parsedPrice > 0 && parsedPrice < 10000) {
+          price = parsedPrice;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Extract image from meta
+  if (images.length === 0) {
+    const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+                         html.match(/<meta\s+content="([^"]+)"\s+property="og:image"/i);
+    if (ogImageMatch) {
+      let imgUrl = ogImageMatch[1];
+      if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+      images = [imgUrl];
+    }
+  }
+  
+  // Clean up title
+  title = title
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s*[-|]\s*AliExpress.*$/i, '')
+    .replace(/\s*[-|]\s*Alibaba.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  if (!title || title.length < 5) {
+    return null;
+  }
+  
+  return {
+    id: `aliexpress-${productId}`,
+    url: originalUrl,
+    source: 'aliexpress' as const,
+    title: title.slice(0, 200),
+    description: title,
+    images: images.length > 0 ? images.slice(0, 5) : ['https://via.placeholder.com/600x600?text=AliExpress'],
+    price: price,
+    currency: 'USD',
+    variants: [{ id: 'v1', name: 'Standard', price: price }],
+    category: 'General',
+    shippingTime: '15-30 days',
+    minOrderQuantity: 1,
+    supplierRating: rating,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 // Extract product info from API response
@@ -305,7 +556,12 @@ function extractFromApiResponse(data: Record<string, unknown>, productId: string
 
 // Scrape AliExpress page directly
 async function scrapeAliExpressPage(productId: string, originalUrl: string) {
-  const pageUrl = `https://www.aliexpress.com/item/${productId}.html`;
+  // Try multiple URL formats
+  const pageUrls = [
+    `https://www.aliexpress.com/item/${productId}.html`,
+    `https://www.aliexpress.us/item/${productId}.html`,
+    `https://m.aliexpress.com/item/${productId}.html`,
+  ];
   
   // Try with different User-Agents
   const userAgents = [
@@ -315,7 +571,14 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
   ];
 
-  for (const userAgent of userAgents) {
+  for (const pageUrl of pageUrls) {
+    for (let i = 0; i < userAgents.length; i++) {
+      const userAgent = userAgents[i];
+      
+      // Add random delay between retries
+      if (i > 0) {
+        await delay(getRandomDelay());
+      }
     try {
       const response = await fetch(pageUrl, {
         headers: {
@@ -346,217 +609,86 @@ async function scrapeAliExpressPage(productId: string, originalUrl: string) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const html = await response.text();
-    
-    // Try to extract data from embedded JSON
-    let title = '';
-    let price = 0;
-    let images: string[] = [];
-    let rating = 4.5;
-    
-    // Method 1: Look for runParams data (most reliable)
-    const runParamsMatch = html.match(/window\.runParams\s*=\s*\{[\s\S]*?"data"\s*:\s*(\{[\s\S]*?\})\s*\}/);
-    if (runParamsMatch) {
       try {
-        // This is complex nested JSON, try to extract key fields with regex
-        const dataStr = runParamsMatch[1];
+        const response = await fetch(pageUrl, {
+          headers: {
+            'User-Agent': userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.aliexpress.com/',
+            'Origin': 'https://www.aliexpress.com',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+          },
+          // Add timeout
+          signal: AbortSignal.timeout(15000), // 15 seconds timeout
+          redirect: 'follow',
+        });
+
+        if (!response.ok) {
+          // If 403/429 (blocked), try next User-Agent
+          if (response.status === 403 || response.status === 429) {
+            console.log(`⚠️ Blocked (${response.status}) with ${pageUrl}, trying next...`);
+            await delay(2000);
+            continue;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const html = await response.text();
         
-        // Extract title
-        const titleMatch = dataStr.match(/"subject"\s*:\s*"([^"]+)"/);
-        if (titleMatch) title = titleMatch[1];
+        // Use helper function to extract from HTML
+        const extracted = await extractFromHTML(html, productId, originalUrl);
         
-        // Extract price - Multiple patterns
-        const pricePatterns = [
-          /"formatedActivityPrice"\s*:\s*"[\$€£]?\s*([\d,]+\.?\d*)/,
-          /"formatedActivityPrice"\s*:\s*"([^"]*?)([\d,]+\.?\d*)/,
-          /"minAmount"\s*:\s*\{[^}]*"value"\s*:\s*([\d.]+)/,
-          /"minActivityAmount"\s*:\s*\{[^}]*"value"\s*:\s*([\d.]+)/,
-          /"discountPrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/,
-          /"originalPrice"\s*:\s*\{[^}]*"minPrice"\s*:\s*([\d.]+)/,
-          /"price"\s*:\s*\{[^}]*"min"\s*:\s*([\d.]+)/,
-          /"price"\s*:\s*([\d.]+)/,
-        ];
-        
-        for (const pattern of pricePatterns) {
-          const priceMatch = dataStr.match(pattern);
-          if (priceMatch) {
-            const priceStr = (priceMatch[1] || priceMatch[0]).replace(/,/g, '');
-            const parsedPrice = parseFloat(priceStr);
-            if (parsedPrice > 0 && parsedPrice < 10000) { // Sanity check
-              price = parsedPrice;
-              break;
-            }
+        if (extracted && extracted.title && extracted.title.length > 5) {
+          // Success! Return the product
+          console.log(`✅ Successfully scraped product from ${pageUrl}`);
+          
+          // Log if price extraction failed
+          if (extracted.price === 0) {
+            console.warn(`⚠️ Price extraction failed from HTML for product ${productId}. Title: "${extracted.title}"`);
+            console.log('💡 Tip: Price might be in variants or require user selection. User will need to enter price manually.');
+          } else {
+            console.log(`✅ Price extracted from HTML: $${extracted.price} for product ${productId}`);
           }
+          
+          return extracted;
+        } else {
+          // Title not found, try next URL/User-Agent
+          console.log('Title not found, trying next URL/User-Agent...');
+          continue;
         }
-        
-        // Extract images
-        const imagesMatch = dataStr.match(/"imagePathList"\s*:\s*\[([\s\S]*?)\]/);
-        if (imagesMatch) {
-          const imgUrls = imagesMatch[1].match(/"([^"]+)"/g);
-          if (imgUrls) {
-            images = imgUrls.map(url => {
-              const cleanUrl = url.replace(/"/g, '');
-              return cleanUrl.startsWith('//') ? 'https:' + cleanUrl : cleanUrl;
-            }).filter(url => url.includes('alicdn.com'));
-          }
+      } catch (e: any) {
+        // If timeout or abort, try next User-Agent/URL
+        if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+          console.log(`⏱️ Timeout with ${pageUrl}, trying next...`);
+          continue;
         }
-      } catch (e) {
-        console.log('Error parsing runParams:', e);
-      }
-    }
-    
-    // Method 2: Extract from JSON-LD structured data
-    if (price === 0) {
-      const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-      if (jsonLdMatches) {
-        for (const jsonLd of jsonLdMatches) {
-          try {
-            const jsonContent = jsonLd.replace(/<script[^>]*>|<\/script>/gi, '');
-            const data = JSON.parse(jsonContent);
-            if (data.offers?.price || data.offers?.lowPrice) {
-              const foundPrice = parseFloat(data.offers.price || data.offers.lowPrice);
-              if (foundPrice > 0 && foundPrice < 10000) {
-                price = foundPrice;
-                break;
-              }
-            }
-          } catch (e) {
-            // Not valid JSON, continue
-          }
+        // If blocked, try next URL/User-Agent
+        if (e.message?.includes('403') || e.message?.includes('429')) {
+          console.log(`🚫 Blocked with ${pageUrl}, trying next...`);
+          await delay(2000);
+          continue;
         }
-      }
-    }
-    
-    // Method 3: Extract from meta tags
-    if (!title) {
-      const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-                           html.match(/<meta\s+content="([^"]+)"\s+property="og:title"/i);
-      if (ogTitleMatch) title = ogTitleMatch[1];
-    }
-    
-    if (!title) {
-      const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-      if (titleMatch) {
-        title = titleMatch[1].split('|')[0].split('-')[0].trim();
-      }
-    }
-    
-    // Extract price from meta tags - Multiple patterns
-    if (price === 0) {
-      const priceMetaPatterns = [
-        /<meta\s+property="product:price:amount"\s+content="([^"]+)"/i,
-        /<meta\s+content="([^"]+)"\s+property="product:price:amount"/i,
-        /<meta\s+name="price"\s+content="([^"]+)"/i,
-        /<meta\s+content="([^"]+)"\s+name="price"/i,
-      ];
-      
-      for (const pattern of priceMetaPatterns) {
-        const priceMetaMatch = html.match(pattern);
-        if (priceMetaMatch) {
-          const parsedPrice = parseFloat(priceMetaMatch[1]);
-          if (parsedPrice > 0 && parsedPrice < 10000) {
-            price = parsedPrice;
-            break;
-          }
+        // For network errors, try next
+        if (e.message?.includes('fetch failed') || e.message?.includes('ECONNREFUSED')) {
+          console.log(`🌐 Network error with ${pageUrl}, trying next...`);
+          continue;
         }
+        // For other errors, log and continue
+        console.log(`❌ Error with ${pageUrl}: ${e.message || e}, trying next...`);
       }
-    }
-    
-    // Method 4: Extract price from visible HTML elements (data attributes, classes, etc.)
-    if (price === 0) {
-      const htmlPricePatterns = [
-        /data-price=["']([\d.]+)["']/i,
-        /data-product-price=["']([\d.]+)["']/i,
-        /class="[^"]*price[^"]*"[^>]*>[\$€£]?\s*([\d,]+\.?\d*)/i,
-        /<span[^>]*class="[^"]*price[^"]*"[^>]*>[\$€£]?\s*([\d,]+\.?\d*)/i,
-        /price["']?\s*[:=]\s*["']?([\d.]+)/i,
-      ];
-      
-      for (const pattern of htmlPricePatterns) {
-        const priceMatch = html.match(pattern);
-        if (priceMatch) {
-          const priceStr = (priceMatch[1] || priceMatch[0]).replace(/,/g, '');
-          const parsedPrice = parseFloat(priceStr);
-          if (parsedPrice > 0 && parsedPrice < 10000) {
-            price = parsedPrice;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Extract image from meta
-    if (images.length === 0) {
-      const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
-                           html.match(/<meta\s+content="([^"]+)"\s+property="og:image"/i);
-      if (ogImageMatch) {
-        let imgUrl = ogImageMatch[1];
-        if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
-        images = [imgUrl];
-      }
-    }
-    
-      // Clean up title (remove HTML entities and AliExpress suffix)
-      title = title
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/\s*[-|]\s*AliExpress.*$/i, '')
-        .replace(/\s*[-|]\s*Alibaba.*$/i, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      if (!title || title.length < 5) {
-        // Try next User-Agent if title not found
-        console.log('Title not found, trying next User-Agent...');
-        continue;
-      }
-      
-      // Log if price extraction failed
-      if (price === 0) {
-        console.warn(`⚠️ Price extraction failed from HTML for product ${productId}. Title: "${title}"`);
-        console.log('💡 Tip: Price might be in variants or require user selection. User will need to enter price manually.');
-      } else {
-        console.log(`✅ Price extracted from HTML: $${price} for product ${productId}`);
-      }
-      
-      // Success! Return the product
-      return {
-        id: `aliexpress-${productId}`,
-        url: originalUrl,
-        source: 'aliexpress' as const,
-        title: title.slice(0, 200),
-        description: title,
-        images: images.length > 0 ? images.slice(0, 5) : ['https://via.placeholder.com/600x600?text=AliExpress'],
-        price: price,
-        currency: 'USD',
-        variants: [{ id: 'v1', name: 'Standard', price: price }],
-        category: 'General',
-        shippingTime: '15-30 days',
-        minOrderQuantity: 1,
-        supplierRating: rating,
-        createdAt: new Date().toISOString(),
-      };
-    } catch (e: any) {
-      // If timeout or abort, try next User-Agent
-      if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-        console.log(`Timeout with User-Agent, trying next...`);
-        continue;
-      }
-      // If blocked, try next User-Agent
-      if (e.message?.includes('403') || e.message?.includes('429')) {
-        console.log(`Blocked with User-Agent, trying next...`);
-        continue;
-      }
-      // For other errors, log and continue to next User-Agent
-      console.log(`Error with User-Agent: ${e.message || e}, trying next...`);
     }
   }
   
-  // If all User-Agents failed, throw error
-  throw new Error('All scraping methods failed. AliExpress may be blocking requests.');
+  // If all methods failed, throw error
+  throw new Error('All scraping methods failed. AliExpress may be blocking requests. Please try adding the product manually.');
 }
 
 // Scrape Alibaba product page  
