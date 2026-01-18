@@ -148,11 +148,18 @@ export async function POST(request: NextRequest) {
     const body: AIAnalysisRequest = await request.json();
     const { productPrice, niche, productCategory, productImageUrl } = body;
 
-    if (!productImageUrl || !productImageUrl.startsWith('http')) {
+    // Accepter les URLs http/https ET les data URLs (pour les screenshots)
+    const isValidImage = productImageUrl && (
+      productImageUrl.startsWith('http://') || 
+      productImageUrl.startsWith('https://') ||
+      productImageUrl.startsWith('data:image/')
+    );
+    
+    if (!isValidImage) {
       return NextResponse.json({
         success: false,
         error: 'IMAGE_REQUIRED',
-        message: 'Une image du produit est OBLIGATOIRE.',
+        message: 'Une image du produit est OBLIGATOIRE (URL ou data URL).',
         canAnalyze: false,
       }, { status: 400 });
     }
@@ -689,23 +696,32 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       }, { status: 500 });
     }
 
+    // Validation avec fallback généreux - ne bloquer que si vraiment impossible
     if (!analysis.canIdentifyProduct) {
-      return NextResponse.json({
-        success: false,
-        error: 'PRODUCT_NOT_IDENTIFIABLE',
-        message: 'L\'IA ne peut pas identifier le produit.',
-        reason: analysis.productVisualDescription,
-        canAnalyze: false,
-      }, { status: 422 });
+      console.warn('⚠️ AI could not identify product, but continuing with fallback');
+      // Ne pas bloquer - utiliser la description comme fallback
+      if (!analysis.productVisualDescription) {
+        analysis.productVisualDescription = 'Produit non clairement identifiable - analyse basée sur les estimations';
+      }
     }
 
-    if (!analysis.etsySearchQuery) {
-      return NextResponse.json({
-        success: false,
-        error: 'NO_ETSY_QUERY',
-        message: 'Impossible de générer une requête Etsy.',
-        canAnalyze: false,
-      }, { status: 422 });
+    // Si pas de requête Etsy, en générer une depuis la description
+    if (!analysis.etsySearchQuery || analysis.etsySearchQuery.trim() === '') {
+      console.warn('⚠️ No Etsy query generated, creating fallback from description');
+      
+      // Extraire des mots-clés de la description visuelle
+      const description = analysis.productVisualDescription || '';
+      const words = description
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !['the', 'and', 'for', 'with', 'this', 'that'].includes(w))
+        .slice(0, 5);
+      
+      analysis.etsySearchQuery = words.length > 0 
+        ? words.join(' ') 
+        : 'product gift handmade';
+      
+      console.log('✅ Generated fallback Etsy query:', analysis.etsySearchQuery);
     }
 
     return NextResponse.json({
