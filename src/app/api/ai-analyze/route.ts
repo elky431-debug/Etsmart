@@ -277,14 +277,16 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
     
     const openaiStartTime = Date.now();
     let openaiResponse: Response;
+    let usedModel = 'gpt-4o'; // Modèle utilisé (peut changer si fallback)
+    
+    // 🎯 STRATÉGIE HYBRIDE: Essayer GPT-4o d'abord, fallback sur GPT-4o-mini si timeout
     try {
-      // ⚡ TIMEOUT OPTIMISÉ: GPT-4o-mini répond généralement en <20s
-      // On utilise 35s pour laisser une grande marge de sécurité avec Netlify (50s)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.error('⏱️ OpenAI API timeout after 35s - GPT-4o-mini devrait répondre en <20s');
-        controller.abort();
-      }, 35000); // 35 secondes max (GPT-4o-mini est beaucoup plus rapide)
+      // Tentative 1: GPT-4o avec timeout de 30s
+      const controller1 = new AbortController();
+      const timeoutId1 = setTimeout(() => {
+        console.warn('⏱️ GPT-4o timeout après 30s - Fallback sur GPT-4o-mini');
+        controller1.abort();
+      }, 30000);
       
       try {
         openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -294,9 +296,7 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
             'Authorization': `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            // ⚡ UTILISER GPT-4O-MINI POUR RÉPONSE ULTRA-RAPIDE (<20s au lieu de >45s)
-            // GPT-4o-mini est 10x plus rapide que GPT-4o pour les images
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o', // Modèle principal (plus puissant)
             messages: [
               {
                 role: 'system',
@@ -322,57 +322,98 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
             temperature: 0.2, // Encore plus bas pour vitesse maximale
             max_tokens: 1500, // Réduit à 1500 pour réponse ultra-rapide
           }),
-          signal: controller.signal,
+          signal: controller1.signal,
         });
         
-        console.log('📡 Request sent to OpenAI, waiting for response...');
-    console.log('📡 Request details:', {
-      model: 'gpt-4o-mini', // ⚡ Modèle ultra-rapide
-      imageUrlLength: productImageUrl?.length,
-      imageUrlStart: productImageUrl?.substring(0, 100),
-      isDataUrl: productImageUrl?.startsWith('data:image'),
-      promptLength: prompt.length,
-      maxTokens: 1500, // Réduit pour vitesse
-      expectedResponseTime: '<20s', // GPT-4o-mini est beaucoup plus rapide
-    });
+        clearTimeout(timeoutId1);
+        const openaiDuration = Date.now() - openaiStartTime;
+        console.log('✅ GPT-4o responded successfully after', openaiDuration, 'ms');
+      } catch (fetchError1: any) {
+        clearTimeout(timeoutId1);
         
-        clearTimeout(timeoutId);
-        const openaiDuration = Date.now() - openaiStartTime;
-        console.log('✅ OpenAI API responded after', openaiDuration, 'ms');
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        const openaiDuration = Date.now() - openaiStartTime;
-        console.error('❌ OpenAI API fetch failed after', openaiDuration, 'ms:', {
-          name: fetchError?.name,
-          message: fetchError?.message,
-          stack: fetchError?.stack?.substring(0, 200),
-        });
-        throw fetchError;
+        // Si timeout ou erreur, essayer GPT-4o-mini (fallback)
+        if (fetchError1.name === 'AbortError' || fetchError1.name === 'TimeoutError') {
+          console.warn('🔄 GPT-4o timeout, switching to GPT-4o-mini (fallback)...');
+          usedModel = 'gpt-4o-mini';
+          
+          // Tentative 2: GPT-4o-mini avec timeout de 20s (reste 20s avant limite Netlify)
+          const controller2 = new AbortController();
+          const timeoutId2 = setTimeout(() => {
+            console.error('⏱️ GPT-4o-mini timeout après 20s');
+            controller2.abort();
+          }, 20000);
+          
+          try {
+            openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model: 'gpt-4o-mini', // Fallback: modèle rapide
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'Expert e-commerce. Réponds UNIQUEMENT en JSON valide.'
+                  },
+                  {
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'image_url',
+                        image_url: {
+                          url: productImageUrl,
+                          detail: 'low'
+                        }
+                      },
+                      {
+                        type: 'text',
+                        text: prompt
+                      }
+                    ]
+                  }
+                ],
+                temperature: 0.2,
+                max_tokens: 1500,
+              }),
+              signal: controller2.signal,
+            });
+            
+            clearTimeout(timeoutId2);
+            const fallbackDuration = Date.now() - openaiStartTime;
+            console.log('✅ GPT-4o-mini (fallback) responded after', fallbackDuration, 'ms');
+          } catch (fetchError2: any) {
+            clearTimeout(timeoutId2);
+            throw fetchError2; // Re-throw pour gestion d'erreur globale
+          }
+        } else {
+          throw fetchError1; // Re-throw si ce n'est pas un timeout
+        }
       }
     } catch (fetchError: any) {
-      // Gestion des erreurs de réseau/timeout
+      // Gestion des erreurs de réseau/timeout finale
       console.error('❌ Fetch error caught:', {
         name: fetchError?.name,
         message: fetchError?.message,
+        model: usedModel,
         stack: fetchError?.stack?.substring(0, 300),
       });
       
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
         const elapsedTime = Date.now() - openaiStartTime;
-        console.error('⏱️ TIMEOUT - OpenAI API took too long:', {
+        console.error('⏱️ TIMEOUT FINAL - Les deux modèles ont timeout:', {
           elapsedTime: `${elapsedTime}ms`,
-          timeoutLimit: '45s',
+          modelsTried: ['gpt-4o', 'gpt-4o-mini'],
           netlifyLimit: '50s',
-          reason: 'OpenAI API response too slow or Netlify timeout reached',
         });
         return NextResponse.json({
           success: false,
           error: 'TIMEOUT',
-          message: `La requête OpenAI a expiré après ${Math.round(elapsedTime / 1000)} secondes. GPT-4o-mini devrait répondre en <20s.`,
-          troubleshooting: 'Vérifiez les logs Netlify. Si le problème persiste, l\'API OpenAI peut être surchargée.',
+          message: `Les deux modèles (GPT-4o et GPT-4o-mini) ont timeout après ${Math.round(elapsedTime / 1000)} secondes.`,
+          troubleshooting: 'L\'API OpenAI peut être surchargée. Réessayez dans quelques instants.',
           elapsedTime: elapsedTime,
-          timeoutLimit: 35000,
-          model: 'gpt-4o-mini',
+          modelsTried: ['gpt-4o', 'gpt-4o-mini'],
         }, { status: 503 });
       }
       
@@ -673,10 +714,11 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
     return NextResponse.json({
       success: true,
       analysis,
-      model: 'gpt-4o-mini', // ⚡ Modèle ultra-rapide utilisé
+      model: usedModel, // Modèle utilisé (gpt-4o ou gpt-4o-mini si fallback)
       usedVision: true,
       analyzedAt: new Date().toISOString(),
       responseTime: Date.now() - openaiStartTime,
+      fallbackUsed: usedModel === 'gpt-4o-mini', // Indique si fallback a été utilisé
     });
 
   } catch (error) {
