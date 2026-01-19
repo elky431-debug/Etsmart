@@ -299,6 +299,9 @@ export interface ProductVerdict {
   estimatedSupplierPrice?: number;
   estimatedShippingCost?: number;
   supplierPriceReasoning?: string;
+  
+  // Avertissement si données de fallback utilisées
+  warningIfAny?: string | null;
 }
 
 export interface ProductAnalysis {
