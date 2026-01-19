@@ -699,13 +699,15 @@ const fetchAIAnalysis = async (
     productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=Product';
   }
 
-  console.log('📤 Sending analysis request:', {
+  console.log('📤 Sending analysis request to /api/ai-analyze:', {
     productPrice,
     niche,
     imageUrl: productImageUrl?.substring(0, 100),
-    hasImage: !!productImageUrl && productImageUrl.startsWith('http'),
+    hasImage: !!productImageUrl && (productImageUrl.startsWith('http') || productImageUrl.startsWith('data:image')),
+    imageLength: productImageUrl?.length,
   });
 
+  const startTime = Date.now();
   const response = await fetch('/api/ai-analyze', {
     method: 'POST',
     headers: {
@@ -719,10 +721,12 @@ const fetchAIAnalysis = async (
     }),
   });
   
-  console.log('📥 Response received:', {
+  const fetchDuration = Date.now() - startTime;
+  console.log('📥 Response received after', fetchDuration, 'ms:', {
     ok: response.ok,
     status: response.status,
     statusText: response.statusText,
+    headers: Object.fromEntries(response.headers.entries()),
   });
   
   let data: any = {};
@@ -1056,13 +1060,23 @@ export const analyzeProduct = async (
         console.warn('⚠️ No image URL found, using placeholder');
       }
       
+      console.log('📤 Calling OpenAI API...');
       aiAnalysis = await fetchAIAnalysis(price, validNiche, productImageUrl, product.title);
-    console.log('✅ AI Vision analysis successful');
-    console.log('👁️ Product:', aiAnalysis.productVisualDescription);
-    console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+      console.log('✅ AI Vision analysis successful');
+      console.log('👁️ Product:', aiAnalysis.productVisualDescription);
+      console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+      console.log('📊 Competitors:', aiAnalysis.estimatedCompetitors);
+      console.log('💡 Has strategic marketing:', !!aiAnalysis.strategicMarketing);
+      console.log('💡 Has acquisition marketing:', !!aiAnalysis.acquisitionMarketing);
   } catch (error: any) {
     // Si l'API échoue, générer des données par défaut plutôt que de bloquer
-    console.warn('⚠️ AI Analysis failed, using default fallback data:', error.message || error);
+    console.error('❌ AI Analysis FAILED - API Error Details:');
+    console.error('   Error type:', error?.constructor?.name);
+    console.error('   Error message:', error?.message);
+    console.error('   Error reason:', error?.reason);
+    console.error('   Error suggestion:', error?.suggestion);
+    console.error('   Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.warn('⚠️ Using default fallback data - this means OpenAI API is NOT working!');
     
     dataSource = 'estimated';
     

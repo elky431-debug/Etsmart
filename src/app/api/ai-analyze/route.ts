@@ -571,8 +571,16 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
   "warningIfAny": "Avertissement ou null"
 }`;
 
-    console.log('📤 Calling OpenAI API with image:', productImageUrl?.substring(0, 100));
+    console.log('📤 Calling OpenAI API with image:', {
+      url: productImageUrl?.substring(0, 100),
+      isDataUrl: productImageUrl?.startsWith('data:image'),
+      isHttpUrl: productImageUrl?.startsWith('http'),
+      length: productImageUrl?.length,
+      niche,
+      price: productPrice,
+    });
     
+    const openaiStartTime = Date.now();
     let openaiResponse: Response;
     try {
       // Timeout plus court (30s) pour éviter les blocages
@@ -617,8 +625,16 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
         });
         
         clearTimeout(timeoutId);
+        const openaiDuration = Date.now() - openaiStartTime;
+        console.log('✅ OpenAI API responded after', openaiDuration, 'ms');
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
+        const openaiDuration = Date.now() - openaiStartTime;
+        console.error('❌ OpenAI API fetch failed after', openaiDuration, 'ms:', {
+          name: fetchError?.name,
+          message: fetchError?.message,
+          stack: fetchError?.stack?.substring(0, 200),
+        });
         throw fetchError;
       }
     } catch (fetchError: any) {
