@@ -14,7 +14,7 @@ interface DashboardSettingsProps {
 interface UserSettings {
   targetCountry: string;
   currency: string;
-  preferredChannel: 'auto' | 'tiktok' | 'facebook' | 'instagram' | 'pinterest';
+  preferredChannel: 'auto' | 'all' | 'tiktok' | 'facebook' | 'instagram' | 'pinterest';
   aiPrudenceLevel: 'conservative' | 'balanced' | 'aggressive';
   language: string;
 }
@@ -312,6 +312,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
                 >
                   <option value="auto">Automatic (AI recommended)</option>
+                  <option value="all">All channels</option>
                   <option value="tiktok">TikTok</option>
                   <option value="facebook">Facebook</option>
                   <option value="instagram">Instagram</option>
