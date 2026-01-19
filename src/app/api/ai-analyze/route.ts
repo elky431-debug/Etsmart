@@ -571,43 +571,56 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
   "warningIfAny": "Avertissement ou null"
 }`;
 
+    console.log('📤 Calling OpenAI API with image:', productImageUrl?.substring(0, 100));
+    
     let openaiResponse: Response;
     try {
-      openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: 'Tu es un expert en analyse de produits e-commerce et estimation de prix. Tu réponds UNIQUEMENT en JSON valide.'
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: productImageUrl,
-                    detail: 'high'
+      // Timeout plus court (30s) pour éviter les blocages
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes max
+      
+      try {
+        openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'Tu es un expert en analyse de produits e-commerce et estimation de prix. Tu réponds UNIQUEMENT en JSON valide.'
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: productImageUrl,
+                      detail: 'high'
+                    }
+                  },
+                  {
+                    type: 'text',
+                    text: prompt
                   }
-                },
-                {
-                  type: 'text',
-                  text: prompt
-                }
-              ]
-            }
-          ],
-          temperature: 0.5,
-          max_tokens: 2500,
-        }),
-        signal: AbortSignal.timeout(45000), // 45 secondes timeout (optimisé)
-      });
+                ]
+              }
+            ],
+            temperature: 0.5,
+            max_tokens: 2500,
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
     } catch (fetchError: any) {
       // Gestion des erreurs de réseau/timeout
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
