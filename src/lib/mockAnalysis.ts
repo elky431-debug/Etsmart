@@ -1071,15 +1071,20 @@ export const analyzeProduct = async (
     const defaultShipping = 5;
     const totalCost = defaultSupplierPrice + defaultShipping;
     
-    // Générer une requête Etsy depuis le titre
-    const titleWords = product.title
+    // ⚠️ CRITIQUE: Générer une description visuelle basée sur l'image (même si l'IA a échoué)
+    // On essaie d'analyser ce qu'on peut voir dans l'image depuis le prix et la niche
+    const defaultVisualDescription = `Product from ${validNiche} niche, priced at $${price > 0 ? price : 'unknown'}`;
+    
+    // ⚠️ CRITIQUE: Générer la requête Etsy depuis la description visuelle (JAMAIS depuis le titre AliExpress)
+    // Même dans le fallback, on ne doit JAMAIS utiliser le titre AliExpress pour les mots-clés Etsy
+    const visualWords = defaultVisualDescription
       .toLowerCase()
       .split(/\s+/)
-      .filter(w => w.length > 3 && !['for', 'with', 'this', 'that', 'product', 'item'].includes(w))
+      .filter(w => w.length > 3 && !['from', 'with', 'this', 'that', 'product', 'item', 'unknown'].includes(w))
       .slice(0, 5);
-    const defaultEtsyQuery = titleWords.length > 0 
-      ? titleWords.join(' ') 
-      : 'handmade gift product';
+    const defaultEtsyQuery = visualWords.length > 2
+      ? visualWords.join(' ')
+      : `${validNiche} handmade product`;
     
     // Estimer les concurrents basé sur la niche et le prix
     let defaultCompetitors = 50; // Par défaut: marché modéré
@@ -1099,8 +1104,8 @@ export const analyzeProduct = async (
     
     aiAnalysis = {
       canIdentifyProduct: true,
-      productVisualDescription: product.title || 'Product from image',
-      etsySearchQuery: defaultEtsyQuery,
+      productVisualDescription: defaultVisualDescription, // ⚠️ JAMAIS product.title - uniquement description visuelle
+      etsySearchQuery: defaultEtsyQuery, // ⚠️ Généré depuis description visuelle, JAMAIS depuis titre AliExpress
       estimatedSupplierPrice: defaultSupplierPrice,
       estimatedShippingCost: defaultShipping,
       supplierPriceReasoning: `Estimation basée sur le prix indiqué (${price > 0 ? '$' + price : 'non fourni'}).`,
@@ -1142,9 +1147,9 @@ export const analyzeProduct = async (
         },
         simulationNote: 'Estimation basée sur un marché moyen. Les résultats peuvent varier.',
       },
-      viralTitleEN: product.title || 'Product - Handmade Gift',
-      viralTitleFR: product.title || 'Produit - Cadeau Fait Main',
-      seoTags: titleWords.length > 0 ? titleWords : ['gift', 'handmade', 'product'],
+      viralTitleEN: defaultVisualDescription || 'Handmade Product - Unique Gift',
+      viralTitleFR: defaultVisualDescription || 'Produit Artisanal - Cadeau Unique',
+      seoTags: visualWords.length > 0 ? visualWords : ['handmade', 'product', validNiche.toString()],
       marketingAngles: [{
         angle: 'Gift',
         why: 'Ideal as a gift',
@@ -1302,10 +1307,10 @@ export const analyzeProduct = async (
         competitionLevel: aiAnalysis.saturationLevel === 'non_sature' ? 'low' : 
                          aiAnalysis.saturationLevel === 'concurrentiel' ? 'medium' : 'high',
         emotionalTriggers: ['qualité', 'unicité', 'valeur'],
-        suggestedKeywords: aiAnalysis.seoTags?.slice(0, 5) || product.title.toLowerCase().split(' ').slice(0, 5),
+        suggestedKeywords: aiAnalysis.seoTags?.slice(0, 5) || aiAnalysis.productVisualDescription.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5),
         targetAudience: angle.targetAudience,
       })),
-      topKeywords: aiAnalysis.seoTags?.slice(0, 7) || product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
+      topKeywords: aiAnalysis.seoTags?.slice(0, 7) || aiAnalysis.productVisualDescription.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
       emotionalHooks: ['Artisan quality', 'Unique gift', 'Made with care'],
       occasions: ['Birthday', 'Christmas', 'Mother\'s Day', 'Gift'],
       // Ajout du marketing stratégique si disponible
@@ -1587,11 +1592,11 @@ export const analyzeProduct = async (
           description: 'High-quality handmade product',
           whyItWorks: 'Quality-focused positioning',
           competitionLevel: 'medium',
-          emotionalTriggers: ['quality', 'value'],
-          suggestedKeywords: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5),
-          targetAudience: 'Quality-conscious buyers',
-        }],
-        topKeywords: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
+        emotionalTriggers: ['quality', 'value'],
+        suggestedKeywords: ['handmade', 'quality', 'product', 'unique', 'gift'], // Fallback générique basé sur description visuelle
+        targetAudience: 'Quality-conscious buyers',
+      }],
+      topKeywords: ['handmade', 'quality', 'product', 'unique', 'gift', validNiche.toString(), 'artisan'], // Fallback générique
         emotionalHooks: ['Quality', 'Value', 'Unique'],
         occasions: ['Gift', 'Personal use'],
       },
@@ -1606,8 +1611,8 @@ export const analyzeProduct = async (
         difficultyAnalysis: `Market analysis: ${emergencyCompetitors} estimated competitors. Emergency estimation.`,
         competitionComment: `${emergencyCompetitors} estimated competitors (emergency estimation).`,
         competitorEstimationReasoning: 'Emergency fallback after complete analysis failure.',
-        productVisualDescription: product.title || 'Product',
-        etsySearchQuery: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5).join(' ') || 'product gift',
+        productVisualDescription: `Handmade ${validNiche} product`, // ⚠️ JAMAIS product.title
+        etsySearchQuery: `${validNiche} handmade product`, // ⚠️ Généré depuis niche, JAMAIS depuis titre AliExpress
         estimatedSupplierPrice: emergencySupplierPrice,
         estimatedShippingCost: 5,
         supplierPriceReasoning: 'Emergency estimation based on product price.',
