@@ -31,6 +31,58 @@ export function ProductImport() {
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
 
+  // Fonction pour compresser l'image
+  const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.7): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionner si nécessaire
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Cannot create canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Image compression failed'));
+                return;
+              }
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+    });
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -52,16 +104,22 @@ export function ProductImport() {
     setUploadedImage(null);
 
     try {
-      // Créer une preview de l'image
+      // Compresser l'image avant l'envoi (max 1200px de largeur, qualité 70%)
+      console.log('📸 Original image size:', (file.size / 1024).toFixed(2), 'KB');
+      const compressedFile = await compressImage(file, 1200, 0.7);
+      console.log('📸 Compressed image size:', (compressedFile.size / 1024).toFixed(2), 'KB');
+      console.log('📸 Compression ratio:', ((1 - compressedFile.size / file.size) * 100).toFixed(1), '% reduction');
+
+      // Créer une preview de l'image originale
       const reader = new FileReader();
       reader.onload = (event) => {
         setUploadedImage(event.target?.result as string);
       };
       reader.readAsDataURL(file);
 
-      // Envoyer l'image à l'API
+      // Envoyer l'image compressée à l'API
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
 
       const response = await fetch('/api/parse-product-image', {
         method: 'POST',
