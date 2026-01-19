@@ -1093,12 +1093,15 @@ export const analyzeProduct = async (
     
     // Estimer les concurrents basé sur la niche et le prix
     let defaultCompetitors = 50; // Par défaut: marché modéré
-    if (niche && typeof niche === 'object' && niche.name) {
-      const nicheName = niche.name.toLowerCase();
+    if (niche) {
+      const nicheStr = typeof niche === 'string' ? niche : (niche as any).id || (niche as any).name || '';
+      const nicheName = nicheStr.toLowerCase();
       if (nicheName.includes('jewelry') || nicheName.includes('bijou')) {
         defaultCompetitors = 120; // Marché très concurrentiel
-      } else if (nicheName.includes('decoration') || nicheName.includes('déco')) {
+      } else if (nicheName.includes('decoration') || nicheName.includes('déco') || nicheName.includes('home-decor')) {
         defaultCompetitors = 80;
+      } else if (nicheName.includes('personalized') || nicheName.includes('wedding')) {
+        defaultCompetitors = 90;
       } else {
         defaultCompetitors = 60;
       }
