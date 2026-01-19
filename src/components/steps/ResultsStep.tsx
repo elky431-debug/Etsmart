@@ -12,7 +12,6 @@ import {
   ExternalLink,
   Sparkles,
   Eye,
-  Megaphone,
   FileText,
   Lightbulb,
   PenTool,
@@ -48,9 +47,8 @@ import {
   formatPercentage
 } from '@/lib/utils';
 import type { ProductAnalysis, Niche } from '@/types';
-import { AcquisitionMarketing } from '@/components/analysis/AcquisitionMarketing';
 
-type MainTab = 'analyse' | 'marketing' | 'conception' | 'simulation';
+type MainTab = 'analyse' | 'conception' | 'simulation';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GÉNÉRATEUR DE PROMPT CRÉATIF POUR IMAGES PUBLICITAIRES
@@ -315,7 +313,6 @@ function CreativePromptGenerator({
 
 const mainTabs = [
   { id: 'analyse' as MainTab, label: 'Analysis', icon: Activity },
-  { id: 'marketing' as MainTab, label: 'Marketing', icon: Megaphone },
   { id: 'conception' as MainTab, label: 'Product Sheet', icon: FileText },
   { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
 ];
@@ -784,115 +781,6 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     </ul>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* MARKETING TAB */}
-            {activeTab === 'marketing' && (
-              <div className="space-y-6">
-                {/* Marketing Acquisition IA */}
-                {analysis.marketing?.acquisition && (
-                  <AcquisitionMarketing acquisition={analysis.marketing.acquisition} />
-                )}
-
-                {analysis.marketing?.strategic?.anglesToAvoid && analysis.marketing.strategic.anglesToAvoid.length > 0 && (
-                  <div className="p-5 rounded-xl bg-red-50 border border-red-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
-                        <XCircle size={20} className="text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-slate-900">Angles to avoid</h2>
-                        <p className="text-red-600 text-xs">Don't do this</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {analysis.marketing.strategic.anglesToAvoid.map((angle, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-white border border-red-200">
-                          <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
-                            <TrendingDown size={14} className="text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-slate-900">{angle.angle}</p>
-                            <p className="text-red-600 text-xs mt-1">{angle.risk}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {analysis.marketing?.strategic?.competitorMistakes && analysis.marketing.strategic.competitorMistakes.length > 0 && (
-                  <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
-                        <AlertTriangle size={20} className="text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-slate-900">Competitor mistakes</h2>
-                        <p className="text-slate-600 text-xs">What you should NOT do</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {analysis.marketing.strategic.competitorMistakes.map((mistake, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-white border border-amber-200">
-                          <XCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">{mistake.mistake}</p>
-                            <p className="text-amber-600 text-xs mt-1">
-                              {mistake.frequency === 'very_frequent' ? 'Très fréquent' : mistake.frequency === 'frequent' ? 'Fréquent' : 'Courant'}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {analysis.marketing?.strategic?.underexploitedAngles && analysis.marketing.strategic.underexploitedAngles.length > 0 && (
-                  <div className="p-5 rounded-xl bg-white border border-slate-200">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center">
-                        <Lightbulb size={20} className="text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-slate-900">Underexploited angles</h2>
-                        <p className="text-slate-500 text-xs">Comment te différencier intelligemment</p>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      {analysis.marketing.strategic.underexploitedAngles.map((angle, i) => (
-                        <div key={i} className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                          <div className="flex items-start justify-between mb-3">
-                            <h4 className="text-sm font-bold text-slate-900">{angle.angle}</h4>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              angle.competitionLevel === 'low' 
-                                ? 'bg-emerald-100 text-emerald-700' 
-                                : angle.competitionLevel === 'medium'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {angle.competitionLevel === 'low' ? 'Faible' : angle.competitionLevel === 'medium' ? 'Moyenne' : 'Élevée'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mb-3">{angle.whyUnderexploited}</p>
-                          <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-50 border border-cyan-200">
-                            <ArrowUpRight size={14} className="text-cyan-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-cyan-700">{angle.whyItCanWork}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {!analysis.marketing?.strategic && !analysis.marketing?.acquisition && (
-                  <div className="p-8 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                    <Info size={40} className="text-slate-400 mx-auto mb-4" />
-                    <p className="text-base text-slate-600">L&apos;analyse marketing stratégique n&apos;est pas disponible.</p>
-                    <p className="text-slate-500 text-sm mt-2">Réanalysez le produit pour obtenir les recommandations.</p>
-                  </div>
-                )}
               </div>
             )}
 
