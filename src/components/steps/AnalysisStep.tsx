@@ -41,33 +41,35 @@ export function AnalysisStep() {
     setIsAnalyzing(true);
     const niche = selectedNiche === 'custom' ? customNiche : selectedNiche;
 
-    for (let i = 0; i < products.length; i++) {
+    // ⚡ OPTIMISATION: Analyse parallèle pour plusieurs produits + sauvegarde DB non-bloquante
+    const analysisPromises = products.map(async (product, i) => {
       setCurrentIndex(i);
+      setCurrentPhase('AI Vision Analysis');
       
-      for (let phase = 0; phase < phases.length; phase++) {
-        setCurrentPhase(phases[phase].text);
-        setProgress(((i * phases.length + phase + 1) / (products.length * phases.length)) * 100);
-        await new Promise(resolve => setTimeout(resolve, 600));
-      }
-
       // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
       // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
-      const analysis = await analyzeProduct(products[i], (niche || 'custom') as Niche);
-      addAnalysis(analysis);
+      const analysis = await analyzeProduct(product, (niche || 'custom') as Niche);
       
-      // Save to Supabase if user is authenticated
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError) {
-          console.warn('Cannot get user for saving analysis:', authError.message);
-          // Continue without saving - user might not be logged in
-        } else if (user) {
+      // Mettre à jour la progression immédiatement
+      setProgress(((i + 1) / products.length) * 100);
+      
+      // Ajouter l'analyse au store immédiatement
+      addAnalysis(analysis);
+      setCompletedProducts(prev => [...prev, product.id]);
+      
+      // Sauvegarde DB en arrière-plan (non-bloquante)
+      (async () => {
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          
+          if (authError || !user) {
+            return; // Pas connecté, on skip
+          }
+          
           try {
             // First, save the product to database
             let savedProduct = analysis.product;
             try {
-              // Try to find product by URL (more reliable than ID for local products)
               const { data: existingProducts } = await supabase
                 .from('products')
                 .select('*')
@@ -76,66 +78,58 @@ export function AnalysisStep() {
                 .limit(1);
               
               if (existingProducts && existingProducts.length > 0) {
-                // Product exists, use it
                 savedProduct = {
                   ...analysis.product,
                   id: existingProducts[0].id,
                 };
-                console.log('✅ Product already exists in database');
               } else {
-                // Product doesn't exist, create it
                 savedProduct = await productDb.createProduct(user.id, analysis.product);
-                console.log('✅ Product saved to database');
               }
             } catch (productError: any) {
-              console.warn('⚠️ Error saving product to database:', {
-                message: productError?.message,
-                code: productError?.code,
-              });
-              // Continue anyway - might be a duplicate or other non-critical error
-              // Use original product ID
+              console.warn('⚠️ Error saving product to database:', productError?.message);
+              // Continue anyway
             }
             
-            // Then save the analysis (with the saved product)
+            // Then save the analysis
             const analysisWithSavedProduct = {
               ...analysis,
               product: savedProduct,
             };
             
             await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
-            console.log('✅ Analysis saved to database successfully');
           } catch (saveError: any) {
-            // Log detailed error information
-            console.error('❌ Error saving analysis to database:', {
-              message: saveError?.message || 'Unknown error',
-              code: saveError?.code,
-              details: saveError?.details,
-              hint: saveError?.hint,
-              error: saveError
-            });
-            // Don't fail the analysis if DB save fails - it's not critical
+            console.warn('⚠️ Error saving analysis to database:', saveError?.message);
+            // Non-critique, on continue
           }
+        } catch (error: any) {
+          // Silently fail - not critical
         }
-      } catch (error: any) {
-        console.warn('Error checking authentication for saving analysis:', error?.message || error);
-        // Continue without saving - not critical
-      }
+      })();
       
-      setCompletedProducts(prev => [...prev, products[i].id]);
-    }
+      return analysis;
+    });
+    
+    // Attendre que toutes les analyses soient terminées
+    await Promise.all(analysisPromises);
 
     setIsAnalyzing(false);
     setProgress(100);
+  }, [products, selectedNiche, customNiche, addAnalysis]);
 
-    // ⚠️ TOUJOURS rediriger vers les résultats - l'analyse ne peut JAMAIS échouer
-    // analyzeProduct retourne TOUJOURS un résultat grâce au fallback ultime
-    setTimeout(() => {
-      setStep(4); // Redirection directe vers les résultats
-    }, 1500);
-  }, [products, selectedNiche, customNiche, addAnalysis, setStep, phases.length, completedProducts.length]);
+  // ⚠️ REDIRECTION AUTOMATIQUE - Dès que l'analyse est terminée, rediriger immédiatement
+  useEffect(() => {
+    if (!isAnalyzing && completedProducts.length > 0) {
+      // Redirection immédiate vers les résultats
+      const timer = setTimeout(() => {
+        setStep(4);
+      }, 300); // Juste un petit délai pour l'animation
+      return () => clearTimeout(timer);
+    }
+  }, [isAnalyzing, completedProducts.length, setStep]);
 
   useEffect(() => {
     runAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentProduct = products[currentIndex];

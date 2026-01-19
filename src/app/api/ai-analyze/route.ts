@@ -606,7 +606,7 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
           temperature: 0.5,
           max_tokens: 2500,
         }),
-        signal: AbortSignal.timeout(60000), // 60 secondes timeout
+        signal: AbortSignal.timeout(45000), // 45 secondes timeout (optimisé)
       });
     } catch (fetchError: any) {
       // Gestion des erreurs de réseau/timeout

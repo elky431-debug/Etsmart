@@ -142,6 +142,7 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(35000), // 35 secondes timeout (optimisé)
       body: JSON.stringify({
         model: 'gpt-4o', // GPT-4o avec vision
         messages: [
