@@ -583,9 +583,12 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
     const openaiStartTime = Date.now();
     let openaiResponse: Response;
     try {
-      // Timeout plus court (30s) pour éviter les blocages
+      // Timeout augmenté (60s) pour laisser le temps à GPT-4o de répondre
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes max
+      const timeoutId = setTimeout(() => {
+        console.error('⏱️ OpenAI API timeout after 60s - this is very long, something might be wrong');
+        controller.abort();
+      }, 60000); // 60 secondes max (GPT-4o peut être lent avec les images)
       
       try {
         openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -619,10 +622,12 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
               }
             ],
             temperature: 0.5,
-            max_tokens: 2500,
+            max_tokens: 3000, // Augmenté pour permettre plus de contenu
           }),
           signal: controller.signal,
         });
+        
+        console.log('📡 Request sent to OpenAI, waiting for response...');
         
         clearTimeout(timeoutId);
         const openaiDuration = Date.now() - openaiStartTime;
@@ -639,28 +644,40 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       }
     } catch (fetchError: any) {
       // Gestion des erreurs de réseau/timeout
+      console.error('❌ Fetch error caught:', {
+        name: fetchError?.name,
+        message: fetchError?.message,
+        stack: fetchError?.stack?.substring(0, 300),
+      });
+      
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+        console.error('⏱️ TIMEOUT - OpenAI API took too long');
         return NextResponse.json({
           success: false,
           error: 'TIMEOUT',
-          message: 'La requête a expiré (timeout). Le service OpenAI est peut-être surchargé.',
+          message: 'La requête OpenAI a expiré après 60 secondes. Le service peut être surchargé ou l\'image trop grande.',
+          troubleshooting: 'Essayez avec une image plus petite ou réessayez plus tard.',
         }, { status: 503 });
       }
       
       if (fetchError.message?.includes('fetch failed') || fetchError.message?.includes('network')) {
+        console.error('🌐 NETWORK ERROR - Cannot reach OpenAI');
         return NextResponse.json({
           success: false,
           error: 'NETWORK_ERROR',
-          message: 'Erreur de connexion au service OpenAI. Vérifiez votre connexion internet.',
+          message: 'Erreur de connexion au service OpenAI.',
+          troubleshooting: 'Vérifiez votre connexion internet et réessayez.',
         }, { status: 503 });
       }
       
       // Autre erreur de fetch
+      console.error('❌ UNKNOWN FETCH ERROR');
       return NextResponse.json({
         success: false,
         error: 'FETCH_ERROR',
         message: 'Impossible de contacter le service OpenAI.',
         details: fetchError.message,
+        troubleshooting: 'Vérifiez les logs Netlify pour plus de détails.',
       }, { status: 503 });
     }
 
@@ -710,16 +727,40 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       }, { status: 500 });
     }
 
-    const openaiData = await openaiResponse.json();
-    const aiContent = openaiData.choices[0]?.message?.content;
+    let openaiData: any;
+    try {
+      openaiData = await openaiResponse.json();
+      console.log('📥 OpenAI response structure:', {
+        hasChoices: !!openaiData.choices,
+        choicesLength: openaiData.choices?.length,
+        hasContent: !!openaiData.choices?.[0]?.message?.content,
+        contentLength: openaiData.choices?.[0]?.message?.content?.length,
+      });
+    } catch (jsonError: any) {
+      console.error('❌ Failed to parse OpenAI JSON response:', jsonError);
+      return NextResponse.json({
+        success: false,
+        error: 'PARSE_OPENAI_RESPONSE_ERROR',
+        message: 'Impossible de parser la réponse OpenAI.',
+        details: jsonError.message,
+      }, { status: 500 });
+    }
+    
+    const aiContent = openaiData.choices?.[0]?.message?.content;
 
     if (!aiContent) {
+      console.error('❌ NO AI CONTENT in response:', {
+        responseStructure: JSON.stringify(openaiData).substring(0, 500),
+      });
       return NextResponse.json({
         success: false,
         error: 'NO_AI_RESPONSE',
-        message: 'L\'IA n\'a pas répondu',
+        message: 'L\'IA n\'a pas fourni de contenu dans sa réponse.',
+        troubleshooting: 'Vérifiez que GPT-4o est disponible et que vous avez des crédits.',
       }, { status: 500 });
     }
+    
+    console.log('✅ AI Content received, length:', aiContent.length, 'chars');
 
     let analysis: AIAnalysisResponse;
     try {
@@ -738,6 +779,10 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       analysis = JSON.parse(cleanedContent);
       
       console.log('✅ JSON parsed successfully');
+      console.log('📊 Parsed analysis keys:', Object.keys(analysis));
+      console.log('👁️ Has productVisualDescription:', !!analysis.productVisualDescription);
+      console.log('🔍 Has etsySearchQuery:', !!analysis.etsySearchQuery);
+      console.log('📈 Has estimatedCompetitors:', !!analysis.estimatedCompetitors);
     } catch (parseError: any) {
       console.error('❌ Parse error:', parseError);
       console.error('Raw response (first 1000 chars):', aiContent.substring(0, 1000));
