@@ -726,7 +726,7 @@ const fetchAIAnalysis = async (
     ok: response.ok,
     status: response.status,
     statusText: response.statusText,
-    headers: Object.fromEntries(response.headers.entries()),
+    contentType: response.headers.get('content-type'),
   });
   
   let data: any = {};
@@ -734,9 +734,13 @@ const fetchAIAnalysis = async (
   try {
     text = await response.text();
     console.log('📥 API Response status:', response.status);
-    console.log('📥 API Response text (first 500 chars):', text.substring(0, 500));
+    console.log('📥 API Response text length:', text.length);
+    console.log('📥 API Response text (first 1000 chars):', text.substring(0, 1000));
     data = text ? JSON.parse(text) : {};
-    console.log('📥 Parsed data:', JSON.stringify(data).substring(0, 500));
+    console.log('📥 Parsed data keys:', Object.keys(data || {}));
+    console.log('📥 Has success:', !!data?.success);
+    console.log('📥 Has analysis:', !!data?.analysis);
+    console.log('📥 Parsed data (first 1000 chars):', JSON.stringify(data).substring(0, 1000));
   } catch (parseError) {
     console.error('❌ Failed to parse response:', parseError);
     console.error('❌ Response text:', text?.substring(0, 500));
