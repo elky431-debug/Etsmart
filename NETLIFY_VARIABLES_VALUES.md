@@ -158,3 +158,4 @@ netlify deploy --prod
 - [Documentation Supabase - API Keys](https://supabase.com/docs/guides/api/api-keys)
 - [Documentation OpenAI - API Keys](https://platform.openai.com/docs/guides/api-keys)
 
+

@@ -111,3 +111,4 @@ Après avoir ajouté les variables sur Netlify :
 - `NETLIFY_SETUP_QUICK.md` pour un guide rapide
 - `NETLIFY_SETUP_MON_PROJET.md` pour les liens spécifiques à votre projet
 
+

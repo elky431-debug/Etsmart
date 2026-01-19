@@ -157,10 +157,15 @@ export function AnalysisStep() {
     setIsAnalyzing(false);
     setProgress(100);
 
+    // Ne passer à l'étape suivante que si au moins une analyse a réussi
+    // Ou si toutes ont échoué mais qu'on a quand même des analyses en cache
     setTimeout(() => {
-      if (completedProducts.length > 0 || failedProducts.length < products.length) {
-      setStep(4);
-      }
+      // Si on a au moins une analyse réussie, aller aux résultats
+      if (completedProducts.length > 0) {
+        setStep(4);
+      } 
+      // Sinon, rester sur cette page pour afficher les erreurs
+      // (allFailed est déjà géré par l'UI)
     }, 1500);
   }, [products, selectedNiche, customNiche, addAnalysis, setStep, phases.length, completedProducts.length, failedProducts.length]);
 

@@ -205,3 +205,4 @@ Alors utilisez : `https://app.supabase.com/project/abcdefghijklmnop/settings/api
 - `NETLIFY_SETUP_QUICK.md` pour un guide rapide
 - `NETLIFY_VARIABLES_VALUES.md` pour plus de détails sur les valeurs
 
+

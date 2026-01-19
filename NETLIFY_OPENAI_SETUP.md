@@ -176,3 +176,4 @@ Une fois toutes les variables configurées et le site redéployé, votre applica
 - Vérifiez que le site a été redéployé après avoir ajouté les variables
 - Consultez les logs Netlify pour voir d'éventuelles erreurs
 
+

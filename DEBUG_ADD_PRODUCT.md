@@ -177,3 +177,4 @@ Assurez-vous que vous avez bien ces 4 variables sur Netlify :
 
 **Pour l'instant, utilisez "Add manually" pour continuer à utiliser l'application !** Le scraping est une fonctionnalité de confort, pas un blocage.
 
+

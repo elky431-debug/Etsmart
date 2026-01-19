@@ -143,3 +143,4 @@ Vous devriez maintenant avoir **4 variables** sur Netlify :
 - `QUICK_STRIPE_SETUP.md` pour un guide rapide
 - `STRIPE_SETUP_GUIDE.md` pour un guide complet
 
+

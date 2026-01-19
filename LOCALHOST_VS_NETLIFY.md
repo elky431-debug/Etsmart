@@ -249,3 +249,4 @@ Une fois ScraperAPI configuré sur Netlify:
 - ✅ Fonctionnement stable
 - ✅ Pas de blocages
 
+
