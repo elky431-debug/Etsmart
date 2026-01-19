@@ -5,12 +5,7 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  # Timeout maximum pour les fonctions (50s pour les comptes payants, 26s pour gratuits)
-  # Avec Next.js API routes, ceci s'applique aux routes dans /api
-  timeout = 50
-
-[functions."api/ai-analyze"]
-  # Timeout spécifique pour la fonction d'analyse IA (50 secondes max)
-  timeout = 50
-
+# Note: Pour Next.js sur Netlify, les timeouts sont gérés par le plugin Next.js
+# Le timeout par défaut est de 26s (plan gratuit) ou 50s (plan payant)
+# Pour augmenter le timeout, il faut passer au plan payant Netlify
+# La réduction de la qualité d'image à 'low' devrait permettre de tenir dans les 26s
