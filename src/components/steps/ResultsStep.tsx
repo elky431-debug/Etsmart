@@ -1459,6 +1459,18 @@ export function ResultsStep() {
         </div>
       </div>
 
+      {/* Message obligatoire selon cahier des charges */}
+      <div className="max-w-7xl mx-auto px-6 mb-6">
+        <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-200">
+          <div className="flex items-start gap-3">
+            <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-800 font-medium">
+              <strong>Important:</strong> All analyses are based on the provided screenshot and public market data. Results are estimates and not guaranteed.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <ProductAnalysisView analysis={selectedAnalysis} />
     </div>
   );
