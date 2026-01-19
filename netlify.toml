@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  # Timeout maximum pour les fonctions (50s pour les comptes payants, 26s pour gratuits)
+  # Avec Next.js API routes, ceci s'applique aux routes dans /api
+  timeout = 50
+
+[functions."api/ai-analyze"]
+  # Timeout spécifique pour la fonction d'analyse IA (50 secondes max)
+  timeout = 50
+

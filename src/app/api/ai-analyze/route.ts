@@ -619,7 +619,7 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
                     type: 'image_url',
                     image_url: {
                       url: productImageUrl,
-                      detail: 'high'
+                      detail: 'low' // Utiliser 'low' pour accélérer l'analyse (image compressée automatiquement par OpenAI)
                     }
                   },
                   {
