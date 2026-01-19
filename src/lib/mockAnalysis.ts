@@ -1058,13 +1058,146 @@ export const analyzeProduct = async (
     );
   }
   
-  const aiAnalysis = await fetchAIAnalysis(price, niche, productImageUrl, product.title);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ESSAYER L'ANALYSE IA - AVEC FALLBACK COMPLET EN CAS D'ÉCHEC
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  const dataSource: 'real' | 'estimated' = 'real'; // Toujours "real" car basé sur l'IA Vision
+  let aiAnalysis: AIAnalysisResult;
+  let dataSource: 'real' | 'estimated' = 'real';
   
-  console.log('✅ AI Vision analysis successful');
-  console.log('👁️ Product:', aiAnalysis.productVisualDescription);
-  console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+  try {
+    aiAnalysis = await fetchAIAnalysis(price, niche, productImageUrl, product.title);
+    console.log('✅ AI Vision analysis successful');
+    console.log('👁️ Product:', aiAnalysis.productVisualDescription);
+    console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+  } catch (error: any) {
+    // Si l'API échoue, générer des données par défaut plutôt que de bloquer
+    console.warn('⚠️ AI Analysis failed, using default fallback data:', error.message || error);
+    
+    dataSource = 'estimated';
+    
+    // Générer des données par défaut intelligentes basées sur le produit
+    const defaultSupplierPrice = price > 0 ? Math.round(price * 0.7) : 10;
+    const defaultShipping = 5;
+    const totalCost = defaultSupplierPrice + defaultShipping;
+    
+    // Générer une requête Etsy depuis le titre
+    const titleWords = product.title
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !['for', 'with', 'this', 'that', 'product', 'item'].includes(w))
+      .slice(0, 5);
+    const defaultEtsyQuery = titleWords.length > 0 
+      ? titleWords.join(' ') 
+      : 'handmade gift product';
+    
+    // Estimer les concurrents basé sur la niche et le prix
+    let defaultCompetitors = 50; // Par défaut: marché modéré
+    if (niche && typeof niche === 'object' && niche.name) {
+      const nicheName = niche.name.toLowerCase();
+      if (nicheName.includes('jewelry') || nicheName.includes('bijou')) {
+        defaultCompetitors = 120; // Marché très concurrentiel
+      } else if (nicheName.includes('decoration') || nicheName.includes('déco')) {
+        defaultCompetitors = 80;
+      } else {
+        defaultCompetitors = 60;
+      }
+    }
+    
+    aiAnalysis = {
+      canIdentifyProduct: true,
+      productVisualDescription: product.title || 'Product from image',
+      etsySearchQuery: defaultEtsyQuery,
+      estimatedSupplierPrice: defaultSupplierPrice,
+      estimatedShippingCost: defaultShipping,
+      supplierPriceReasoning: `Estimation basée sur le prix indiqué (${price > 0 ? '$' + price : 'non fourni'}).`,
+      decision: defaultCompetitors <= 100 ? 'LANCER' : defaultCompetitors <= 130 ? 'LANCER_CONCURRENTIEL' : 'NE_PAS_LANCER',
+      confidenceScore: 50,
+      estimatedCompetitors: defaultCompetitors,
+      competitorEstimationReasoning: 'Estimation par défaut basée sur la niche et le type de produit.',
+      competitorEstimationReliable: false,
+      saturationLevel: defaultCompetitors <= 100 ? 'non_sature' : defaultCompetitors <= 130 ? 'concurrentiel' : 'sature',
+      saturationAnalysis: defaultCompetitors <= 100 
+        ? 'Marché peu saturé, opportunité de lancement.' 
+        : defaultCompetitors <= 130 
+        ? 'Marché concurrentiel, optimisation requise.'
+        : 'Marché saturé, lancement risqué.',
+      averageMarketPrice: Math.max(14.99, totalCost * 2.8),
+      marketPriceRange: {
+        min: Math.max(14.99, totalCost * 2.5),
+        max: Math.max(14.99, totalCost * 3.5),
+      },
+      marketPriceReasoning: `Prix estimé basé sur le coût total ($${totalCost}).`,
+      supplierPrice: defaultSupplierPrice,
+      minimumViablePrice: 14.99,
+      recommendedPrice: {
+        optimal: Math.max(14.99, totalCost * 3),
+        min: Math.max(14.99, totalCost * 2.5),
+        max: Math.max(14.99, totalCost * 3.5),
+      },
+      priceRiskLevel: 'moyen',
+      pricingAnalysis: `Prix recommandé basé sur une marge de 300% du coût total.`,
+      launchSimulation: {
+        timeToFirstSale: {
+          withoutAds: { min: 7, max: 21 },
+          withAds: { min: 3, max: 10 },
+        },
+        salesAfter3Months: {
+          prudent: 5,
+          realiste: 15,
+          optimise: 30,
+        },
+        simulationNote: 'Estimation basée sur un marché moyen. Les résultats peuvent varier.',
+      },
+      viralTitleEN: product.title || 'Product - Handmade Gift',
+      viralTitleFR: product.title || 'Produit - Cadeau Fait Main',
+      seoTags: titleWords.length > 0 ? titleWords : ['gift', 'handmade', 'product'],
+      marketingAngles: [{
+        angle: 'Gift',
+        why: 'Ideal as a gift',
+        targetAudience: 'Gift buyers',
+      }],
+      strategicMarketing: {
+        positioning: {
+          mainPositioning: 'Quality handmade product',
+          justification: 'Based on market analysis',
+          competitiveAdvantage: 'Quality and value',
+        },
+        underexploitedAngles: [],
+        competitorMistakes: [],
+        visualRecommendations: [],
+        psychologicalTriggers: [],
+        anglesToAvoid: [],
+      },
+      acquisitionMarketing: {
+        targetAudience: {
+          ageRange: '25-45',
+          situation: 'General',
+          buyingBehavior: 'reflective',
+          description: 'General audience interested in handmade products',
+        },
+        acquisitionChannel: {
+          primary: 'facebook',
+          justification: 'Suitable for Facebook advertising',
+          notSuitableForTikTok: false,
+        },
+        tiktokIdeas: [],
+        facebookIdeas: [],
+      },
+      strengths: ['Product quality'],
+      risks: ['Market competition'],
+      finalVerdict: defaultCompetitors <= 100 
+        ? 'Product can be launched with proper optimization.' 
+        : defaultCompetitors <= 130
+        ? 'Product can be launched but requires careful optimization.'
+        : 'Launch is risky due to high competition.',
+      warningIfAny: error.message ? `Analysis completed with fallback data due to: ${error.message}` : null,
+    };
+    
+    console.log('✅ Using fallback analysis data');
+    console.log('👁️ Product:', aiAnalysis.productVisualDescription);
+    console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+  }
   
   // ═══════════════════════════════════════════════════════════════════════════
   // DONNÉES CONCURRENTS (basées sur l'estimation IA, pas le titre fournisseur)
