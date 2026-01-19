@@ -5,7 +5,7 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Note: Pour Next.js sur Netlify, les timeouts sont gérés par le plugin Next.js
-# Le timeout par défaut est de 26s (plan gratuit) ou 50s (plan payant)
-# Pour augmenter le timeout, il faut passer au plan payant Netlify
-# La réduction de la qualité d'image à 'low' devrait permettre de tenir dans les 26s
+# Configuration pour Next.js API routes
+# IMPORTANT: Même avec le plan Pro, le timeout par défaut est de 26 secondes
+# Pour augmenter au-delà, il faut contacter le support Netlify
+# Alternative: Utiliser Background Functions pour les opérations longues

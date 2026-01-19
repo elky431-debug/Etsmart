@@ -31,8 +31,8 @@ export function ProductImport() {
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
 
-  // Fonction pour compresser l'image
-  const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.7): Promise<File> => {
+  // Fonction pour compresser l'image (optimisée pour tenir dans 26 secondes)
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -104,9 +104,9 @@ export function ProductImport() {
     setUploadedImage(null);
 
     try {
-      // Compresser l'image avant l'envoi (max 1200px de largeur, qualité 70%)
+      // Compresser l'image avant l'envoi (max 800px de largeur, qualité 60% pour tenir dans 26s)
       console.log('📸 Original image size:', (file.size / 1024).toFixed(2), 'KB');
-      const compressedFile = await compressImage(file, 1200, 0.7);
+      const compressedFile = await compressImage(file, 800, 0.6);
       console.log('📸 Compressed image size:', (compressedFile.size / 1024).toFixed(2), 'KB');
       console.log('📸 Compression ratio:', ((1 - compressedFile.size / file.size) * 100).toFixed(1), '% reduction');
 
