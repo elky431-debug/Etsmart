@@ -983,20 +983,15 @@ export const analyzeProduct = async (
   niche: Niche
 ): Promise<ProductAnalysis> => {
   // ═══════════════════════════════════════════════════════════════════════════
-  // VALIDATION DES DONNÉES
+  // VALIDATION DES DONNÉES AVEC FALLBACKS - NE JAMAIS LANCER D'ERREUR
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // Vérifier que la niche est définie
-  if (!niche) {
-    throw new AnalysisBlockedError(
-      'Niche non sélectionnée',
-      'Aucune niche n\'a été sélectionnée pour l\'analyse.',
-      'Retournez à l\'étape 1 et sélectionnez une niche.'
-    );
-  }
+  // Vérifier que la niche est définie - utiliser 'custom' par défaut
+  const validNiche = niche || 'custom';
   
-  // Vérifier que le produit existe
+  // Vérifier que le produit existe - créer un produit minimal si manquant
   if (!product) {
+    console.error('❌ Product is null or undefined');
     throw new AnalysisBlockedError(
       'Produit invalide',
       'Les données du produit sont manquantes.',
@@ -1004,69 +999,64 @@ export const analyzeProduct = async (
     );
   }
   
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VALIDATION: IMAGE OBLIGATOIRE (mais avec fallback)
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  let productImageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
-  
-  console.log('🖼️ Product image check:', {
-    hasImages: !!product.images,
-    imagesLength: product.images?.length || 0,
-    imageUrl: productImageUrl?.substring(0, 50),
-    isValid: productImageUrl && (productImageUrl.startsWith('http') || productImageUrl.startsWith('data:image')),
-  });
-  
-  // Accepter les URLs http/https ET les data URLs (pour les screenshots)
-  const isValidImage = productImageUrl && (
-    productImageUrl.startsWith('http://') || 
-    productImageUrl.startsWith('https://') ||
-    productImageUrl.startsWith('data:image/')
-  );
-  
-  if (!isValidImage) {
-    console.warn('⚠️ No valid image found, using placeholder');
-    // Utiliser une image placeholder publique si pas d'image valide
-    productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=' + encodeURIComponent(product.title.substring(0, 20));
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ANALYSE IA VISION - OBLIGATOIRE, PAS DE FALLBACK
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  // L'IA est l'autorité unique sur la compréhension du produit
-  // Si elle échoue, on BLOQUE l'analyse (pas de fallback)
-  
-  // Debug: afficher les données envoyées
-  console.log('🔍 Analyse produit:', {
-    title: product.title?.substring(0, 50),
-    price: product.price,
-    priceType: typeof product.price,
-    niche: niche,
-    imageUrl: productImageUrl?.substring(0, 50),
-  });
-  
-  // Validation du prix
-  const price = typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0;
-  
-  // S'assurer que productImageUrl n'est jamais null
-  if (!productImageUrl) {
-    throw new AnalysisBlockedError(
-      'Image required',
-      'No valid image found for the product.',
-      'Please import a product with a valid image.'
-    );
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ESSAYER L'ANALYSE IA - AVEC FALLBACK COMPLET EN CAS D'ÉCHEC
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  let aiAnalysis: AIAnalysisResult;
-  let dataSource: 'real' | 'estimated' = 'real';
-  
+  // Envelopper TOUT dans un try-catch global pour garantir qu'on retourne toujours un résultat
   try {
-    aiAnalysis = await fetchAIAnalysis(price, niche, productImageUrl, product.title);
+  
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VALIDATION: IMAGE OBLIGATOIRE (mais avec fallback)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    let productImageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
+    
+    console.log('🖼️ Product image check:', {
+      hasImages: !!product.images,
+      imagesLength: product.images?.length || 0,
+      imageUrl: productImageUrl?.substring(0, 50),
+      isValid: productImageUrl && (productImageUrl.startsWith('http') || productImageUrl.startsWith('data:image')),
+    });
+    
+    // Accepter les URLs http/https ET les data URLs (pour les screenshots)
+    const isValidImage = productImageUrl && (
+      productImageUrl.startsWith('http://') || 
+      productImageUrl.startsWith('https://') ||
+      productImageUrl.startsWith('data:image/')
+    );
+    
+    if (!isValidImage) {
+      console.warn('⚠️ No valid image found, using placeholder');
+      // Utiliser une image placeholder publique si pas d'image valide
+      productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=' + encodeURIComponent((product.title || 'Product').substring(0, 20));
+    }
+    
+    // Debug: afficher les données envoyées
+    console.log('🔍 Analyse produit:', {
+      title: product.title?.substring(0, 50),
+      price: product.price,
+      priceType: typeof product.price,
+      niche: validNiche,
+      imageUrl: productImageUrl?.substring(0, 50),
+    });
+    
+    // Validation du prix
+    const price = typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0;
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ESSAYER L'ANALYSE IA - AVEC FALLBACK COMPLET EN CAS D'ÉCHEC
+    // L'ANALYSE NE DOIT JAMAIS ÉCHOUER - TOUJOURS RETOURNER UN RÉSULTAT
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    let aiAnalysis: AIAnalysisResult;
+    let dataSource: 'real' | 'estimated' = 'real';
+    
+    try {
+      // S'assurer que productImageUrl n'est jamais null avant d'appeler l'API
+      if (!productImageUrl) {
+        // Utiliser un placeholder au lieu de lancer une erreur
+        productImageUrl = 'https://via.placeholder.com/600x600/cccccc/666666?text=' + encodeURIComponent((product.title || 'Product').substring(0, 20));
+        console.warn('⚠️ No image URL found, using placeholder');
+      }
+      
+      aiAnalysis = await fetchAIAnalysis(price, validNiche, productImageUrl, product.title);
     console.log('✅ AI Vision analysis successful');
     console.log('👁️ Product:', aiAnalysis.productVisualDescription);
     console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
@@ -1209,9 +1199,9 @@ export const analyzeProduct = async (
   // On utilise la requête IA pour chercher les concurrents (pas le titre AliExpress)
   let competitorAnalysis: CompetitorAnalysis;
   
-  try {
-    // Utiliser la requête IA pour la recherche de concurrents
-    const realCompetitors = await fetchRealCompetitors(aiAnalysis.etsySearchQuery, niche);
+    try {
+      // Utiliser la requête IA pour la recherche de concurrents
+      const realCompetitors = await fetchRealCompetitors(aiAnalysis.etsySearchQuery, validNiche);
     if (realCompetitors && realCompetitors.competitors && realCompetitors.competitors.length > 0) {
       // Ensure real competitor data has all required fields
       competitorAnalysis = {
@@ -1245,9 +1235,9 @@ export const analyzeProduct = async (
         marketPriceReasoning: aiAnalysis.marketPriceReasoning || `La majorité des ventes se situent entre $${aiAnalysis.recommendedPrice.min} et $${aiAnalysis.recommendedPrice.max}.`,
       };
     }
-  } catch (error) {
-    console.error('Competitor search failed, using AI estimates:', error);
-    competitorAnalysis = {
+    } catch (error) {
+      console.error('Competitor search failed, using AI estimates:', error);
+      competitorAnalysis = {
       totalCompetitors: aiAnalysis.estimatedCompetitors,
       competitorEstimationReliable: aiAnalysis.competitorEstimationReliable ?? true,
       competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || 'Estimation basée sur l\'analyse des résultats Etsy.',
@@ -1265,15 +1255,15 @@ export const analyzeProduct = async (
       averageMarketPrice: aiAnalysis.averageMarketPrice || aiAnalysis.recommendedPrice.optimal,
       marketPriceRange: aiAnalysis.marketPriceRange || { min: aiAnalysis.recommendedPrice.min, max: aiAnalysis.recommendedPrice.max },
       marketPriceReasoning: aiAnalysis.marketPriceReasoning || `La majorité des ventes se situent entre $${aiAnalysis.recommendedPrice.min} et $${aiAnalysis.recommendedPrice.max}.`,
-    };
-  }
-  
-  let saturation = generateSaturationAnalysis(competitorAnalysis);
-  let launchSimulation = generateLaunchSimulation(competitorAnalysis, product.price);
-  
-  // Use AI pricing if available, otherwise generate
-  let pricing: PricingRecommendation;
-  if (aiAnalysis && aiAnalysis.recommendedPrice) {
+      };
+    }
+    
+    let saturation = generateSaturationAnalysis(competitorAnalysis);
+    let launchSimulation = generateLaunchSimulation(competitorAnalysis, product.price);
+    
+    // Use AI pricing if available, otherwise generate
+    let pricing: PricingRecommendation;
+    if (aiAnalysis && aiAnalysis.recommendedPrice) {
     pricing = {
       recommendedPrice: aiAnalysis.recommendedPrice.optimal,
       aggressivePrice: aiAnalysis.recommendedPrice.min,
@@ -1295,14 +1285,14 @@ export const analyzeProduct = async (
         atAggressivePrice: Math.round((1 - (product.price * 1.4) / aiAnalysis.recommendedPrice.min) * 100),
         atPremiumPrice: Math.round((1 - (product.price * 1.4) / aiAnalysis.recommendedPrice.max) * 100),
       },
-    };
-  } else {
-    pricing = generatePricingRecommendation(product.price, competitorAnalysis);
-  }
-  
-  // Use AI marketing tips if available
-  let marketing: MarketingAnalysis;
-  if (aiAnalysis && aiAnalysis.marketingAngles) {
+      };
+    } else {
+      pricing = generatePricingRecommendation(product.price, competitorAnalysis);
+    }
+    
+    // Use AI marketing tips if available
+    let marketing: MarketingAnalysis;
+    if (aiAnalysis && aiAnalysis.marketingAngles) {
     marketing = {
       angles: aiAnalysis.marketingAngles.map((angle, index) => ({
         id: `ai-angle-${index}`,
@@ -1333,38 +1323,38 @@ export const analyzeProduct = async (
         acquisitionChannel: aiAnalysis.acquisitionMarketing.acquisitionChannel,
         tiktokIdeas: aiAnalysis.acquisitionMarketing.tiktokIdeas,
         facebookIdeas: aiAnalysis.acquisitionMarketing.facebookIdeas,
-      } : undefined,
-    };
-  } else {
-    marketing = generateMarketingAnalysis(niche);
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VERDICT - BASÉ UNIQUEMENT SUR L'ANALYSE IA VISION
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  // Map AI decision to verdict type
-  const verdictMap: Record<string, Verdict> = {
+        } : undefined,
+      };
+    } else {
+      marketing = generateMarketingAnalysis(validNiche);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VERDICT - BASÉ UNIQUEMENT SUR L'ANALYSE IA VISION
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // Map AI decision to verdict type
+    const verdictMap: Record<string, Verdict> = {
     'LANCER': 'launch',
     'LANCER_CONCURRENTIEL': 'test',
     'NE_PAS_LANCER': 'avoid',
-    'ANALYSE_IMPOSSIBLE': 'avoid'
-  };
-  
-  // Force verdict based on competitor count (fallback if AI doesn't follow rules)
-  let finalVerdict: Verdict = verdictMap[aiAnalysis.decision] || 'test';
-  const competitorCount = aiAnalysis.estimatedCompetitors;
-  
-  // Override verdict based on competitor count if needed
-  if (competitorCount <= 100) {
-    finalVerdict = 'launch';
-  } else if (competitorCount <= 130) {
-    finalVerdict = 'test';
-  } else {
-    finalVerdict = 'avoid';
-  }
-  
-  const verdict: ProductVerdict = {
+      'ANALYSE_IMPOSSIBLE': 'avoid'
+    };
+    
+    // Force verdict based on competitor count (fallback if AI doesn't follow rules)
+    let finalVerdict: Verdict = verdictMap[aiAnalysis.decision] || 'test';
+    const competitorCount = aiAnalysis.estimatedCompetitors;
+    
+    // Override verdict based on competitor count if needed
+    if (competitorCount <= 100) {
+      finalVerdict = 'launch';
+    } else if (competitorCount <= 130) {
+      finalVerdict = 'test';
+    } else {
+      finalVerdict = 'avoid';
+    }
+    
+    const verdict: ProductVerdict = {
     verdict: finalVerdict,
     confidenceScore: aiAnalysis.confidenceScore,
     strengths: aiAnalysis.strengths,
@@ -1401,92 +1391,232 @@ export const analyzeProduct = async (
     estimatedSupplierPrice: aiAnalysis.estimatedSupplierPrice,
     estimatedShippingCost: aiAnalysis.estimatedShippingCost,
     supplierPriceReasoning: aiAnalysis.supplierPriceReasoning,
-  };
-  
-  // Override pricing with AI analysis
-  pricing = {
-    ...pricing,
-    recommendedPrice: aiAnalysis.recommendedPrice.optimal,
-    aggressivePrice: aiAnalysis.recommendedPrice.min,
-    premiumPrice: aiAnalysis.recommendedPrice.max,
-    justification: `${aiAnalysis.pricingAnalysis} Price risk: ${aiAnalysis.priceRiskLevel === 'faible' ? '🟢 Low' : aiAnalysis.priceRiskLevel === 'moyen' ? '🟡 Medium' : '🔴 High'}`,
-  };
-  
-  // Override saturation with AI analysis
-  // Note: "sature" (131+ concurrents) = marché saturé, ne pas lancer
-  saturation = {
-    ...saturation,
-    phase: (aiAnalysis.saturationLevel === 'sature' || aiAnalysis.saturationLevel === 'tres_sature') ? 'saturation' : 
-           aiAnalysis.saturationLevel === 'concurrentiel' ? 'growth' : 'launch',
-    saturationProbability: aiAnalysis.saturationLevel === 'tres_sature' ? 98 :
-                           aiAnalysis.saturationLevel === 'sature' ? 95 : // 131+ concurrents = très saturé
-                           aiAnalysis.saturationLevel === 'concurrentiel' ? 55 : 20,
-  };
-  
-  // Override competitors with AI estimate
-  // ⚠️ VALIDATION: L'IA DOIT fournir une estimation précise et variée
-  if (!aiAnalysis.estimatedCompetitors || aiAnalysis.estimatedCompetitors <= 0) {
-    console.warn('⚠️ L\'IA n\'a pas fourni d\'estimation de concurrents valide, utilisation du fallback');
-  }
-  
-  competitorAnalysis = {
-    ...competitorAnalysis,
-    totalCompetitors: aiAnalysis.estimatedCompetitors || competitorAnalysis.totalCompetitors, // Fallback seulement si l'IA n'a pas fourni de valeur
-    competitorEstimationReliable: aiAnalysis.competitorEstimationReliable ?? true,
-    competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || 'Estimation basée sur l\'analyse des résultats Etsy.',
-    marketStructure: aiAnalysis.saturationLevel === 'sature' ? 'dominated' :
-                     aiAnalysis.saturationLevel === 'concurrentiel' ? 'fragmented' : 'open',
-    // Prix moyen du marché
-    averageMarketPrice: aiAnalysis.averageMarketPrice || aiAnalysis.recommendedPrice.optimal,
-    marketPriceRange: aiAnalysis.marketPriceRange || { min: aiAnalysis.recommendedPrice.min, max: aiAnalysis.recommendedPrice.max },
-    marketPriceReasoning: aiAnalysis.marketPriceReasoning || `La majorité des ventes se situent entre $${aiAnalysis.recommendedPrice.min} et $${aiAnalysis.recommendedPrice.max}.`,
-  };
-  
-  // Override launch simulation
-  launchSimulation = {
-    ...launchSimulation,
-    timeToFirstSale: {
-      withoutAds: {
-        min: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min,
-        max: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max,
-        expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max) / 2)
-      },
-      withAds: {
-        min: aiAnalysis.launchSimulation.timeToFirstSale.withAds.min,
-        max: aiAnalysis.launchSimulation.timeToFirstSale.withAds.max,
-        expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withAds.max) / 2)
-      }
-    },
-    threeMonthProjection: {
-      conservative: {
-        ...launchSimulation.threeMonthProjection.conservative,
-        estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.prudent,
-      },
-      realistic: {
-        ...launchSimulation.threeMonthProjection.realistic,
-        estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.realiste,
-      },
-      optimistic: {
-        ...launchSimulation.threeMonthProjection.optimistic,
-        estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.optimise,
-      }
+    };
+    
+    // Override pricing with AI analysis
+    pricing = {
+      ...pricing,
+      recommendedPrice: aiAnalysis.recommendedPrice.optimal,
+      aggressivePrice: aiAnalysis.recommendedPrice.min,
+      premiumPrice: aiAnalysis.recommendedPrice.max,
+      justification: `${aiAnalysis.pricingAnalysis} Price risk: ${aiAnalysis.priceRiskLevel === 'faible' ? '🟢 Low' : aiAnalysis.priceRiskLevel === 'moyen' ? '🟡 Medium' : '🔴 High'}`,
+    };
+    
+    // Override saturation with AI analysis
+    // Note: "sature" (131+ concurrents) = marché saturé, ne pas lancer
+    saturation = {
+      ...saturation,
+      phase: (aiAnalysis.saturationLevel === 'sature' || aiAnalysis.saturationLevel === 'tres_sature') ? 'saturation' : 
+             aiAnalysis.saturationLevel === 'concurrentiel' ? 'growth' : 'launch',
+      saturationProbability: aiAnalysis.saturationLevel === 'tres_sature' ? 98 :
+                             aiAnalysis.saturationLevel === 'sature' ? 95 : // 131+ concurrents = très saturé
+                             aiAnalysis.saturationLevel === 'concurrentiel' ? 55 : 20,
+    };
+    
+    // Override competitors with AI estimate
+    // ⚠️ VALIDATION: L'IA DOIT fournir une estimation précise et variée
+    if (!aiAnalysis.estimatedCompetitors || aiAnalysis.estimatedCompetitors <= 0) {
+      console.warn('⚠️ L\'IA n\'a pas fourni d\'estimation de concurrents valide, utilisation du fallback');
     }
-  };
-  
-  return {
-    id: `analysis-${product.id}-${Date.now()}`,
-    product,
-    niche,
-    competitors: competitorAnalysis,
-    saturation,
-    launchSimulation,
-    pricing,
-    marketing,
-    verdict,
-    analyzedAt: new Date(),
-    analysisVersion: aiAnalysis ? '2.0-AI' : '1.0.0',
-    dataSource,
-  };
+    
+    competitorAnalysis = {
+      ...competitorAnalysis,
+      totalCompetitors: aiAnalysis.estimatedCompetitors || competitorAnalysis.totalCompetitors, // Fallback seulement si l'IA n'a pas fourni de valeur
+      competitorEstimationReliable: aiAnalysis.competitorEstimationReliable ?? true,
+      competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || 'Estimation basée sur l\'analyse des résultats Etsy.',
+      marketStructure: aiAnalysis.saturationLevel === 'sature' ? 'dominated' :
+                       aiAnalysis.saturationLevel === 'concurrentiel' ? 'fragmented' : 'open',
+      // Prix moyen du marché
+      averageMarketPrice: aiAnalysis.averageMarketPrice || aiAnalysis.recommendedPrice.optimal,
+      marketPriceRange: aiAnalysis.marketPriceRange || { min: aiAnalysis.recommendedPrice.min, max: aiAnalysis.recommendedPrice.max },
+      marketPriceReasoning: aiAnalysis.marketPriceReasoning || `La majorité des ventes se situent entre $${aiAnalysis.recommendedPrice.min} et $${aiAnalysis.recommendedPrice.max}.`,
+    };
+    
+    // Override launch simulation
+    launchSimulation = {
+      ...launchSimulation,
+      timeToFirstSale: {
+        withoutAds: {
+          min: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min,
+          max: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max,
+          expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max) / 2)
+        },
+        withAds: {
+          min: aiAnalysis.launchSimulation.timeToFirstSale.withAds.min,
+          max: aiAnalysis.launchSimulation.timeToFirstSale.withAds.max,
+          expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withAds.max) / 2)
+        }
+      },
+      threeMonthProjection: {
+        conservative: {
+          ...launchSimulation.threeMonthProjection.conservative,
+          estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.prudent,
+        },
+        realistic: {
+          ...launchSimulation.threeMonthProjection.realistic,
+          estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.realiste,
+        },
+        optimistic: {
+          ...launchSimulation.threeMonthProjection.optimistic,
+          estimatedSales: aiAnalysis.launchSimulation.salesAfter3Months.optimise,
+        }
+      }
+    };
+    
+    return {
+      id: `analysis-${product.id}-${Date.now()}`,
+      product,
+      niche: validNiche,
+      competitors: competitorAnalysis,
+      saturation,
+      launchSimulation,
+      pricing,
+      marketing,
+      verdict,
+      analyzedAt: new Date(),
+      analysisVersion: aiAnalysis ? '2.0-AI' : '1.0.0',
+      dataSource,
+    };
+  } catch (error: any) {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FALLBACK ULTIME - SI TOUT ÉCHOUE, GÉNÉRER DES DONNÉES MINIMALES
+    // ═══════════════════════════════════════════════════════════════════════════
+    console.error('❌ CRITICAL: Analysis completely failed, using emergency fallback:', error);
+    
+    // Générer des données minimales garantissant que l'analyse ne fail jamais
+    const emergencyPrice = product.price > 0 ? product.price : 10;
+    const emergencySupplierPrice = Math.round(emergencyPrice * 0.7);
+    const emergencyTotalCost = emergencySupplierPrice + 5;
+    const emergencyCompetitors = 60;
+    
+    const emergencyCompetitorAnalysis: CompetitorAnalysis = {
+      totalCompetitors: emergencyCompetitors,
+      competitorEstimationReliable: false,
+      competitorEstimationReasoning: 'Estimation d\'urgence - données minimales générées après échec complet de l\'analyse.',
+      competitors: [],
+      marketStructure: 'open',
+      dominantSellers: 3,
+      avgPrice: Math.max(14.99, emergencyTotalCost * 3),
+      priceRange: {
+        min: Math.max(14.99, emergencyTotalCost * 2.5),
+        max: Math.max(14.99, emergencyTotalCost * 3.5),
+      },
+      avgReviews: 100,
+      avgRating: 4.5,
+      averageMarketPrice: Math.max(14.99, emergencyTotalCost * 3),
+      marketPriceRange: {
+        min: Math.max(14.99, emergencyTotalCost * 2.5),
+        max: Math.max(14.99, emergencyTotalCost * 3.5),
+      },
+      marketPriceReasoning: 'Estimation d\'urgence basée sur le coût du produit.',
+    };
+    
+    return {
+      id: `analysis-${product.id}-${Date.now()}`,
+      product,
+      niche: validNiche,
+      competitors: emergencyCompetitorAnalysis,
+      saturation: {
+        phase: 'launch',
+        phasePercentage: 20,
+        newSellersRate: 5,
+        listingGrowthRate: 10,
+        saturationProbability: 20,
+        declineRisk: 'low',
+        seasonality: {
+          isSeasonalProduct: false,
+          peakMonths: [],
+          lowMonths: [],
+          currentSeasonImpact: 'neutral',
+        },
+      },
+      launchSimulation: {
+        timeToFirstSale: {
+          withoutAds: { min: 7, max: 21, expected: 14 },
+          withAds: { min: 3, max: 10, expected: 6 },
+        },
+        threeMonthProjection: {
+          conservative: {
+            estimatedSales: 5,
+            estimatedRevenue: Math.max(14.99, emergencyTotalCost * 3) * 5,
+            estimatedProfit: (Math.max(14.99, emergencyTotalCost * 3) - emergencyTotalCost) * 5,
+            marginPercentage: 60,
+          },
+          realistic: {
+            estimatedSales: 15,
+            estimatedRevenue: Math.max(14.99, emergencyTotalCost * 3) * 15,
+            estimatedProfit: (Math.max(14.99, emergencyTotalCost * 3) - emergencyTotalCost) * 15,
+            marginPercentage: 60,
+          },
+          optimistic: {
+            estimatedSales: 30,
+            estimatedRevenue: Math.max(14.99, emergencyTotalCost * 3) * 30,
+            estimatedProfit: (Math.max(14.99, emergencyTotalCost * 3) - emergencyTotalCost) * 30,
+            marginPercentage: 60,
+          },
+        },
+        successProbability: 60,
+        keyFactors: ['Product quality', 'Market timing', 'Marketing strategy'],
+      },
+      pricing: {
+        recommendedPrice: Math.max(14.99, emergencyTotalCost * 3),
+        aggressivePrice: Math.max(14.99, emergencyTotalCost * 2.5),
+        premiumPrice: Math.max(14.99, emergencyTotalCost * 3.5),
+        currency: 'USD',
+        justification: 'Prix recommandé basé sur une marge de 300% du coût total (estimation d\'urgence).',
+        competitorPriceAnalysis: {
+          below25: Math.max(14.99, emergencyTotalCost * 2.5),
+          median: Math.max(14.99, emergencyTotalCost * 3),
+          above75: Math.max(14.99, emergencyTotalCost * 3.5),
+        },
+        priceStrategy: {
+          launch: Math.max(14.99, emergencyTotalCost * 2.5),
+          stable: Math.max(14.99, emergencyTotalCost * 3),
+          premium: Math.max(14.99, emergencyTotalCost * 3.5),
+        },
+        marginAnalysis: {
+          atRecommendedPrice: 60,
+          atAggressivePrice: 50,
+          atPremiumPrice: 65,
+        },
+      },
+      marketing: {
+        angles: [{
+          id: 'emergency-1',
+          title: 'Quality Product',
+          description: 'High-quality handmade product',
+          whyItWorks: 'Quality-focused positioning',
+          competitionLevel: 'medium',
+          emotionalTriggers: ['quality', 'value'],
+          suggestedKeywords: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5),
+          targetAudience: 'Quality-conscious buyers',
+        }],
+        topKeywords: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
+        emotionalHooks: ['Quality', 'Value', 'Unique'],
+        occasions: ['Gift', 'Personal use'],
+      },
+      verdict: {
+        verdict: 'test',
+        confidenceScore: 30,
+        strengths: ['Product quality'],
+        risks: ['Market competition', 'Analysis incomplete'],
+        improvements: [],
+        summary: 'Analysis completed with emergency fallback data. Results may be less accurate.',
+        aiComment: '⚠️ Emergency fallback used - original analysis failed completely.',
+        difficultyAnalysis: `Market analysis: ${emergencyCompetitors} estimated competitors. Emergency estimation.`,
+        competitionComment: `${emergencyCompetitors} estimated competitors (emergency estimation).`,
+        competitorEstimationReasoning: 'Emergency fallback after complete analysis failure.',
+        productVisualDescription: product.title || 'Product',
+        etsySearchQuery: product.title.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5).join(' ') || 'product gift',
+        estimatedSupplierPrice: emergencySupplierPrice,
+        estimatedShippingCost: 5,
+        supplierPriceReasoning: 'Emergency estimation based on product price.',
+      },
+      analyzedAt: new Date(),
+      analysisVersion: '1.0-Emergency',
+      dataSource: 'estimated',
+    };
+  }
 };
 
 export const parseProductUrl = async (url: string): Promise<SupplierProduct | null> => {
