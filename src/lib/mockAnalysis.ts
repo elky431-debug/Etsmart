@@ -1109,15 +1109,15 @@ export const analyzeProduct = async (
       estimatedSupplierPrice: defaultSupplierPrice,
       estimatedShippingCost: defaultShipping,
       supplierPriceReasoning: `Estimation basée sur le prix indiqué (${price > 0 ? '$' + price : 'non fourni'}).`,
-      decision: defaultCompetitors <= 100 ? 'LANCER' : defaultCompetitors <= 130 ? 'LANCER_CONCURRENTIEL' : 'NE_PAS_LANCER',
+      decision: defaultCompetitors <= 40 ? 'LANCER' : defaultCompetitors <= 90 ? 'LANCER_CONCURRENTIEL' : 'NE_PAS_LANCER',
       confidenceScore: 50,
       estimatedCompetitors: defaultCompetitors,
       competitorEstimationReasoning: 'Estimation par défaut basée sur la niche et le type de produit.',
       competitorEstimationReliable: false,
-      saturationLevel: defaultCompetitors <= 100 ? 'non_sature' : defaultCompetitors <= 130 ? 'concurrentiel' : 'sature',
-      saturationAnalysis: defaultCompetitors <= 100 
+      saturationLevel: defaultCompetitors <= 40 ? 'non_sature' : defaultCompetitors <= 90 ? 'concurrentiel' : 'sature',
+      saturationAnalysis: defaultCompetitors <= 40 
         ? 'Marché peu saturé, opportunité de lancement.' 
-        : defaultCompetitors <= 130 
+        : defaultCompetitors <= 90 
         ? 'Marché concurrentiel, optimisation requise.'
         : 'Marché saturé, lancement risqué.',
       averageMarketPrice: Math.max(14.99, totalCost * 2.8),
@@ -1184,9 +1184,9 @@ export const analyzeProduct = async (
       },
       strengths: ['Product quality'],
       risks: ['Market competition'],
-      finalVerdict: defaultCompetitors <= 100 
+      finalVerdict: defaultCompetitors <= 40 
         ? 'Product can be launched with proper optimization.' 
-        : defaultCompetitors <= 130
+        : defaultCompetitors <= 90
         ? 'Product can be launched but requires careful optimization.'
         : 'Launch is risky due to high competition.',
       warningIfAny: error.message ? `Analysis completed with fallback data due to: ${error.message}` : null,
@@ -1350,10 +1350,10 @@ export const analyzeProduct = async (
     let finalVerdict: Verdict = verdictMap[aiAnalysis.decision] || 'test';
     const competitorCount = aiAnalysis.estimatedCompetitors;
     
-    // Override verdict based on competitor count if needed
-    if (competitorCount <= 100) {
+    // Override verdict based on competitor count if needed (selon cahier des charges)
+    if (competitorCount <= 40) {
       finalVerdict = 'launch';
-    } else if (competitorCount <= 130) {
+    } else if (competitorCount <= 90) {
       finalVerdict = 'test';
     } else {
       finalVerdict = 'avoid';
@@ -1369,7 +1369,7 @@ export const analyzeProduct = async (
     
     // AI-powered fields
     aiComment: aiAnalysis.warningIfAny || aiAnalysis.saturationAnalysis,
-    difficultyAnalysis: `Saturation: ${aiAnalysis.saturationLevel === 'non_sature' ? 'Unsaturated market (0-100 competitors) - Launch quickly' : aiAnalysis.saturationLevel === 'concurrentiel' ? 'Competitive market (100-130 competitors) - Optimize before launching' : aiAnalysis.saturationLevel === 'sature' ? 'SATURATED market (131+ competitors) - Do not launch' : 'VERY SATURATED market'}. ${aiAnalysis.saturationAnalysis}`,
+    difficultyAnalysis: `Saturation: ${aiAnalysis.saturationLevel === 'non_sature' ? 'Unsaturated market (<40 competitors) - Launch quickly' : aiAnalysis.saturationLevel === 'concurrentiel' ? 'Competitive market (41-90 competitors) - Optimize before launching' : aiAnalysis.saturationLevel === 'sature' ? 'SATURATED market (91+ competitors) - Do not launch' : 'VERY SATURATED market'}. ${aiAnalysis.saturationAnalysis}`,
     competitionComment: `${aiAnalysis.estimatedCompetitors} estimated competitors. ${aiAnalysis.pricingAnalysis}`,
     competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || '', // ✨ Comment l'IA a calculé
     viralTitleEN: aiAnalysis.viralTitleEN,

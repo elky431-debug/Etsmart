@@ -314,9 +314,9 @@ The goal: DECISIONAL RELIABILITY, not perfect accuracy.
 - Accompagne d'une explication: "Estimation basée sur l'analyse des résultats Etsy et le regroupement par vendeurs."
 
 RÈGLES DE DÉCISION (basées sur BOUTIQUES, pas listings):
-- 0-100 boutiques: "non_sature" → LANCER (lancer rapidement, pas de concurrence)
-- 100-130 boutiques: "concurrentiel" → LANCER_CONCURRENTIEL (peut être lancé mais il faut tout optimiser car il y a de la concurrence)
-- 131+ boutiques: "sature" → NE_PAS_LANCER (ne pas lancer le produit car il est saturé)
+- 0-40 boutiques: "non_sature" → LANCER (marché peu saturé, lancer rapidement)
+- 41-90 boutiques: "concurrentiel" → LANCER_CONCURRENTIEL (marché concurrentiel, peut être lancé mais il faut tout optimiser)
+- 91+ boutiques: "sature" → NE_PAS_LANCER (marché saturé, ne pas lancer le produit)
 
 ⚠️ COHÉRENCE OBLIGATOIRE:
 - Le nombre de concurrents DOIT être cohérent avec le niveau de saturation
