@@ -630,6 +630,34 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 </motion.div>
 
+                {/* ⚠️ Avertissement si données de fallback utilisées */}
+                {(analysis.dataSource === 'estimated' || analysis.verdict.warningIfAny) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="p-4 rounded-xl bg-amber-50 border-2 border-amber-300 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle size={18} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-amber-900 mb-1 text-sm">⚠️ Données par défaut utilisées</h3>
+                        <p className="text-sm text-amber-800 leading-relaxed">
+                          {analysis.verdict.warningIfAny || 
+                           'L\'API OpenAI n\'a pas pu répondre dans les temps (timeout >45s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite ou vérifier les logs Netlify.'}
+                        </p>
+                        {analysis.dataSource === 'estimated' && (
+                          <p className="text-xs text-amber-700 mt-2 italic">
+                            Source des données: Estimations par défaut (API non disponible)
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[

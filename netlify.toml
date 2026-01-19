@@ -6,6 +6,11 @@
   package = "@netlify/plugin-nextjs"
 
 # Configuration pour Next.js API routes
-# IMPORTANT: Même avec le plan Pro, le timeout par défaut est de 26 secondes
-# Pour augmenter au-delà, il faut contacter le support Netlify
+# IMPORTANT: Même avec le plan Pro, le timeout maximum est de 50 secondes
+# Le code utilise un timeout de 45s pour laisser une marge de sécurité
+# Si vous avez besoin de plus de temps, contactez le support Netlify
 # Alternative: Utiliser Background Functions pour les opérations longues
+
+[functions]
+  # Configuration pour les fonctions Netlify (si utilisées)
+  # Le timeout est configuré dans le code à 45s pour éviter le timeout Netlify (50s)

@@ -1085,11 +1085,17 @@ export const analyzeProduct = async (
       console.log('💡 Has acquisition marketing:', !!aiAnalysis.acquisitionMarketing);
   } catch (error: any) {
     // Si l'API échoue, générer des données par défaut plutôt que de bloquer
+    const isTimeout = error?.message?.includes('timeout') || 
+                      error?.message?.includes('TIMEOUT') ||
+                      error?.name === 'AbortError' ||
+                      error?.reason?.includes('timeout');
+    
     console.error('❌ AI Analysis FAILED - API Error Details:');
     console.error('   Error type:', error?.constructor?.name);
     console.error('   Error message:', error?.message);
     console.error('   Error reason:', error?.reason);
     console.error('   Error suggestion:', error?.suggestion);
+    console.error('   Is timeout?', isTimeout);
     console.error('   Error stack:', error?.stack?.substring(0, 500));
     console.error('   Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     console.error('   Product details:', {
@@ -1099,8 +1105,19 @@ export const analyzeProduct = async (
       imageUrlLength: productImageUrl?.length,
       hasImage: !!productImageUrl,
     });
-    console.warn('⚠️ Using default fallback data - this means OpenAI API is NOT working!');
-    console.warn('⚠️ Check Netlify function logs for detailed API error messages');
+    
+    if (isTimeout) {
+      console.error('🚨 TIMEOUT DETECTED - OpenAI API took too long (>45s) or Netlify timeout reached (50s)');
+      console.error('🚨 This is why you are seeing default/fallback data!');
+      console.error('🚨 Solutions:');
+      console.error('   1. Check Netlify function logs for exact timeout reason');
+      console.error('   2. Try with a smaller image (reduce image size)');
+      console.error('   3. Check OpenAI API status (may be slow)');
+      console.error('   4. Consider using a faster model or optimizing the prompt');
+    } else {
+      console.warn('⚠️ Using default fallback data - this means OpenAI API is NOT working!');
+      console.warn('⚠️ Check Netlify function logs for detailed API error messages');
+    }
     
     dataSource = 'estimated';
     
@@ -1227,7 +1244,9 @@ export const analyzeProduct = async (
         : defaultCompetitors <= 90
         ? 'Product can be launched but requires careful optimization.'
         : 'Launch is risky due to high competition.',
-      warningIfAny: error.message ? `Analysis completed with fallback data due to: ${error.message}` : null,
+      warningIfAny: error.message 
+        ? `⚠️ ATTENTION: Analyse complétée avec des données par défaut. L'API OpenAI n'a pas pu répondre: ${error.message}. Les résultats peuvent être moins précis.` 
+        : '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API OpenAI n\'a pas pu répondre. Les résultats peuvent être moins précis.',
     };
     
     console.log('✅ Using fallback analysis data');

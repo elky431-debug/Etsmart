@@ -196,407 +196,95 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const prompt = `You are Etsmart's VISION EXPERT - Advanced e-commerce analysis.
+    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<45s)
+    // Version condensée qui garde toutes les fonctionnalités essentielles
+    const prompt = `Etsmart VISION EXPERT - Analyse e-commerce rapide.
 
-═══════════════════════════════════════════════════════════════════════════════
-📸 STEP 1 - VISUAL PRODUCT ANALYSIS
-═══════════════════════════════════════════════════════════════════════════════
+📸 1. VISION: Identifie le produit (type, matériaux, complexité). Description 1-2 phrases.
 
-Look carefully at the image and identify:
-1. The TYPE of product (jewelry, decoration, accessory, etc.)
-2. Visible MATERIALS (metal, wood, plastic, fabric, etc.)
-3. Manufacturing COMPLEXITY (simple, medium, complex)
-4. Visible customization options
+💰 2. PRIX FOURNISSEUR: ${productPrice > 0 ? `Prix utilisateur: $${productPrice}` : 'Prix non fourni'}
+Estime prix AliExpress/Alibaba selon:
+- Bijoux simples: $0.50-3 | Personnalisés: $2-8 | Colliers: $3-12
+- Déco simple: $2-15 | Déco 3D: $8-35 | Lampes: $10-50
+- Accessoires animaux: $1-25 | Vêtements: $3-15 | Tech: $2-15
+- Stickers: $0.50-5 | Cuisine: $2-15 | Sacs: $3-20
+Livraison: Léger (<100g): $1-3 | Moyen (100-500g): $3-8 | Lourd (>500g): $8-20
 
-Describe in 1-2 sentences what you see.
+🎯 3. REQUÊTE ETSY: 4-7 mots anglais, comme un acheteur chercherait. Pas de mots marketing.
 
-═══════════════════════════════════════════════════════════════════════════════
-💰 STEP 2 - SUPPLIER PRICE ESTIMATION (CRITICAL!)
-═══════════════════════════════════════════════════════════════════════════════
+📊 4. CONCURRENTS: Estime le nombre de BOUTIQUES (pas listings) sur Etsy.
+RÈGLES: Chaque produit est unique - varie tes estimations (ex: bracelet personnalisé 15-40, mug 80-150, t-shirt 200-400).
+Méthode: 1 requête Etsy → observe premières pages → regroupe par boutique → estime précisément.
+DÉCISION: 0-40 boutiques="non_sature"→LANCER | 41-90="concurrentiel"→LANCER_CONCURRENTIEL | 91+="sature"→NE_PAS_LANCER
+PRIX MARCHÉ: Analyse listings comparables, exclut prix anormaux, fournis fourchette crédible.
 
-${productPrice > 0 ? `Price indicated by user: $${productPrice}` : 'No price provided by user.'}
+💵 5. PRIX VENTE: Niche=${niche} | Profil=NOUVELLE BOUTIQUE
+Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
 
-You must ESTIMATE the typical price on AliExpress/Alibaba for this product based on:
+🎯 6. MARKETING STRATÉGIQUE: Analyse concurrents pour différenciation.
+- Positionnement: 1 seul, justifié vs concurrents, avantage concurrentiel
+- Angles sous-exploités: 2-3 max, pourquoi ça marche, niveau concurrence
+- Erreurs concurrents: 3-5 max, concret (ex: "Photos génériques", "Titres confus")
+- Recommandations visuelles: 3 max, orienté résultat
+- Déclencheurs psychologiques: 2-4 max, pourquoi l'achat
+- Angles à éviter: 2-3 max, risques clairs
 
-📊 SUPPLIER PRICE REFERENCE TABLE (AliExpress 2024-2025):
+📱 7. ACQUISITION:
+- Cible: 1 profil (âge, situation, comportement impulsif/réfléchi, description 1-2 phrases)
+- Canal: FUN+VISUEL+PEU CHER+IMPULSIF→TikTok | ÉMOTION+CADEAU+PRIX ÉLEVÉ→Facebook/Instagram | NICHE+UTILITAIRE→Facebook/Pinterest
+- TikTok: 2-3 idées (titre, concept 1 phrase, quoi montrer, pourquoi viral) - seulement si adapté
+- Facebook: Si recommandé, idées adaptées (plus rassurant, explicatif)
 
-| Product type | Low price | Average price | High price |
-|-----------------|----------|------------|------------|
-| Bijoux simples (bagues, boucles basiques) | $0.50-1 | $1-3 | $3-8 |
-| Bijoux personnalisés (gravure, nom) | $2-4 | $4-8 | $8-15 |
-| Colliers/pendentifs qualité | $3-5 | $5-12 | $12-25 |
-| Décoration murale simple | $2-5 | $5-15 | $15-40 |
-| Décoration 3D/complexe | $8-15 | $15-35 | $35-80 |
-| Lampes/luminaires | $10-20 | $20-50 | $50-150 |
-| Accessoires animaux basiques | $1-3 | $3-8 | $8-15 |
-| Accessoires animaux premium | $5-10 | $10-25 | $25-50 |
-| Vêtements basiques | $3-8 | $8-15 | $15-30 |
-| Accessoires tech | $2-5 | $5-15 | $15-40 |
-| Stickers/prints (lot) | $0.50-2 | $2-5 | $5-10 |
-| Outils cuisine | $2-5 | $5-15 | $15-35 |
-| Sacs/pochettes | $3-8 | $8-20 | $20-50 |
+📋 JSON REQUIS:
+{"canIdentifyProduct":bool,"productVisualDescription":"description 1-2 phrases","etsySearchQuery":"4-7 mots anglais",
+"estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"1-2 phrases",
+"decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,
+"estimatedCompetitors":nb VARIÉ (niche:5-30, modéré:31-80, populaire:81-130, très populaire:131-250, saturé:250+),
+"competitorEstimationReasoning":"méthodologie","competitorEstimationReliable":bool,
+"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"2 phrases",
+"averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"explication",
+"supplierPrice":nb,"minimumViablePrice":nb≥14.99,"recommendedPrice":{"optimal":nb,"min":nb≥14.99,"max":nb},
+"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"2-3 phrases",
+"launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":jours,"max":jours},"withAds":{"min":jours,"max":jours}},
+"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"2 phrases"},
+"viralTitleEN":"max 140 chars","viralTitleFR":"version FR","seoTags":["13 tags max 20 chars"],
+"marketingAngles":[{"angle":"nom","why":"pourquoi","targetAudience":"cible"}],
+"strategicMarketing":{"positioning":{"mainPositioning":"1 seul","justification":"vs concurrents","competitiveAdvantage":"avantage"},
+"underexploitedAngles":[{"angle":"nom","whyUnderexploited":"pourquoi","whyItCanWork":"pourquoi","competitionLevel":"low|medium|high"}],
+"competitorMistakes":[{"mistake":"erreur concrète","frequency":"common|frequent|very_frequent"}],
+"visualRecommendations":[{"recommendation":"type photo","impact":"résultat"}],
+"psychologicalTriggers":[{"trigger":"déclencheur","explanation":"pourquoi"}],
+"anglesToAvoid":[{"angle":"angle","risk":"risque"}]},
+"acquisitionMarketing":{"targetAudience":{"ageRange":"25-40 ans","situation":"situation","buyingBehavior":"impulsive|reflective","description":"1-2 phrases"},
+"acquisitionChannel":{"primary":"tiktok|facebook|instagram|pinterest","secondary":"optionnel","justification":"pourquoi","notSuitableForTikTok":bool},
+"tiktokIdeas":[{"title":"titre","concept":"1 phrase","whatToShow":"quoi montrer","whyViral":"pourquoi"}],
+"facebookIdeas":[{"title":"titre","concept":"concept","whatToShow":"quoi","whyEffective":"pourquoi"}]},
+"strengths":["force1","force2","force3"],"risks":["risque1","risque2","risque3"],
+"finalVerdict":"2-3 phrases","warningIfAny":"avertissement ou null"}`;
 
-📦 SHIPPING COST ESTIMATION:
-- Light item (<100g): $1-3
-- Medium item (100-500g): $3-8  
-- Large/heavy item (>500g): $8-20
-- Standard ePacket: +$2-5
-- Express shipping: +$5-15
-
-PROVIDE:
-- "estimatedSupplierPrice": your estimation of the product price alone
-- "estimatedShippingCost": your estimation of shipping costs
-- "supplierPriceReasoning": explain your reasoning in 1-2 sentences
-
-═══════════════════════════════════════════════════════════════════════════════
-🎯 STEP 3 - ETSY SEARCH QUERY
-═══════════════════════════════════════════════════════════════════════════════
-
-Generate an Etsy search query:
-- In English, 4-7 words
-- As a buyer would search
-- NO marketing words (hot, sale, 2024, fashion)
-
-═══════════════════════════════════════════════════════════════════════════════
-📊 STEP 4 - COMPETITOR ESTIMATION (STRICT METHODOLOGY)
-═══════════════════════════════════════════════════════════════════════════════
-
-⚠️ FUNDAMENTAL PRINCIPLE: You must NEVER invent a number.
-You must OBSERVE, EXTRAPOLATE CAUTIOUSLY and REMAIN CONSERVATIVE.
-The goal: DECISIONAL RELIABILITY, not perfect accuracy.
-
-🚨 CRITICAL VARIATION RULE:
-- Each product is UNIQUE - its competitor count must reflect its reality
-- A personalized bracelet with name = 15-40 competitors (ex: 23, 31, 38)
-- A personalized mug = 80-150 competitors (ex: 94, 112, 143)
-- A generic t-shirt = 200-400 competitors (ex: 234, 287, 356)
-- NEVER use the same number (120) for all products
-- Be PRECISE and NATURAL in your estimations
-
-🔍 MÉTHODE EN 4 ÉTAPES:
-
-1. BASE DE RECHERCHE UNIQUE
-   - Utilise UNE SEULE requête Etsy propre (celle générée à l'étape 3)
-   - Basée sur la description visuelle + mots utilisés par acheteurs Etsy
-   - PAS de variations multiples qui gonfleraient artificiellement le nombre
-
-2. OBSERVATION DES RÉSULTATS ETSY
-   - Analyse le nombre de résultats qu'Etsy afficherait pour cette requête
-   - Concentre-toi sur les premières pages (pas toute la plateforme)
-   - Note la répétition des vendeurs (même boutique = 1 concurrent, pas N)
-
-3. NETTOYAGE INTELLIGENT
-   - EXCLURE les listings non comparables (autre style, autre usage)
-   - REGROUPER par boutique (10 listings d'un vendeur = 1 concurrent)
-   - On compte des BOUTIQUES CONCURRENTES, pas des produits
-
-4. EXTRAPOLATION PRUDENTE
-   - Estime un INTERVALLE réaliste basé sur:
-     * Vendeurs observables sur premières pages
-     * Répétition des mêmes boutiques
-     * Volume total estimé par Etsy
-   - Choisis un nombre PRÉCIS dans l'intervalle (pas toujours le centre)
-   - VARIÉ tes estimations selon le produit réel (ex: produit niche = 15-30, produit populaire = 200-400)
-   - TOUJOURS sous-estimer légèrement plutôt que sur-estimer
-   - ÉVITE les nombres ronds systématiques (100, 120, 150) - sois naturel
-
-📊 ESTIMATION PRIX MOYEN DU MARCHÉ:
-- Analyse UNIQUEMENT les listings comparables
-- Priorise ceux avec des ventes, visibles en premiers
-- EXCLURE les prix anormaux (dumping ou premium isolé)
-- Détermine la ZONE DE PRIX DOMINANTE
-- Fournis une FOURCHETTE crédible
-
-🚫 CAS DE REFUS (où tu dois signaler "Estimation peu fiable"):
-- Trop peu de résultats (<10)
-- Produit mal identifiable
-- Résultats trop hétérogènes
-- Marché trop diffus
-
-📤 FORMAT DE SORTIE:
-- Affiche toujours le symbole ≈ (approximation)
-- Sois PRÉCIS et VARIÉ dans tes estimations - chaque produit est différent
-- N'arrondis PAS systématiquement à 100, 120, 150, etc.
-- Utilise des nombres réalistes et variés (ex: 23, 47, 89, 156, 203, etc.)
-- Si tu estimes vraiment autour de 120, utilise 118 ou 123, pas toujours 120
-- Accompagne d'une explication: "Estimation basée sur l'analyse des résultats Etsy et le regroupement par vendeurs."
-
-RÈGLES DE DÉCISION (basées sur BOUTIQUES, pas listings):
-- 0-40 boutiques: "non_sature" → LANCER (marché peu saturé, lancer rapidement)
-- 41-90 boutiques: "concurrentiel" → LANCER_CONCURRENTIEL (marché concurrentiel, peut être lancé mais il faut tout optimiser)
-- 91+ boutiques: "sature" → NE_PAS_LANCER (marché saturé, ne pas lancer le produit)
-
-⚠️ COHÉRENCE OBLIGATOIRE:
-- Le nombre de concurrents DOIT être cohérent avec le niveau de saturation
-- Le prix moyen DOIT être cohérent avec le type de produit et la niche
-- Si incohérence détectée → SIGNALE-LE dans warningIfAny
-
-═══════════════════════════════════════════════════════════════════════════════
-💵 ÉTAPE 5 - PRIX DE VENTE RECOMMANDÉ
-═══════════════════════════════════════════════════════════════════════════════
-
-Niche: ${niche}
-${productCategory ? `Catégorie: ${productCategory}` : ''}
-Profil: NOUVELLE BOUTIQUE
-
-RÈGLES:
-- Prix minimum ABSOLU = $14.99
-- Marge minimale recommandée = 60%
-- Prix optimal = (Coût total × 3) ou minimum $14.99
-
-Calcule les prix de vente basés sur TON estimation du coût fournisseur.
-
-═══════════════════════════════════════════════════════════════════════════════
-🎯 ÉTAPE 6 - MARKETING STRATÉGIQUE (CRITIQUE!)
-═══════════════════════════════════════════════════════════════════════════════
-
-Tu dois fournir une analyse marketing STRATÉGIQUE basée sur l'analyse des concurrents Etsy.
-L'objectif: aider le vendeur à se DIFFÉRENCIER concrètement, pas lister des options génériques.
-
-RÈGLES ABSOLUES:
-- TRANCHE, ne liste pas
-- Sois FACTUEL et CONCIS
-- Évite le marketing bullshit
-- Chaque phrase doit être UTILE
-- Pas de "ce produit est parfait", pas de promesses vagues
-
-1. POSITIONNEMENT RECOMMANDÉ (obligatoire)
-   - Donne UN SEUL positionnement principal
-   - Justifie-le par rapport aux concurrents
-   - Explique l'avantage concurrentiel que ça donne
-
-2. ANGLES SOUS-EXPLOITÉS (2-3 max)
-   - Détecte les angles que les concurrents n'utilisent PAS assez
-   - Explique pourquoi chaque angle peut fonctionner
-   - Indique le niveau de concurrence (faible/moyen/élevé)
-
-3. ERREURS DES CONCURRENTS (3-5 max)
-   - Liste les erreurs RÉELLES observées chez les concurrents
-   - Sois concret: "Photos trop génériques", "Titres confus", etc.
-
-4. RECOMMANDATIONS VISUELLES (3 max)
-   - Types de photos qui VENDENT dans cette niche
-   - Orienté RÉSULTAT, pas esthétique
-
-5. DÉCLENCHEURS PSYCHOLOGIQUES (2-4 max)
-   - POURQUOI l'acheteur achète ce produit
-   - Basé sur les motivations d'achat dans la niche
-
-6. ANGLES À ÉVITER (2-3 max)
-   - Angles DANGEREUX ou INEFFICACES
-   - Explique clairement le risque
-
-═══════════════════════════════════════════════════════════════════════════════
-📱 ÉTAPE 7 - MARKETING ACQUISITION IA (NOUVEAU!)
-═══════════════════════════════════════════════════════════════════════════════
-
-Tu dois aider l'utilisateur à comprendre OÙ et COMMENT promouvoir ce produit.
-L'objectif: transformer l'analyse en plan d'action acquisition concret.
-
-🎯 1. PERSONNES VISÉES (obligatoire)
-   Analyse le profil DOMINANT de l'acheteur:
-   - Nature du produit
-   - Moteur d'achat (POUR plaisir / À CAUSE besoin)
-   - Type d'émotion (fun / émotion / utilité)
-   - Prix perçu
-   - Comportement d'achat (impulsif vs réfléchi)
-   
-   Produis UN SEUL profil principal:
-   - Tranche d'âge approximative
-   - Situation (jeune, parent, couple, propriétaire d'animal, etc.)
-   - Comportement d'achat (impulsif / réfléchi)
-   - Description complète en 1-2 phrases
-   
-   Format: "Adultes 25-40 ans, sensibles à l'émotion et aux achats cadeaux, comportement d'achat plutôt réfléchi."
-
-📱 2. CHOIX AUTOMATIQUE DU CANAL PUBLICITAIRE
-   Applique cette logique simple:
-   
-   Produit FUN + VISUEL + PEU CHER + IMPULSIF → TikTok (prioritaire)
-   Produit ÉMOTIONNEL + CADEAU + PRIX PLUS ÉLEVÉ + ACHAT RÉFLÉCHI → Facebook/Instagram
-   Produit NICHE PRÉCISE + UTILITAIRE → Facebook ciblé / Pinterest
-   
-   Si le produit n'est PAS adapté à TikTok (peu visuel, trop sérieux, trop cher):
-   → Dis-le clairement: "Ce produit n'est pas adapté à TikTok."
-   → Recommande Facebook/Instagram à la place
-   
-   Produis:
-   - Canal recommandé principal (tiktok / facebook / instagram / pinterest)
-   - Canal secondaire éventuel (optionnel)
-   - Justification courte et claire
-
-🎬 3. IDÉES DE TIKTOKS ORIGINAUX (2-3 max)
-   Génère des idées créatives, réalistes et potentiellement virales.
-   
-   Chaque idée doit avoir:
-   - Titre court du concept (ex: "La réaction avant/après")
-   - Principe de la vidéo en 1 phrase
-   - Ce qu'on montre à l'écran (concret)
-   - Pourquoi ça peut devenir viral (rétention, émotion, tendance)
-   
-   RÈGLES STRICTES:
-   ❌ Pas de clichés ("montre le produit", "fais une vidéo esthétique")
-   ❌ Pas d'idées trop complexes
-   ✅ Idées faisables sans équipe pro
-   ✅ Orientées réaction émotionnelle (wow, sourire, émotion)
-   ✅ Basées sur les formats TikTok performants
-   
-   Si TikTok n'est PAS adapté → Ne génère PAS d'idées TikTok.
-
-📘 4. IDÉES FACEBOOK (si Facebook recommandé)
-   Adapte les idées pour Facebook:
-   - Plus rassurant et explicatif
-   - Plus émotionnel et crédible
-   - Moins spontané que TikTok
-   
-   Format identique aux idées TikTok.
-
-═══════════════════════════════════════════════════════════════════════════════
-📋 FORMAT JSON (STRICT)
-═══════════════════════════════════════════════════════════════════════════════
-
-{
-  "canIdentifyProduct": boolean,
-  "productVisualDescription": "Ce que tu vois dans l'image",
-  "etsySearchQuery": "Requête Etsy 4-7 mots anglais",
-  
-  "estimatedSupplierPrice": nombre (ton estimation du prix AliExpress),
-  "estimatedShippingCost": nombre (ton estimation livraison),
-  "supplierPriceReasoning": "Explication de ton estimation",
-  
-  "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER" | "ANALYSE_IMPOSSIBLE",
-  "confidenceScore": 30-95,
-  
-  "estimatedCompetitors": nombre (OBLIGATOIREMENT PRÉCIS et VARIÉ selon le produit réel analysé. 
-    - Produit très niche/unique: 5-30 (ex: 12, 18, 27)
-    - Produit niche modérée: 31-80 (ex: 45, 62, 78)
-    - Produit populaire: 81-130 (ex: 89, 103, 127)
-    - Produit très populaire: 131-250 (ex: 156, 189, 234)
-    - Produit saturé: 250+ (ex: 287, 342, 456)
-    JAMAIS toujours 120 - chaque produit a son propre nombre réel),
-  "competitorEstimationReasoning": "Estimation basée sur l'analyse des résultats Etsy et le regroupement par vendeurs. [Explique ta méthodologie]",
-  "competitorEstimationReliable": boolean (false si trop peu de données ou marché diffus),
-  "saturationLevel": "non_sature" | "concurrentiel" | "sature" | "tres_sature",
-  "saturationAnalysis": "2 phrases",
-  
-  "averageMarketPrice": nombre (prix moyen observé sur Etsy pour ce produit),
-  "marketPriceRange": { "min": nombre, "max": nombre } (fourchette de prix dominante),
-  "marketPriceReasoning": "La majorité des ventes se situent entre X€ et Y€. [Explication]",
-  
-  "supplierPrice": nombre (utilise ton estimation ou ${productPrice} si fourni et cohérent),
-  "minimumViablePrice": nombre (min 14.99),
-  "recommendedPrice": {
-    "optimal": nombre,
-    "min": nombre (min 14.99),
-    "max": nombre
-  },
-  "priceRiskLevel": "faible" | "moyen" | "eleve",
-  "pricingAnalysis": "2-3 phrases",
-  
-  "launchSimulation": {
-    "timeToFirstSale": {
-      "withoutAds": { "min": jours, "max": jours },
-      "withAds": { "min": jours, "max": jours }
-    },
-    "salesAfter3Months": {
-      "prudent": nombre,
-      "realiste": nombre,
-      "optimise": nombre
-    },
-    "simulationNote": "2 phrases"
-  },
-  
-  "viralTitleEN": "Titre SEO anglais max 140 caractères",
-  "viralTitleFR": "Version française",
-  "seoTags": ["13 tags Etsy max 20 caractères chacun"],
-  
-  "marketingAngles": [
-    { "angle": "Nom", "why": "Pourquoi", "targetAudience": "Cible" }
-  ],
-  
-  "strategicMarketing": {
-    "positioning": {
-      "mainPositioning": "UN positionnement clair (ex: Cadeau émotionnel personnalisé)",
-      "justification": "Pourquoi ce positionnement - basé sur l'analyse des concurrents",
-      "competitiveAdvantage": "Ce que ça permet de faire MIEUX que les autres"
-    },
-    "underexploitedAngles": [
-      {
-        "angle": "Nom de l'angle",
-        "whyUnderexploited": "Pourquoi les concurrents ne l'utilisent pas",
-        "whyItCanWork": "Pourquoi ça peut fonctionner sur Etsy",
-        "competitionLevel": "low" | "medium" | "high"
-      }
-    ],
-    "competitorMistakes": [
-      { "mistake": "Erreur concrète", "frequency": "common" | "frequent" | "very_frequent" }
-    ],
-    "visualRecommendations": [
-      { "recommendation": "Type de photo", "impact": "Résultat attendu" }
-    ],
-    "psychologicalTriggers": [
-      { "trigger": "Déclencheur", "explanation": "Pourquoi ça marche" }
-    ],
-    "anglesToAvoid": [
-      { "angle": "Angle dangereux", "risk": "Explication du risque" }
-    ]
-  },
-  
-  "acquisitionMarketing": {
-    "targetAudience": {
-      "ageRange": "25-40 ans",
-      "situation": "jeunes, parents, couples",
-      "buyingBehavior": "impulsive" | "reflective",
-      "description": "Description complète du profil dominant en 1-2 phrases"
-    },
-    "acquisitionChannel": {
-      "primary": "tiktok" | "facebook" | "instagram" | "pinterest",
-      "secondary": "tiktok" | "facebook" | "instagram" | "pinterest" (optionnel),
-      "justification": "Pourquoi ce canal est recommandé",
-      "notSuitableForTikTok": boolean (si le produit n'est pas adapté à TikTok)
-    },
-    "tiktokIdeas": [
-      {
-        "title": "Titre court du concept",
-        "concept": "Principe de la vidéo en 1 phrase",
-        "whatToShow": "Ce qu'on montre à l'écran",
-        "whyViral": "Pourquoi ça peut devenir viral"
-      }
-    ],
-    "facebookIdeas": [
-      {
-        "title": "Titre du concept",
-        "concept": "Principe du contenu",
-        "whatToShow": "Ce qu'on montre",
-        "whyEffective": "Pourquoi c'est efficace sur Facebook"
-      }
-    ] (optionnel, seulement si Facebook est recommandé)
-  },
-  
-  "strengths": ["Force 1", "Force 2", "Force 3"],
-  "risks": ["Risque 1", "Risque 2", "Risque 3"],
-  "finalVerdict": "Résumé 2-3 phrases",
-  "warningIfAny": "Avertissement ou null"
-}`;
-
-    console.log('📤 Calling OpenAI API with image:', {
+    console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
       isDataUrl: productImageUrl?.startsWith('data:image'),
       isHttpUrl: productImageUrl?.startsWith('http'),
-      length: productImageUrl?.length,
+      imageLength: productImageUrl?.length,
+      promptLength: prompt.length,
+      promptSizeKB: (prompt.length / 1024).toFixed(2),
       niche,
       price: productPrice,
+      maxTokens: 2000,
+      temperature: 0.3,
     });
     
     const openaiStartTime = Date.now();
     let openaiResponse: Response;
     try {
-      // Timeout augmenté (60s) pour laisser le temps à GPT-4o de répondre
+      // ⚠️ TIMEOUT CRITIQUE: Netlify Pro a un timeout de 50s maximum
+      // On utilise 45s pour laisser une marge de sécurité
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error('⏱️ OpenAI API timeout after 60s - this is very long, something might be wrong');
+        console.error('⏱️ OpenAI API timeout after 45s - Netlify will timeout at 50s');
         controller.abort();
-      }, 60000); // 60 secondes max (GPT-4o peut être lent avec les images)
+      }, 45000); // 45 secondes max pour éviter le timeout Netlify (50s)
       
       try {
         openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -629,8 +317,8 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
                 ]
               }
             ],
-            temperature: 0.5,
-            max_tokens: 3000, // Augmenté pour permettre plus de contenu
+            temperature: 0.3, // Réduit pour des réponses plus rapides et déterministes
+            max_tokens: 2000, // Réduit pour accélérer la génération (suffisant pour le JSON)
           }),
           signal: controller.signal,
         });
@@ -642,7 +330,7 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       imageUrlStart: productImageUrl?.substring(0, 100),
       isDataUrl: productImageUrl?.startsWith('data:image'),
       promptLength: prompt.length,
-      maxTokens: 3000,
+      maxTokens: 2000,
     });
         
         clearTimeout(timeoutId);
@@ -667,12 +355,20 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
       });
       
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
-        console.error('⏱️ TIMEOUT - OpenAI API took too long');
+        const elapsedTime = Date.now() - openaiStartTime;
+        console.error('⏱️ TIMEOUT - OpenAI API took too long:', {
+          elapsedTime: `${elapsedTime}ms`,
+          timeoutLimit: '45s',
+          netlifyLimit: '50s',
+          reason: 'OpenAI API response too slow or Netlify timeout reached',
+        });
         return NextResponse.json({
           success: false,
           error: 'TIMEOUT',
-          message: 'La requête OpenAI a expiré après 60 secondes. Le service peut être surchargé ou l\'image trop grande.',
-          troubleshooting: 'Essayez avec une image plus petite ou réessayez plus tard.',
+          message: `La requête OpenAI a expiré après ${Math.round(elapsedTime / 1000)} secondes. Le service peut être surchargé ou l'image trop grande.`,
+          troubleshooting: 'Essayez avec une image plus petite ou réessayez plus tard. Si le problème persiste, vérifiez les logs Netlify.',
+          elapsedTime: elapsedTime,
+          timeoutLimit: 45000,
         }, { status: 503 });
       }
       
