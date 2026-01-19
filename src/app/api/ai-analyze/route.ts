@@ -74,9 +74,9 @@ interface AIAnalysisResponse {
   }[];
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // MARKETING STRATÉGIQUE (NOUVEAU)
+  // MARKETING STRATÉGIQUE (OPTIONNEL - supprimé pour vitesse)
   // ═══════════════════════════════════════════════════════════════════════════════
-  strategicMarketing: {
+  strategicMarketing?: {
     positioning: {
       mainPositioning: string;
       justification: string;
@@ -107,9 +107,9 @@ interface AIAnalysisResponse {
   };
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // MARKETING ACQUISITION IA (NOUVEAU)
+  // MARKETING ACQUISITION IA (OPTIONNEL - supprimé pour vitesse)
   // ═══════════════════════════════════════════════════════════════════════════════
-  acquisitionMarketing: {
+  acquisitionMarketing?: {
     targetAudience: {
       ageRange: string;
       situation: string;
@@ -221,21 +221,7 @@ PRIX MARCHÉ: Analyse listings comparables, exclut prix anormaux, fournis fourch
 💵 5. PRIX VENTE: Niche=${niche} | Profil=NOUVELLE BOUTIQUE
 Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
 
-🎯 6. MARKETING STRATÉGIQUE: Analyse concurrents pour différenciation.
-- Positionnement: 1 seul, justifié vs concurrents, avantage concurrentiel
-- Angles sous-exploités: 2-3 max, pourquoi ça marche, niveau concurrence
-- Erreurs concurrents: 3-5 max, concret (ex: "Photos génériques", "Titres confus")
-- Recommandations visuelles: 3 max, orienté résultat
-- Déclencheurs psychologiques: 2-4 max, pourquoi l'achat
-- Angles à éviter: 2-3 max, risques clairs
-
-📱 7. ACQUISITION:
-- Cible: 1 profil (âge, situation, comportement impulsif/réfléchi, description 1-2 phrases)
-- Canal: FUN+VISUEL+PEU CHER+IMPULSIF→TikTok | ÉMOTION+CADEAU+PRIX ÉLEVÉ→Facebook/Instagram | NICHE+UTILITAIRE→Facebook/Pinterest
-- TikTok: 2-3 idées (titre, concept 1 phrase, quoi montrer, pourquoi viral) - seulement si adapté
-- Facebook: Si recommandé, idées adaptées (plus rassurant, explicatif)
-
-📋 JSON REQUIS:
+📋 JSON REQUIS (MARKETING SUPPRIMÉ POUR VITESSE):
 {"canIdentifyProduct":bool,"productVisualDescription":"description 1-2 phrases","etsySearchQuery":"4-7 mots anglais",
 "estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"1-2 phrases",
 "decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,
@@ -249,16 +235,6 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
 "salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"2 phrases"},
 "viralTitleEN":"max 140 chars","viralTitleFR":"version FR","seoTags":["13 tags max 20 chars"],
 "marketingAngles":[{"angle":"nom","why":"pourquoi","targetAudience":"cible"}],
-"strategicMarketing":{"positioning":{"mainPositioning":"1 seul","justification":"vs concurrents","competitiveAdvantage":"avantage"},
-"underexploitedAngles":[{"angle":"nom","whyUnderexploited":"pourquoi","whyItCanWork":"pourquoi","competitionLevel":"low|medium|high"}],
-"competitorMistakes":[{"mistake":"erreur concrète","frequency":"common|frequent|very_frequent"}],
-"visualRecommendations":[{"recommendation":"type photo","impact":"résultat"}],
-"psychologicalTriggers":[{"trigger":"déclencheur","explanation":"pourquoi"}],
-"anglesToAvoid":[{"angle":"angle","risk":"risque"}]},
-"acquisitionMarketing":{"targetAudience":{"ageRange":"25-40 ans","situation":"situation","buyingBehavior":"impulsive|reflective","description":"1-2 phrases"},
-"acquisitionChannel":{"primary":"tiktok|facebook|instagram|pinterest","secondary":"optionnel","justification":"pourquoi","notSuitableForTikTok":bool},
-"tiktokIdeas":[{"title":"titre","concept":"1 phrase","whatToShow":"quoi montrer","whyViral":"pourquoi"}],
-"facebookIdeas":[{"title":"titre","concept":"concept","whatToShow":"quoi","whyEffective":"pourquoi"}]},
 "strengths":["force1","force2","force3"],"risks":["risque1","risque2","risque3"],
 "finalVerdict":"2-3 phrases","warningIfAny":"avertissement ou null"}`;
 
@@ -322,7 +298,7 @@ Min=$14.99 | Marge min=60% | Optimal=Coût total × 3 (min $14.99)
             }
           ],
           temperature: 0.2,
-          max_tokens: 1500, // Réduit pour vitesse maximale
+          max_tokens: 1000, // ⚡ RÉDUIT à 1000 (marketing supprimé = réponse plus courte)
         }),
         signal: controller.signal,
       });
