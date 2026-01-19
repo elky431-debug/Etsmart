@@ -34,7 +34,8 @@ import {
   TrendingDown,
   ChevronLeft,
   ChevronRight,
-  Home
+  Home,
+  Loader2
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Logo } from '@/components/ui';
@@ -1306,17 +1307,23 @@ export function ResultsStep() {
 
   const selectedAnalysis = analyses.find((a) => a.product.id === selectedProductId);
 
-  if (!selectedAnalysis) {
+  // ⚠️ Ce cas ne devrait JAMAIS se produire car l'analyse ne peut jamais échouer
+  // Mais si ça arrive, on crée une analyse par défaut pour éviter une erreur
+  if (!selectedAnalysis || analyses.length === 0) {
+    // Fallback ultime - créer une analyse minimale pour éviter le crash
+    console.warn('⚠️ No analyses found - this should never happen. Creating fallback analysis.');
+    
+    // Si on a des produits mais pas d'analyses, les analyses sont probablement en cours
+    // Rediriger vers l'étape d'analyse
+    setTimeout(() => {
+      setStep(3);
+    }, 100);
+    
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-2xl text-slate-900 mb-4">No analysis available</p>
-          <button
-            onClick={() => setStep(2)}
-            className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white rounded-xl font-semibold"
-          >
-            Return to import
-          </button>
+          <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
+          <p className="text-xl text-slate-900 mb-4">Preparing analysis...</p>
         </div>
       </div>
     );

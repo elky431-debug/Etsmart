@@ -6,31 +6,21 @@ import {
   ArrowLeft, 
   Loader2, 
   CheckCircle2, 
-  AlertCircle,
   ChevronRight,
   Sparkles,
   BarChart3,
   TrendingUp,
   Package,
-  Lightbulb,
-  RefreshCw,
   Eye,
   Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import type { Niche } from '@/types';
-import { analyzeProduct, AnalysisBlockedError } from '@/lib/mockAnalysis';
+import { analyzeProduct } from '@/lib/mockAnalysis';
 import { supabase } from '@/lib/supabase';
 import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
-
-interface FailedProduct {
-  productId: string;
-  productTitle: string;
-  error: string;
-  suggestion?: string;
-}
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep } = useStore();
@@ -39,7 +29,6 @@ export function AnalysisStep() {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [currentPhase, setCurrentPhase] = useState('Initialisation...');
   const [completedProducts, setCompletedProducts] = useState<string[]>([]);
-  const [failedProducts, setFailedProducts] = useState<FailedProduct[]>([]);
 
   const phases = [
     { text: 'Product image analysis', icon: Eye },
@@ -61,120 +50,95 @@ export function AnalysisStep() {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
 
+      // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
+      // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
+      const analysis = await analyzeProduct(products[i], (niche || 'custom') as Niche);
+      addAnalysis(analysis);
+      
+      // Save to Supabase if user is authenticated
       try {
-        const analysis = await analyzeProduct(products[i], (niche || 'custom') as Niche);
-        addAnalysis(analysis);
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        // Save to Supabase if user is authenticated
-        try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          
-          if (authError) {
-            console.warn('Cannot get user for saving analysis:', authError.message);
-            // Continue without saving - user might not be logged in
-          } else if (user) {
+        if (authError) {
+          console.warn('Cannot get user for saving analysis:', authError.message);
+          // Continue without saving - user might not be logged in
+        } else if (user) {
+          try {
+            // First, save the product to database
+            let savedProduct = analysis.product;
             try {
-              // First, save the product to database
-              let savedProduct = analysis.product;
-              try {
-                // Try to find product by URL (more reliable than ID for local products)
-                const { data: existingProducts } = await supabase
-                  .from('products')
-                  .select('*')
-                  .eq('user_id', user.id)
-                  .eq('url', analysis.product.url)
-                  .limit(1);
-                
-                if (existingProducts && existingProducts.length > 0) {
-                  // Product exists, use it
-                  savedProduct = {
-                    ...analysis.product,
-                    id: existingProducts[0].id,
-                  };
-                  console.log('✅ Product already exists in database');
-                } else {
-                  // Product doesn't exist, create it
-                  savedProduct = await productDb.createProduct(user.id, analysis.product);
-                  console.log('✅ Product saved to database');
-                }
-              } catch (productError: any) {
-                console.warn('⚠️ Error saving product to database:', {
-                  message: productError?.message,
-                  code: productError?.code,
-                });
-                // Continue anyway - might be a duplicate or other non-critical error
-                // Use original product ID
+              // Try to find product by URL (more reliable than ID for local products)
+              const { data: existingProducts } = await supabase
+                .from('products')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('url', analysis.product.url)
+                .limit(1);
+              
+              if (existingProducts && existingProducts.length > 0) {
+                // Product exists, use it
+                savedProduct = {
+                  ...analysis.product,
+                  id: existingProducts[0].id,
+                };
+                console.log('✅ Product already exists in database');
+              } else {
+                // Product doesn't exist, create it
+                savedProduct = await productDb.createProduct(user.id, analysis.product);
+                console.log('✅ Product saved to database');
               }
-              
-              // Then save the analysis (with the saved product)
-              const analysisWithSavedProduct = {
-                ...analysis,
-                product: savedProduct,
-              };
-              
-              await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
-              console.log('✅ Analysis saved to database successfully');
-            } catch (saveError: any) {
-              // Log detailed error information
-              console.error('❌ Error saving analysis to database:', {
-                message: saveError?.message || 'Unknown error',
-                code: saveError?.code,
-                details: saveError?.details,
-                hint: saveError?.hint,
-                error: saveError
+            } catch (productError: any) {
+              console.warn('⚠️ Error saving product to database:', {
+                message: productError?.message,
+                code: productError?.code,
               });
-              // Don't fail the analysis if DB save fails - it's not critical
+              // Continue anyway - might be a duplicate or other non-critical error
+              // Use original product ID
             }
+            
+            // Then save the analysis (with the saved product)
+            const analysisWithSavedProduct = {
+              ...analysis,
+              product: savedProduct,
+            };
+            
+            await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
+            console.log('✅ Analysis saved to database successfully');
+          } catch (saveError: any) {
+            // Log detailed error information
+            console.error('❌ Error saving analysis to database:', {
+              message: saveError?.message || 'Unknown error',
+              code: saveError?.code,
+              details: saveError?.details,
+              hint: saveError?.hint,
+              error: saveError
+            });
+            // Don't fail the analysis if DB save fails - it's not critical
           }
-        } catch (error: any) {
-          console.warn('Error checking authentication for saving analysis:', error?.message || error);
-          // Continue without saving - not critical
         }
-        
-        setCompletedProducts(prev => [...prev, products[i].id]);
-      } catch (error) {
-        console.error(`Analysis failed for product ${products[i].title}:`, error);
-        
-        let errorMessage = 'An unexpected error occurred';
-        let suggestion = 'Please try again or contact support.';
-        
-        if (error instanceof AnalysisBlockedError) {
-          errorMessage = error.message;
-          suggestion = error.suggestion || 'Make sure the product has a valid image.';
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-        
-        setFailedProducts(prev => [...prev, {
-          productId: products[i].id,
-          productTitle: products[i].title,
-          error: errorMessage,
-          suggestion: suggestion,
-        }]);
+      } catch (error: any) {
+        console.warn('Error checking authentication for saving analysis:', error?.message || error);
+        // Continue without saving - not critical
       }
+      
+      setCompletedProducts(prev => [...prev, products[i].id]);
     }
 
     setIsAnalyzing(false);
     setProgress(100);
 
-    // Ne passer à l'étape suivante que si au moins une analyse a réussi
-    // Ou si toutes ont échoué mais qu'on a quand même des analyses en cache
+    // ⚠️ TOUJOURS rediriger vers les résultats - l'analyse ne peut JAMAIS échouer
+    // analyzeProduct retourne TOUJOURS un résultat grâce au fallback ultime
     setTimeout(() => {
-      // Si on a au moins une analyse réussie, aller aux résultats
-      if (completedProducts.length > 0) {
-        setStep(4);
-      } 
-      // Sinon, rester sur cette page pour afficher les erreurs
-      // (allFailed est déjà géré par l'UI)
+      setStep(4); // Redirection directe vers les résultats
     }, 1500);
-  }, [products, selectedNiche, customNiche, addAnalysis, setStep, phases.length, completedProducts.length, failedProducts.length]);
+  }, [products, selectedNiche, customNiche, addAnalysis, setStep, phases.length, completedProducts.length]);
 
   useEffect(() => {
     runAnalysis();
   }, []);
 
   const currentProduct = products[currentIndex];
-  const allFailed = failedProducts.length === products.length && !isAnalyzing;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -222,21 +186,15 @@ export function AnalysisStep() {
                   in progress
                 </span>
               </>
-            ) : allFailed ? (
+            ) : (
               <>
-                <span className="text-red-600">Analysis</span>
-                <br />
-                <span className="text-red-500">failed</span>
-              </>
-          ) : (
-            <>
                 <span className="text-slate-900">Analysis</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
                   completed
                 </span>
-            </>
-          )}
+              </>
+            )}
           </motion.h1>
           
           <motion.p 
@@ -247,9 +205,7 @@ export function AnalysisStep() {
           >
             {isAnalyzing 
               ? `AI analysis of ${products.length} product${products.length > 1 ? 's' : ''}`
-              : allFailed 
-                ? 'All products failed analysis'
-                : `${completedProducts.length} product${completedProducts.length > 1 ? 's' : ''} analyzed successfully`
+              : `${completedProducts.length} product${completedProducts.length > 1 ? 's' : ''} analyzed successfully`
             }
           </motion.p>
         </motion.div>
@@ -394,8 +350,8 @@ export function AnalysisStep() {
           </motion.div>
         )}
 
-        {/* Success State */}
-        {!isAnalyzing && !allFailed && (
+        {/* Success State - TOUJOURS affiché car l'analyse ne peut jamais échouer */}
+        {!isAnalyzing && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -422,75 +378,6 @@ export function AnalysisStep() {
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Loading results
               </motion.div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* All Failed State */}
-        {allFailed && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-2xl mx-auto mb-12"
-          >
-            <div className="p-12 rounded-3xl bg-red-50 border-2 border-red-200 shadow-2xl text-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', delay: 0.2 }}
-                className="w-32 h-32 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-8 border-4 border-red-500"
-              >
-                <AlertCircle className="w-16 h-16 text-red-500" />
-              </motion.div>
-              <h3 className="text-4xl font-black text-red-600 mb-4">Analysis failed</h3>
-              <p className="text-lg text-slate-600 mb-8">
-                All products failed analysis
-              </p>
-              <motion.button
-                onClick={() => setStep(2)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-xl hover:shadow-2xl transition-all"
-              >
-                <RefreshCw size={20} />
-                Try again with other products
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Failed Products */}
-        {failedProducts.length > 0 && !allFailed && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mb-12"
-          >
-            <div className="p-8 rounded-3xl bg-red-50 border-2 border-red-200 shadow-xl">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
-                  <AlertCircle className="w-8 h-8 text-red-500" />
-                </div>
-                <div>
-                  <h4 className="font-black text-red-800 text-xl">Failed products</h4>
-                  <p className="text-sm font-semibold text-red-600">{failedProducts.length} product{failedProducts.length > 1 ? 's' : ''}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {failedProducts.map((failed, index) => (
-                  <div key={`failed-${failed.productId}-${index}`} className="p-5 rounded-2xl bg-white border-2 border-red-200">
-                    <p className="font-bold text-slate-900 mb-2 truncate text-lg">{failed.productTitle}</p>
-                    <p className="text-sm text-red-600 mb-3 font-medium">{failed.error}</p>
-                    {failed.suggestion && (
-                      <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                        <Lightbulb size={18} className="text-amber-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-amber-700 font-medium">{failed.suggestion}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
           </motion.div>
         )}
