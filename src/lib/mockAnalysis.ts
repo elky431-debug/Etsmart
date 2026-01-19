@@ -1061,8 +1061,19 @@ export const analyzeProduct = async (
       }
       
       console.log('📤 Calling OpenAI API...');
+      console.log('📤 API Call Details:', {
+        price,
+        niche: validNiche,
+        imageUrlLength: productImageUrl?.length,
+        imageUrlStart: productImageUrl?.substring(0, 100),
+        isDataUrl: productImageUrl?.startsWith('data:image'),
+      });
+      
+      const apiCallStartTime = Date.now();
       aiAnalysis = await fetchAIAnalysis(price, validNiche, productImageUrl, product.title);
-      console.log('✅ AI Vision analysis successful');
+      const apiCallDuration = Date.now() - apiCallStartTime;
+      
+      console.log('✅ AI Vision analysis successful (took', apiCallDuration, 'ms)');
       console.log('👁️ Product:', aiAnalysis.productVisualDescription);
       console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
       console.log('📊 Competitors:', aiAnalysis.estimatedCompetitors);
@@ -1075,8 +1086,17 @@ export const analyzeProduct = async (
     console.error('   Error message:', error?.message);
     console.error('   Error reason:', error?.reason);
     console.error('   Error suggestion:', error?.suggestion);
+    console.error('   Error stack:', error?.stack?.substring(0, 500));
     console.error('   Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error('   Product details:', {
+      title: product.title?.substring(0, 50),
+      price,
+      niche: validNiche,
+      imageUrlLength: productImageUrl?.length,
+      hasImage: !!productImageUrl,
+    });
     console.warn('⚠️ Using default fallback data - this means OpenAI API is NOT working!');
+    console.warn('⚠️ Check Netlify function logs for detailed API error messages');
     
     dataSource = 'estimated';
     

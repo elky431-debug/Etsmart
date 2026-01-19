@@ -175,12 +175,20 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.OPENAI_API_KEY;
     
+    console.log('🔑 API Key check:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length,
+      keyPrefix: apiKey?.substring(0, 7),
+    });
+    
     if (!apiKey) {
+      console.error('❌ OPENAI_API_KEY_MISSING - No API key found in environment variables');
       return NextResponse.json({
         success: false,
         error: 'OPENAI_API_KEY_MISSING',
-        message: 'Clé OpenAI non configurée.',
+        message: 'Clé OpenAI non configurée dans Netlify.',
         canAnalyze: false,
+        troubleshooting: 'Go to Netlify Dashboard → Site Settings → Environment Variables → Add OPENAI_API_KEY',
       }, { status: 503 });
     }
 
@@ -628,6 +636,14 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
         });
         
         console.log('📡 Request sent to OpenAI, waiting for response...');
+    console.log('📡 Request details:', {
+      model: 'gpt-4o',
+      imageUrlLength: productImageUrl?.length,
+      imageUrlStart: productImageUrl?.substring(0, 100),
+      isDataUrl: productImageUrl?.startsWith('data:image'),
+      promptLength: prompt.length,
+      maxTokens: 3000,
+    });
         
         clearTimeout(timeoutId);
         const openaiDuration = Date.now() - openaiStartTime;
