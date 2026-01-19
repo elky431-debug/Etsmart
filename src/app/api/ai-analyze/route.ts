@@ -666,26 +666,34 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
 
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({ error: 'parse_failed' }));
-      console.error('OpenAI error:', openaiResponse.status, errorData);
+      console.error('❌ OpenAI API error response:', {
+        status: openaiResponse.status,
+        statusText: openaiResponse.statusText,
+        errorData: JSON.stringify(errorData).substring(0, 500),
+      });
       
       let message = 'Erreur API OpenAI';
       let errorCode = 'OPENAI_ERROR';
       
       if (openaiResponse.status === 401) {
-        message = 'Clé API OpenAI invalide ou expirée';
+        message = 'Clé API OpenAI invalide ou expirée. Vérifiez OPENAI_API_KEY dans Netlify.';
         errorCode = 'INVALID_API_KEY';
+        console.error('🔑 INVALID API KEY - Check OPENAI_API_KEY in Netlify environment variables');
       }
       if (openaiResponse.status === 429) {
-        message = 'Quota OpenAI dépassé - vérifiez vos crédits';
+        message = 'Quota OpenAI dépassé - vérifiez vos crédits sur platform.openai.com';
         errorCode = 'QUOTA_EXCEEDED';
+        console.error('💰 QUOTA EXCEEDED - Check OpenAI credits');
       }
       if (openaiResponse.status === 400) {
         message = errorData?.error?.message || 'Image inaccessible ou requête invalide';
         errorCode = 'BAD_REQUEST';
+        console.error('📷 BAD REQUEST - Image or request format issue');
       }
       if (openaiResponse.status === 404) {
-        message = 'Modèle GPT-4o non disponible sur ce compte';
+        message = 'Modèle GPT-4o non disponible sur ce compte. Vérifiez vos crédits OpenAI.';
         errorCode = 'MODEL_NOT_AVAILABLE';
+        console.error('🤖 MODEL NOT AVAILABLE - GPT-4o not accessible');
       }
       
       return NextResponse.json({
@@ -694,6 +702,11 @@ L'objectif: transformer l'analyse en plan d'action acquisition concret.
         message,
         status: openaiResponse.status,
         details: errorData?.error || errorData,
+        troubleshooting: errorCode === 'INVALID_API_KEY' 
+          ? 'Go to Netlify Dashboard → Site Settings → Environment Variables → Add OPENAI_API_KEY'
+          : errorCode === 'QUOTA_EXCEEDED'
+          ? 'Go to platform.openai.com → Billing → Add credits'
+          : 'Check Netlify function logs for more details',
       }, { status: 500 });
     }
 
