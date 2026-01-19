@@ -20,7 +20,7 @@ interface UserSettings {
 }
 
 const defaultSettings: UserSettings = {
-  targetCountry: 'FR',
+  targetCountry: 'ALL', // Default to "All countries"
   currency: 'EUR',
   preferredChannel: 'auto',
   aiPrudenceLevel: 'balanced',
@@ -235,6 +235,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   onChange={(e) => setSettings({ ...settings, targetCountry: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
                 >
+                  <option value="ALL">All countries</option>
                   <option value="FR">France</option>
                   <option value="US">United States</option>
                   <option value="GB">United Kingdom</option>
