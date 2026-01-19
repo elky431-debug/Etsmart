@@ -919,8 +919,8 @@ const fetchAIAnalysis = async (
   }
   
   if (!analysis.saturationLevel) {
-    analysis.saturationLevel = analysis.estimatedCompetitors <= 100 ? 'non_sature' : 
-                                analysis.estimatedCompetitors <= 130 ? 'concurrentiel' : 'sature';
+    analysis.saturationLevel = analysis.estimatedCompetitors <= 40 ? 'non_sature' : 
+                                analysis.estimatedCompetitors <= 90 ? 'concurrentiel' : 'sature';
   }
   
   if (!analysis.recommendedPrice) {
@@ -1408,13 +1408,13 @@ export const analyzeProduct = async (
     };
     
     // Override saturation with AI analysis
-    // Note: "sature" (131+ concurrents) = marché saturé, ne pas lancer
+    // Note: "sature" (91+ concurrents selon cahier des charges) = marché saturé, ne pas lancer
     saturation = {
       ...saturation,
       phase: (aiAnalysis.saturationLevel === 'sature' || aiAnalysis.saturationLevel === 'tres_sature') ? 'saturation' : 
              aiAnalysis.saturationLevel === 'concurrentiel' ? 'growth' : 'launch',
       saturationProbability: aiAnalysis.saturationLevel === 'tres_sature' ? 98 :
-                             aiAnalysis.saturationLevel === 'sature' ? 95 : // 131+ concurrents = très saturé
+                             aiAnalysis.saturationLevel === 'sature' ? 95 : // 91+ concurrents = saturé
                              aiAnalysis.saturationLevel === 'concurrentiel' ? 55 : 20,
     };
     
