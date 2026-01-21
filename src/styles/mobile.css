@@ -1,0 +1,95 @@
+/**
+ * Styles utilitaires pour mobile (< 640px)
+ * Optimisations spécifiques pour petits écrans
+ */
+
+/* Boutons mobile - hauteur cible 40-44px */
+@media (max-width: 639px) {
+  /* Réduire padding vertical des boutons */
+  .btn-mobile {
+    padding-top: 0.5rem !important; /* 8px */
+    padding-bottom: 0.5rem !important; /* 8px */
+    height: auto !important;
+    min-height: 2.5rem !important; /* 40px */
+    max-height: 2.75rem !important; /* 44px */
+    font-size: 0.875rem !important; /* 14px */
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Réduire taille des icônes dans les boutons */
+  .btn-mobile svg {
+    width: 1rem !important; /* 16px */
+    height: 1rem !important;
+  }
+
+  /* Typographie mobile - réduire tailles */
+  h1 {
+    font-size: 1.75rem !important; /* 28px au lieu de 48px+ */
+    line-height: 1.2 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  h2 {
+    font-size: 1.375rem !important; /* 22px */
+    line-height: 1.3 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  h3 {
+    font-size: 1.125rem !important; /* 18px */
+    line-height: 1.4 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Réduire padding des containers */
+  .container-mobile {
+    padding-left: 1rem !important; /* 16px */
+    padding-right: 1rem !important;
+  }
+
+  /* Réduire espacement vertical */
+  .section-mobile {
+    margin-top: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* Masquer éléments non essentiels sur mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Forcer largeur 100% sur mobile */
+  .full-width-mobile {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Réduire padding général des cards */
+  .card-mobile {
+    padding: 1rem !important;
+  }
+
+  /* Réduire espacement entre éléments */
+  .space-y-mobile > * + * {
+    margin-top: 0.75rem !important;
+  }
+
+  /* Optimiser les grilles pour mobile */
+  .grid-mobile {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+}
+
+/* Optimisations pour tablette (640px - 1024px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  h1 {
+    font-size: 2.25rem !important;
+  }
+
+  .btn-mobile {
+    min-height: 2.625rem !important; /* 42px */
+  }
+}
+
