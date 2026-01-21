@@ -335,7 +335,7 @@ export function ProductImport() {
               Products to analyze
             </h2>
             <span className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-2 border-[#00d4ff]/20 text-[#00d4ff] font-bold text-sm shadow-sm">
-              {products.length} product{products.length !== 1 ? 's' : ''}
+              Product
             </span>
           </div>
 
@@ -353,21 +353,18 @@ export function ProductImport() {
             </div>
           ) : (
             <div className="space-y-4">
-              <AnimatePresence mode="popLayout">
-                {products.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                    transition={{ 
-                      delay: index * 0.05,
-                      type: 'spring',
-                      stiffness: 100
-                    }}
-                    layout
-                    className="group relative p-6 rounded-3xl bg-white border-2 border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/10 transition-all duration-300 overflow-hidden"
-                  >
+              {products[0] && (
+                <motion.div
+                  key={products[0].id}
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                  transition={{ 
+                    type: 'spring',
+                    stiffness: 100
+                  }}
+                  className="group relative p-6 rounded-3xl bg-white border-2 border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/10 transition-all duration-300 overflow-hidden"
+                >
                     {/* Shine effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                       style={{
@@ -378,10 +375,10 @@ export function ProductImport() {
                     <div className="relative z-10 flex items-center gap-6">
                       {/* Image */}
                       <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border-2 border-slate-200 shadow-sm">
-                        {product.images[0] ? (
+                        {products[0].images[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={product.images[0]}
+                            src={products[0].images[0]}
                             alt=""
                             className="w-full h-full object-cover"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -396,17 +393,16 @@ export function ProductImport() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-bold text-slate-900 truncate mb-2">
-                          {product.title}
+                          {products[0].title}
                         </h3>
                         <div className="flex items-center gap-4">
-                          {product.price === 0 ? (
+                          {products[0].price === 0 ? (
                             <div className="flex flex-col gap-2">
                               <button
                                 onClick={() => {
                                   const newPrice = prompt('Enter the product price (USD):', '');
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
-                                    const updatedProduct = { ...product, price: parseFloat(newPrice) };
-                                    removeProduct(product.id);
+                                    const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
                                     alert('Veuillez entrer un prix valide supérieur à 0');
@@ -422,14 +418,13 @@ export function ProductImport() {
                           ) : (
                             <div className="flex items-center gap-3">
                               <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
-                                {formatCurrency(product.price)}
+                                {formatCurrency(products[0].price)}
                               </span>
                               <button
                                 onClick={() => {
-                                  const newPrice = prompt('Edit product price (USD):', product.price.toString());
+                                  const newPrice = prompt('Edit product price (USD):', products[0].price.toString());
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
-                                    const updatedProduct = { ...product, price: parseFloat(newPrice) };
-                                    removeProduct(product.id);
+                                    const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
                                     alert('Veuillez entrer un prix valide supérieur à 0');
@@ -443,7 +438,7 @@ export function ProductImport() {
                             </div>
                           )}
                           <span className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-600">
-                            {product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
+                            {products[0].source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                           </span>
                         </div>
                       </div>
@@ -451,7 +446,7 @@ export function ProductImport() {
                       {/* Actions */}
                       <div className="flex items-center gap-2">
                         <a
-                          href={product.url}
+                          href={products[0].url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-3 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-xl transition-all border-2 border-transparent hover:border-[#00d4ff]/20"
@@ -459,7 +454,7 @@ export function ProductImport() {
                           <ExternalLink size={20} />
                         </a>
                         <button
-                          onClick={() => removeProduct(product.id)}
+                          onClick={() => removeProduct(products[0].id)}
                           className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border-2 border-transparent hover:border-red-200"
                         >
                           <Trash2 size={20} />
@@ -467,8 +462,7 @@ export function ProductImport() {
                       </div>
                     </div>
                   </motion.div>
-                ))}
-              </AnimatePresence>
+                )}
             </div>
           )}
         </motion.div>
@@ -520,7 +514,7 @@ export function ProductImport() {
                 />
               )}
               <span className="relative z-10 flex items-center gap-3">
-                Analyze {products.length > 0 && `(${products.length})`}
+                Analyze
                 <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
               </span>
             </motion.button>

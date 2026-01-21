@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Filter, 
@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import type { ProductAnalysis, Verdict, Niche } from '@/types';
@@ -25,6 +27,173 @@ interface DashboardHistoryProps {
   onAnalysisClick: (analysis: ProductAnalysis) => void;
   onDeleteAnalysis: (productId: string) => void;
   onRefresh: () => Promise<void>;
+}
+
+interface FilterDropdownProps<T extends string> {
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string; icon?: React.ComponentType<{ size?: number; className?: string }> }[];
+  placeholder?: string;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  className?: string;
+}
+
+function FilterDropdown<T extends string>({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select...',
+  icon: Icon,
+  className = '',
+}: FilterDropdownProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div ref={dropdownRef} className={`relative ${className}`}>
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`
+          relative w-full px-4 py-3.5 pr-11
+          bg-gradient-to-br from-white via-white to-slate-50
+          border-2 rounded-xl
+          font-semibold text-slate-900
+          transition-all duration-300 ease-out
+          flex items-center gap-3
+          backdrop-blur-sm
+          ${isOpen 
+            ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/25 ring-2 ring-[#00d4ff]/30 bg-gradient-to-br from-[#00d4ff]/5 via-white to-[#00c9b7]/5' 
+            : 'border-slate-200 hover:border-[#00d4ff]/60 hover:shadow-lg hover:shadow-[#00d4ff]/10'
+          }
+        `}
+      >
+        {/* Icon */}
+        {Icon && (
+          <Icon 
+            size={18} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-500'}`} 
+          />
+        )}
+        
+        {/* Selected value */}
+        <span className="flex-1 text-left">
+          {selectedOption?.label || placeholder}
+        </span>
+
+        {/* Chevron icon */}
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="absolute right-3"
+        >
+          <ChevronDown 
+            size={18} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-400'}`} 
+          />
+        </motion.div>
+
+        {/* Gradient overlay when open */}
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5 rounded-xl pointer-events-none"
+          />
+        )}
+      </motion.button>
+
+      {/* Dropdown menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 mt-2 z-50
+              bg-white rounded-xl border-2 border-slate-200
+              shadow-2xl shadow-[#00d4ff]/15
+              overflow-hidden
+              backdrop-blur-xl"
+          >
+            <div className="max-h-64 overflow-y-auto">
+              {options.map((option, index) => {
+                const OptionIcon = option.icon;
+                const isSelected = option.value === value;
+                
+                return (
+                  <motion.button
+                    key={option.value}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    whileHover={{ backgroundColor: 'rgba(0, 212, 255, 0.05)' }}
+                    onClick={() => {
+                      onChange(option.value);
+                      setIsOpen(false);
+                    }}
+                    className={`
+                      w-full px-4 py-3.5 text-left
+                      flex items-center gap-3
+                      transition-all duration-200 ease-out
+                      relative group
+                      ${isSelected 
+                        ? 'bg-gradient-to-r from-[#00d4ff]/15 via-[#00d4ff]/10 to-[#00c9b7]/15 border-l-4 border-[#00d4ff]' 
+                        : 'hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-50/50'
+                      }
+                    `}
+                  >
+                    {/* Option icon */}
+                    {OptionIcon && (
+                      <OptionIcon 
+                        size={16} 
+                        className={`transition-colors ${
+                          isSelected ? 'text-[#00d4ff]' : 'text-slate-400 group-hover:text-[#00d4ff]'
+                        }`} 
+                      />
+                    )}
+                    
+                    {/* Option label */}
+                    <span className={`flex-1 font-medium ${
+                      isSelected ? 'text-[#00d4ff]' : 'text-slate-700'
+                    }`}>
+                      {option.label}
+                    </span>
+
+                    {/* Checkmark for selected */}
+                    {isSelected && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-5 h-5 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center"
+                      >
+                        <Check size={12} className="text-white" />
+                      </motion.div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export function DashboardHistory({ 
@@ -154,35 +323,37 @@ export function DashboardHistory({
           <div className="flex flex-wrap gap-3">
             {/* Verdict filter */}
             <div className="flex items-center gap-2">
-              <Filter size={18} className="text-slate-500" />
-              <select
+              <Filter size={18} className="text-slate-500 flex-shrink-0" />
+              <FilterDropdown
                 value={verdictFilter}
-                onChange={(e) => setVerdictFilter(e.target.value as Verdict | 'all')}
-                className="px-4 py-2 bg-white border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
-              >
-                <option value="all">All verdicts</option>
-                <option value="launch">Lancer</option>
-                <option value="test">Tester</option>
-                <option value="avoid">Éviter</option>
-              </select>
+                onChange={(value) => setVerdictFilter(value as Verdict | 'all')}
+                options={[
+                  { value: 'all' as const, label: 'All verdicts', icon: Filter },
+                  { value: 'launch' as const, label: 'Lancer', icon: CheckCircle2 },
+                  { value: 'test' as const, label: 'Tester', icon: AlertTriangle },
+                  { value: 'avoid' as const, label: 'Éviter', icon: XCircle },
+                ]}
+                className="min-w-[180px]"
+              />
             </div>
 
             {/* Niche filter */}
-            <select
+            <FilterDropdown
               value={nicheFilter}
-              onChange={(e) => setNicheFilter(e.target.value as Niche | 'all')}
-              className="px-4 py-2 bg-white border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
-            >
-              <option value="all">All niches</option>
-              {Array.from(new Set(analyses.map(a => a.niche))).map(niche => {
-                const nicheInfo = getNicheById(niche);
-                return (
-                  <option key={niche} value={niche}>
-                    {nicheInfo?.name || niche}
-                  </option>
-                );
-              })}
-            </select>
+              onChange={(value) => setNicheFilter(value as Niche | 'all')}
+              options={[
+                { value: 'all' as const, label: 'All niches', icon: Tag },
+                ...Array.from(new Set(analyses.map(a => a.niche))).map(niche => {
+                  const nicheInfo = getNicheById(niche);
+                  return {
+                    value: niche as Niche,
+                    label: nicheInfo?.name || niche,
+                    icon: Tag,
+                  };
+                }),
+              ]}
+              className="min-w-[180px]"
+            />
           </div>
         </div>
 

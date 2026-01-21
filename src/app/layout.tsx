@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
       <body 
-        className="antialiased bg-mesh noise"
+        className="antialiased bg-white"
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}
       >
         <AuthProvider>

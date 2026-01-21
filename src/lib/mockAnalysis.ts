@@ -21,6 +21,79 @@ const generateRandomNumber = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+/**
+ * Garantit exactement 13 tags SEO (OBLIGATOIRE)
+ * Complète avec des tags génériques si nécessaire
+ */
+const ensure13Tags = (tags: string[], productTitle?: string, niche?: string): string[] => {
+  const REQUIRED_TAG_COUNT = 13;
+  
+  // Nettoyer et normaliser les tags existants
+  let cleanTags = tags
+    .filter(tag => tag && tag.trim().length > 0)
+    .map(tag => tag.trim().toLowerCase())
+    .filter((tag, index, self) => self.indexOf(tag) === index) // Supprimer les doublons
+    .slice(0, REQUIRED_TAG_COUNT); // Limiter à 13 max
+  
+  // Tags génériques pour compléter si nécessaire
+  const genericTags = [
+    'handmade',
+    'gift',
+    'unique',
+    'custom',
+    'personalized',
+    'etsy',
+    'artisan',
+    'quality',
+    'premium',
+    'special',
+    'original',
+    'trendy',
+    'stylish',
+    'modern',
+    'vintage',
+    'elegant',
+    'beautiful',
+    'perfect',
+    'lovely',
+    'charming',
+  ];
+  
+  // Extraire des mots-clés du titre du produit si disponible
+  const productKeywords: string[] = [];
+  if (productTitle) {
+    const words = productTitle.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && w.length < 20)
+      .slice(0, 5);
+    productKeywords.push(...words);
+  }
+  
+  // Ajouter le nom de la niche si disponible
+  if (niche) {
+    const nicheWords = niche.toLowerCase().split(/[-_\s]+/).filter(w => w.length > 2);
+    productKeywords.push(...nicheWords);
+  }
+  
+  // Combiner tous les tags possibles
+  const allPossibleTags = [
+    ...cleanTags,
+    ...productKeywords.filter(t => !cleanTags.includes(t)),
+    ...genericTags.filter(t => !cleanTags.includes(t) && !productKeywords.includes(t)),
+  ];
+  
+  // Prendre exactement 13 tags
+  const finalTags = allPossibleTags.slice(0, REQUIRED_TAG_COUNT);
+  
+  // Si on n'a toujours pas 13 tags, compléter avec des numéros
+  while (finalTags.length < REQUIRED_TAG_COUNT) {
+    finalTags.push(`tag${finalTags.length + 1}`);
+  }
+  
+  return finalTags.slice(0, REQUIRED_TAG_COUNT);
+};
+
 const generateRandomFloat = (min: number, max: number, decimals: number = 2): number => {
   return parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
 };
@@ -200,93 +273,291 @@ const generateLaunchSimulation = (competitorAnalysis: CompetitorAnalysis, produc
   };
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * MODULE IA - RECOMMANDATION DE PRIX OPTIMAL POUR ETSY (ETSMART)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Ce module implémente strictement le cahier des charges pour garantir :
+ * - Rentabilité structurelle
+ * - Positionnement premium sur Etsy
+ * - Respect des contraintes de non-perte
+ * - Justification transparente
+ */
+
+interface OptimalPriceCalculation {
+  supplierPrice: number;
+  shippingCost: number;
+  totalSupplierCost: number;
+  minimumPrice: number;
+  averageMarketPrice: number;
+  recommendedPrice: number;
+  positioning: 'low' | 'standard' | 'premium';
+  confidenceLevel: 'low' | 'medium' | 'high';
+  justification: string;
+  warnings?: string[];
+}
+
+/**
+ * Calcule le prix optimal selon le cahier des charges strict
+ */
+const calculateOptimalPrice = (
+  supplierPrice: number,
+  shippingCost: number,
+  averageMarketPrice: number,
+  marketPriceRange?: { min: number; max: number },
+  qualityPerception: 'entry' | 'standard' | 'premium' = 'standard',
+  originality: number = 0.5, // 0-1
+  personalization: boolean = false,
+  competitionVolume: number = 50
+): OptimalPriceCalculation => {
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ÉTAPE 1 : CALCUL DU PRIX MINIMUM AUTORISÉ
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  const totalSupplierCost = supplierPrice + shippingCost;
+  
+  // RÈGLE ABSOLUE DE NON-PERTE : Le prix recommandé ne doit JAMAIS être ≤ coût fournisseur
+  if (totalSupplierCost <= 0) {
+    throw new Error('Le coût fournisseur total doit être strictement positif');
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // RÈGLES DE MULTIPLICATEUR MINIMUM (OBLIGATOIRES - NON NÉGOCIABLES)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔹 Produits < 70€ : Prix recommandé ≥ coût fournisseur × 3
+  // 🔹 Produits ≥ 70€ : Prix recommandé ≥ coût fournisseur × 2
+  // ⚠️ CES MULTIPLICATEURS SONT DES PLANCHERS, JAMAIS DES PLAFONDS
+  // ⚠️ LE PRIX RECOMMANDÉ FINAL DOIT TOUJOURS RESPECTER CETTE RÈGLE
+  const MULTIPLIER_THRESHOLD = 70;
+  const requiredMultiplier = totalSupplierCost < MULTIPLIER_THRESHOLD ? 3 : 2;
+  const minimumPriceByMultiplier = totalSupplierCost * requiredMultiplier;
+  
+  // Marge minimale de sécurité (20% au-dessus du coût)
+  const safetyMargin = totalSupplierCost * 1.20;
+  
+  // Prix minimum autorisé = max(multiplicateur, marge sécurité)
+  const minimumPrice = Math.max(minimumPriceByMultiplier, safetyMargin);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ÉTAPE 2 : ANALYSE DU MARCHÉ ETSY
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // Utiliser le prix moyen fourni ou estimer
+  const avgMarketPrice = averageMarketPrice || (totalSupplierCost * 3.5);
+  const medianPrice = marketPriceRange 
+    ? (marketPriceRange.min + marketPriceRange.max) / 2 
+    : avgMarketPrice * 0.9;
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ÉTAPE 3 : DÉTERMINATION DU PRIX CIBLE
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // COEFFICIENT DE POSITIONNEMENT (par défaut au-dessus de la moyenne)
+  // Base : 1.05 à 1.30 selon qualité, originalité, personnalisation, concurrence
+  let positioningCoefficient = 1.10; // Par défaut 10% au-dessus
+  
+  // Ajustements selon les facteurs
+  if (qualityPerception === 'premium') positioningCoefficient += 0.10;
+  if (qualityPerception === 'entry') positioningCoefficient -= 0.05;
+  
+  if (originality > 0.7) positioningCoefficient += 0.08;
+  if (personalization) positioningCoefficient += 0.05;
+  
+  // Moins de concurrence = possibilité de prix plus élevé
+  if (competitionVolume < 30) positioningCoefficient += 0.05;
+  if (competitionVolume > 100) positioningCoefficient -= 0.03;
+  
+  // Limiter entre 1.05 et 1.30
+  positioningCoefficient = Math.max(1.05, Math.min(1.30, positioningCoefficient));
+  
+  // Prix cible basé sur le marché
+  const marketBasedPrice = avgMarketPrice * positioningCoefficient;
+  
+  // Prix recommandé final = max(prix minimum, prix marché)
+  let recommendedPrice = Math.max(minimumPrice, marketBasedPrice);
+  
+  // ⚠️ VALIDATION CRITIQUE : S'assurer que le multiplicateur minimum est TOUJOURS respecté
+  // Même si le marché suggère un prix plus bas, on applique le multiplicateur minimum
+  const priceByMultiplier = totalSupplierCost * requiredMultiplier;
+  if (recommendedPrice < priceByMultiplier) {
+    recommendedPrice = priceByMultiplier;
+  }
+  
+  // Arrondir à 2 décimales
+  recommendedPrice = Math.round(recommendedPrice * 100) / 100;
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // GESTION DES CAS EXTRÊMES
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  const warnings: string[] = [];
+  
+  // Cas 1 : Marché Etsy très bas (prix moyen < prix minimum)
+  if (avgMarketPrice < minimumPrice) {
+    warnings.push(
+      `Le marché Etsy semble très orienté low-cost pour ce type de produit. ` +
+      `Le prix recommandé privilégie la rentabilité plutôt que la compétition par les prix.`
+    );
+    // Maintenir le prix minimum malgré le marché bas
+    recommendedPrice = minimumPrice;
+  }
+  
+  // Cas 2 : Vérification finale de non-perte ET respect du multiplicateur
+  const finalMultiplierCheck = totalSupplierCost * requiredMultiplier;
+  if (recommendedPrice <= totalSupplierCost) {
+    throw new Error(
+      `ERREUR BLOQUANTE : Le prix recommandé (${recommendedPrice}) ne peut pas être ` +
+      `inférieur ou égal au coût fournisseur (${totalSupplierCost}). ` +
+      `Prix minimum requis : ${finalMultiplierCheck} (coût × ${requiredMultiplier})`
+    );
+  }
+  
+  // Forcer le respect du multiplicateur minimum si ce n'est pas le cas
+  if (recommendedPrice < finalMultiplierCheck) {
+    recommendedPrice = finalMultiplierCheck;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DÉTERMINATION DU POSITIONNEMENT ET CONFIANCE
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  let positioning: 'low' | 'standard' | 'premium';
+  if (recommendedPrice < avgMarketPrice * 0.9) {
+    positioning = 'low';
+  } else if (recommendedPrice > avgMarketPrice * 1.15) {
+    positioning = 'premium';
+  } else {
+    positioning = 'standard';
+  }
+  
+  // Niveau de confiance
+  let confidenceLevel: 'low' | 'medium' | 'high' = 'medium';
+  if (warnings.length > 0 || avgMarketPrice < minimumPrice) {
+    confidenceLevel = 'low';
+  } else if (marketPriceRange && (marketPriceRange.max - marketPriceRange.min) < avgMarketPrice * 0.3) {
+    confidenceLevel = 'high';
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // JUSTIFICATION EXPLICITE DU PRIX
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  const margin = ((recommendedPrice - totalSupplierCost) / recommendedPrice) * 100;
+  const multiplier = recommendedPrice / totalSupplierCost;
+  
+  // Calculer le multiplicateur réellement appliqué
+  const actualMultiplier = recommendedPrice / totalSupplierCost;
+  
+  // Message clair sur le multiplicateur minimum
+  const multiplierMessage = totalSupplierCost < 70 
+    ? `Multiplicateur minimum ×3 appliqué (produit < 70€) : ×${actualMultiplier.toFixed(2)}`
+    : `Multiplicateur minimum ×2 appliqué (produit ≥ 70€) : ×${actualMultiplier.toFixed(2)}`;
+  
+  let justification = 
+    `Le prix recommandé de ${recommendedPrice.toFixed(2)} € respecte strictement les règles : ` +
+    `coût fournisseur total de ${totalSupplierCost.toFixed(2)} € (produit : ${supplierPrice.toFixed(2)} € + ` +
+    `livraison : ${shippingCost.toFixed(2)} €). ${multiplierMessage}. ` +
+    `Positionnement au-dessus du prix moyen Etsy (${avgMarketPrice.toFixed(2)} €) pour maximiser ` +
+    `la marge (${margin.toFixed(1)}%) tout en restant crédible sur le marché.`;
+  
+  if (warnings.length > 0) {
+    justification += ` ⚠️ ${warnings.join(' ')}`;
+  }
+  
+  return {
+    supplierPrice,
+    shippingCost,
+    totalSupplierCost,
+    minimumPrice,
+    averageMarketPrice: avgMarketPrice,
+    recommendedPrice,
+    positioning,
+    confidenceLevel,
+    justification,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  };
+};
+
+/**
+ * Fonction principale de génération de recommandation de prix
+ * Compatible avec l'interface PricingRecommendation existante
+ */
 const generatePricingRecommendation = (
   productPrice: number, 
   competitorAnalysis: CompetitorAnalysis
 ): PricingRecommendation => {
-  // RÈGLE MÉTIER: Prix minimum absolu = $14.99
-  const MINIMUM_PRICE = 14.99;
+  // Estimation du coût fournisseur et livraison
+  const estimatedSupplierPrice = productPrice * 0.7; // Estimation si non fourni
+  const estimatedShipping = Math.max(3, productPrice * 0.3);
   
-  // Real cost calculation:
-  // - Product cost
-  // - Shipping from China (~$3-10 depending on product)
-  // - Etsy fees: listing fee ($0.20) + 6.5% transaction fee + 3% payment processing
-  const estimatedShipping = Math.max(3, productPrice * 0.3); // ~30% or min $3
-  const baseCost = productPrice + estimatedShipping;
+  // Prix moyen du marché
+  const avgMarketPrice = competitorAnalysis.avgPrice || productPrice * 3.5;
+  const marketPriceRange = competitorAnalysis.priceRange || {
+    min: avgMarketPrice * 0.6,
+    max: avgMarketPrice * 1.8,
+  };
+  
+  // Calcul du prix optimal selon le cahier des charges
+  const optimalPrice = calculateOptimalPrice(
+    estimatedSupplierPrice,
+    estimatedShipping,
+    avgMarketPrice,
+    marketPriceRange,
+    'standard', // qualityPerception
+    0.5, // originality
+    false, // personalization
+    competitorAnalysis.totalCompetitors || 50 // competitionVolume
+  );
+  
+  // ⚠️ VALIDATION FINALE : S'assurer que le prix recommandé respecte TOUJOURS le multiplicateur minimum
+  const totalCost = optimalPrice.totalSupplierCost;
+  const MULTIPLIER_THRESHOLD = 70;
+  const requiredMultiplier = totalCost < MULTIPLIER_THRESHOLD ? 3 : 2;
+  const absoluteMinimum = totalCost * requiredMultiplier;
+  
+  // Forcer le respect du multiplicateur si nécessaire
+  const finalRecommendedPrice = Math.max(optimalPrice.recommendedPrice, absoluteMinimum);
+  const finalMinimumPrice = Math.max(optimalPrice.minimumPrice, absoluteMinimum);
+  
+  // Calcul des marges
   const etsyFees = 0.10; // ~10% total Etsy fees
-  
-  // Cost with all fees factored in
-  const totalCost = baseCost / (1 - etsyFees);
-  
-  // If competitors exist, use their pricing as reference
-  const avgCompetitorPrice = competitorAnalysis.avgPrice || productPrice * 3;
-  const minCompetitorPrice = competitorAnalysis.priceRange.min || productPrice * 2;
-  const maxCompetitorPrice = competitorAnalysis.priceRange.max || productPrice * 5;
-  
-  // Calculate minimum viable price (at least 20% margin) - never below MINIMUM_PRICE
-  const minMargin = 0.20;
-  const minViablePrice = Math.max(MINIMUM_PRICE, Math.ceil(totalCost / (1 - minMargin)));
-  
-  // Aggressive price: Undercut competition but maintain at least 15% margin - never below MINIMUM_PRICE
-  const aggressivePrice = Math.max(
-    MINIMUM_PRICE,
-    Math.ceil(totalCost / (1 - 0.15)),
-    Math.round(minCompetitorPrice * 0.90)
-  );
-  
-  // Recommended price: Balance between competitiveness and profit - never below MINIMUM_PRICE
-  // Aim for ~35% margin if market allows, otherwise match low-end competitors
-  const targetMarginPrice = Math.ceil(totalCost / (1 - 0.35));
-  const recommendedPrice = Math.max(
-    MINIMUM_PRICE,
-    minViablePrice,
-    Math.min(targetMarginPrice, Math.round(avgCompetitorPrice * 0.85))
-  );
-  
-  // Premium price: For established sellers or differentiated products - never below MINIMUM_PRICE
-  const premiumPrice = Math.max(MINIMUM_PRICE, Math.round(avgCompetitorPrice * 1.10));
-  
-  // Calculate actual margins
   const calculateMargin = (price: number) => {
-    const revenue = price * (1 - etsyFees); // After Etsy fees
-    const profit = revenue - baseCost;
+    const totalCost = optimalPrice.totalSupplierCost;
+    const revenue = price * (1 - etsyFees);
+    const profit = revenue - totalCost;
     return Math.round((profit / price) * 100);
   };
   
-  const marginAtRecommended = calculateMargin(recommendedPrice);
-  const marginAtAggressive = calculateMargin(aggressivePrice);
+  const marginAtRecommended = calculateMargin(finalRecommendedPrice);
+  const marginAtMinimum = calculateMargin(finalMinimumPrice);
+  
+  // Prix agressif = prix minimum (pour lancement)
+  const aggressivePrice = finalMinimumPrice;
+  
+  // Prix premium = 15% au-dessus du recommandé
+  const premiumPrice = finalRecommendedPrice * 1.15;
   const marginAtPremium = calculateMargin(premiumPrice);
   
-  // Generate justification based on analysis
-  let justification = '';
-  if (recommendedPrice < avgCompetitorPrice) {
-    const discount = Math.round((1 - recommendedPrice / avgCompetitorPrice) * 100);
-    justification = `Prix recommandé ${discount}% sous la moyenne du marché ($${avgCompetitorPrice}). Idéal pour un nouveau vendeur souhaitant obtenir ses premières ventes. Marge de ${marginAtRecommended}%.`;
-  } else if (marginAtRecommended < 25) {
-    justification = `⚠️ Attention: marge faible (${marginAtRecommended}%). Le prix minimum viable est $${minViablePrice} pour maintenir une rentabilité. Considérez un fournisseur moins cher ou un produit différent.`;
-  } else {
-    justification = `Prix aligné sur le marché avec une marge de ${marginAtRecommended}%. Bonne opportunité de rentabilité.`;
-  }
-  
   return {
-    recommendedPrice,
+    recommendedPrice: finalRecommendedPrice,
     aggressivePrice,
     premiumPrice,
     currency: 'USD',
-    justification,
+    justification: optimalPrice.justification,
     competitorPriceAnalysis: {
-      below25: minCompetitorPrice,
-      median: avgCompetitorPrice,
-      above75: maxCompetitorPrice,
+      below25: marketPriceRange.min,
+      median: avgMarketPrice,
+      above75: marketPriceRange.max,
     },
     priceStrategy: {
       launch: aggressivePrice,
-      stable: recommendedPrice,
+      stable: finalRecommendedPrice,
       premium: premiumPrice,
     },
     marginAnalysis: {
       atRecommendedPrice: marginAtRecommended,
-      atAggressivePrice: marginAtAggressive,
+      atAggressivePrice: marginAtMinimum,
       atPremiumPrice: marginAtPremium,
     },
   };
@@ -681,7 +952,7 @@ const fetchAIAnalysis = async (
   niche: Niche,
   productImageUrl: string, // ⚠️ OBLIGATOIRE - L'image est la seule source fiable
   productTitle?: string // Optionnel - pour les fallbacks
-): Promise<AIAnalysisResult> => {
+): Promise<AIAnalysisResult | null> => {
   // ═══════════════════════════════════════════════════════════════════════════
   // VALIDATION: IMAGE OBLIGATOIRE
   // ═══════════════════════════════════════════════════════════════════════════
@@ -774,11 +1045,11 @@ const fetchAIAnalysis = async (
     }
     
     if (response.status === 429) {
-      throw new AnalysisBlockedError(
-        'Trop de requêtes',
-        'Vous avez effectué trop de requêtes (429).',
-        'Veuillez patienter quelques instants avant de réessayer.'
-      );
+      // Erreur 429 = Analyse déjà en cours (comportement attendu avec la protection)
+      // On retourne silencieusement null pour utiliser le fallback plutôt que de bloquer
+      // Ne pas lancer d'erreur pour éviter le bruit dans la console
+      console.log('ℹ️ Une analyse est déjà en cours (429), utilisation du fallback silencieux');
+      return null; // Retourner null pour déclencher le fallback sans erreur
     }
     
     // Tenter de parser la réponse JSON si possible
@@ -933,12 +1204,40 @@ const fetchAIAnalysis = async (
   
   if (!analysis.recommendedPrice) {
     const supplierPrice = analysis.estimatedSupplierPrice || 10;
-    const totalCost = supplierPrice + (analysis.estimatedShippingCost || 5);
+    const shippingCost = analysis.estimatedShippingCost || 5;
+    const avgMarketPrice = analysis.averageMarketPrice || (supplierPrice + shippingCost) * 3.5;
+    
+    // Utiliser la nouvelle logique stricte même pour le fallback
+    try {
+      const optimalPrice = calculateOptimalPrice(
+        supplierPrice,
+        shippingCost,
+        avgMarketPrice,
+        analysis.marketPriceRange,
+        'standard',
+        0.5,
+        false,
+        50
+      );
+      
     analysis.recommendedPrice = {
-      optimal: Math.max(14.99, totalCost * 3),
-      min: Math.max(14.99, totalCost * 2.5),
-      max: Math.max(14.99, totalCost * 3.5),
-    };
+        optimal: optimalPrice.recommendedPrice,
+        min: optimalPrice.minimumPrice,
+        max: optimalPrice.recommendedPrice * 1.3,
+      };
+    } catch (error) {
+      // Fallback ultra-simple si erreur
+      const totalCost = supplierPrice + shippingCost;
+      const multiplier = totalCost < 70 ? 3 : 2;
+      const minPrice = Math.max(14.99, totalCost * multiplier);
+      const recommendedPrice = Math.max(minPrice, avgMarketPrice * 1.10);
+      
+      analysis.recommendedPrice = {
+        optimal: recommendedPrice,
+        min: minPrice,
+        max: recommendedPrice * 1.3,
+      };
+    }
   }
   
   console.log('✅ AI Vision analysis received');
@@ -1053,7 +1352,7 @@ export const analyzeProduct = async (
     // L'ANALYSE NE DOIT JAMAIS ÉCHOUER - TOUJOURS RETOURNER UN RÉSULTAT
     // ═══════════════════════════════════════════════════════════════════════════
     
-    let aiAnalysis: AIAnalysisResult;
+    let aiAnalysis: AIAnalysisResult | undefined;
     let dataSource: 'real' | 'estimated' = 'real';
     
     try {
@@ -1074,16 +1373,42 @@ export const analyzeProduct = async (
       });
       
       const apiCallStartTime = Date.now();
-      aiAnalysis = await fetchAIAnalysis(price, validNiche, productImageUrl, product.title);
+      const aiAnalysisResult = await fetchAIAnalysis(price, validNiche, productImageUrl, product.title);
       const apiCallDuration = Date.now() - apiCallStartTime;
       
-      console.log('✅ AI Vision analysis successful (took', apiCallDuration, 'ms)');
-      console.log('👁️ Product:', aiAnalysis.productVisualDescription);
-      console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
-      console.log('📊 Competitors:', aiAnalysis.estimatedCompetitors);
-      console.log('💡 Has strategic marketing:', !!aiAnalysis.strategicMarketing);
-      console.log('💡 Has acquisition marketing:', !!aiAnalysis.acquisitionMarketing);
+      // Si null, c'est qu'une analyse est déjà en cours (429) - utiliser le fallback silencieusement
+      if (aiAnalysisResult === null) {
+        console.log('ℹ️ Analyse déjà en cours, utilisation du fallback (comportement attendu)');
+        // Ne pas définir aiAnalysis ici, le fallback sera créé dans le bloc ci-dessous
+        dataSource = 'estimated';
+        // Ne pas définir aiAnalysis ici, on va créer le fallback après le catch
+      } else {
+        aiAnalysis = aiAnalysisResult;
+        console.log('✅ AI Vision analysis successful (took', apiCallDuration, 'ms)');
+        console.log('👁️ Product:', aiAnalysis.productVisualDescription);
+        console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+        console.log('📊 Competitors:', aiAnalysis.estimatedCompetitors);
+        console.log('💡 Has strategic marketing:', !!aiAnalysis.strategicMarketing);
+        console.log('💡 Has acquisition marketing:', !!aiAnalysis.acquisitionMarketing);
+      }
   } catch (error: any) {
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // GESTION SPÉCIALE : Erreur 429 (Analyse déjà en cours)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    const isAnalysisInProgress = error?.reason?.includes('429') || 
+                                 error?.message?.includes('429') ||
+                                 error?.reason?.includes('ANALYSIS_IN_PROGRESS') ||
+                                 error?.message?.includes('ANALYSIS_IN_PROGRESS') ||
+                                 error?.reason?.includes('trop de requêtes') ||
+                                 error?.message?.includes('trop de requêtes');
+    
+    if (isAnalysisInProgress) {
+      // Erreur silencieuse : une analyse est déjà en cours, c'est normal
+      // On utilise directement le fallback sans générer d'erreur
+      console.log('ℹ️ Une analyse est déjà en cours, utilisation du fallback (comportement attendu)');
+      // Ne pas afficher les logs détaillés pour cette erreur, continuer directement avec le fallback
+    } else {
+      // Pour les autres erreurs, afficher les logs détaillés
     // Si l'API échoue, générer des données par défaut plutôt que de bloquer
     const isTimeout = error?.message?.includes('timeout') || 
                       error?.message?.includes('TIMEOUT') ||
@@ -1114,11 +1439,15 @@ export const analyzeProduct = async (
       console.error('   2. Try with a smaller image (reduce image size)');
       console.error('   3. Check OpenAI API status (may be slow)');
       console.error('   4. Consider using a faster model or optimizing the prompt');
-    } else {
-      console.warn('⚠️ Using default fallback data - this means OpenAI API is NOT working!');
-      console.warn('⚠️ Check Netlify function logs for detailed API error messages');
+      }
     }
-    
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CRÉER LE FALLBACK SI aiAnalysis N'EST PAS DÉFINIE (null retourné ou erreur)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  if (!aiAnalysis) {
     dataSource = 'estimated';
     
     // Générer des données par défaut intelligentes basées sur le produit
@@ -1204,7 +1533,11 @@ export const analyzeProduct = async (
       },
       viralTitleEN: defaultVisualDescription || 'Handmade Product - Unique Gift',
       viralTitleFR: defaultVisualDescription || 'Produit Artisanal - Cadeau Unique',
-      seoTags: visualWords.length > 0 ? visualWords : ['handmade', 'product', validNiche.toString()],
+      seoTags: ensure13Tags(
+        visualWords.length > 0 ? visualWords : ['handmade', 'product', validNiche.toString()],
+        product.title,
+        validNiche.toString()
+      ),
       marketingAngles: [{
         angle: 'Gift',
         why: 'Ideal as a gift',
@@ -1244,14 +1577,80 @@ export const analyzeProduct = async (
         : defaultCompetitors <= 90
         ? 'Product can be launched but requires careful optimization.'
         : 'Launch is risky due to high competition.',
-      warningIfAny: error.message 
-        ? `⚠️ ATTENTION: Analyse complétée avec des données par défaut. L'API OpenAI n'a pas pu répondre: ${error.message}. Les résultats peuvent être moins précis.` 
-        : '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API OpenAI n\'a pas pu répondre. Les résultats peuvent être moins précis.',
+      warningIfAny: '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API OpenAI n\'a pas pu répondre. Les résultats peuvent être moins précis.',
     };
     
     console.log('✅ Using fallback analysis data');
     console.log('👁️ Product:', aiAnalysis.productVisualDescription);
     console.log('🔍 Etsy query:', aiAnalysis.etsySearchQuery);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VALIDATION FINALE: S'assurer que aiAnalysis est toujours défini
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  if (!aiAnalysis) {
+    // Fallback ultime si aiAnalysis n'est toujours pas défini
+    console.error('❌ CRITICAL: aiAnalysis is still undefined, creating emergency fallback');
+    const emergencySupplierPrice = price > 0 ? Math.round(price * 0.7) : 10;
+    const emergencyShipping = 5;
+    const emergencyTotalCost = emergencySupplierPrice + emergencyShipping;
+    const emergencyEtsyQuery = `${validNiche} handmade product`;
+    
+    aiAnalysis = {
+      canIdentifyProduct: true,
+      productVisualDescription: `Product from ${validNiche} niche`,
+      etsySearchQuery: emergencyEtsyQuery,
+      estimatedSupplierPrice: emergencySupplierPrice,
+      estimatedShippingCost: emergencyShipping,
+      supplierPriceReasoning: 'Emergency fallback',
+      decision: 'LANCER_CONCURRENTIEL',
+      confidenceScore: 30,
+      estimatedCompetitors: 50,
+      competitorEstimationReasoning: 'Emergency fallback',
+      competitorEstimationReliable: false,
+      saturationLevel: 'concurrentiel',
+      saturationAnalysis: 'Emergency estimation',
+      averageMarketPrice: Math.max(14.99, emergencyTotalCost * 3),
+      marketPriceRange: {
+        min: Math.max(14.99, emergencyTotalCost * 2.5),
+        max: Math.max(14.99, emergencyTotalCost * 3.5),
+      },
+      marketPriceReasoning: 'Emergency fallback',
+      supplierPrice: emergencySupplierPrice,
+      minimumViablePrice: 14.99,
+      recommendedPrice: {
+        optimal: Math.max(14.99, emergencyTotalCost * 3),
+        min: Math.max(14.99, emergencyTotalCost * 2.5),
+        max: Math.max(14.99, emergencyTotalCost * 3.5),
+      },
+      priceRiskLevel: 'moyen',
+      pricingAnalysis: 'Emergency fallback pricing',
+      launchSimulation: {
+        timeToFirstSale: {
+          withoutAds: { min: 7, max: 21 },
+          withAds: { min: 3, max: 10 },
+        },
+        salesAfter3Months: {
+          prudent: 5,
+          realiste: 15,
+          optimise: 30,
+        },
+        simulationNote: 'Emergency estimation',
+      },
+      viralTitleEN: 'Handmade Product',
+      viralTitleFR: 'Produit Artisanal',
+      seoTags: ensure13Tags(['handmade', 'product', validNiche.toString()], product.title, validNiche.toString()),
+      marketingAngles: [{
+        angle: 'Gift',
+        why: 'Ideal as a gift',
+        targetAudience: 'Gift buyers',
+      }],
+      strengths: ['Product quality'],
+      risks: ['Market competition'],
+      finalVerdict: 'Product can be launched with proper optimization.',
+      warningIfAny: '⚠️ Emergency fallback used - original analysis failed.',
+    };
   }
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1263,6 +1662,7 @@ export const analyzeProduct = async (
   
     try {
       // Utiliser la requête IA pour la recherche de concurrents
+      // ⚠️ aiAnalysis est maintenant garanti d'être défini grâce à la validation ci-dessus
       const realCompetitors = await fetchRealCompetitors(aiAnalysis.etsySearchQuery, validNiche);
     if (realCompetitors && realCompetitors.competitors && realCompetitors.competitors.length > 0) {
       // Ensure real competitor data has all required fields
@@ -1431,7 +1831,11 @@ export const analyzeProduct = async (
     competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || '', // ✨ Comment l'IA a calculé
     viralTitleEN: aiAnalysis.viralTitleEN,
     viralTitleFR: aiAnalysis.viralTitleFR,
-    seoTags: aiAnalysis.seoTags,
+    seoTags: ensure13Tags(
+      aiAnalysis.seoTags || [],
+      product.title,
+      niche
+    ),
     marketingAngles: aiAnalysis.marketingAngles.map(a => ({
       angle: a.angle,
       description: a.why,

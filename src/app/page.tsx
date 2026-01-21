@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   ArrowRight, 
@@ -22,7 +22,11 @@ import {
   ShoppingBag,
   ArrowUpRight,
   Globe,
-  Lock
+  Lock,
+  Menu,
+  X,
+  Info,
+  LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
@@ -30,16 +34,47 @@ import { Logo } from '@/components/ui/Logo';
 export default function HomePage() {
   const { user, loading } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Détecter si on est sur mobile (avant useScroll pour éviter les bugs)
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+    };
+    checkMobile();
+    const handleResize = () => checkMobile();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Désactiver useScroll et useTransform sur mobile pour éviter les bugs de performance
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
   useEffect(() => {
+    // Désactiver l'effet de curseur sur mobile
+    if (isMobile) return;
+    
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [isMobile]);
+
+  // Empêcher le scroll du body quand le menu mobile est ouvert
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
 
   const features = [
     {
@@ -149,32 +184,38 @@ export default function HomePage() {
     },
   ];
 
+  // Configuration d'animation désactivée sur mobile
+  const animationConfig = isMobile ? {} : {
+    initial: { opacity: 0, y: 30 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+  };
+
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
-      {/* Cursor glow effect */}
-      <div 
-        className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(600px at ${mousePosition.x}px ${mousePosition.y}px, rgba(0, 212, 255, 0.06), transparent 80%)`,
-        }}
-      />
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Cursor glow effect - Désactivé sur mobile */}
+      {!isMobile && (
+        <div 
+          className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(600px at ${mousePosition.x}px ${mousePosition.y}px, rgba(0, 212, 255, 0.06), transparent 80%)`,
+          }}
+        />
+      )}
 
       {/* Header */}
-      <motion.header 
+      <header 
         className="fixed top-0 left-0 right-0 z-50"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <div className="mx-4 mt-4">
-          <div className="max-w-7xl mx-auto px-6 py-4 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-sm">
+        <div className={`${isMobile ? 'mx-0 mt-0' : 'mx-2 sm:mx-4 mt-2 sm:mt-4'}`}>
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 ${isMobile ? 'bg-white border-b border-slate-200' : 'bg-white/90 backdrop-blur-xl border border-slate-200 rounded-xl sm:rounded-2xl shadow-sm'}`}>
             <div className="flex items-center justify-between">
               {/* Logo */}
-              <Link href="/" className="group">
+              <Link href="/" className="group" onClick={() => setMobileMenuOpen(false)}>
                 <Logo size="md" showText={true} />
               </Link>
 
-              {/* Navigation */}
+              {/* Navigation Desktop */}
               <nav className="hidden md:flex items-center gap-8">
                 <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
                   Features
@@ -182,7 +223,7 @@ export default function HomePage() {
                 <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
                   Pricing
                 </a>
-                <a href="#testimonials" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <a href="#testimonials" className="hidden md:block text-slate-600 hover:text-slate-900 transition-colors">
                   Testimonials
                 </a>
                 <Link href="/about" className="text-slate-600 hover:text-slate-900 transition-colors">
@@ -190,8 +231,8 @@ export default function HomePage() {
                 </Link>
               </nav>
 
-              {/* CTA */}
-              <div className="flex items-center gap-4">
+              {/* CTA Desktop */}
+              <div className="hidden md:flex items-center gap-4">
                 {!loading && user ? (
                   // Utilisateur connecté - afficher seulement Dashboard
                   <Link href="/dashboard">
@@ -203,7 +244,7 @@ export default function HomePage() {
                 ) : (
                   // User not logged in - show Login and Create account
                   <>
-                    <Link href="/login" className="hidden sm:block text-slate-600 hover:text-slate-900 transition-colors">
+                    <Link href="/login" className="text-slate-600 hover:text-slate-900 transition-colors">
                       Login
                     </Link>
                     <Link href="/register">
@@ -215,100 +256,203 @@ export default function HomePage() {
                   </>
                 )}
               </div>
+
+              {/* Menu Button Mobile */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-105"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <X size={20} className="text-white" />
+                ) : (
+                  <Menu size={20} className="text-white" />
+                )}
+              </button>
             </div>
           </div>
         </div>
-      </motion.header>
+
+        {/* Mobile Menu - Simplifié sur mobile pour éviter les bugs */}
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+              style={{ top: 0 }}
+            />
+            
+            {/* Menu Panel */}
+            <div
+              className="fixed top-20 right-0 bottom-0 w-80 max-w-[85vw] bg-white border-l border-slate-200 shadow-2xl z-50 md:hidden overflow-y-auto"
+            >
+                <div className="p-6 space-y-4">
+                  {/* Header */}
+                  <div className="pb-4 border-b border-slate-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-lg font-bold text-slate-900">
+                        Menu
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Navigation Links */}
+                  <nav className="space-y-2">
+                    <a
+                      href="#features"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                    >
+                      <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
+                      <span className="font-medium">Features</span>
+                    </a>
+                    
+                    <a
+                      href="#pricing"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                    >
+                      <DollarSign className="w-5 h-5 text-[#00d4ff]" />
+                      <span className="font-medium">Pricing</span>
+                    </a>
+                    
+                    <a
+                      href="#testimonials"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="hidden md:flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                    >
+                      <Star className="w-5 h-5 text-[#00d4ff]" />
+                      <span className="font-medium">Testimonials</span>
+                    </a>
+                    
+                    <Link
+                      href="/about"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                    >
+                      <Info className="w-5 h-5 text-[#00d4ff]" />
+                      <span className="font-medium">About</span>
+                    </Link>
+                  </nav>
+
+                  {/* Divider */}
+                  <div className="pt-4 border-t border-slate-200" />
+
+                  {/* CTA Section */}
+                  <div className="space-y-3">
+                    {!loading && user ? (
+                      <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                        <button className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-[1.02]">
+                          <LayoutDashboard size={18} />
+                          <span>Dashboard</span>
+                          <ArrowRight size={18} />
+                        </button>
+                      </Link>
+                    ) : (
+                      <>
+                        <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                          <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">
+                            Login
+                          </button>
+                        </Link>
+                        <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                          <button className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-[1.02]">
+                            <span>Create account</span>
+                            <ArrowRight size={18} />
+                          </button>
+                        </Link>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="pt-4 border-t border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-4">
+                      Quick Actions
+                    </p>
+                    <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
+                      <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 transition-all">
+                        <Play size={16} className="text-[#00d4ff]" />
+                        <span>Analyze my product</span>
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+            </div>
+          </>
+        )}
+      </header>
 
       {/* Hero Section */}
-      <section className="relative pt-40 pb-32 overflow-hidden">
+      <section className="relative pt-32 sm:pt-40 pb-16 sm:pb-32 overflow-hidden bg-white">
         {/* Subtle background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#00d4ff]/5 to-transparent" />
         <div className="absolute top-40 left-1/4 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-[#00c9b7]/5 rounded-full blur-[100px]" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
+          <div className="text-center max-w-4xl mx-auto relative z-10">
             {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-8"
-            >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6 sm:mb-8">
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
               <span className="text-sm text-slate-700">Powered by AI • GPT-4</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
-            </motion.div>
+            </div>
 
             {/* Main headline */}
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.6 }}
-              className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-8"
-            >
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-6 sm:mb-8 px-4 sm:px-0">
               <span className="text-slate-900">Launch profitable products</span>
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">on Etsy</span>
-            </motion.h1>
+            </h1>
 
             {/* Subheadline */}
-            <motion.p
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed"
-            >
+            <p className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed px-4 sm:px-0">
               Our AI analyzes your AliExpress products and reveals{' '}
               <span className="text-slate-900 font-medium">their real potential</span> on Etsy.
               <br className="hidden sm:block" />
               No more costly failures, launch with confidence.
-            </motion.p>
+            </p>
 
             {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
-            >
-              <Link href="/app">
-                <button className="group flex items-center gap-3 px-8 py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 px-4 sm:px-0">
+              <Link href="/app" className="w-full sm:w-auto">
+                <button className="group w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all">
                   <Play size={18} className="fill-white" />
                   Analyze my product
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
-              <a href="#features">
-                <button className="flex items-center gap-2 px-8 py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all">
+              <a href="#features" className="w-full sm:w-auto">
+                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all">
                   Discover features
                   <ChevronRight size={18} />
                 </button>
               </a>
-            </motion.div>
+            </div>
 
             {/* Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto"
-            >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
               {stats.map((stat, index) => (
                 <div key={stat.label} className="text-center">
                   <div className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">{stat.value}</div>
                   <div className="text-sm text-slate-500">{stat.label}</div>
                 </div>
               ))}
-            </motion.div>
+            </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <motion.div 
-          style={{ opacity }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        >
+        {/* Scroll indicator - Désactivé sur mobile */}
+        {!isMobile && opacity !== undefined && (
+          <motion.div 
+            style={{ opacity }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          >
           <div className="w-6 h-10 rounded-full border-2 border-slate-300 flex justify-center pt-2">
             <motion.div 
               animate={{ y: [0, 8, 0] }}
@@ -316,18 +460,14 @@ export default function HomePage() {
               className="w-1.5 h-1.5 rounded-full bg-[#00d4ff]"
             />
           </div>
-        </motion.div>
+          </motion.div>
+        )}
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-32 relative bg-slate-50">
+      <section id="features" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
+          <div className="text-center mb-20">
             <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Features</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
               <span className="text-slate-900">Everything you need to</span>
@@ -338,16 +478,12 @@ export default function HomePage() {
               A complete suite of AI tools to analyze, simulate and optimize 
               your product launches.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <motion.div
+              <div
                 key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
                 className="group p-8 bg-white border border-slate-200 rounded-3xl hover:border-[#00d4ff]/30 hover:shadow-lg transition-all duration-300"
               >
                 <div className="w-14 h-14 rounded-2xl bg-[#00d4ff] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -355,29 +491,24 @@ export default function HomePage() {
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-3">{feature.title}</h3>
                 <p className="text-slate-600 leading-relaxed">{feature.description}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-32 relative overflow-hidden bg-white">
+      <section className="py-16 sm:py-32 relative overflow-hidden bg-white">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[150px]" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
+          <div className="text-center mb-20">
             <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">How it works</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
               <span className="text-slate-900">Analyze in</span>{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 steps</span>
             </h2>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-12">
             {[
@@ -400,12 +531,8 @@ export default function HomePage() {
                 description: 'Our AI analyzes and gives you a clear and actionable verdict.',
               },
             ].map((item, index) => (
-              <motion.div
+              <div
                 key={item.step}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.15 }}
                 className="relative"
               >
                 {/* Connector line */}
@@ -427,36 +554,26 @@ export default function HomePage() {
                   <h3 className="text-xl font-semibold text-slate-900 mb-3">{item.title}</h3>
                   <p className="text-slate-600">{item.description}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
           {/* CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mt-16"
-          >
+          <div className="text-center mt-16">
             <Link href="/app">
               <button className="inline-flex items-center gap-2 px-8 py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
                 Get started now
                 <ArrowRight size={18} />
               </button>
             </Link>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-32 relative bg-slate-50">
+      <section id="pricing" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
+          <div className="text-center mb-20">
             <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pricing</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
               <span className="text-slate-900">Transparent</span>{' '}
@@ -465,16 +582,13 @@ export default function HomePage() {
             <p className="text-slate-600 max-w-2xl mx-auto text-lg">
               Start for free, upgrade when you're ready.
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {/* Version desktop complète */}
+          <div className="hidden md:grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {plans.map((plan, index) => (
-              <motion.div
+              <div
                 key={plan.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
                 className={`relative p-8 rounded-3xl ${
                   plan.popular 
                     ? 'bg-white border-2 border-[#00d4ff] shadow-xl' 
@@ -519,36 +633,81 @@ export default function HomePage() {
                     {plan.cta}
                   </button>
                 </Link>
-              </motion.div>
+              </div>
             ))}
+          </div>
+
+          {/* Version mobile simplifiée - uniquement nombre d'analyses */}
+          <div className="md:hidden grid grid-cols-1 gap-6 max-w-md mx-auto">
+            {plans.map((plan) => {
+              // Extraire uniquement le nombre d'analyses (premier élément de features)
+              const analysesCount = plan.features[0];
+              
+              return (
+                <div
+                  key={plan.name}
+                  className={`relative p-6 rounded-2xl ${
+                    plan.popular 
+                      ? 'bg-white border-2 border-[#00d4ff] shadow-lg' 
+                      : 'bg-white border border-slate-200'
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="px-3 py-1 bg-[#00d4ff] text-white text-xs font-semibold rounded-full">
+                        Popular
+                      </span>
+                    </div>
+                  )}
+                  
+                  <h3 className="text-lg font-semibold text-slate-900 mb-1 text-center">{plan.name}</h3>
+                  
+                  <div className="flex items-baseline justify-center gap-1 mb-4">
+                    <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{plan.price}</span>
+                    <span className="text-slate-500 text-sm">{plan.period}</span>
+                  </div>
+                  
+                  {/* Affichage uniquement du nombre d'analyses */}
+                  <div className="mb-6 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 rounded-lg">
+                      <Check className="w-4 h-4 text-[#00d4ff]" />
+                      <span className="text-slate-900 font-semibold">{analysesCount}</span>
+                    </div>
+                  </div>
+                  
+                  <Link href="/pricing">
+                    <button 
+                      className={`w-full py-3 rounded-full font-semibold text-sm ${
+                        plan.popular 
+                          ? 'bg-[#00d4ff] text-white shadow-lg shadow-[#00d4ff]/20' 
+                          : 'bg-slate-100 border border-slate-200 text-slate-800'
+                      }`}
+                    >
+                      {plan.cta}
+                    </button>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-32 relative bg-white">
+      {/* Testimonials - Masqué sur mobile pour réduire la latence */}
+      <section id="testimonials" className="hidden md:block py-16 sm:py-32 relative bg-white">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
+          <div className="text-center mb-20">
             <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Testimonials</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
               <span className="text-slate-900">They trust</span>{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">us</span>
             </h2>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <motion.div
+              <div
                 key={testimonial.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
                 className="p-8 bg-slate-50 border border-slate-200 rounded-3xl"
               >
                 <div className="flex items-center gap-1 mb-6">
@@ -566,23 +725,19 @@ export default function HomePage() {
                     <p className="text-sm text-slate-500">{testimonial.role}</p>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="py-32 relative overflow-hidden bg-[#00d4ff]">
+      <section className="py-16 sm:py-32 relative overflow-hidden bg-[#00d4ff]">
         <div className="absolute inset-0 bg-gradient-to-br from-[#00b8e6] to-[#00c9b7] opacity-50" />
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/10 rounded-full blur-[150px]" />
         
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <div>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 text-white">
               Ready to launch your
               <br />
@@ -602,7 +757,7 @@ export default function HomePage() {
               <Lock size={14} />
               No credit card required
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 

@@ -47,7 +47,8 @@ export const useStore = create<AppState & AppActions>()(
       
       addProduct: (product) => 
         set((state) => ({ 
-          products: [...state.products, product] 
+          // ⚠️ LIMITATION : Un seul produit à la fois - remplacer au lieu d'ajouter
+          products: [product] 
         })),
       
       removeProduct: (productId) =>

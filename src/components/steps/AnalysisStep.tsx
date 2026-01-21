@@ -23,12 +23,15 @@ import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
 
 export function AnalysisStep() {
-  const { products, selectedNiche, customNiche, addAnalysis, setStep } = useStore();
+  const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [currentPhase, setCurrentPhase] = useState('Initialisation...');
   const [completedProducts, setCompletedProducts] = useState<string[]>([]);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [startTime] = useState(Date.now());
+  const MINIMUM_DURATION = 30000; // 30 secondes minimum
 
   const phases = [
     { text: 'Product image analysis', icon: Eye },
@@ -38,47 +41,57 @@ export function AnalysisStep() {
   ];
 
   const runAnalysis = useCallback(async () => {
+    // ⚠️ PROTECTION : Empêcher les analyses simultanées
+    if (globalIsAnalyzing) {
+      console.warn('⚠️ Une analyse est déjà en cours, impossible de démarrer une nouvelle analyse');
+      return;
+    }
+    
     console.log('🚀 Analysis started');
     setIsAnalyzing(true);
+    setGlobalIsAnalyzing(true); // Verrou global
     setProgress(5); // Démarrage immédiat
     setCurrentPhase('Starting analysis...');
     
     const niche = selectedNiche === 'custom' ? customNiche : selectedNiche;
 
-    // Timeout global pour éviter que ça bloque indéfiniment
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Analysis timeout after 5 minutes')), 300000)
-    );
-
     try {
-      // ⚡ ANALYSE SÉQUENTIELLE (plus fiable que parallèle) avec timeout
-    for (let i = 0; i < products.length; i++) {
-        const product = products[i];
-        console.log(`📦 Analyzing product ${i + 1}/${products.length}:`, product.title?.substring(0, 50));
+      // ⚡ ANALYSE D'UN SEUL PRODUIT (limitation à 1 produit)
+      if (products.length === 0) {
+        console.error('❌ No product to analyze');
+        setIsAnalyzing(false);
+        setGlobalIsAnalyzing(false);
+        return;
+      }
+      
+      const product = products[0]; // Un seul produit
+      console.log(`📦 Analyzing product:`, product.title?.substring(0, 50));
+      
+      setCurrentIndex(0);
+      setCurrentPhase('AI Vision Analysis');
+      setProgress(10); // 10% au début
         
-      setCurrentIndex(i);
-        setCurrentPhase('AI Vision Analysis');
-        setProgress((i / products.length) * 50 + 10); // 10-60% pendant l'analyse
+      try {
+        // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
+        // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
+        // Timeout de 60 secondes max (pour laisser le temps à l'API OpenAI de répondre)
+        // Note: Même si l'analyse timeout, on attendra quand même les 30 secondes minimum avec progression animée
+        const analysisPromise = analyzeProduct(product, (niche || 'custom') as Niche);
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Product timeout')), 60000)
+        );
         
-        try {
-          // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
-          // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
-          // Ajouter un timeout individuel pour chaque produit (2 minutes max)
-          const analysisPromise = analyzeProduct(product, (niche || 'custom') as Niche);
-          const timeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error(`Product ${i + 1} timeout`)), 120000)
-          );
-          
-          const analysis = await Promise.race([analysisPromise, timeout]) as any;
-          
-          console.log(`✅ Analysis ${i + 1} completed`);
-          
-          // Mettre à jour la progression
-          setProgress(((i + 1) / products.length) * 80 + 10); // 10-90%
-          
-          // Ajouter l'analyse au store immédiatement
-          addAnalysis(analysis);
-          setCompletedProducts(prev => [...prev, product.id]);
+        const analysis = await Promise.race([analysisPromise, timeout]) as any;
+        
+        console.log(`✅ Analysis completed`);
+        
+        // Marquer l'analyse comme terminée (mais ne pas changer la progression ici)
+        // La progression sera gérée par l'animation de 30 secondes
+        setAnalysisComplete(true);
+        
+        // Ajouter l'analyse au store immédiatement
+        addAnalysis(analysis);
+        setCompletedProducts(prev => [...prev, product.id]);
           
           // Sauvegarde DB en arrière-plan (non-bloquante)
           (async () => {
@@ -129,7 +142,7 @@ export function AnalysisStep() {
             }
           })();
         } catch (error: any) {
-          console.error(`❌ Error analyzing product ${i + 1}:`, error);
+          console.error(`❌ Error analyzing product:`, error);
           // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
           // Mais on crée une analyse minimale pour ne pas bloquer
           const fallbackAnalysis = {
@@ -254,30 +267,61 @@ export function AnalysisStep() {
           
           addAnalysis(fallbackAnalysis);
           setCompletedProducts(prev => [...prev, product.id]);
+          setAnalysisComplete(true);
         }
-      }
       
       console.log('✅ All analyses completed');
-      setIsAnalyzing(false);
-      setProgress(100);
+      // Ne pas mettre setIsAnalyzing à false ici - on attendra les 30 secondes minimum
     } catch (error: any) {
       console.error('❌ Analysis failed:', error);
-      // Même en cas d'erreur globale, on termine
-    setIsAnalyzing(false);
-    setProgress(100);
+      // Même en cas d'erreur globale, marquer comme terminé
+      setAnalysisComplete(true);
     }
-  }, [products, selectedNiche, customNiche, addAnalysis]);
+  }, [products, selectedNiche, customNiche, addAnalysis, globalIsAnalyzing, setGlobalIsAnalyzing]);
 
-  // ⚠️ REDIRECTION AUTOMATIQUE - Dès que l'analyse est terminée, rediriger immédiatement
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANIMATION DE LA BARRE DE PROGRESSION SUR 30 SECONDES MINIMUM
+  // La barre monte de 0 à 100% sur exactement 30 secondes, indépendamment de l'analyse
+  // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!isAnalyzing && completedProducts.length > 0) {
-      // Redirection immédiate vers les résultats
-      const timer = setTimeout(() => {
-      setStep(4);
-      }, 300); // Juste un petit délai pour l'animation
-      return () => clearTimeout(timer);
+    if (!isAnalyzing) return; // Ne pas animer si déjà terminé
+    
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progressPercent = Math.min(100, (elapsed / MINIMUM_DURATION) * 100);
+      setProgress(progressPercent);
+    }, 50); // Mise à jour toutes les 50ms pour une animation fluide
+    
+    return () => clearInterval(interval);
+  }, [isAnalyzing, startTime]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VÉRIFICATION FINALE : Attendre les 30 secondes minimum ET l'analyse terminée
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const checkCompletion = () => {
+      const elapsed = Date.now() - startTime;
+      const hasMinimumTime = elapsed >= MINIMUM_DURATION;
+      
+      // On redirige seulement si :
+      // 1. Les 30 secondes minimum sont écoulées
+      // 2. L'analyse est terminée
+      // 3. La progression est à 100%
+      if (hasMinimumTime && analysisComplete && progress >= 100) {
+        setIsAnalyzing(false);
+        setGlobalIsAnalyzing(false);
+        // Petit délai pour l'animation finale
+        setTimeout(() => {
+          setStep(4);
+        }, 500);
       }
-  }, [isAnalyzing, completedProducts.length, setStep]);
+    };
+    
+    // Vérifier toutes les 100ms
+    const interval = setInterval(checkCompletion, 100);
+    
+    return () => clearInterval(interval);
+  }, [analysisComplete, progress, startTime, setStep, setGlobalIsAnalyzing]);
 
   useEffect(() => {
     runAnalysis();
@@ -350,8 +394,8 @@ export function AnalysisStep() {
             transition={{ delay: 0.4 }}
           >
             {isAnalyzing 
-              ? `AI analysis of ${products.length} product${products.length > 1 ? 's' : ''}`
-                : `${completedProducts.length} product${completedProducts.length > 1 ? 's' : ''} analyzed successfully`
+              ? `AI analysis in progress`
+                : `Analysis completed successfully`
             }
           </motion.p>
         </motion.div>
@@ -377,7 +421,7 @@ export function AnalysisStep() {
                   </div>
                   <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[#00d4ff] mb-2 uppercase tracking-wide">
-                    Product {currentIndex + 1}/{products.length}
+                    Analyzing product
                   </p>
                   <p className="text-xl font-bold text-slate-900 truncate">{currentProduct.title}</p>
                 </div>

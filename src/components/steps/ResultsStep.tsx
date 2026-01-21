@@ -62,113 +62,73 @@ interface PromptGeneratorProps {
   competitorMistakes?: { mistake: string; frequency: string }[];
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * PROMPT IA UNIVERSEL – ETSMART (VERSION DÉFINITIVE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * ⚠️ PROMPT UNIQUE, FIXE ET IMMUTABLE
+ * Ce prompt ne doit JAMAIS être modifié ou adapté dynamiquement.
+ * Il fonctionne pour tous les produits sans exception.
+ * 
+ * Source: Cahier des charges officiel Etsmart - Génération d'images produit via IA
+ */
+function getUniversalImagePrompt(): string {
+  return `You are a professional lifestyle photographer specialized in high-converting product images for Etsy.
+
+REFERENCE PRODUCT
+Use the provided product image as the ONLY reference. The generated image must faithfully represent the exact same product.
+
+CRITICAL RULE – EXACT PRODUCT FIDELITY
+The product in the generated image must be IDENTICAL to the product shown in the reference image
+Reproduce the product exactly as it appears: shape, proportions, colors, materials, textures, finishes, and details
+If the product contains any writing, text, symbols, engravings, or markings, they must be reproduced EXACTLY as shown
+Do NOT modify, enhance, stylize, or reinterpret the product in any way
+The product must remain the central focus of the image
+
+SCENE & CONTEXT
+Create a realistic, natural lifestyle scene that shows the product in its ideal real-world usage context.
+The environment must feel authentic, credible, and appropriate for the type of product.
+
+BACKGROUND & DEPTH (MANDATORY)
+The scene must include a natural background with visible depth
+Use foreground and background separation to create a sense of space
+The background should be softly blurred or naturally out of focus (depth of field)
+Avoid flat, empty, or plain backgrounds
+
+MOOD & EMOTION
+Calm, pleasant, and inviting atmosphere
+Emotion to convey: comfort, trust, and desirability
+Style: premium Etsy lifestyle photography (authentic, warm, aspirational, not commercial or artificial)
+
+PHOTOGRAPHY STYLE
+Soft natural lighting only (no artificial flash)
+Ultra-realistic photo rendering
+Natural depth of field
+Balanced, harmonious colors
+Clean and engaging camera angle
+
+ABSOLUTE PROHIBITIONS (outside of the product itself)
+NO added text
+NO added logos
+NO brand names
+NO watermarks
+NO price tags
+NO badges, stickers, or icons
+NO artificial marketing elements
+NO frames, borders, overlays, or graphic elements
+NO flat catalog-style photography
+
+The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
+}
+
+/**
+ * ⚠️ DÉPRÉCIÉ: Cette fonction est conservée pour compatibilité mais ne doit plus être utilisée.
+ * Utiliser getUniversalImagePrompt() à la place.
+ */
 function generateCreativePrompt(props: PromptGeneratorProps): { main: string; variant?: string } {
-  const { productDescription, niche, positioning, psychologicalTriggers, competitorMistakes } = props;
-
-  // Determine purchase motivation
-  const isForPleasure = psychologicalTriggers?.some(t => 
-    t.trigger.toLowerCase().includes('pleasure') || 
-    t.trigger.toLowerCase().includes('fun') ||
-    t.trigger.toLowerCase().includes('joy') ||
-    t.trigger.toLowerCase().includes('gift') ||
-    t.trigger.toLowerCase().includes('happiness')
-  );
-
-  // Determine ambiance based on niche
-  const nicheAmbiance: Record<string, string> = {
-    'home-decor': 'warm and welcoming interior, soft late afternoon light',
-    'jewelry': 'delicate natural light, clean and elegant background',
-    'pets': 'joyful and lively atmosphere, family environment',
-    'baby': 'soft and tender atmosphere, natural pastel tones',
-    'wedding': 'romantic and elegant atmosphere, golden light',
-    'personalized-gifts': 'emotional and authentic moment, intimate setting',
-    'wellness': 'zen and soothing atmosphere, soft natural light',
-    'art': 'artistic showcase, natural gallery lighting',
-    'vintage': 'nostalgic and authentic atmosphere, warm light',
-    'crafts': 'creative and artisanal environment, natural workshop light',
-  };
-
-  const ambiance = nicheAmbiance[niche] || 'natural light, authentic lifestyle ambiance';
-
-  // Determine emotion
-  const emotion = isForPleasure 
-    ? 'joy, pleasure and satisfaction'
-    : 'comfort, serenity and well-being';
-
-  // Build the main prompt
-  const mainPrompt = `You are a lifestyle photographer specializing in product photos for Etsy.
-
-PRODUCT TO PHOTOGRAPH:
-Use the provided product photo as the main reference. The product is: ${productDescription}
-
-⚠️ CRITICAL RULE - EXACT REPRODUCTION:
-- Reproduce EXACTLY the product as it appears in the imported photo
-- If the product has writing, text, logos or inscriptions on it, REPRODUCE THEM EXACTLY
-- The product in the generated image must be IDENTICAL to the product in the imported photo
-- Place the product exactly as in the reference photo
-- Preserve all visual characteristics of the original product (colors, textures, details, writing)
-
-SCENE TO CREATE:
-Create a realistic and natural setting showing the product in use or in its ideal usage context.
-${positioning ? `Marketing positioning: ${positioning}` : ''}
-
-AMBIANCE:
-- ${ambiance}
-- Emotion to convey: ${emotion}
-- Style: premium lifestyle photo for Etsy, authentic and aspirational
-
-TECHNICAL GUIDELINES:
-- Soft natural light, no artificial flash
-- Ultra-realistic photo rendering
-- Natural depth of field
-- Faithful and harmonious colors
-- Engaging viewing angle
-
-ABSOLUTE PROHIBITIONS (except on the product itself):
-- NO text added outside the product
-- NO logo added outside the product
-- NO brand name added outside the product
-- NO watermark
-- NO price tag, NO badge, NO sticker added
-- NO artificial marketing elements added
-- NO frames, NO borders, NO overlays
-- NO catalog-style flat photography
-
-The image should make people want to click and buy on Etsy.`;
-
-  // Construire une variante si possible
-  let variantPrompt: string | undefined;
-  
-  if (psychologicalTriggers && psychologicalTriggers.length > 0) {
-    const mainTrigger = psychologicalTriggers[0].trigger;
-    variantPrompt = `You are a lifestyle photographer specializing in product photos for Etsy.
-
-PRODUCT:
-Use the provided product photo as a reference. Product: ${productDescription}
-
-⚠️ CRITICAL RULE - EXACT REPRODUCTION:
-- Reproduce EXACTLY the product as it appears in the imported photo
-- If the product has writing, text, logos or inscriptions on it, REPRODUCE THEM EXACTLY
-- The product in the generated image must be IDENTICAL to the product in the imported photo
-- Place the product exactly as in the reference photo
-- Preserve all visual characteristics of the original product (colors, textures, details, writing)
-
-CREATIVE CONCEPT:
-Highlight the "${mainTrigger}" aspect of the product. Show how this product transforms an ordinary moment into a special moment.
-
-AMBIANCE:
-- Elevated everyday life scene
-- Natural light, warm atmosphere
-- Focus on emotion and real usage
-
-STYLE:
-Etsy lifestyle photo, authentic, emotional, professional.
-
-PROHIBITIONS (except on the product itself):
-NO text added, NO logo added, NO watermark, NO price, NO badge, NO artificial elements added.`;
-  }
-
-  return { main: mainPrompt, variant: variantPrompt };
+  // Retourner le prompt universel fixe (pas de génération dynamique)
+  return { main: getUniversalImagePrompt() };
 }
 
 function CreativePromptGenerator({ 
@@ -178,28 +138,16 @@ function CreativePromptGenerator({
   psychologicalTriggers,
   competitorMistakes 
 }: PromptGeneratorProps) {
-  const [showVariant, setShowVariant] = useState(false);
   const [copiedMain, setCopiedMain] = useState(false);
-  const [copiedVariant, setCopiedVariant] = useState(false);
 
-  const prompts = generateCreativePrompt({ 
-    productDescription, 
-    niche, 
-    positioning, 
-    psychologicalTriggers,
-    competitorMistakes 
-  });
+  // ⚠️ PROMPT UNIQUE, FIXE ET IMMUTABLE - Pas de génération dynamique
+  const prompt = useMemo(() => getUniversalImagePrompt(), []);
 
-  const copyToClipboard = async (text: string, type: 'main' | 'variant') => {
+  const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'main') {
-        setCopiedMain(true);
-        setTimeout(() => setCopiedMain(false), 2000);
-      } else {
-        setCopiedVariant(true);
-        setTimeout(() => setCopiedVariant(false), 2000);
-      }
+      await navigator.clipboard.writeText(prompt);
+      setCopiedMain(true);
+      setTimeout(() => setCopiedMain(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -213,8 +161,8 @@ function CreativePromptGenerator({
             <Sparkles size={20} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Creative AI Prompt</h2>
-            <p className="text-slate-500 text-xs">To generate your Etsy ad images</p>
+            <h2 className="text-base font-bold text-slate-900">AI Image Prompt</h2>
+            <p className="text-slate-500 text-xs">Use this prompt with your product photo in an AI image generation tool to create realistic, high-quality Etsy-style product images.</p>
           </div>
         </div>
       </div>
@@ -222,9 +170,9 @@ function CreativePromptGenerator({
       {/* Prompt principal */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Main prompt</span>
+          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Universal AI Image Prompt</span>
           <button
-            onClick={() => copyToClipboard(prompts.main, 'main')}
+            onClick={copyToClipboard}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               copiedMain 
                 ? 'bg-emerald-500 text-white' 
@@ -235,49 +183,15 @@ function CreativePromptGenerator({
             {copiedMain ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <div className="p-4 bg-white rounded-lg border border-violet-200 max-h-48 overflow-y-auto">
+        <div className="p-4 bg-white rounded-lg border border-violet-200 max-h-64 overflow-y-auto">
           <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
-            {prompts.main}
+            {prompt}
           </pre>
         </div>
+        <p className="mt-2 text-[10px] text-slate-500 italic">
+          ⚠️ This is a universal, fixed prompt that works for all products. Use it with your product photo in any AI image generation tool.
+        </p>
       </div>
-
-      {/* Variante */}
-      {prompts.variant && (
-        <div className="mb-4">
-          <button
-            onClick={() => setShowVariant(!showVariant)}
-            className="flex items-center gap-2 text-xs text-violet-600 hover:text-violet-700 mb-2"
-          >
-            <ChevronRight size={14} className={`transition-transform ${showVariant ? 'rotate-90' : ''}`} />
-            <span className="font-medium">See emotional variant</span>
-          </button>
-          
-          {showVariant && (
-            <div className="mt-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Variant</span>
-                <button
-                  onClick={() => copyToClipboard(prompts.variant!, 'variant')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    copiedVariant 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                  }`}
-                >
-                  {copiedVariant ? <Check size={12} /> : <Copy size={12} />}
-                  {copiedVariant ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <div className="p-4 bg-white rounded-lg border border-indigo-200 max-h-40 overflow-y-auto">
-                <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
-                  {prompts.variant}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Instructions d'utilisation */}
       <div className="p-4 bg-white rounded-lg border border-violet-200">
@@ -304,7 +218,9 @@ function CreativePromptGenerator({
           </li>
         </ol>
         <p className="mt-3 text-[10px] text-slate-500 italic">
-          This prompt is designed to produce an ad image inspired by Etsy best practices.
+          This universal prompt is designed to produce realistic, high-quality Etsy-style product images. 
+          The prompt is fixed and immutable - it works for all products without modification. 
+          No text or logos will be added to the generated image.
         </p>
       </div>
     </div>
@@ -1342,33 +1258,7 @@ export function ResultsStep() {
             </div>
 
             <div className="flex items-center gap-2">
-              {analyses.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      const currentIndex = analyses.findIndex(a => a.product.id === selectedProductId);
-                      const prevIndex = currentIndex > 0 ? currentIndex - 1 : analyses.length - 1;
-                      setSelectedProductId(analyses[prevIndex].product.id);
-                    }}
-                    className="p-1.5 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="text-slate-500 text-xs px-1">
-                    {analyses.findIndex(a => a.product.id === selectedProductId) + 1}/{analyses.length}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const currentIndex = analyses.findIndex(a => a.product.id === selectedProductId);
-                      const nextIndex = currentIndex < analyses.length - 1 ? currentIndex + 1 : 0;
-                      setSelectedProductId(analyses[nextIndex].product.id);
-                    }}
-                    className="p-1.5 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              )}
+              {/* Navigation supprimée - un seul produit à la fois */}
               <a
                 href={selectedAnalysis.product.url}
                 target="_blank"
