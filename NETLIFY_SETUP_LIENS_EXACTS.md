@@ -206,3 +206,7 @@ Alors utilisez : `https://app.supabase.com/project/abcdefghijklmnop/settings/api
 - `NETLIFY_VARIABLES_VALUES.md` pour plus de détails sur les valeurs
 
 
+
+
+
+

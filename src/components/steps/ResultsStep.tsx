@@ -47,6 +47,7 @@ import {
   formatPercentage
 } from '@/lib/utils';
 import type { ProductAnalysis, Niche } from '@/types';
+import { LaunchPotentialScore } from '@/components/analysis/LaunchPotentialScore';
 
 type MainTab = 'analyse' | 'conception' | 'simulation';
 
@@ -233,25 +234,13 @@ const mainTabs = [
   { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
 ];
 
-function VerdictBadge({ verdict, competitors }: { verdict: string; competitors?: number }) {
-  // Déterminer les couleurs basées sur le nombre de concurrents
-  let config;
-  if (competitors !== undefined) {
-    if (competitors <= 100) {
-      config = { label: 'Launch quickly', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 };
-    } else if (competitors <= 130) {
-      config = { label: 'Launch but optimize', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle };
-    } else {
-      config = { label: 'Don\'t launch', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
-    }
-  } else {
-    // Fallback sur les anciens labels si pas de nombre de concurrents
-    config = {
-      launch: { label: 'Launch', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 },
-      test: { label: 'Test', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle },
-      avoid: { label: 'Avoid', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-    }[verdict] || { label: 'Unknown', bg: 'bg-slate-100', text: 'text-slate-700', icon: Info };
-  }
+function VerdictBadge({ verdict }: { verdict: string }) {
+  // Déterminer les couleurs basées sur le verdict uniquement (sans nombre de concurrents)
+  const config = {
+    launch: { label: 'Launch', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 },
+    test: { label: 'Test', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle },
+    avoid: { label: 'Avoid', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
+  }[verdict as 'launch' | 'test' | 'avoid'] || { label: 'Unknown', bg: 'bg-slate-100', text: 'text-slate-700', icon: Info };
 
   const Icon = config.icon;
 
@@ -467,81 +456,116 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
             {activeTab === 'analyse' && (
               <div className="space-y-4">
                 {/* Verdict */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.5, type: 'spring' }}
-                  className={`relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl ${
-                    analysis.competitors.totalCompetitors <= 100 
-                      ? 'bg-gradient-to-br from-green-50 via-green-50/50 to-white border-green-300 shadow-green-200/50' 
-                      : analysis.competitors.totalCompetitors <= 130
-                      ? 'bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50'
-                      : 'bg-gradient-to-br from-red-50 via-red-50/50 to-white border-red-300 shadow-red-200/50'
-                  }`}
-                >
-                  {/* Effet de glow */}
-                  <div className={`absolute inset-0 opacity-20 ${
-                    analysis.competitors.totalCompetitors <= 100 
-                      ? 'bg-gradient-to-r from-green-400/20 to-green-600/20' 
-                      : analysis.competitors.totalCompetitors <= 130
-                      ? 'bg-gradient-to-r from-amber-400/20 to-amber-600/20'
-                      : 'bg-gradient-to-r from-red-400/20 to-red-600/20'
-                  } blur-3xl`} />
-                  
-                  <div className="relative z-10 flex items-start gap-6">
-                    {/* Icône avec effet */}
-                    <motion.div
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                      className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${verdictColors.iconBg}`}
-                    >
-                      {analysis.competitors.totalCompetitors <= 100 && <CheckCircle2 size={32} className="text-white" />}
-                      {analysis.competitors.totalCompetitors > 100 && analysis.competitors.totalCompetitors <= 130 && <AlertTriangle size={32} className="text-white" />}
-                      {analysis.competitors.totalCompetitors > 130 && <XCircle size={32} className="text-white" />}
-                    </motion.div>
+                {/* Verdict Card - Utilise le Launch Potential Score si disponible */}
+                {analysis.competitors.launchPotentialScore ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.5, type: 'spring' }}
+                    className={`relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl ${
+                      analysis.competitors.launchPotentialScore.tier === 'favorable'
+                        ? 'bg-gradient-to-br from-green-50 via-green-50/50 to-white border-green-300 shadow-green-200/50' 
+                        : analysis.competitors.launchPotentialScore.tier === 'competitive'
+                        ? 'bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50'
+                        : 'bg-gradient-to-br from-red-50 via-red-50/50 to-white border-red-300 shadow-red-200/50'
+                    }`}
+                  >
+                    {/* Effet de glow */}
+                    <div className={`absolute inset-0 opacity-20 ${
+                      analysis.competitors.launchPotentialScore.tier === 'favorable'
+                        ? 'bg-gradient-to-r from-green-400/20 to-green-600/20' 
+                        : analysis.competitors.launchPotentialScore.tier === 'competitive'
+                        ? 'bg-gradient-to-r from-amber-400/20 to-amber-600/20'
+                        : 'bg-gradient-to-r from-red-400/20 to-red-600/20'
+                    } blur-3xl`} />
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-4 mb-3 flex-wrap">
+                    <div className="relative z-10 flex items-start gap-6">
+                      {/* Icône avec effet */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${verdictColors.iconBg}`}
+                      >
+                        {analysis.competitors.launchPotentialScore.tier === 'favorable' && <CheckCircle2 size={32} className="text-white" />}
+                        {analysis.competitors.launchPotentialScore.tier === 'competitive' && <AlertTriangle size={32} className="text-white" />}
+                        {analysis.competitors.launchPotentialScore.tier === 'saturated' && <XCircle size={32} className="text-white" />}
+                      </motion.div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-4 mb-3 flex-wrap">
+                          <motion.h1
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className={`text-3xl sm:text-4xl font-black tracking-tight ${verdictColors.text}`}
+                          >
+                            {getVerdictLabel(analysis.verdict.verdict)}
+                          </motion.h1>
+                          <motion.span
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className={`px-4 py-2 rounded-full font-bold text-xs border-2 backdrop-blur-sm ${
+                              analysis.competitors.launchPotentialScore.tier === 'favorable'
+                                ? 'bg-white/90 border-green-300 text-green-800'
+                                : analysis.competitors.launchPotentialScore.tier === 'competitive'
+                                ? 'bg-white/90 border-amber-300 text-amber-800'
+                                : 'bg-white/90 border-red-300 text-red-800'
+                            }`}
+                          >
+                            {analysis.verdict.confidenceScore}% confidence
+                          </motion.span>
+                        </div>
+                        <motion.p
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5 }}
+                          className="text-base text-slate-700 leading-relaxed font-medium"
+                        >
+                          {analysis.competitors.launchPotentialScore.verdict}
+                        </motion.p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  // Fallback si pas de Launch Potential Score
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.5, type: 'spring' }}
+                    className="relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50"
+                  >
+                    <div className="relative z-10 flex items-start gap-6">
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-600"
+                      >
+                        <AlertTriangle size={32} className="text-white" />
+                      </motion.div>
+                      <div className="flex-1 min-w-0">
                         <motion.h1
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.3 }}
-                          className={`text-3xl sm:text-4xl font-black tracking-tight ${verdictColors.text}`}
+                          className="text-3xl sm:text-4xl font-black tracking-tight text-amber-800"
                         >
-                          {getVerdictLabel(analysis.verdict.verdict, analysis.competitors.totalCompetitors)}
+                          {getVerdictLabel(analysis.verdict.verdict)}
                         </motion.h1>
-                        <motion.span
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.4 }}
-                          className={`px-4 py-2 rounded-full font-bold text-xs border-2 backdrop-blur-sm ${
-                            analysis.competitors.totalCompetitors <= 100
-                              ? 'bg-white/90 border-green-300 text-green-800'
-                              : analysis.competitors.totalCompetitors <= 130
-                              ? 'bg-white/90 border-amber-300 text-amber-800'
-                              : 'bg-white/90 border-red-300 text-red-800'
-                          }`}
+                        <motion.p
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5 }}
+                          className="text-base text-slate-700 leading-relaxed font-medium mt-3"
                         >
-                          {analysis.verdict.confidenceScore}% confidence
-                        </motion.span>
+                          {analysis.verdict.summary}
+                        </motion.p>
                       </div>
-                      <motion.p
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="text-base text-slate-700 leading-relaxed font-medium"
-                      >
-                        {analysis.competitors.totalCompetitors <= 100 
-                          ? 'Launch quickly as there isn\'t much competition.'
-                          : analysis.competitors.totalCompetitors <= 130
-                          ? 'Launch but there is some competition, you need to optimize your strategy.'
-                          : 'Don\'t launch the product as the market is saturated.'
-                        }
-                      </motion.p>
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                )}
 
                 {/* ⚠️ Avertissement si données de fallback utilisées */}
                 {(analysis.dataSource === 'estimated' || analysis.verdict.warningIfAny) && (
@@ -572,9 +596,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 )}
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {[
-                    { icon: Users, label: 'Competitor shops', value: `≈${analysis.competitors.totalCompetitors}`, sub: analysis.competitors.competitorEstimationReliable !== false ? 'Reliable estimate' : 'Approximate estimate', highlight: false, reliable: analysis.competitors.competitorEstimationReliable !== false },
                     { icon: CircleDollarSign, label: 'Average market price', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Range', highlight: false },
                     { icon: TrendingUp, label: 'Recommended price', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'For your shop', highlight: true },
                     { icon: Star, label: 'Market phase', value: getPhaseLabel(analysis.saturation.phase), sub: 'Trend', highlight: false },
@@ -602,7 +625,14 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   })}
                 </div>
 
-                {/* Explication estimation concurrents */}
+                {/* Launch Potential Score */}
+                {analysis.competitors.launchPotentialScore && (
+                  <div className="mb-8">
+                    <LaunchPotentialScore score={analysis.competitors.launchPotentialScore} />
+                  </div>
+                )}
+
+                {/* Explication estimation (si disponible) */}
                 {analysis.competitors.competitorEstimationReasoning && (
                   <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
                     <div className="flex items-start gap-3">
@@ -1253,7 +1283,7 @@ export function ResultsStep() {
                   {selectedAnalysis.product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                 </span>
                 <span className="text-[#00d4ff] font-bold text-sm">{formatCurrency(selectedAnalysis.product.price)}</span>
-                <VerdictBadge verdict={selectedAnalysis.verdict.verdict} competitors={selectedAnalysis.competitors.totalCompetitors} />
+                <VerdictBadge verdict={selectedAnalysis.verdict.verdict} />
               </div>
             </div>
 

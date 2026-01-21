@@ -118,3 +118,7 @@ Si vous avez souvent des problèmes avec le copier-coller :
 **Besoin d'aide ?** Si aucune de ces solutions ne fonctionne, essayez l'onglet Legacy qui est souvent plus fiable pour copier !
 
 
+
+
+
+

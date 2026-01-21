@@ -71,7 +71,22 @@ export interface EtsyCompetitor {
   estimatedMonthlyRevenue: number;
 }
 
+export interface LaunchPotentialScore {
+  score: number; // Score sur 10 (0-10)
+  tier: 'saturated' | 'competitive' | 'favorable'; // Tranche : 0-3 / 4-7 / 8-10
+  verdict: string; // Verdict texte court
+  explanation: string; // Explication détaillée
+  badge: '🔴' | '🟡' | '🟢'; // Badge visuel
+  factors: {
+    competitionDensity: 'low' | 'medium' | 'high';
+    nicheSaturation: 'low' | 'medium' | 'high';
+    productSpecificity: 'low' | 'medium' | 'high';
+  };
+}
+
 export interface CompetitorAnalysis {
+  // ⚠️ DEPRECATED: Ne plus afficher totalCompetitors dans l'UI
+  // Conservé pour compatibilité interne uniquement
   totalCompetitors: number;
   competitorEstimationReliable: boolean; // false si peu fiable
   competitorEstimationReasoning: string; // Explication de la méthodologie
@@ -86,6 +101,10 @@ export interface CompetitorAnalysis {
   averageMarketPrice: number;
   marketPriceRange: { min: number; max: number };
   marketPriceReasoning: string;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NOUVEAU: Launch Potential Score (remplace l'affichage du nombre de concurrents)
+  // ═══════════════════════════════════════════════════════════════════════════
+  launchPotentialScore?: LaunchPotentialScore;
 }
 
 export interface RevenueEstimation {

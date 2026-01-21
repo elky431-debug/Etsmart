@@ -122,3 +122,7 @@ Le fichier `netlify.toml` est déjà configuré avec :
 - [Next.js on Netlify](https://docs.netlify.com/integrations/frameworks/next-js/)
 - [Netlify CLI](https://cli.netlify.com/)
 
+
+
+
+

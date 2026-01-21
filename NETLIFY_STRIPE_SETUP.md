@@ -144,3 +144,7 @@ Vous devriez maintenant avoir **4 variables** sur Netlify :
 - `STRIPE_SETUP_GUIDE.md` pour un guide complet
 
 
+
+
+
+

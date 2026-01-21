@@ -14,7 +14,8 @@ import {
   X,
   Zap,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
@@ -28,6 +29,7 @@ export function ProductImport() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [showExample, setShowExample] = useState(true); // Visible par défaut
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
 
@@ -285,6 +287,63 @@ export function ProductImport() {
                     </>
                   )}
                 </motion.label>
+
+                {/* Example Section */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <button
+                    onClick={() => setShowExample(!showExample)}
+                    className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
+                  >
+                    <Eye size={16} />
+                    {showExample ? 'Masquer l\'exemple' : 'Voir un exemple de screenshot valide'}
+                  </button>
+                  
+                  {showExample && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6"
+                    >
+                      <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
+                        <div className="mb-4">
+                          <h4 className="text-sm font-bold text-slate-900 mb-2">
+                            Exemple de screenshot valide
+                          </h4>
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            Prenez un screenshot de la page produit AliExpress ou Alibaba montrant l'image du produit, le titre et le prix.
+                            <br />
+                            <span className="text-slate-500 italic">Cet exemple est uniquement à titre illustratif.</span>
+                          </p>
+                        </div>
+                        <div className="relative rounded-xl overflow-hidden border-2 border-slate-300 shadow-lg bg-white">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src="/examples/screenshot-example.png"
+                            alt="Example screenshot of AliExpress product page"
+                            className="w-full h-auto"
+                            onError={(e) => {
+                              // Fallback si l'image n'existe pas encore
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `
+                                  <div class="p-12 text-center text-slate-400">
+                                    <p class="text-sm mb-2">Image d'exemple à ajouter</p>
+                                    <p class="text-xs">Placez votre screenshot dans /public/examples/screenshot-example.png</p>
+                                  </div>
+                                `;
+                              }
+                            }}
+                          />
+                        </div>
+                        <p className="mt-4 text-xs text-slate-500 text-center">
+                          📸 Screenshot d'une page produit AliExpress avec le produit "Etsmart Cup"
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
 
                 {uploadedImage && (
                   <motion.div

@@ -59,3 +59,7 @@ https://drjfsqsxxpsjzmabafas.supabase.co
 **✅ Une fois corrigé, cliquez sur "Create variable" et continuez avec la deuxième variable !**
 
 
+
+
+
+

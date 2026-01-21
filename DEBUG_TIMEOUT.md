@@ -60,3 +60,7 @@ Cherchez dans les logs Netlify :
 - `⏱️ TIMEOUT` - Indique un timeout
 - `❌ Fetch error` - Indique une erreur réseau
 
+
+
+
+

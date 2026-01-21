@@ -97,3 +97,7 @@ Si le taux de succès reste faible après Phase 1, intégrer un service de scrap
 Le scraping automatique économise du temps, mais n'est pas essentiel pour utiliser l'application.
 
 
+
+
+
+
