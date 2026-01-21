@@ -2,21 +2,19 @@
 
 import { motion } from 'framer-motion';
 import { 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle, 
-  TrendingUp, 
+  CheckCircle2,
+  AlertTriangle,
   Shield,
   Lightbulb,
   ArrowUpRight,
+  TrendingUp, 
   Sparkles,
   Copy,
   Tag,
   Target,
   Check
 } from 'lucide-react';
-import { Badge, Progress } from '@/components/ui';
-import { getVerdictColor, getVerdictLabel } from '@/lib/utils';
+import { Badge } from '@/components/ui';
 import type { ProductVerdict } from '@/types';
 import { useState } from 'react';
 
@@ -28,18 +26,6 @@ interface VerdictCardProps {
 export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
-
-  const VerdictIcon = {
-    launch: CheckCircle2,
-    test: AlertTriangle,
-    avoid: XCircle,
-  }[verdict.verdict];
-
-  const verdictBg = {
-    launch: 'from-[#00d4ff]/10 to-[#00d4ff]/5 border-[#00d4ff]/20',
-    test: 'from-amber-500/10 to-amber-500/5 border-amber-500/20',
-    avoid: 'from-rose-500/10 to-rose-500/5 border-rose-500/20',
-  }[verdict.verdict];
 
   const copyToClipboard = (text: string, type: 'title' | 'tags') => {
     navigator.clipboard.writeText(text);
@@ -54,54 +40,6 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Main Verdict */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${verdictBg} border p-8 text-center`}
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring' }}
-          className={`
-            inline-flex items-center justify-center w-20 h-20 rounded-full mb-6
-            ${verdict.verdict === 'launch' ? 'bg-[#00d4ff]/20' : 
-              verdict.verdict === 'test' ? 'bg-amber-500/20' : 'bg-rose-500/20'}
-          `}
-        >
-          <VerdictIcon className={`w-10 h-10 ${getVerdictColor(verdict.verdict)}`} />
-        </motion.div>
-        
-        <h2 className={`text-3xl font-bold mb-3 ${getVerdictColor(verdict.verdict)}`}>
-          {getVerdictLabel(verdict.verdict, competitors)}
-        </h2>
-
-        <p className="text-slate-400 max-w-md mx-auto mb-8 text-sm">
-          {competitors !== undefined 
-            ? (competitors <= 100 
-                ? 'Launch quickly as there isn\'t much competition.'
-                : competitors <= 130
-                ? 'Launch but there is some competition, you need to optimize your strategy.'
-                : 'Don\'t launch the product as the market is saturated.')
-            : verdict.summary
-          }
-        </p>
-
-        {/* Confidence */}
-        <div className="max-w-xs mx-auto">
-          <div className="flex items-center justify-between text-xs mb-2">
-            <span className="text-slate-500">Confiance</span>
-            <span className="font-semibold text-white">{verdict.confidenceScore}%</span>
-          </div>
-          <Progress 
-            value={verdict.confidenceScore} 
-            variant={verdict.verdict === 'launch' ? 'success' : verdict.verdict === 'test' ? 'warning' : 'danger'}
-            size="sm"
-          />
-        </div>
-      </motion.div>
-
       {/* AI Comment */}
       {verdict.aiComment && (
         <motion.div

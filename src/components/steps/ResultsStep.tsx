@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { 
   ArrowLeft, 
   Package, 
@@ -41,13 +42,18 @@ import { Logo } from '@/components/ui';
 import Link from 'next/link';
 import { 
   formatCurrency, 
-  getVerdictLabel, 
   getPhaseLabel,
   formatNumber,
   formatPercentage
 } from '@/lib/utils';
 import type { ProductAnalysis, Niche } from '@/types';
-import { LaunchPotentialScore } from '@/components/analysis/LaunchPotentialScore';
+import dynamic from 'next/dynamic';
+
+// Lazy loading du composant LaunchPotentialScore
+const LaunchPotentialScore = dynamic(() => import('@/components/analysis/LaunchPotentialScore').then(mod => ({ default: mod.LaunchPotentialScore })), {
+  loading: () => <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border-2 border-slate-200 bg-white animate-pulse"><div className="h-32 bg-slate-100 rounded-lg"></div></div>,
+  ssr: false,
+});
 
 type MainTab = 'analyse' | 'conception' | 'simulation';
 
@@ -234,23 +240,6 @@ const mainTabs = [
   { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
 ];
 
-function VerdictBadge({ verdict }: { verdict: string }) {
-  // Déterminer les couleurs basées sur le verdict uniquement (sans nombre de concurrents)
-  const config = {
-    launch: { label: 'Launch', bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2 },
-    test: { label: 'Test', bg: 'bg-amber-100', text: 'text-amber-700', icon: AlertTriangle },
-    avoid: { label: 'Avoid', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-  }[verdict as 'launch' | 'test' | 'avoid'] || { label: 'Unknown', bg: 'bg-slate-100', text: 'text-slate-700', icon: Info };
-
-  const Icon = config.icon;
-
-  return (
-    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${config.bg}`}>
-      <Icon size={12} className={config.text} />
-      <span className={`font-bold text-xs ${config.text}`}>{config.label}</span>
-    </div>
-  );
-}
 
 export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
   const [activeTab, setActiveTab] = useState<MainTab>('analyse');
@@ -259,38 +248,12 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
   const [etsyDescription, setEtsyDescription] = useState<string | null>(null);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [copiedDescription, setCopiedDescription] = useState(false);
+  const isMobile = useIsMobile();
   
   // Priorité au prix renseigné par l'utilisateur, sinon estimation IA
   const userSupplierPrice = analysis.product.price > 0 ? analysis.product.price : (analysis.verdict.estimatedSupplierPrice ?? 0);
   const aiEstimatedShippingCost = analysis.verdict.estimatedShippingCost ?? 0;
   
-  // Déterminer les couleurs basées sur le nombre de concurrents
-  const getVerdictColors = (competitors: number) => {
-    if (competitors <= 100) {
-      return {
-        bg: 'bg-green-100',
-        border: 'border-green-300',
-        iconBg: 'bg-green-700',
-        text: 'text-green-800',
-      };
-    } else if (competitors <= 130) {
-      return {
-        bg: 'bg-amber-50',
-        border: 'border-amber-200',
-        iconBg: 'bg-amber-500',
-        text: 'text-amber-700',
-      };
-    } else {
-      return {
-        bg: 'bg-red-50',
-        border: 'border-red-200',
-        iconBg: 'bg-red-500',
-        text: 'text-red-700',
-      };
-    }
-  };
-  
-  const verdictColors = getVerdictColors(analysis.competitors.totalCompetitors);
   
   const [sellingPrice, setSellingPrice] = useState<number>(analysis.pricing.recommendedPrice);
   const [shippingCost, setShippingCost] = useState<number>(aiEstimatedShippingCost);
@@ -404,7 +367,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
       {/* Titre Résultats */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-8">
         <motion.h1 
-          className="text-6xl md:text-7xl font-black text-center"
+          className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-center"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -415,30 +378,46 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
         </motion.h1>
       </div>
 
-      {/* Navigation onglets */}
+      {/* Navigation onglets - Dropdown sur mobile, onglets sur desktop */}
       <div className="sticky top-0 z-50 bg-white border-b border-slate-200 py-2 px-4 sm:px-6 lg:px-8">
         <div className="w-full">
-          <div className="flex items-center w-full">
-            {mainTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all mx-1 ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {isMobile ? (
+            // Dropdown sur mobile
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as MainTab)}
+              className="w-full py-2.5 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-0 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
+            >
+              {mainTabs.map((tab) => (
+                <option key={tab.id} value={tab.id} className="bg-white text-slate-900">
+                  {tab.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            // Onglets horizontaux sur desktop
+            <div className="flex items-center w-full">
+              {mainTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all mx-1 ${
+                      isActive 
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -455,118 +434,6 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
             {/* ANALYSIS TAB */}
             {activeTab === 'analyse' && (
               <div className="space-y-4">
-                {/* Verdict */}
-                {/* Verdict Card - Utilise le Launch Potential Score si disponible */}
-                {analysis.competitors.launchPotentialScore ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.5, type: 'spring' }}
-                    className={`relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl ${
-                      analysis.competitors.launchPotentialScore.tier === 'favorable'
-                        ? 'bg-gradient-to-br from-green-50 via-green-50/50 to-white border-green-300 shadow-green-200/50' 
-                        : analysis.competitors.launchPotentialScore.tier === 'competitive'
-                        ? 'bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50'
-                        : 'bg-gradient-to-br from-red-50 via-red-50/50 to-white border-red-300 shadow-red-200/50'
-                    }`}
-                  >
-                    {/* Effet de glow */}
-                    <div className={`absolute inset-0 opacity-20 ${
-                      analysis.competitors.launchPotentialScore.tier === 'favorable'
-                        ? 'bg-gradient-to-r from-green-400/20 to-green-600/20' 
-                        : analysis.competitors.launchPotentialScore.tier === 'competitive'
-                        ? 'bg-gradient-to-r from-amber-400/20 to-amber-600/20'
-                        : 'bg-gradient-to-r from-red-400/20 to-red-600/20'
-                    } blur-3xl`} />
-                    
-                    <div className="relative z-10 flex items-start gap-6">
-                      {/* Icône avec effet */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${verdictColors.iconBg}`}
-                      >
-                        {analysis.competitors.launchPotentialScore.tier === 'favorable' && <CheckCircle2 size={32} className="text-white" />}
-                        {analysis.competitors.launchPotentialScore.tier === 'competitive' && <AlertTriangle size={32} className="text-white" />}
-                        {analysis.competitors.launchPotentialScore.tier === 'saturated' && <XCircle size={32} className="text-white" />}
-                      </motion.div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4 mb-3 flex-wrap">
-                          <motion.h1
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className={`text-3xl sm:text-4xl font-black tracking-tight ${verdictColors.text}`}
-                          >
-                            {getVerdictLabel(analysis.verdict.verdict)}
-                          </motion.h1>
-                          <motion.span
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.4 }}
-                            className={`px-4 py-2 rounded-full font-bold text-xs border-2 backdrop-blur-sm ${
-                              analysis.competitors.launchPotentialScore.tier === 'favorable'
-                                ? 'bg-white/90 border-green-300 text-green-800'
-                                : analysis.competitors.launchPotentialScore.tier === 'competitive'
-                                ? 'bg-white/90 border-amber-300 text-amber-800'
-                                : 'bg-white/90 border-red-300 text-red-800'
-                            }`}
-                          >
-                            {analysis.verdict.confidenceScore}% confidence
-                          </motion.span>
-                        </div>
-                        <motion.p
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.5 }}
-                          className="text-base text-slate-700 leading-relaxed font-medium"
-                        >
-                          {analysis.competitors.launchPotentialScore.verdict}
-                        </motion.p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  // Fallback si pas de Launch Potential Score
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.5, type: 'spring' }}
-                    className="relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl bg-gradient-to-br from-amber-50 via-amber-50/50 to-white border-amber-300 shadow-amber-200/50"
-                  >
-                    <div className="relative z-10 flex items-start gap-6">
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-600"
-                      >
-                        <AlertTriangle size={32} className="text-white" />
-                      </motion.div>
-                      <div className="flex-1 min-w-0">
-                        <motion.h1
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.3 }}
-                          className="text-3xl sm:text-4xl font-black tracking-tight text-amber-800"
-                        >
-                          {getVerdictLabel(analysis.verdict.verdict)}
-                        </motion.h1>
-                        <motion.p
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.5 }}
-                          className="text-base text-slate-700 leading-relaxed font-medium mt-3"
-                        >
-                          {analysis.verdict.summary}
-                        </motion.p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
                 {/* ⚠️ Avertissement si données de fallback utilisées */}
                 {(analysis.dataSource === 'estimated' || analysis.verdict.warningIfAny) && (
                   <motion.div
@@ -596,7 +463,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 )}
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                   {[
                     { icon: CircleDollarSign, label: 'Average market price', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Range', highlight: false },
                     { icon: TrendingUp, label: 'Recommended price', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'For your shop', highlight: true },
@@ -606,18 +473,18 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     return (
                       <div
                         key={i}
-                        className={`p-5 rounded-xl border ${
+                        className={`p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl border ${
                           kpi.highlight 
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] border-[#00d4ff] text-white' 
                             : 'bg-white border-slate-200'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${
+                        <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center mb-2 sm:mb-3 ${
                           kpi.highlight ? 'bg-white/20' : 'bg-slate-100'
                         }`}>
-                          <Icon size={18} className={kpi.highlight ? 'text-white' : 'text-slate-600'} />
+                          <Icon size={isMobile ? 14 : 18} className={kpi.highlight ? 'text-white' : 'text-slate-600'} />
                         </div>
-                        <p className={`text-xl font-bold mb-1 ${kpi.highlight ? 'text-white' : 'text-slate-900'}`}>{kpi.value}</p>
+                        <p className={`text-base sm:text-xl font-bold mb-1 ${kpi.highlight ? 'text-white' : 'text-slate-900'}`}>{kpi.value}</p>
                         <p className={`text-xs font-medium ${kpi.highlight ? 'text-white/80' : 'text-slate-500'}`}>{kpi.label}</p>
                         <p className={`text-[10px] mt-0.5 ${kpi.highlight ? 'text-white/60' : 'text-slate-400'}`}>{kpi.sub}</p>
                       </div>
@@ -688,40 +555,40 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 )}
 
                 {/* Forces et Risques */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-9 h-9 rounded-lg bg-emerald-500 flex items-center justify-center">
-                        <Award size={18} className="text-white" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="p-4 sm:p-5 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                        <Award size={isMobile ? 16 : 18} className="text-white" />
                       </div>
-                      <h3 className="text-base font-bold text-slate-900">Strengths</h3>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">Strengths</h3>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="space-y-1.5 sm:space-y-2">
                       {analysis.verdict.strengths.map((s, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check size={12} className="text-white" />
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check size={isMobile ? 10 : 12} className="text-white" />
                           </div>
-                          <span className="text-sm text-slate-600">{s}</span>
+                          <span className="text-xs sm:text-sm text-slate-600">{s}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center">
-                        <AlertTriangle size={18} className="text-white" />
+                  <div className="p-4 sm:p-5 rounded-xl bg-amber-50 border border-amber-200">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle size={isMobile ? 16 : 18} className="text-white" />
                       </div>
-                      <h3 className="text-base font-bold text-slate-900">Watchpoints</h3>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">Watchpoints</h3>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="space-y-1.5 sm:space-y-2">
                       {analysis.verdict.risks.map((r, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <AlertTriangle size={12} className="text-white" />
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <AlertTriangle size={isMobile ? 10 : 12} className="text-white" />
                           </div>
-                          <span className="text-sm text-slate-600">{r}</span>
+                          <span className="text-xs sm:text-sm text-slate-600">{r}</span>
                         </li>
                       ))}
                     </ul>
@@ -931,7 +798,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     </div>
                   )}
                   
-                  <div className="grid grid-cols-3 gap-4 mb-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
                     {[
                       { 
                         label: 'Supplier price', 
@@ -1109,7 +976,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                             </span>
                           )}
                         </div>
-                        <div className="grid grid-cols-5 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
                           {[
                             { label: 'Sales', value: scenario.data.sales },
                             { label: 'Revenue', value: formatCurrency(scenario.data.revenue) },
@@ -1283,7 +1150,6 @@ export function ResultsStep() {
                   {selectedAnalysis.product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                 </span>
                 <span className="text-[#00d4ff] font-bold text-sm">{formatCurrency(selectedAnalysis.product.price)}</span>
-                <VerdictBadge verdict={selectedAnalysis.verdict.verdict} />
               </div>
             </div>
 

@@ -34,10 +34,6 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
     const testCount = analyses.filter(a => a.verdict.verdict === 'test').length;
     const avoidCount = analyses.filter(a => a.verdict.verdict === 'avoid').length;
     
-    const avgConfidence = Math.round(
-      analyses.reduce((acc, a) => acc + a.verdict.confidenceScore, 0) / analyses.length
-    );
-    
     const avgCompetitors = Math.round(
       analyses.reduce((acc, a) => acc + a.competitors.totalCompetitors, 0) / analyses.length
     );
@@ -50,13 +46,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
       analyses.reduce((acc, a) => acc + a.launchSimulation.timeToFirstSale.withoutAds.expected, 0) / analyses.length
     );
 
-    // Sort by verdict priority and confidence
+    // Sort by verdict priority
     const priorityProducts = [...analyses]
       .sort((a, b) => {
         const verdictPriority = { launch: 0, test: 1, avoid: 2 };
-        const priorityDiff = verdictPriority[a.verdict.verdict] - verdictPriority[b.verdict.verdict];
-        if (priorityDiff !== 0) return priorityDiff;
-        return b.verdict.confidenceScore - a.verdict.confidenceScore;
+        return verdictPriority[a.verdict.verdict] - verdictPriority[b.verdict.verdict];
       })
       .filter(a => a.verdict.verdict !== 'avoid');
 
@@ -64,7 +58,6 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
       launchCount,
       testCount,
       avoidCount,
-      avgConfidence,
       avgCompetitors,
       totalPotentialRevenue,
       avgTimeToSale,
@@ -180,8 +173,8 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <Target className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <p className="text-xs text-slate-400">Confiance moyenne</p>
-              <p className="text-xl font-bold text-white">{stats.avgConfidence}%</p>
+              <p className="text-xs text-slate-400">Average competitors</p>
+              <p className="text-xl font-bold text-white">~{stats.avgCompetitors}</p>
             </div>
           </div>
         </Card>
@@ -310,10 +303,6 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
                       {analysis.verdict.verdict === 'test' && <AlertTriangle size={12} />}
                       {analysis.verdict.verdict === 'avoid' && <XCircle size={12} />}
                       {getVerdictLabel(analysis.verdict.verdict, analysis.competitors.totalCompetitors)}
-                    </span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-slate-400">
-                      Confiance: {analysis.verdict.confidenceScore}%
                     </span>
                   </div>
                 </div>

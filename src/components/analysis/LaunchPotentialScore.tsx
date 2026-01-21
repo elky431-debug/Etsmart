@@ -9,44 +9,17 @@ interface LaunchPotentialScoreProps {
 }
 
 export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
-  const getScoreColors = () => {
-    if (score.tier === 'favorable') {
-      return {
-        bg: 'bg-gradient-to-br from-green-50 via-green-50/50 to-white',
-        border: 'border-green-300',
-        shadow: 'shadow-green-200/50',
-        glow: 'bg-gradient-to-r from-green-400/20 to-green-600/20',
-        iconBg: 'bg-gradient-to-br from-green-500 to-green-600',
-        text: 'text-green-800',
-        badgeBg: 'bg-white/90 border-green-300 text-green-800',
-        scoreText: 'text-green-700',
-      };
-    } else if (score.tier === 'competitive') {
-      return {
-        bg: 'bg-gradient-to-br from-amber-50 via-amber-50/50 to-white',
-        border: 'border-amber-300',
-        shadow: 'shadow-amber-200/50',
-        glow: 'bg-gradient-to-r from-amber-400/20 to-amber-600/20',
-        iconBg: 'bg-gradient-to-br from-amber-500 to-amber-600',
-        text: 'text-amber-800',
-        badgeBg: 'bg-white/90 border-amber-300 text-amber-800',
-        scoreText: 'text-amber-700',
-      };
-    } else {
-      return {
-        bg: 'bg-gradient-to-br from-red-50 via-red-50/50 to-white',
-        border: 'border-red-300',
-        shadow: 'shadow-red-200/50',
-        glow: 'bg-gradient-to-r from-red-400/20 to-red-600/20',
-        iconBg: 'bg-gradient-to-br from-red-500 to-red-600',
-        text: 'text-red-800',
-        badgeBg: 'bg-white/90 border-red-300 text-red-800',
-        scoreText: 'text-red-700',
-      };
-    }
+  // Toujours utiliser les couleurs d'Etsmart peu importe la note
+  const colors = {
+    bg: 'bg-gradient-to-br from-[#00d4ff]/10 via-[#00d4ff]/5 to-white',
+    border: 'border-[#00d4ff]/30',
+    shadow: 'shadow-[#00d4ff]/20',
+    glow: 'bg-gradient-to-r from-[#00d4ff]/20 to-[#00c9b7]/20',
+    iconBg: 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7]',
+    text: 'text-slate-800',
+    badgeBg: 'bg-white/90 border-[#00d4ff]/30 text-slate-800',
+    scoreText: 'text-[#00d4ff]',
   };
-
-  const colors = getScoreColors();
 
   const getIcon = () => {
     if (score.tier === 'favorable') {
@@ -69,8 +42,8 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
       <div className={`absolute inset-0 opacity-20 ${colors.glow} blur-3xl`} />
       
       <div className="relative z-10">
-        {/* Header avec badge */}
-        <div className="flex items-start justify-between mb-6">
+        {/* Header */}
+        <div className="flex items-start mb-6">
           <div className="flex items-center gap-3">
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
@@ -85,14 +58,6 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
               <p className="text-sm text-slate-600">Market opportunity assessment</p>
             </div>
           </div>
-          <motion.span
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-            className={`text-4xl font-black ${colors.scoreText}`}
-          >
-            {score.badge}
-          </motion.span>
         </div>
 
         {/* Score principal */}
@@ -154,4 +119,5 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
     </motion.div>
   );
 }
+
 
