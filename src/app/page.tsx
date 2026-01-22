@@ -326,9 +326,7 @@ export default function HomePage() {
                   {/* Header */}
                   <div className="pb-4 border-b border-slate-200">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30">
-                        <Sparkles className="w-6 h-6 text-white" />
-                      </div>
+                      <Logo size="md" showText={false} />
                       <span className="text-xl font-bold text-slate-900">
                         Menu
                       </span>

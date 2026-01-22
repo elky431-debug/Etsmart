@@ -27,3 +27,6 @@ L'image doit afficher clairement :
 
 Cette image est affichée sur la page d'import produit (`/app`) pour servir d'exemple visuel aux utilisateurs. Elle est purement illustrative et ne déclenche aucune analyse.
 
+
+
+

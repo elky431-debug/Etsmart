@@ -1,20 +1,16 @@
 'use client';
 
-import { Heart, Sparkles, AlertTriangle } from 'lucide-react';
+import { Heart, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/ui/Logo';
 
 export function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-base font-bold text-slate-900">
-              Ets<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">mart</span>
-            </span>
+          <Link href="/">
+            <Logo size="sm" showText={true} />
           </Link>
           
           <div className="flex items-center gap-1.5 text-xs text-slate-500">

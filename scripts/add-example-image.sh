@@ -26,3 +26,6 @@ else
     echo "Ou copiez manuellement votre image vers: $EXAMPLE_FILE"
 fi
 
+
+
+

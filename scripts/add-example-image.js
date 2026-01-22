@@ -72,3 +72,6 @@ if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
   console.log('✅ Image copiée avec succès vers:', EXAMPLE_FILE);
 }
 
+
+
+

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, Crown, Zap, Sparkles, Loader2 } from 'lucide-react';
+import { Check, X, Crown, Zap, Loader2 } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 import { PLANS, type Plan, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -121,7 +122,7 @@ export default function PricingPage() {
                   ) : plan.id === 'scale' ? (
                     <Zap className="w-8 h-8 text-[#00d4ff]" />
                   ) : (
-                    <Sparkles className="w-8 h-8 text-slate-400" />
+                    <Logo size="sm" showText={false} className="opacity-50" />
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mb-4">

@@ -11,7 +11,6 @@ import {
   Target,
   Users,
   ExternalLink,
-  Sparkles,
   Eye,
   FileText,
   Lightbulb,
@@ -165,7 +164,7 @@ function CreativePromptGenerator({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center">
-            <Sparkles size={20} className="text-white" />
+            <Logo size="sm" showText={false} />
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900">AI Image Prompt</h2>

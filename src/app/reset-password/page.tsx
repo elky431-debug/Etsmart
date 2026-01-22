@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Lock, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -75,17 +76,8 @@ export default function ResetPasswordPage() {
         className="relative w-full max-w-md z-10"
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-3 mb-10 group">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30"
-          >
-            <Sparkles className="w-6 h-6 text-white" />
-          </motion.div>
-          <span className="text-3xl font-bold">
-            <span className="text-slate-900">Ets</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">mart</span>
-          </span>
+        <Link href="/" className="flex items-center justify-center mb-10 group">
+          <Logo size="lg" showText={true} />
         </Link>
 
         <motion.div

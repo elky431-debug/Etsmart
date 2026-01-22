@@ -27,3 +27,6 @@ L'image doit être :
 - Nom : `screenshot-example.png`
 - Emplacement : `public/examples/screenshot-example.png`
 
+
+
+

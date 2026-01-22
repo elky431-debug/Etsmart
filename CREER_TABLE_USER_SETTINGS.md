@@ -70,3 +70,6 @@ La table `user_settings` contient :
 
 
 
+
+
+
