@@ -39,18 +39,26 @@ export default function HomePage() {
   
   // Bloquer le scroll du body quand le menu est ouvert
   useEffect(() => {
+    // Vérifier que document existe (évite les erreurs SSR/mobile)
+    if (typeof document === 'undefined') return;
+    
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = 'unset';
+      }
     };
   }, [mobileMenuOpen]);
   
   // Détecter si on est sur mobile (avant useScroll pour éviter les bugs)
   useEffect(() => {
+    // Vérifier que window existe (évite les erreurs SSR)
+    if (typeof window === 'undefined') return;
+    
     const checkMobile = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768);
