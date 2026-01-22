@@ -896,7 +896,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-white border border-slate-200">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
                     <Clock size={18} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Time to First Sale</h3>
+                    <h3 className="text-base font-bold text-slate-900">Estimated time to first sale</h3>
                   </div>
                   
                   <div className="space-y-4">
@@ -913,7 +913,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         )}
                         <div>
                           <h4 className={`text-base font-bold ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
-                            {useEtsyAds ? 'With Etsy Ads' : 'Without advertising'}
+                            {useEtsyAds ? 'With Etsy Ads' : 'Without Etsy Ads'}
                           </h4>
                           <p className={`text-xs ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
                             {useEtsyAds ? 'Accelerated growth' : 'Organic growth'}
@@ -927,13 +927,26 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         }
                         <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>days</span>
                       </p>
-                      <p className={`text-sm ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
+                      <p className={`text-sm mb-3 ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
                         Between {
                           useEtsyAds
                             ? `${analysis.launchSimulation.timeToFirstSale.withAds.min} and ${analysis.launchSimulation.timeToFirstSale.withAds.max}`
                             : `${analysis.launchSimulation.timeToFirstSale.withoutAds.min} and ${analysis.launchSimulation.timeToFirstSale.withoutAds.max}`
                         } days
                       </p>
+                      <p className={`text-xs ${useEtsyAds ? 'text-white/60' : 'text-slate-400'}`}>
+                        This estimate is based on the product&apos;s launch potential score and reflects typical Etsy market behavior without paid advertising.
+                      </p>
+                    </div>
+                    
+                    {/* Texte de transparence obligatoire */}
+                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="flex items-start gap-2">
+                        <Info size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          <strong>Important:</strong> All timelines are estimates based on market conditions and product positioning. Actual results may vary.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

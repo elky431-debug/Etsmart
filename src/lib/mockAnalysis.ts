@@ -13,6 +13,7 @@ import type {
   StrategicMarketing,
 } from '@/types';
 import { calculateLaunchPotentialScore } from '@/lib/launchPotentialScore';
+import { estimateTimeToFirstSaleFromScore, estimateTimeToFirstSaleWithAds } from '@/lib/timeToFirstSale';
 
 // Analysis helpers
 // Note: Real competitor data comes from the /api/competitors endpoint
@@ -218,16 +219,41 @@ const generateSaturationAnalysis = (competitorAnalysis: CompetitorAnalysis): Sat
   };
 };
 
-const generateLaunchSimulation = (competitorAnalysis: CompetitorAnalysis, productPrice: number): LaunchSimulation => {
-  const marketDifficulty = competitorAnalysis.marketStructure === 'dominated' ? 1.5 : 
-                          competitorAnalysis.marketStructure === 'fragmented' ? 1.2 : 1;
+const generateLaunchSimulation = (
+  competitorAnalysis: CompetitorAnalysis, 
+  productPrice: number,
+  launchPotentialScore?: number // Note sur 10 pour calculer le délai
+): LaunchSimulation => {
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // NOUVEAU: Utiliser la note pour calculer le délai si disponible
+  // ═══════════════════════════════════════════════════════════════════════════════
+  let timeToFirstSale: LaunchSimulation['timeToFirstSale'];
   
-  const baseTimeToSale = Math.round(14 * marketDifficulty);
-  const recommendedPrice = competitorAnalysis.avgPrice * 0.9;
-  const margin = (recommendedPrice - productPrice * 2.5) / recommendedPrice;
-  
-  return {
-    timeToFirstSale: {
+  if (launchPotentialScore !== undefined) {
+    // Utiliser la fonction d'estimation basée sur la note
+    const withoutAdsEstimate = estimateTimeToFirstSaleFromScore(launchPotentialScore);
+    const withAdsEstimate = estimateTimeToFirstSaleWithAds(withoutAdsEstimate);
+    
+    timeToFirstSale = {
+      withoutAds: {
+        min: withoutAdsEstimate.min,
+        max: withoutAdsEstimate.max,
+        expected: withoutAdsEstimate.expected,
+      },
+      withAds: {
+        min: withAdsEstimate.min,
+        max: withAdsEstimate.max,
+        expected: withAdsEstimate.expected,
+      },
+    };
+  } else {
+    // Fallback: ancien calcul basé sur la structure du marché
+    const marketDifficulty = competitorAnalysis.marketStructure === 'dominated' ? 1.5 : 
+                            competitorAnalysis.marketStructure === 'fragmented' ? 1.2 : 1;
+    
+    const baseTimeToSale = Math.round(14 * marketDifficulty);
+    
+    timeToFirstSale = {
       withoutAds: {
         min: Math.round(baseTimeToSale * 0.7),
         max: Math.round(baseTimeToSale * 2.5),
@@ -238,7 +264,14 @@ const generateLaunchSimulation = (competitorAnalysis: CompetitorAnalysis, produc
         max: Math.round(baseTimeToSale * 1.2),
         expected: Math.round(baseTimeToSale * 0.6),
       },
-    },
+    };
+  }
+  
+  const recommendedPrice = competitorAnalysis.avgPrice * 0.9;
+  const margin = (recommendedPrice - productPrice * 2.5) / recommendedPrice;
+  
+  return {
+    timeToFirstSale,
     threeMonthProjection: {
       conservative: {
         estimatedSales: generateRandomNumber(5, 20),
@@ -1933,7 +1966,13 @@ export const analyzeProduct = async (
   }
     
     let saturation = generateSaturationAnalysis(competitorAnalysis);
-    let launchSimulation = generateLaunchSimulation(competitorAnalysis, product.price);
+    // Utiliser la note pour calculer le délai si disponible
+    const launchPotentialScoreValue = competitorAnalysis.launchPotentialScore?.score;
+    let launchSimulation = generateLaunchSimulation(
+      competitorAnalysis, 
+      product.price,
+      launchPotentialScoreValue
+    );
     
     // Use AI pricing if available, otherwise generate
     let pricing: PricingRecommendation;
@@ -2111,20 +2150,50 @@ export const analyzeProduct = async (
     };
     
     // Override launch simulation
+    // ⚠️ PRIORITÉ: Utiliser la note pour calculer le délai si disponible (selon cahier des charges)
+    // Note: launchPotentialScoreValue est déjà défini plus haut
+    if (launchPotentialScoreValue !== undefined) {
+      // Recalculer le délai basé sur la note (selon cahier des charges)
+      const withoutAdsEstimate = estimateTimeToFirstSaleFromScore(launchPotentialScoreValue);
+      const withAdsEstimate = estimateTimeToFirstSaleWithAds(withoutAdsEstimate);
+      
+      launchSimulation = {
+        ...launchSimulation,
+        timeToFirstSale: {
+          withoutAds: {
+            min: withoutAdsEstimate.min,
+            max: withoutAdsEstimate.max,
+            expected: withoutAdsEstimate.expected,
+          },
+          withAds: {
+            min: withAdsEstimate.min,
+            max: withAdsEstimate.max,
+            expected: withAdsEstimate.expected,
+          },
+        },
+      };
+    } else {
+      // Fallback: utiliser les valeurs de l'IA si la note n'est pas disponible
+      launchSimulation = {
+        ...launchSimulation,
+        timeToFirstSale: {
+          withoutAds: {
+            min: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min,
+            max: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max,
+            expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max) / 2)
+          },
+          withAds: {
+            min: aiAnalysis.launchSimulation.timeToFirstSale.withAds.min,
+            max: aiAnalysis.launchSimulation.timeToFirstSale.withAds.max,
+            expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withAds.max) / 2)
+          }
+        },
+      };
+    }
+    
+    // Toujours mettre à jour les projections de ventes avec les valeurs de l'IA
     launchSimulation = {
       ...launchSimulation,
-      timeToFirstSale: {
-        withoutAds: {
-          min: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min,
-          max: aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max,
-          expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max) / 2)
-        },
-        withAds: {
-          min: aiAnalysis.launchSimulation.timeToFirstSale.withAds.min,
-          max: aiAnalysis.launchSimulation.timeToFirstSale.withAds.max,
-          expected: Math.round((aiAnalysis.launchSimulation.timeToFirstSale.withAds.min + aiAnalysis.launchSimulation.timeToFirstSale.withAds.max) / 2)
-        }
-      },
       threeMonthProjection: {
         conservative: {
           ...launchSimulation.threeMonthProjection.conservative,

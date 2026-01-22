@@ -37,6 +37,18 @@ export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
+  // Bloquer le scroll du body quand le menu est ouvert
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
+  
   // Détecter si on est sur mobile (avant useScroll pour éviter les bugs)
   useEffect(() => {
     const checkMobile = () => {
@@ -50,8 +62,9 @@ export default function HomePage() {
   }, []);
 
   // Désactiver useScroll et useTransform sur mobile pour éviter les bugs de performance
-  const { scrollYProgress } = useScroll();
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+  const scrollData = useScroll();
+  const { scrollYProgress } = scrollData;
+  const opacity = isMobile ? { get: () => 1 } as any : useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
   useEffect(() => {
     // Désactiver l'effet de curseur sur mobile
@@ -257,10 +270,13 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Menu Button Mobile */}
+              {/* Menu Button Mobile - Optimisé pour réactivité */}
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-105"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMobileMenuOpen(!mobileMenuOpen);
+                }}
+                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 active:scale-95 transition-transform duration-150"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
@@ -273,81 +289,90 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Mobile Menu - Simplifié sur mobile pour éviter les bugs */}
-        {mobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
-              style={{ top: 0 }}
-            />
-            
-            {/* Menu Panel */}
-            <div
-              className="fixed top-20 right-0 bottom-0 w-80 max-w-[85vw] bg-white border-l border-slate-200 shadow-2xl z-50 md:hidden overflow-y-auto"
-            >
-                <div className="p-6 space-y-4">
+        {/* Mobile Menu - Centré et optimisé */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+              />
+              
+              {/* Menu Panel - Centré */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ 
+                  duration: 0.2,
+                  ease: [0.16, 1, 0.3, 1] // Easing personnalisé pour plus de fluidité
+                }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-sm bg-white rounded-2xl shadow-2xl z-50 md:hidden overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
                   {/* Header */}
                   <div className="pb-4 border-b border-slate-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-white" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30">
+                        <Sparkles className="w-6 h-6 text-white" />
                       </div>
-                      <span className="text-lg font-bold text-slate-900">
+                      <span className="text-xl font-bold text-slate-900">
                         Menu
                       </span>
                     </div>
                   </div>
 
                   {/* Navigation Links */}
-                  <nav className="space-y-2">
+                  <nav className="space-y-1.5">
                     <a
                       href="#features"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
                     >
-                      <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
-                      <span className="font-medium">Features</span>
+                      <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
+                      </div>
+                      <span className="font-semibold">Features</span>
                     </a>
                     
                     <a
                       href="#pricing"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
                     >
-                      <DollarSign className="w-5 h-5 text-[#00d4ff]" />
-                      <span className="font-medium">Pricing</span>
-                    </a>
-                    
-                    <a
-                      href="#testimonials"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="hidden md:flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
-                    >
-                      <Star className="w-5 h-5 text-[#00d4ff]" />
-                      <span className="font-medium">Testimonials</span>
+                      <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-[#00d4ff]" />
+                      </div>
+                      <span className="font-semibold">Pricing</span>
                     </a>
                     
                     <Link
                       href="/about"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
                     >
-                      <Info className="w-5 h-5 text-[#00d4ff]" />
-                      <span className="font-medium">About</span>
+                      <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
+                        <Info className="w-5 h-5 text-[#00d4ff]" />
+                      </div>
+                      <span className="font-semibold">About</span>
                     </Link>
                   </nav>
 
                   {/* Divider */}
-                  <div className="pt-4 border-t border-slate-200" />
+                  <div className="pt-2 border-t border-slate-200" />
 
                   {/* CTA Section */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {!loading && user ? (
                       <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                        <button className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-[1.02]">
-                          <LayoutDashboard size={18} />
+                        <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:scale-[0.98] transition-all">
+                          <LayoutDashboard size={20} />
                           <span>Dashboard</span>
                           <ArrowRight size={18} />
                         </button>
@@ -355,12 +380,12 @@ export default function HomePage() {
                     ) : (
                       <>
                         <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                          <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">
+                          <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 active:scale-[0.98] transition-all">
                             Login
                           </button>
                         </Link>
                         <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                          <button className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 transition-all hover:scale-[1.02]">
+                          <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:scale-[0.98] transition-all">
                             <span>Create account</span>
                             <ArrowRight size={18} />
                           </button>
@@ -370,21 +395,22 @@ export default function HomePage() {
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="pt-4 border-t border-slate-200">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-4">
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">
                       Quick Actions
                     </p>
                     <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
-                      <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 transition-all">
-                        <Play size={16} className="text-[#00d4ff]" />
+                      <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 active:scale-[0.98] transition-all">
+                        <Play size={18} className="text-[#00d4ff]" />
                         <span>Analyze my product</span>
                       </button>
                     </Link>
                   </div>
                 </div>
-            </div>
-          </>
-        )}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Hero Section */}
@@ -404,7 +430,7 @@ export default function HomePage() {
             </div>
 
             {/* Main headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-6 sm:mb-8 px-4 sm:px-0">
+            <h1 className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-8 px-4 sm:px-0">
               <span className="text-slate-900">Launch profitable products</span>
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">on Etsy</span>
@@ -419,28 +445,28 @@ export default function HomePage() {
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 px-4 sm:px-0">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-16 px-4 sm:px-0">
               <Link href="/app" className="w-full sm:w-auto">
-                <button className="group w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all">
-                  <Play size={18} className="fill-white" />
-                  Analyze my product
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                <button className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all btn-mobile">
+                  <Play size={16} className="fill-white sm:w-[18px] sm:h-[18px]" />
+                  <span className="text-sm sm:text-base">Analyze my product</span>
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform sm:w-[18px] sm:h-[18px]" />
                 </button>
               </Link>
               <a href="#features" className="w-full sm:w-auto">
-                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all">
-                  Discover features
-                  <ChevronRight size={18} />
+                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 sm:py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all btn-mobile">
+                  <span className="text-sm sm:text-base">Discover features</span>
+                  <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </a>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 max-w-3xl mx-auto">
               {stats.map((stat, index) => (
                 <div key={stat.label} className="text-center">
-                  <div className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">{stat.value}</div>
-                  <div className="text-sm text-slate-500">{stat.label}</div>
+                  <div className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-slate-500">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -448,9 +474,9 @@ export default function HomePage() {
         </div>
 
         {/* Scroll indicator - Désactivé sur mobile */}
-        {!isMobile && opacity !== undefined && (
+        {!isMobile && (
           <motion.div 
-            style={{ opacity }}
+            style={{ opacity: opacity.get() }}
             className="absolute bottom-8 left-1/2 -translate-x-1/2"
           >
           <div className="w-6 h-10 rounded-full border-2 border-slate-300 flex justify-center pt-2">
@@ -467,30 +493,30 @@ export default function HomePage() {
       {/* Features Section */}
       <section id="features" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Features</span>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+          <div className="text-center mb-12 sm:mb-20">
+            <span className="text-[#00d4ff] font-medium mb-3 sm:mb-4 block uppercase tracking-wider text-xs sm:text-sm">Features</span>
+            <h2 className="text-2xl sm:text-4xl sm:text-5xl font-bold mb-4 sm:mb-6">
               <span className="text-slate-900">Everything you need to</span>
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominate on Etsy</span>
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-lg px-4 sm:px-0">
               A complete suite of AI tools to analyze, simulate and optimize 
               your product launches.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="group p-8 bg-white border border-slate-200 rounded-3xl hover:border-[#00d4ff]/30 hover:shadow-lg transition-all duration-300"
+                className="group p-4 sm:p-8 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl hover:border-[#00d4ff]/30 hover:shadow-lg transition-all duration-300"
               >
-                <div className="w-14 h-14 rounded-2xl bg-[#00d4ff] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon className="w-7 h-7 text-white" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#00d4ff] flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <feature.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 mb-2 sm:mb-3">{feature.title}</h3>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
