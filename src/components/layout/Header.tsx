@@ -11,25 +11,25 @@ export function Header() {
   const { reset, currentStep, products, analyses } = useStore();
 
   return (
-    <header className="fixed top-12 left-0 right-0 z-40">
-      <div className="mx-4 mt-2">
-        <div className="max-w-7xl mx-auto px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+    <header className="fixed top-12 sm:top-12 left-0 right-0 z-40">
+      <div className="mx-2 sm:mx-4 mt-1 sm:mt-2">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-4"
+              className="flex items-center gap-2 sm:gap-4"
             >
               <Link href="/" className="group">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <Logo size="sm" showText={true} />
-                  <p className="text-[10px] text-slate-400 hidden sm:block">
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 hidden sm:block">
                     AI Copilot for Etsy
                   </p>
                 </div>
               </Link>
               
-              <Link href="/">
+              <Link href="/" className="hidden sm:block">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -40,7 +40,7 @@ export function Header() {
                 </Button>
               </Link>
               
-              <Link href="/dashboard">
+              <Link href="/dashboard" className="hidden sm:block">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -55,7 +55,7 @@ export function Header() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
+              className="flex items-center gap-2 sm:gap-3"
             >
               {(products.length > 0 || analyses.length > 0 || currentStep > 1) && (
                 <Button
@@ -63,9 +63,10 @@ export function Header() {
                   size="sm"
                   onClick={reset}
                   leftIcon={<RotateCcw size={14} />}
-                  className="text-xs"
+                  className="text-xs px-2 sm:px-3"
                 >
-                  Restart
+                  <span className="hidden sm:inline">Restart</span>
+                  <span className="sm:hidden">Reset</span>
                 </Button>
               )}
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">

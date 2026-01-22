@@ -32,6 +32,7 @@ import { Logo } from '@/components/ui/Logo';
 import { niches } from '@/lib/niches';
 import { useStore } from '@/store/useStore';
 import type { Niche, NicheInfo } from '@/types';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 const iconMap: Record<string, LucideIcon> = {
   gift: Gift,
@@ -51,16 +52,16 @@ const iconMap: Record<string, LucideIcon> = {
   flower: Flower2,
 };
 
-function NicheCard({ niche, isSelected, onClick }: { niche: NicheInfo; isSelected: boolean; onClick: () => void }) {
+function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: NicheInfo; isSelected: boolean; onClick: () => void; isMobile?: boolean }) {
   const IconComponent = iconMap[niche.icon] || Sparkles;
   
   return (
     <motion.button
       onClick={onClick}
-      whileHover={{ scale: 1.03, y: -6 }}
-      whileTap={{ scale: 0.97 }}
+      whileHover={isMobile ? {} : { scale: 1.03, y: -6 }}
+      whileTap={isMobile ? {} : { scale: 0.97 }}
       className={`
-        relative group w-full text-left p-8 rounded-3xl transition-all duration-500 overflow-hidden
+        relative group w-full text-left p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl transition-all duration-500 overflow-hidden
         ${isSelected 
           ? 'bg-gradient-to-br from-[#00d4ff] via-[#00c9b7] to-[#00b8e6] text-white shadow-2xl shadow-[#00d4ff]/40' 
           : 'bg-white border-2 border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/20'}
@@ -101,7 +102,7 @@ function NicheCard({ niche, isSelected, onClick }: { niche: NicheInfo; isSelecte
             transition={{ duration: 0.5 }}
           >
             <IconComponent 
-              size={36} 
+              size={isMobile ? 28 : 36} 
               className={isSelected ? 'text-white' : 'text-[#00d4ff]'} 
             />
           </motion.div>
@@ -116,10 +117,10 @@ function NicheCard({ niche, isSelected, onClick }: { niche: NicheInfo; isSelecte
           )}
         </div>
         
-        <h3 className={`font-bold text-2xl mb-3 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+        <h3 className={`font-bold text-base sm:text-xl md:text-2xl mb-2 sm:mb-3 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
           {niche.name}
         </h3>
-        <p className={`text-base mb-6 line-clamp-2 leading-relaxed ${
+        <p className={`text-sm sm:text-base mb-4 sm:mb-6 line-clamp-2 leading-relaxed ${
           isSelected ? 'text-white/90' : 'text-slate-600'
         }`}>
           {niche.description}
@@ -162,6 +163,7 @@ function NicheCard({ niche, isSelected, onClick }: { niche: NicheInfo; isSelecte
 export function NicheSelection() {
   const { selectedNiche, setNiche, customNiche, setCustomNiche, setStep } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const isMobile = useIsMobile();
 
   const filteredNiches = niches.filter((niche) =>
     niche.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -195,11 +197,11 @@ export function NicheSelection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="relative z-10 w-full max-w-7xl mx-auto px-6 py-16"
+        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-16"
       >
         {/* Header Section */}
         <motion.div 
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-12 md:mb-16"
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -208,7 +210,7 @@ export function NicheSelection() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-8"
+            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">STEP 1 OF 3</span>
@@ -216,10 +218,10 @@ export function NicheSelection() {
           </motion.div>
           
           <motion.h1 
-            className="text-6xl md:text-7xl font-black mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-3 sm:mb-6"
+            initial={isMobile ? undefined : { opacity: 0, y: 20 }}
+            animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+            transition={isMobile ? undefined : { delay: 0.3 }}
           >
             <span className="text-slate-900">Choose</span>
             <br />
@@ -229,10 +231,10 @@ export function NicheSelection() {
           </motion.h1>
           
           <motion.p 
-            className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            className="text-sm sm:text-base md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0"
+            initial={isMobile ? undefined : { opacity: 0 }}
+            animate={isMobile ? undefined : { opacity: 1 }}
+            transition={isMobile ? undefined : { delay: 0.4 }}
           >
             Find the perfect category to launch your Etsy shop
           </motion.p>
@@ -240,31 +242,33 @@ export function NicheSelection() {
 
         {/* Search Bar - Large and prominent */}
         <motion.div 
-          className="max-w-2xl mx-auto mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          className="max-w-2xl mx-auto mb-8 sm:mb-12 md:mb-16"
+          initial={isMobile ? undefined : { opacity: 0, y: 20 }}
+          animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+          transition={isMobile ? undefined : { delay: 0.5 }}
         >
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-slate-200 shadow-2xl p-2">
-              <div className="flex items-center gap-4 px-6">
-                <Logo size="sm" showText={false} />
+            <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-2xl sm:rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-slate-200 shadow-2xl p-1.5 sm:p-2">
+              <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-6">
+                <div className="flex-shrink-0">
+                  <Logo size="sm" showText={false} />
+                </div>
                 <input
                   type="text"
                   placeholder="Search for a niche..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 py-5 text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none"
+                  className="flex-1 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none"
                 />
                 {searchQuery && (
                   <motion.button
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     onClick={() => setSearchQuery('')}
-                    className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                    className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-slate-100 transition-colors"
                   >
-                    <span className="text-slate-400">✕</span>
+                    <span className="text-slate-400 text-sm sm:text-base">✕</span>
                   </motion.button>
                 )}
               </div>
@@ -273,26 +277,27 @@ export function NicheSelection() {
         </motion.div>
 
         {/* Niche Grid - Modern card layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-8 sm:mb-12 md:mb-16">
           <AnimatePresence mode="popLayout">
             {filteredNiches.map((niche, index) => (
               <motion.div
                 key={niche.id}
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ 
+                initial={isMobile ? undefined : { opacity: 0, y: 50, scale: 0.9 }}
+                animate={isMobile ? undefined : { opacity: 1, y: 0, scale: 1 }}
+                exit={isMobile ? undefined : { opacity: 0, scale: 0.9 }}
+                transition={isMobile ? undefined : { 
                   delay: index * 0.05,
                   type: 'spring',
                   stiffness: 100,
                   damping: 15
                 }}
-                layout
+                layout={!isMobile}
               >
                 <NicheCard
                   niche={niche}
                   isSelected={selectedNiche === niche.id}
                   onClick={() => handleNicheSelect(niche.id)}
+                  isMobile={isMobile}
                 />
               </motion.div>
             ))}
@@ -317,7 +322,7 @@ export function NicheSelection() {
                   placeholder="Ex: Accessoires gaming personnalisés..."
                   value={customNiche}
                   onChange={(e) => setCustomNiche(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-lg text-slate-900 placeholder-slate-400 focus:border-[#00d4ff] focus:bg-white focus:shadow-lg focus:shadow-[#00d4ff]/20 focus:outline-none transition-all duration-300"
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-2 border-slate-200 rounded-xl sm:rounded-2xl text-base sm:text-lg text-slate-900 placeholder-slate-400 focus:border-[#00d4ff] focus:bg-white focus:shadow-lg focus:shadow-[#00d4ff]/20 focus:outline-none transition-all duration-300"
                 />
               </div>
             </motion.div>
@@ -352,10 +357,10 @@ export function NicheSelection() {
           <motion.button
             onClick={handleContinue}
             disabled={!canContinue}
-            whileHover={canContinue ? { scale: 1.05, y: -2 } : {}}
-            whileTap={canContinue ? { scale: 0.95 } : {}}
+            whileHover={canContinue && !isMobile ? { scale: 1.05, y: -2 } : {}}
+            whileTap={canContinue && !isMobile ? { scale: 0.95 } : {}}
             className={`
-              group relative px-16 py-6 text-xl font-bold rounded-2xl transition-all duration-300 overflow-hidden
+              group relative w-full sm:w-auto px-6 sm:px-16 py-2.5 sm:py-4 md:py-6 text-sm sm:text-lg md:text-xl font-bold rounded-xl sm:rounded-2xl transition-all duration-300 overflow-hidden btn-mobile
               ${canContinue 
                 ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60' 
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -367,9 +372,9 @@ export function NicheSelection() {
                 className="absolute inset-0 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               />
             )}
-            <span className="relative z-10 flex items-center gap-3">
+            <span className="relative z-10 flex items-center gap-2 sm:gap-3">
               Continue
-              <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={isMobile ? 18 : 24} className="group-hover:translate-x-1 transition-transform" />
             </span>
           </motion.button>
         </motion.div>

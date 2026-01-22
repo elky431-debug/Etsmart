@@ -23,8 +23,8 @@ export function Logo({ size = 'md', className = '', showText = true }: LogoProps
       <motion.div
         whileHover={{ scale: 1.08, rotate: 5 }}
         whileTap={{ scale: 0.95 }}
-        className="relative"
-        style={{ width: iconSize, height: iconSize }}
+        className="relative flex-shrink-0"
+        style={{ width: iconSize, height: iconSize, minWidth: iconSize, minHeight: iconSize }}
       >
         {/* Lueur derrière le logo */}
         <div 
