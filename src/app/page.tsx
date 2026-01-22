@@ -35,7 +35,11 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // Initialiser isMobile à true par défaut pour éviter les erreurs sur mobile au premier rendu
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
   
   // Bloquer le scroll du body quand le menu est ouvert
   useEffect(() => {
@@ -70,9 +74,15 @@ export default function HomePage() {
   }, []);
 
   // Désactiver useScroll et useTransform sur mobile pour éviter les bugs de performance
+  // useScroll doit être appelé inconditionnellement (règle des hooks React)
+  // Mais on peut le désactiver fonctionnellement sur mobile
   const scrollData = useScroll();
   const { scrollYProgress } = scrollData;
-  const opacity = isMobile ? { get: () => 1 } as any : useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+  
+  // Sur mobile, on retourne toujours 1 (opacité complète) sans utiliser useTransform
+  const opacity = isMobile 
+    ? { get: () => 1 } as any 
+    : useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
   useEffect(() => {
     // Désactiver l'effet de curseur sur mobile
@@ -85,17 +95,6 @@ export default function HomePage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isMobile]);
 
-  // Empêcher le scroll du body quand le menu mobile est ouvert
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [mobileMenuOpen]);
 
   const features = [
     {
@@ -483,8 +482,8 @@ export default function HomePage() {
 
         {/* Scroll indicator - Désactivé sur mobile */}
         {!isMobile && (
-          <motion.div 
-            style={{ opacity: opacity.get() }}
+          <motion.div
+            style={{ opacity: isMobile ? 1 : (typeof opacity?.get === 'function' ? opacity.get() : 1) }}
             className="absolute bottom-8 left-1/2 -translate-x-1/2"
           >
           <div className="w-6 h-10 rounded-full border-2 border-slate-300 flex justify-center pt-2">
