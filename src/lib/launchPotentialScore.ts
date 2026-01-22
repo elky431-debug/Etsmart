@@ -32,10 +32,11 @@ export interface LaunchPotentialResult {
 /**
  * PILIER 1: Densité concurrentielle estimée
  * Convertit le score de concurrence (0-100) en densité (faible/moyenne/élevée)
+ * Ajusté pour être plus généreux
  */
 function assessCompetitionDensity(competitionScore: number): 'low' | 'medium' | 'high' {
-  if (competitionScore < 30) return 'low';
-  if (competitionScore < 70) return 'medium';
+  if (competitionScore < 50) return 'low'; // Augmenté de 30 à 50
+  if (competitionScore < 85) return 'medium'; // Augmenté de 70 à 85
   return 'high';
 }
 
@@ -152,57 +153,57 @@ function calculateScoreFromMatrix(
   nicheSaturation: 'low' | 'medium' | 'high',
   productSpecificity: 'low' | 'medium' | 'high'
 ): number {
-  // Matrice de notation selon le cahier des charges
+  // Matrice de notation - Ajustée pour être plus généreuse
   const matrix: Record<string, Record<string, Record<string, { min: number; max: number }>>> = {
     high: { // Saturation niche élevée
       low: { // Spécificité faible
-        low: { min: 1, max: 3 }, // Densité faible
-        medium: { min: 1, max: 3 },
-        high: { min: 1, max: 2 },
+        low: { min: 3, max: 5 }, // Augmenté de 1-3 à 3-5
+        medium: { min: 3, max: 5 }, // Augmenté de 1-3 à 3-5
+        high: { min: 2, max: 4 }, // Augmenté de 1-2 à 2-4
       },
       medium: { // Spécificité moyenne
-        low: { min: 4, max: 5 },
-        medium: { min: 3, max: 4 },
-        high: { min: 2, max: 3 },
+        low: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
+        medium: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
+        high: { min: 3, max: 5 }, // Augmenté de 2-3 à 3-5
       },
       high: { // Spécificité forte
-        low: { min: 4, max: 5 },
-        medium: { min: 4, max: 5 },
-        high: { min: 3, max: 4 },
+        low: { min: 6, max: 7 }, // Augmenté de 4-5 à 6-7
+        medium: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
+        high: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
       },
     },
     medium: { // Saturation niche moyenne
       low: { // Spécificité faible
-        low: { min: 4, max: 5 },
-        medium: { min: 4, max: 5 },
-        high: { min: 3, max: 4 },
+        low: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
+        medium: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
+        high: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
       },
       medium: { // Spécificité moyenne
-        low: { min: 5, max: 7 },
-        medium: { min: 5, max: 6 },
-        high: { min: 4, max: 5 },
+        low: { min: 7, max: 9 }, // Augmenté de 5-7 à 7-9
+        medium: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
+        high: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
       },
       high: { // Spécificité forte
-        low: { min: 7, max: 8 },
-        medium: { min: 6, max: 7 },
-        high: { min: 5, max: 6 },
+        low: { min: 8, max: 9 }, // Augmenté de 7-8 à 8-9
+        medium: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
+        high: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
       },
     },
     low: { // Saturation niche faible
       low: { // Spécificité faible
-        low: { min: 6, max: 7 },
-        medium: { min: 6, max: 7 },
-        high: { min: 5, max: 6 },
+        low: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
+        medium: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
+        high: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
       },
       medium: { // Spécificité moyenne
-        low: { min: 8, max: 9 },
-        medium: { min: 7, max: 8 },
-        high: { min: 6, max: 7 },
+        low: { min: 9, max: 10 }, // Augmenté de 8-9 à 9-10
+        medium: { min: 8, max: 10 }, // Augmenté de 7-8 à 8-10
+        high: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
       },
       high: { // Spécificité forte
-        low: { min: 9, max: 10 },
-        medium: { min: 8, max: 9 },
-        high: { min: 7, max: 8 },
+        low: { min: 10, max: 10 }, // Augmenté de 9-10 à 10-10
+        medium: { min: 9, max: 10 }, // Augmenté de 8-9 à 9-10
+        high: { min: 8, max: 10 }, // Augmenté de 7-8 à 8-10
       },
     },
   };
@@ -212,26 +213,26 @@ function calculateScoreFromMatrix(
   // Calculer le score moyen avec ajustement de ±1 selon signaux secondaires
   const baseScore = (range.min + range.max) / 2;
   
-  // Ajustements fins basés sur les combinaisons favorables/défavorables
-  let adjustment = 0;
+  // Ajustements fins basés sur les combinaisons favorables/défavorables - Plus généreux
+  let adjustment = 0.2; // Bonus de base pour être plus généreux
   
   // Combinaisons très favorables
   if (nicheSaturation === 'low' && productSpecificity === 'high' && competitionDensity === 'low') {
-    adjustment = 0.5;
+    adjustment = 0.8; // Augmenté de 0.5 à 0.8
   }
   
-  // Combinaisons défavorables
+  // Combinaisons défavorables - Moins pénalisant
   if (nicheSaturation === 'high' && productSpecificity === 'low' && competitionDensity === 'high') {
-    adjustment = -0.5;
+    adjustment = -0.2; // Réduit de -0.5 à -0.2
   }
   
-  // Ajustement selon la densité concurrentielle
+  // Ajustement selon la densité concurrentielle - Plus généreux
   if (competitionDensity === 'low' && nicheSaturation === 'low') {
-    adjustment += 0.3;
+    adjustment += 0.5; // Augmenté de 0.3 à 0.5
   }
   
   if (competitionDensity === 'high' && nicheSaturation === 'high') {
-    adjustment -= 0.3;
+    adjustment -= 0.2; // Réduit de -0.3 à -0.2
   }
   
   const finalScore = Math.max(0, Math.min(10, baseScore + adjustment));
