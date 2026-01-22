@@ -66,6 +66,9 @@ export default function AppPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Protection contre les erreurs SSR/mobile
+    if (typeof window === 'undefined') return;
+    
     if (!loading && !user) {
       router.push('/login');
     }
@@ -90,26 +93,39 @@ export default function AppPage() {
     return <ResultsStep />;
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-white">
-      {/* Stepper en haut - très fin */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
-        <Stepper />
-      </div>
-      
-      <Header />
-      
-      <main className="flex-1 pt-24 sm:pt-32 md:pt-36 pb-8 sm:pb-12 relative z-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-          <AnimatePresence mode="wait">
-            {currentStep === 1 && <NicheSelection key="niche" />}
-            {currentStep === 2 && <ProductImport key="products" />}
-            {currentStep === 3 && <AnalysisStep key="analysis" />}
-          </AnimatePresence>
+  // Protection contre les erreurs de rendu
+  try {
+    return (
+      <div className="min-h-screen flex flex-col bg-white">
+        {/* Stepper en haut - très fin */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
+          <Stepper />
         </div>
-      </main>
+        
+        <Header />
+        
+        <main className="flex-1 pt-24 sm:pt-32 md:pt-36 pb-8 sm:pb-12 relative z-10">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+            <AnimatePresence mode="wait">
+              {currentStep === 1 && <NicheSelection key="niche" />}
+              {currentStep === 2 && <ProductImport key="products" />}
+              {currentStep === 3 && <AnalysisStep key="analysis" />}
+            </AnimatePresence>
+          </div>
+        </main>
 
-      <Footer />
-    </div>
-  );
+        <Footer />
+      </div>
+    );
+  } catch (error) {
+    // Fallback en cas d'erreur
+    console.error('Error rendering AppPage:', error);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center px-4">
+          <p className="text-sm text-slate-600">An error occurred. Please refresh the page.</p>
+        </div>
+      </div>
+    );
+  }
 }
