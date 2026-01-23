@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   ArrowRight, 
@@ -277,14 +277,16 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Menu Button Mobile - Optimisé pour réactivité */}
+              {/* Menu Button Mobile - Ultra réactif */}
               <button
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
-                  setMobileMenuOpen(!mobileMenuOpen);
+                  setMobileMenuOpen(prev => !prev);
                 }}
-                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 active:scale-95 transition-transform duration-150"
+                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 active:scale-95 transition-transform duration-100 touch-manipulation"
                 aria-label="Toggle menu"
+                type="button"
               >
                 {mobileMenuOpen ? (
                   <X size={20} className="text-white" />
@@ -296,32 +298,28 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Mobile Menu - Centré et optimisé */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => setMobileMenuOpen(false)}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
-              />
-              
-              {/* Menu Panel - Centré */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ 
-                  duration: 0.2,
-                  ease: [0.16, 1, 0.3, 1] // Easing personnalisé pour plus de fluidité
-                }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-sm bg-white rounded-2xl shadow-2xl z-50 md:hidden overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
+        {/* Mobile Menu - Ultra optimisé pour mobile */}
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop - Affichage immédiat sans animation */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              style={{ 
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'none'
+              }}
+            />
+            
+            {/* Menu Panel - Affichage immédiat */}
+            <div
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-sm bg-white rounded-2xl shadow-2xl z-50 md:hidden overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              style={{ 
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'auto'
+              }}
+            >
                 <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
                   {/* Header */}
                   <div className="pb-4 border-b border-slate-200">
@@ -337,8 +335,14 @@ export default function HomePage() {
                   <nav className="space-y-1.5">
                     <a
                       href="#features"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        setTimeout(() => {
+                          document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 active:bg-gradient-to-r active:from-[#00d4ff]/10 active:to-[#00c9b7]/10 active:text-slate-900 touch-manipulation"
                     >
                       <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                         <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
@@ -348,8 +352,14 @@ export default function HomePage() {
                     
                     <a
                       href="#pricing"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        setTimeout(() => {
+                          document.querySelector('#pricing')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 active:bg-gradient-to-r active:from-[#00d4ff]/10 active:to-[#00c9b7]/10 active:text-slate-900 touch-manipulation"
                     >
                       <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                         <DollarSign className="w-5 h-5 text-[#00d4ff]" />
@@ -360,7 +370,7 @@ export default function HomePage() {
                     <Link
                       href="/about"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-slate-900 active:scale-[0.98] transition-all"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 active:bg-gradient-to-r active:from-[#00d4ff]/10 active:to-[#00c9b7]/10 active:text-slate-900 touch-manipulation"
                     >
                       <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                         <Info className="w-5 h-5 text-[#00d4ff]" />
@@ -376,7 +386,7 @@ export default function HomePage() {
                   <div className="space-y-2.5">
                     {!loading && user ? (
                       <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                        <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:scale-[0.98] transition-all">
+                        <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:opacity-90 touch-manipulation">
                           <LayoutDashboard size={20} />
                           <span>Dashboard</span>
                           <ArrowRight size={18} />
@@ -385,12 +395,12 @@ export default function HomePage() {
                     ) : (
                       <>
                         <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                          <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 active:scale-[0.98] transition-all">
+                          <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl active:bg-slate-50 touch-manipulation">
                             Login
                           </button>
                         </Link>
                         <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                          <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:scale-[0.98] transition-all">
+                          <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:opacity-90 touch-manipulation">
                             <span>Create account</span>
                             <ArrowRight size={18} />
                           </button>
@@ -405,17 +415,16 @@ export default function HomePage() {
                       Quick Actions
                     </p>
                     <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
-                      <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 active:scale-[0.98] transition-all">
+                      <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl flex items-center justify-center gap-2 active:bg-slate-100 touch-manipulation">
                         <Play size={18} className="text-[#00d4ff]" />
                         <span>Analyze my product</span>
                       </button>
                     </Link>
                   </div>
                 </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Hero Section */}
