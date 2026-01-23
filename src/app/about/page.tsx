@@ -45,7 +45,7 @@ export default function AboutPage() {
               <Link href="/">
                 <button className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-full transition-all">
                   <ArrowLeft size={16} />
-                  Retour
+                  Back
                 </button>
               </Link>
             </div>
@@ -69,7 +69,7 @@ export default function AboutPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-8"
             >
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Propulsé par l&apos;IA • GPT-4o</span>
+              <span className="text-sm text-slate-700">Powered by AI • GPT-4o</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </motion.div>
 
@@ -80,9 +80,9 @@ export default function AboutPage() {
               transition={{ delay: 0.1, duration: 0.6 }}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-8"
             >
-              <span className="text-slate-900">À propos</span>
+              <span className="text-slate-900">About</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">d&apos;Etsmart</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">Etsmart</span>
             </motion.h1>
 
             {/* Subheadline */}
@@ -92,8 +92,8 @@ export default function AboutPage() {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed"
             >
-              L&apos;outil d&apos;analyse IA qui transforme vos idées de produits{' '}
-              <span className="text-slate-900 font-medium">en succès Etsy</span>.
+              The AI analysis tool that turns your product ideas into{' '}
+              <span className="text-slate-900 font-medium">Etsy wins</span>.
             </motion.p>
           </div>
         </div>
@@ -114,17 +114,17 @@ export default function AboutPage() {
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
                 <Target size={28} className="text-white" />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">Notre Mission</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">Our Mission</h2>
             </div>
             <div className="space-y-4 text-lg text-slate-700 leading-relaxed">
               <p>
-                Etsmart a été créé pour aider les vendeurs Etsy à prendre des décisions éclairées avant de lancer leurs produits. 
-                Nous croyons que chaque produit mérite une chance de réussir, mais seulement s&apos;il est lancé au bon moment, 
-                au bon prix et avec la bonne stratégie.
+                Etsmart was built to help Etsy sellers make confident decisions before launching products.
+                We believe every product deserves a chance to succeed—but only if it’s launched at the right time,
+                at the right price, with the right strategy.
               </p>
               <p>
-                Grâce à l&apos;intelligence artificielle <strong className="text-slate-900">GPT-4o Vision</strong>, nous analysons vos produits AliExpress et vous donnons 
-                un verdict clair : <strong className="text-[#00d4ff]">Lancer rapidement</strong>, <strong className="text-amber-600">Lancer mais optimiser</strong> ou <strong className="text-red-600">Ne pas lancer</strong>.
+                With <strong className="text-slate-900">GPT-4o Vision</strong>, we analyze your AliExpress products and provide a clear verdict:
+                <strong className="text-[#00d4ff]"> Launch now</strong>, <strong className="text-amber-600">Launch but optimize</strong>, or <strong className="text-red-600">Don’t launch</strong>.
               </p>
             </div>
           </div>
@@ -139,10 +139,10 @@ export default function AboutPage() {
           className="mb-20"
         >
           <div className="text-center mb-12">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pourquoi Etsmart</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Why Etsmart</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Ce qui nous</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">rend uniques</span>
+              <span className="text-slate-900">What makes us</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">different</span>
             </h2>
           </div>
           
@@ -150,26 +150,26 @@ export default function AboutPage() {
             {[
               {
                 icon: Eye,
-                title: 'Analyse IA Vision',
-                description: 'Notre IA analyse réellement l\'image de votre produit, pas seulement le titre. Cela garantit une analyse précise et fiable.',
+                title: 'Vision-based AI analysis',
+                description: "Our AI analyzes your product image—not just the title—so the analysis is more accurate and reliable.",
                 color: 'from-violet-500 to-purple-500',
               },
               {
                 icon: Target,
-                title: 'Verdict basé sur la concurrence',
-                description: 'Décision claire selon le nombre de concurrents : Lancer rapidement (0-100), Lancer mais optimiser (100-130), ou Ne pas lancer (131+).',
+                title: 'Competition-driven verdict',
+                description: 'A clear decision based on competitor count: Launch now (0–100), Launch but optimize (100–130), or Don’t launch (131+).',
                 color: 'from-[#00d4ff] to-[#00c9b7]',
               },
               {
                 icon: Zap,
-                title: 'Rapidité',
-                description: 'Obtenez une analyse complète en quelques secondes. Plus besoin de passer des heures à rechercher manuellement.',
+                title: 'Speed',
+                description: 'Get a full analysis in seconds—no more hours of manual research.',
                 color: 'from-amber-500 to-orange-500',
               },
               {
                 icon: Shield,
-                title: 'Fiabilité',
-                description: 'Basé sur l\'analyse réelle du marché Etsy et des données de concurrence, pas sur des estimations approximatives.',
+                title: 'Reliability',
+                description: 'Built on real Etsy market and competition signals—not rough guesses.',
                 color: 'from-emerald-500 to-teal-500',
               },
             ].map((feature, index) => {
@@ -248,14 +248,14 @@ export default function AboutPage() {
             </Link>
             
             <div className="flex items-center gap-8 text-sm text-slate-500">
-              <Link href="/about" className="hover:text-slate-900 transition-colors">À propos</Link>
-              <a href="#" className="hover:text-slate-900 transition-colors">Mentions légales</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Confidentialité</a>
+              <Link href="/about" className="hover:text-slate-900 transition-colors">About</Link>
+              <a href="#" className="hover:text-slate-900 transition-colors">Legal</a>
+              <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
               <a href="#" className="hover:text-slate-900 transition-colors">Contact</a>
             </div>
             
             <p className="text-sm text-slate-400">
-              © 2026 Etsmart. Tous droits réservés.
+              © 2026 Etsmart. All rights reserved.
             </p>
           </div>
         </div>
