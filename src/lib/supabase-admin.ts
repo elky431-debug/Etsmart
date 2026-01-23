@@ -5,7 +5,7 @@
  * It should ONLY be used in API routes or server-side code.
  * 
  * To use this, import it ONLY in:
- * - src/app/api/*/route.ts files
+ * - src/app/api/[...]/route.ts files (API routes)
  * - Server components (not client components)
  */
 
