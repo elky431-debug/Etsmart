@@ -343,7 +343,6 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
           psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
           buyerMirror: undefined, // buyerMirror not available in current structure
           recommendedPrice: analysis.pricing.recommendedPrice,
-          strengths: analysis.verdict.strengths,
         }),
       });
 
@@ -555,43 +554,6 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 
                 {/* Forces et Risques */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="p-4 sm:p-5 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                        <Award size={isMobile ? 16 : 18} className="text-white" />
-                      </div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900">Strengths</h3>
-                    </div>
-                    <ul className="space-y-1.5 sm:space-y-2">
-                      {analysis.verdict.strengths.map((s, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check size={isMobile ? 10 : 12} className="text-white" />
-                          </div>
-                          <span className="text-xs sm:text-sm text-slate-600">{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="p-4 sm:p-5 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle size={isMobile ? 16 : 18} className="text-white" />
-                      </div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900">Watchpoints</h3>
-                    </div>
-                    <ul className="space-y-1.5 sm:space-y-2">
-                      {analysis.verdict.risks.map((r, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <AlertTriangle size={isMobile ? 10 : 12} className="text-white" />
-                          </div>
-                          <span className="text-xs sm:text-sm text-slate-600">{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 </div>
               </div>
             )}

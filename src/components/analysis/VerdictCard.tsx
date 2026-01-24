@@ -148,46 +148,6 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
         </motion.div>
       )}
 
-      {/* Strengths & Risks */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="p-5 rounded-xl bg-[#00d4ff]/5 border border-[#00d4ff]/20"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={16} className="text-[#00c9b7]" />
-            <span className="text-sm font-medium text-[#4dd9cc]">Points forts</span>
-          </div>
-          <ul className="space-y-2">
-            {verdict.strengths.map((strength, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
-                <CheckCircle2 size={14} className="text-[#00c9b7] mt-0.5 flex-shrink-0" />
-                {strength}
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="p-5 rounded-xl bg-rose-500/5 border border-rose-500/20"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Shield size={16} className="text-rose-400" />
-            <span className="text-sm font-medium text-rose-300">Risques</span>
-          </div>
-          <ul className="space-y-2">
-            {verdict.risks.map((risk, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
-                <AlertTriangle size={14} className="text-rose-400 mt-0.5 flex-shrink-0" />
-                {risk}
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-      </div>
 
       {/* Launch Tips */}
       {verdict.launchTips && verdict.launchTips.length > 0 && (

@@ -169,8 +169,6 @@ function transformAnalysisFromDb(dbAnalysis: any): ProductAnalysis {
       viralTitleEN: dbAnalysis.viral_title_en,
       seoTags: dbAnalysis.seo_tags || [],
       etsySearchQuery: dbAnalysis.etsy_search_query || '',
-      strengths: [],
-      risks: [],
       improvements: [],
     },
     competitors: {

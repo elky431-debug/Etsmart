@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
       psychologicalTriggers,
       buyerMirror,
       recommendedPrice,
-      strengths,
     } = body;
 
     if (!process.env.OPENAI_API_KEY) {
@@ -38,7 +37,6 @@ PRODUCT INFORMATION:
 - Niche: ${niche}
 - Positioning: ${positioning || 'Not specified'}
 - Recommended price: $${recommendedPrice}
-- Strengths: ${strengths?.join(', ') || 'Not specified'}
 ${psychologicalTriggers ? `- Psychological triggers: ${psychologicalTriggers.map((t: any) => t.trigger).join(', ')}` : ''}
 ${buyerMirror ? `- Buyer mirror effect: ${buyerMirror}` : ''}
 
@@ -58,12 +56,7 @@ REQUIRED STRUCTURE (follow exactly):
    - Connect with real purchase motivation
    - Natural, customer-oriented, emotional but credible
 
-4. PRODUCT STRENGTHS (bullet points)
-   - Readability, reassurance
-   - Examples: "Personalizable with a name", "Thoughtful gift idea", "Durable material", "Suitable for everyday use"
-   - NO unnecessary technical features
-
-5. IDEAL FOR... (purchase contexts)
+4. IDEAL FOR... (purchase contexts)
    - Help buyer project themselves
    - Examples: "Birthdays", "Anniversaries", "Gifts for pet lovers", "Special occasions"
 

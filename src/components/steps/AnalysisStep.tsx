@@ -255,8 +255,6 @@ export function AnalysisStep() {
             verdict: {
               verdict: 'test' as const,
               confidenceScore: 30,
-              strengths: ['Product'],
-              risks: ['Market'],
               improvements: [],
               summary: 'Analysis completed with minimal data',
               aiComment: 'Fallback analysis',

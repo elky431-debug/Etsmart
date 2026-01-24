@@ -66,11 +66,6 @@ interface AIAnalysisResponse {
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
-  marketingAngles?: {
-    angle: string;
-    why: string;
-    targetAudience: string;
-  }[];
   
   // ═══════════════════════════════════════════════════════════════════════════════
   // MARKETING STRATÉGIQUE (OPTIONNEL - supprimé pour vitesse)
@@ -136,8 +131,6 @@ interface AIAnalysisResponse {
   };
   
   // Analyse
-  strengths?: string[];
-  risks?: string[];
   finalVerdict: string;
   warningIfAny: string | null;
 }

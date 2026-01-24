@@ -285,8 +285,6 @@ export type Verdict = 'launch' | 'test' | 'avoid';
 export interface ProductVerdict {
   verdict: Verdict;
   confidenceScore: number;
-  strengths: string[];
-  risks: string[];
   improvements: string[];
   summary: string;
   
@@ -297,11 +295,6 @@ export interface ProductVerdict {
   competitorEstimationReasoning?: string;
   viralTitleEN?: string;
   seoTags?: string[];
-  marketingAngles?: {
-    angle: string;
-    description: string;
-    targetAudience: string;
-  }[];
   launchTips?: string[];
   
   // Description visuelle par l'IA

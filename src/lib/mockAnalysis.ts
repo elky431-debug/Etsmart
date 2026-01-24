@@ -686,59 +686,45 @@ const generateVerdict = (
   let score = 40; // Start more conservatively
   
   const totalCompetitors = competitorAnalysis.totalCompetitors;
-  const strengths: string[] = [];
-  const risks: string[] = [];
   const improvements: string[] = [];
   
   // === MARKET STRUCTURE IMPACT (major factor) ===
   if (competitorAnalysis.marketStructure === 'open') {
     score += 25;
-    strengths.push('Market accessible to new sellers');
   } else if (competitorAnalysis.marketStructure === 'fragmented') {
     score += 5;
     // Neutral - neither strength nor risk
   } else {
     score -= 20;
-    risks.push('Market dominated by a few large sellers');
   }
   
   // === COMPETITION LEVEL (critical factor) ===
   if (totalCompetitors > 100) {
     score -= 25;
-    risks.push(`Concurrence TRÈS élevée (${totalCompetitors}+ vendeurs actifs)`);
   } else if (totalCompetitors > 50) {
     score -= 15;
-    risks.push(`Concurrence élevée (${totalCompetitors} vendeurs)`);
   } else if (totalCompetitors > 20) {
     score -= 5;
-    risks.push(`Concurrence modérée (${totalCompetitors} vendeurs)`);
   } else if (totalCompetitors > 5) {
     score += 10;
-    strengths.push(`Concurrence faible (${totalCompetitors} vendeurs)`);
   } else {
     score += 20;
-    strengths.push('Marché de niche avec très peu de concurrence');
   }
   
   // === SATURATION IMPACT (critical factor) ===
   if (saturation.phase === 'saturation') {
     score -= 20;
-    risks.push('⚠️ Marché SATURÉ - entrée très difficile');
   } else if (saturation.phase === 'decline') {
     score -= 30;
-    risks.push('🚨 Marché en DÉCLIN - éviter ce produit');
   } else if (saturation.phase === 'growth') {
     score += 10;
-    strengths.push('Marché en croissance');
   } else if (saturation.phase === 'launch') {
     score += 15;
-    strengths.push('Opportunité de niche - marché naissant');
   }
   
   // === SATURATION PROBABILITY ===
   if (saturation.saturationProbability > 70) {
     score -= 15;
-    risks.push(`Probabilité de saturation: ${saturation.saturationProbability}%`);
   } else if (saturation.saturationProbability > 50) {
     score -= 5;
   }
@@ -747,28 +733,22 @@ const generateVerdict = (
   const marginAtRecommended = pricing.marginAnalysis.atRecommendedPrice;
   if (marginAtRecommended < 20) {
     score -= 15;
-    risks.push(`Marge faible (${marginAtRecommended}%) - rentabilité difficile`);
   } else if (marginAtRecommended < 30) {
     score -= 5;
-    risks.push(`Marge modeste (${marginAtRecommended}%)`);
   } else if (marginAtRecommended > 40) {
     score += 5;
-    strengths.push(`Bonne marge potentielle (${marginAtRecommended}%)`);
   }
   
   // === SUCCESS PROBABILITY (minor adjustment) ===
   if (launchSimulation.successProbability > 65) {
     score += 5;
-    strengths.push('Probabilité de succès favorable');
   } else if (launchSimulation.successProbability < 40) {
     score -= 10;
-    risks.push(`Probabilité de succès faible (${Math.round(launchSimulation.successProbability)}%)`);
   }
   
   // === QUALITY OPPORTUNITY ===
   if (competitorAnalysis.avgRating < 4.3) {
     score += 5;
-    strengths.push('Opportunité de se démarquer par la qualité');
   }
   
   // === DETERMINE VERDICT (stricter thresholds) ===
@@ -784,9 +764,6 @@ const generateVerdict = (
   // Force "avoid" for extremely saturated markets
   if (totalCompetitors > 100 && saturation.phase === 'saturation') {
     verdict = 'avoid';
-    if (!risks.includes('Marché trop compétitif pour un nouveau vendeur')) {
-      risks.push('Marché trop compétitif pour un nouveau vendeur');
-    }
   }
   
   // Force "test" maximum for high competition
@@ -810,16 +787,14 @@ const generateVerdict = (
   
   // === GENERATE SUMMARY ===
   const summaries: Record<Verdict, string> = {
-    launch: `This product has good potential with ${totalCompetitors < 30 ? 'moderate competition' : 'an accessible market'}. ${strengths.length > 0 ? 'Strengths: ' + strengths.slice(0, 2).join(', ') + '.' : ''} Launch with confidence by following the recommendations.`,
-    test: `This product can work but presents risks. ${risks.length > 0 ? 'Main risks: ' + risks.slice(0, 2).join(', ') + '.' : ''} Start with a small stock (5-10 units) to validate demand before investing.`,
-    avoid: `⚠️ This product presents too many risks for a new seller. ${risks.slice(0, 2).join('. ')}. The probability of success is too low to justify the investment.`,
+    launch: `This product has good potential with ${totalCompetitors < 30 ? 'moderate competition' : 'an accessible market'}. Launch with confidence by following the recommendations.`,
+    test: `This product can work but presents risks. Start with a small stock (5-10 units) to validate demand before investing.`,
+    avoid: `⚠️ This product presents too many risks for a new seller. The probability of success is too low to justify the investment.`,
   };
   
   return {
     verdict,
     confidenceScore: Math.min(90, Math.max(30, score)),
-    strengths: strengths.slice(0, 4),
-    risks: risks.slice(0, 5),
     improvements: improvements.slice(0, 4),
     summary: summaries[verdict],
   };
@@ -881,11 +856,6 @@ interface AIAnalysisResult {
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
-  marketingAngles: {
-    angle: string;
-    why: string;
-    targetAudience: string;
-  }[];
   
   // ═══════════════════════════════════════════════════════════════════════════════
   // MARKETING STRATÉGIQUE (NOUVEAU)
@@ -953,10 +923,6 @@ interface AIAnalysisResult {
   // ⚠️ CHAMPS CRITIQUES - BASÉS UNIQUEMENT SUR L'IMAGE
   productVisualDescription: string;  // Ce que l'IA VOIT dans l'image
   etsySearchQuery: string;           // Mots-clés extraits de la description visuelle (JAMAIS du titre)
-  
-  // Forces & Risques
-  strengths: string[];
-  risks: string[];
   
   // Verdict
   finalVerdict: string;
@@ -1804,13 +1770,6 @@ export const analyzeProduct = async (
       },
       viralTitleEN: 'Handmade Product',
       seoTags: ensure13Tags(['handmade', 'product', validNiche.toString()], product.title, validNiche.toString()),
-      marketingAngles: [{
-        angle: 'Gift',
-        why: 'Ideal as a gift',
-        targetAudience: 'Gift buyers',
-      }],
-      strengths: ['Product quality'],
-      risks: ['Market competition'],
       finalVerdict: 'Product can be launched with proper optimization.',
       warningIfAny: '⚠️ Emergency fallback used - original analysis failed.',
     };
@@ -2002,19 +1961,9 @@ export const analyzeProduct = async (
     
     // Use AI marketing tips if available
     let marketing: MarketingAnalysis;
-    if (aiAnalysis && aiAnalysis.marketingAngles) {
+    if (aiAnalysis) {
     marketing = {
-      angles: aiAnalysis.marketingAngles.map((angle, index) => ({
-        id: `ai-angle-${index}`,
-        title: angle.angle,
-        description: angle.why,
-        whyItWorks: 'Recommandation basée sur l\'analyse IA du marché Etsy',
-        competitionLevel: aiAnalysis.saturationLevel === 'non_sature' ? 'low' : 
-                         aiAnalysis.saturationLevel === 'concurrentiel' ? 'medium' : 'high',
-        emotionalTriggers: ['qualité', 'unicité', 'valeur'],
-        suggestedKeywords: aiAnalysis.seoTags?.slice(0, 5) || aiAnalysis.productVisualDescription.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 5),
-        targetAudience: angle.targetAudience,
-      })),
+      angles: [],
       topKeywords: aiAnalysis.seoTags?.slice(0, 7) || aiAnalysis.productVisualDescription.toLowerCase().split(' ').filter(w => w.length > 3).slice(0, 7),
       emotionalHooks: ['Artisan quality', 'Unique gift', 'Made with care'],
       occasions: ['Birthday', 'Christmas', 'Mother\'s Day', 'Gift'],
@@ -2067,8 +2016,6 @@ export const analyzeProduct = async (
     const verdict: ProductVerdict = {
     verdict: finalVerdict,
     confidenceScore: aiAnalysis.confidenceScore,
-    strengths: aiAnalysis.strengths,
-    risks: aiAnalysis.risks,
     improvements: [],
     summary: aiAnalysis.finalVerdict,
     
@@ -2083,11 +2030,6 @@ export const analyzeProduct = async (
       product.title,
       niche
     ),
-    marketingAngles: aiAnalysis.marketingAngles.map(a => ({
-      angle: a.angle,
-      description: a.why,
-      targetAudience: a.targetAudience
-    })),
     launchTips: [
       `Temps estimé avant 1ère vente: ${aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.min}-${aiAnalysis.launchSimulation.timeToFirstSale.withoutAds.max} jours (sans Ads)`,
       `Avec Etsy Ads: ${aiAnalysis.launchSimulation.timeToFirstSale.withAds.min}-${aiAnalysis.launchSimulation.timeToFirstSale.withAds.max} jours`,
@@ -2341,8 +2283,6 @@ export const analyzeProduct = async (
       verdict: {
         verdict: 'test',
         confidenceScore: 30,
-        strengths: ['Product quality'],
-        risks: ['Market competition', 'Analysis incomplete'],
         improvements: [],
         summary: 'Analysis completed with emergency fallback data. Results may be less accurate.',
         aiComment: '⚠️ Emergency fallback used - original analysis failed completely.',
