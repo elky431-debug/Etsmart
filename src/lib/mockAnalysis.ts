@@ -1668,11 +1668,6 @@ export const analyzeProduct = async (
         product.title,
         validNiche.toString()
       ),
-      marketingAngles: [{
-        angle: 'Gift',
-        why: 'Ideal as a gift',
-        targetAudience: 'Gift buyers',
-      }],
       strategicMarketing: {
         positioning: {
           mainPositioning: 'Quality handmade product',
@@ -1700,8 +1695,6 @@ export const analyzeProduct = async (
         tiktokIdeas: [],
         facebookIdeas: [],
       },
-      strengths: ['Product quality'],
-      risks: ['Market competition'],
       finalVerdict: defaultCompetitors <= 40 
         ? 'Product can be launched with proper optimization.' 
         : defaultCompetitors <= 90
