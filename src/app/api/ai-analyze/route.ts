@@ -65,7 +65,6 @@ interface AIAnalysisResponse {
   
   // SEO & Marketing
   viralTitleEN: string;
-  viralTitleFR: string;
   seoTags: string[];
   marketingAngles: {
     angle: string;
@@ -253,7 +252,7 @@ JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySear
 "priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"1 phrase",
 "launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},
 "salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"1 phrase"},
-"viralTitleEN":"max 140","viralTitleFR":"max 140","seoTags":["13 tags"],
+"viralTitleEN":"max 140","seoTags":["13 tags"],
 "marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],
 "strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
 
@@ -533,7 +532,6 @@ JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySear
               simulationNote: 'Estimation basée sur le marché',
             },
             viralTitleEN: 'Product - Handmade Gift',
-            viralTitleFR: 'Produit - Cadeau Fait Main',
             seoTags: ['gift', 'handmade', 'product', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'],
             marketingAngles: [{
               angle: 'Gift',

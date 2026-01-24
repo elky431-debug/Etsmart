@@ -5,7 +5,6 @@
  * - Product analyses
  * - Products
  * - User settings
- * - Subscription data
  * - User account (Supabase Auth)
  */
 
@@ -130,37 +129,6 @@ export async function DELETE(request: NextRequest) {
       // Continue anyway - might not exist
     }
 
-    // 6. Delete subscription data (if exists in users table)
-    // Note: We update the users table to clear subscription data
-    const { error: subscriptionError } = await supabase
-      .from('users')
-      .update({
-        subscriptionPlan: 'FREE',
-        subscriptionStatus: 'inactive',
-        stripeCustomerId: null,
-        stripeSubscriptionId: null,
-        analysisUsedThisMonth: 0,
-        analysisQuota: 0,
-        currentPeriodStart: null,
-        currentPeriodEnd: null,
-      })
-      .eq('id', userId);
-
-    if (subscriptionError) {
-      console.error('Error clearing subscription data:', subscriptionError);
-      // Continue anyway
-    }
-
-    // 7. Delete subscriptions table entry (if separate table exists)
-    const { error: subscriptionsTableError } = await supabase
-      .from('subscriptions')
-      .delete()
-      .eq('user_id', userId);
-
-    if (subscriptionsTableError) {
-      // Table might not exist or entry might not exist - that's fine
-      console.log('Note: subscriptions table might not exist or entry not found');
-    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DELETE USER ACCOUNT (Supabase Auth)

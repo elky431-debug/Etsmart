@@ -117,13 +117,6 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
             <p className="text-xs text-slate-500 mb-1">EN</p>
             <p className="text-white">{verdict.viralTitleEN}</p>
           </div>
-          
-          {verdict.viralTitleFR && (
-            <div className="p-4 rounded-lg bg-slate-900/30">
-              <p className="text-xs text-slate-500 mb-1">FR</p>
-              <p className="text-slate-300 text-sm">{verdict.viralTitleFR}</p>
-            </div>
-          )}
         </motion.div>
       )}
 

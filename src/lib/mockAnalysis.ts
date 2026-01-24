@@ -880,7 +880,6 @@ interface AIAnalysisResult {
   
   // SEO & Marketing
   viralTitleEN: string;
-  viralTitleFR: string;
   seoTags: string[];
   marketingAngles: {
     angle: string;
@@ -1698,7 +1697,6 @@ export const analyzeProduct = async (
         simulationNote: 'Estimation basée sur un marché moyen. Les résultats peuvent varier.',
       },
       viralTitleEN: defaultVisualDescription || 'Handmade Product - Unique Gift',
-      viralTitleFR: defaultVisualDescription || 'Produit Artisanal - Cadeau Unique',
       seoTags: ensure13Tags(
         visualWords.length > 0 ? visualWords : ['handmade', 'product', validNiche.toString()],
         product.title,
@@ -1805,7 +1803,6 @@ export const analyzeProduct = async (
         simulationNote: 'Emergency estimation',
       },
       viralTitleEN: 'Handmade Product',
-      viralTitleFR: 'Produit Artisanal',
       seoTags: ensure13Tags(['handmade', 'product', validNiche.toString()], product.title, validNiche.toString()),
       marketingAngles: [{
         angle: 'Gift',
@@ -2081,7 +2078,6 @@ export const analyzeProduct = async (
     competitionComment: `${aiAnalysis.estimatedCompetitors} estimated competitors. ${aiAnalysis.pricingAnalysis}`,
     competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || '', // ✨ Comment l'IA a calculé
     viralTitleEN: aiAnalysis.viralTitleEN,
-    viralTitleFR: aiAnalysis.viralTitleFR,
     seoTags: ensure13Tags(
       aiAnalysis.seoTags || [],
       product.title,

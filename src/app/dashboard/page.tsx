@@ -10,7 +10,6 @@ import {
   LogOut,
   Home,
   Sparkles,
-  CreditCard,
   Eye,
   TrendingUp,
   DollarSign,
@@ -32,9 +31,7 @@ import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysisDetail';
 import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
-import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
-
-type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings' | 'subscription';
+type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings';
 
 interface MenuItem {
   id: DashboardSection;
@@ -172,7 +169,6 @@ export default function DashboardPage() {
   const menuItems: MenuItem[] = [
     { id: 'analyze', label: 'Start analyzing', icon: BarChart3 },
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'subscription', label: 'Subscription', icon: CreditCard },
     { id: 'history', label: 'History', icon: History },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -481,7 +477,7 @@ export default function DashboardPage() {
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Viral titles (FR and EN) and optimized SEO tags
+                              Viral titles (EN) and optimized SEO tags
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
@@ -520,10 +516,6 @@ export default function DashboardPage() {
 
           {activeSection === 'profile' && (
             <DashboardProfile user={user} />
-          )}
-
-          {activeSection === 'subscription' && (
-            <DashboardSubscription user={user} />
           )}
 
           {activeSection === 'settings' && (

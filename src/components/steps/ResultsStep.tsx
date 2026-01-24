@@ -628,13 +628,6 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         </div>
                         <p className="text-sm font-medium text-slate-900">{analysis.verdict.viralTitleEN}</p>
                       </div>
-                      
-                      {analysis.verdict.viralTitleFR && (
-                        <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">French</span>
-                          <p className="text-sm text-slate-700">{analysis.verdict.viralTitleFR}</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}

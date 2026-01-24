@@ -1,8 +1,5 @@
 // Etsmart Types
 
-// Re-export subscription types
-export * from './subscription';
-
 export type Niche = 
   | 'personalized-gifts'
   | 'wedding'
@@ -299,7 +296,6 @@ export interface ProductVerdict {
   competitionComment?: string;
   competitorEstimationReasoning?: string;
   viralTitleEN?: string;
-  viralTitleFR?: string;
   seoTags?: string[];
   marketingAngles?: {
     angle: string;
