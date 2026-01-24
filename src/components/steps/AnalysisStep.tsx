@@ -17,10 +17,11 @@ import {
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import type { Niche } from '@/types';
-import { analyzeProduct } from '@/lib/mockAnalysis';
+import { analyzeProduct, AnalysisBlockedError } from '@/lib/mockAnalysis';
 import { supabase } from '@/lib/supabase';
 import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
+import { Paywall } from '@/components/paywall/Paywall';
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
@@ -32,6 +33,15 @@ export function AnalysisStep() {
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [startTime] = useState(Date.now());
   const MINIMUM_DURATION = 30000; // 30 secondes minimum
+  
+  // Paywall state
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallData, setPaywallData] = useState<{
+    quotaReached?: boolean;
+    used?: number;
+    quota?: number;
+    requiresUpgrade?: string;
+  } | null>(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FONCTION HELPER: Sauvegarde fiable de l'analyse dans la DB
@@ -151,6 +161,19 @@ export function AnalysisStep() {
           saveAnalysisToDatabase(analysis);
         } catch (error: any) {
           console.error(`❌ Error analyzing product:`, error);
+          
+          // ═══════════════════════════════════════════════════════════════════════════
+          // GESTION DU PAYWALL - AFFICHER LE PAYWALL SI ERREUR 401/403
+          // ═══════════════════════════════════════════════════════════════════════════
+          if (error instanceof AnalysisBlockedError && (error as any).isPaywallError) {
+            console.log('🔒 Paywall error detected, showing paywall');
+            setShowPaywall(true);
+            setPaywallData((error as any).paywallData || {});
+            setIsAnalyzing(false);
+            setGlobalIsAnalyzing(false);
+            return; // Ne pas continuer avec le fallback
+          }
+          
           // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
           // Mais on crée une analyse minimale pour ne pas bloquer
           const fallbackAnalysis = {
@@ -340,6 +363,25 @@ export function AnalysisStep() {
   }, []);
 
   const currentProduct = products[currentIndex];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AFFICHER LE PAYWALL SI NÉCESSAIRE
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (showPaywall) {
+    return (
+      <Paywall
+        title={paywallData?.quotaReached ? 'Quota Reached' : 'Subscription Required'}
+        message={paywallData?.quotaReached 
+          ? `You have used ${paywallData.used} / ${paywallData.quota} analyses this month.`
+          : 'Subscribe to start analyzing products.'
+        }
+        quotaReached={paywallData?.quotaReached || false}
+        used={paywallData?.used}
+        quota={paywallData?.quota}
+        requiresUpgrade={paywallData?.requiresUpgrade as any}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">

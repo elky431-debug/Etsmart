@@ -1061,6 +1061,49 @@ const fetchAIAnalysis = async (
   // ═══════════════════════════════════════════════════════════════════════════
   
   if (!response.ok) {
+    // Tenter de parser la réponse JSON si possible
+    let errorData: any = {};
+    try {
+      if (data && typeof data === 'object') {
+        errorData = data;
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GESTION DU PAYWALL (401/403) - PRIORITÉ ABSOLUE
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (response.status === 401 || response.status === 403) {
+      // Vérifier si c'est une erreur de paywall
+      const isPaywallError = errorData.error === 'Unauthorized' || 
+                             errorData.error === 'Subscription required' ||
+                             errorData.error === 'Subscription inactive' ||
+                             errorData.error === 'Quota exceeded' ||
+                             errorData.error === 'No quota available' ||
+                             errorData.requiresSubscription === true ||
+                             errorData.quotaReached === true;
+      
+      if (isPaywallError) {
+        const paywallError = new AnalysisBlockedError(
+          errorData.error || 'Subscription required',
+          errorData.message || 'You need an active subscription to analyze products.',
+          'Please subscribe to continue using Etsmart.'
+        );
+        // Marquer comme erreur de paywall
+        (paywallError as any).isPaywallError = true;
+        (paywallError as any).paywallData = {
+          requiresSubscription: errorData.requiresSubscription,
+          quotaReached: errorData.quotaReached,
+          used: errorData.used,
+          quota: errorData.quota,
+          requiresUpgrade: errorData.requiresUpgrade,
+          subscriptionStatus: errorData.subscriptionStatus,
+        };
+        throw paywallError;
+      }
+    }
+    
     // Gestion des erreurs HTTP
     if (response.status === 503) {
       throw new AnalysisBlockedError(
@@ -1084,16 +1127,6 @@ const fetchAIAnalysis = async (
       // Ne pas lancer d'erreur pour éviter le bruit dans la console
       console.log('ℹ️ Une analyse est déjà en cours (429), utilisation du fallback silencieux');
       return null; // Retourner null pour déclencher le fallback sans erreur
-    }
-    
-    // Tenter de parser la réponse JSON si possible
-    let errorData: any = {};
-    try {
-      if (data && typeof data === 'object') {
-        errorData = data;
-      }
-    } catch (e) {
-      // Ignore JSON parse errors
     }
     
     console.error('❌ API Error:', response.status, errorData);
