@@ -449,7 +449,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <h3 className="font-bold text-amber-900 mb-1 text-sm">⚠️ Données par défaut utilisées</h3>
                         <p className="text-sm text-amber-800 leading-relaxed">
                           {analysis.verdict.warningIfAny || 
-                           'L\'API OpenAI n\'a pas pu répondre dans les temps (timeout >40s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite ou vérifier les logs Netlify.'}
+                           'L\'API OpenAI n\'a pas pu répondre dans les temps (timeout >30s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite ou vérifier les logs Netlify.'}
                         </p>
                         {analysis.dataSource === 'estimated' && (
                           <p className="text-xs text-amber-700 mt-2 italic">

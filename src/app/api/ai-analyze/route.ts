@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<40s)
+    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<30s)
     // Version condensée qui garde toutes les fonctionnalités essentielles
     const prompt = `Etsmart VISION EXPERT - Analyse e-commerce rapide.
 
@@ -304,7 +304,7 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
       maxTokens: 1500,
       temperature: 0.2,
       model: 'gpt-4o-mini',
-      timeout: '40s',
+      timeout: '30s',
       netlifyLimit: '50s',
     });
     
@@ -313,12 +313,12 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
     // ⚡ SOLUTION RADICALE: Utiliser directement GPT-4o-mini (le plus rapide)
-    // Timeout à 40s pour laisser plus de marge avant la limite Netlify de 50s
+    // Timeout à 30s comme avant (fonctionnait parfaitement il y a 24h)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.error('⏱️ GPT-4o-mini timeout après 40s');
+      console.error('⏱️ GPT-4o-mini timeout après 30s');
       controller.abort();
-    }, 40000); // 40 secondes max (marge de sécurité avant limite Netlify de 50s)
+    }, 30000); // 30 secondes max (comme avant - fonctionnait parfaitement)
     
     try {
       openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -351,8 +351,8 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
               ]
             }
           ],
-          temperature: 0.1, // ⚡ Réduire pour accélérer
-          max_tokens: 1000, // ⚡ Réduit pour accélérer encore plus
+          temperature: 0.2, // Paramètre original qui fonctionnait
+          max_tokens: 1500, // Paramètre original qui fonctionnait
         }),
         signal: controller.signal,
       });
@@ -376,9 +376,9 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
         console.error('⏱️ TIMEOUT - GPT-4o-mini timeout:', {
           elapsedTime: `${elapsedTime}ms`,
-          timeoutLimit: '40s',
+          timeoutLimit: '30s',
           netlifyLimit: '50s',
-          reason: 'GPT-4o-mini n\'a pas répondu dans les 40s. Vérifiez les logs Netlify.',
+          reason: 'GPT-4o-mini n\'a pas répondu dans les 30s. Vérifiez les logs Netlify.',
         });
         return NextResponse.json({
           success: false,
@@ -386,7 +386,7 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
           message: `GPT-4o-mini a timeout après ${Math.round(elapsedTime / 1000)} secondes. Normalement il répond en 15-25s.`,
           troubleshooting: 'Vérifiez les logs Netlify. L\'API OpenAI peut être surchargée ou votre connexion lente.',
           elapsedTime: elapsedTime,
-          timeoutLimit: 40000,
+          timeoutLimit: 30000,
           model: 'gpt-4o-mini',
         }, { status: 503 });
       }
