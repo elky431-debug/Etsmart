@@ -281,9 +281,14 @@ JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearc
         // Optimiser l'image si c'est une data URL trop grande
         let optimizedImageUrl = productImageUrl;
         if (productImageUrl.startsWith('data:image/')) {
-          // Si l'image est trop grande (>500KB), on la garde telle quelle mais on utilise 'low' detail
-          // Le serveur OpenAI gérera la compression
-          console.log('📷 Image data URL détectée, utilisation de detail: low pour optimisation');
+          // Si l'image est trop grande, on peut la réduire côté client avant l'envoi
+          // Pour l'instant, on utilise 'low' detail qui réduit déjà le temps de traitement
+          const imageSizeKB = productImageUrl.length / 1024;
+          if (imageSizeKB > 500) {
+            console.log(`📷 Image data URL détectée (${imageSizeKB.toFixed(0)}KB), utilisation de detail: low pour optimisation`);
+          } else {
+            console.log(`📷 Image data URL détectée (${imageSizeKB.toFixed(0)}KB), taille acceptable`);
+          }
         }
         
         openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -317,8 +322,9 @@ JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearc
               }
             ],
             temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
-            max_tokens: 1000, // Réduit pour accélérer (prompt plus court = réponse plus courte)
-            response_format: { type: 'json_object' } // Force JSON - le prompt doit explicitement demander du JSON
+            max_tokens: 800, // Réduit encore pour accélérer (moins de tokens = réponse plus rapide)
+            response_format: { type: 'json_object' }, // Force JSON - le prompt doit explicitement demander du JSON
+            stream: false // Pas de streaming pour réduire la latence
           }),
           signal: controller.signal,
         });
