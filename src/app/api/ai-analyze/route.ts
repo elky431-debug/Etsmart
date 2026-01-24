@@ -232,65 +232,30 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<30s)
-    // Version condensée qui garde toutes les fonctionnalités essentielles
-    const prompt = `Etsmart VISION EXPERT - Analyse e-commerce rapide.
+    // ⚡ PROMPT ULTRA-OPTIMISÉ POUR RÉPONSE RAPIDE (<25s)
+    // Version ultra-condensée pour éviter les timeouts
+    const prompt = `Analyse produit Etsy rapide. Niche: ${niche}. Prix: ${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
 
-📸 1. VISION: Identifie le produit (type, matériaux, complexité). Description 1-2 phrases.
+1. VISION: Décris le produit en 1 phrase.
+2. PRIX FOURNISSEUR: Estime (bijoux:$0.5-12, déco:$2-35, autres:$1-25). Livraison:$1-20.
+3. REQUÊTE ETSY: 4-7 mots anglais.
+4. CONCURRENTS: Estime BOUTIQUES Etsy. 0-40=LANCER, 41-90=LANCER_CONCURRENTIEL, 91+=NE_PAS_LANCER. Prix marché crédible.
+5. PRIX VENTE: Coût×3 si <$70, sinon ×2. Prix > marché Etsy ×1.05. Justifie.
+6. TAGS: EXACTEMENT 13 tags, max 20 chars chacun.
 
-💰 2. PRIX FOURNISSEUR: ${productPrice > 0 ? `Prix utilisateur: $${productPrice}` : 'Prix non fourni'}
-Estime prix AliExpress/Alibaba selon:
-- Bijoux simples: $0.50-3 | Personnalisés: $2-8 | Colliers: $3-12
-- Déco simple: $2-15 | Déco 3D: $8-35 | Lampes: $10-50
-- Accessoires animaux: $1-25 | Vêtements: $3-15 | Tech: $2-15
-- Stickers: $0.50-5 | Cuisine: $2-15 | Sacs: $3-20
-Livraison: Léger (<100g): $1-3 | Moyen (100-500g): $3-8 | Lourd (>500g): $8-20
-
-🎯 3. REQUÊTE ETSY: 4-7 mots anglais, comme un acheteur chercherait. Pas de mots marketing.
-
-📊 4. CONCURRENTS: Estime le nombre de BOUTIQUES (pas listings) sur Etsy.
-RÈGLES: Chaque produit est unique - varie tes estimations (ex: bracelet personnalisé 15-40, mug 80-150, t-shirt 200-400).
-Méthode: 1 requête Etsy → observe premières pages → regroupe par boutique → estime précisément.
-DÉCISION: 0-40 boutiques="non_sature"→LANCER | 41-90="concurrentiel"→LANCER_CONCURRENTIEL | 91+="sature"→NE_PAS_LANCER
-PRIX MARCHÉ: Analyse listings comparables, exclut prix anormaux, fournis fourchette crédible.
-
-💵 5. PRIX VENTE OPTIMAL (RÈGLES STRICTES OBLIGATOIRES):
-Niche=${niche} | Profil=NOUVELLE BOUTIQUE
-
-RÈGLES ABSOLUES À RESPECTER:
-❌ JAMAIS: prix recommandé ≤ coût fournisseur total (produit + livraison)
-✅ MULTIPLICATEURS MINIMUM OBLIGATOIRES:
-   - Produits < 70€: prix recommandé ≥ coût fournisseur × 3
-   - Produits ≥ 70€: prix recommandé ≥ coût fournisseur × 2
-✅ POSITIONNEMENT: Par défaut, prix recommandé > prix moyen Etsy (coefficient 1.05-1.30)
-
-CALCUL EN 3 ÉTAPES:
-1. Prix minimum = max(coût × multiplicateur, coût × 1.20)
-2. Prix marché = prix moyen Etsy × coefficient_positionnement (1.05-1.30)
-3. Prix recommandé = max(prix minimum, prix marché)
-
-JUSTIFICATION REQUISE: Explique clairement le calcul (coût fournisseur, multiplicateur appliqué, positionnement marché, marge).
-
-🏷️ 6. TAGS SEO ETSY (OBLIGATOIRE):
-EXACTEMENT 13 tags (pas moins, pas plus). Chaque tag max 20 caractères.
-Tags pertinents pour le produit, la niche, et le marché Etsy.
-
-📋 JSON REQUIS (MARKETING SUPPRIMÉ POUR VITESSE):
-{"canIdentifyProduct":bool,"productVisualDescription":"description 1-2 phrases","etsySearchQuery":"4-7 mots anglais",
-"estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"1-2 phrases",
+JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots",
+"estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"1 phrase",
 "decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,
-"estimatedCompetitors":nb VARIÉ (niche:5-30, modéré:31-80, populaire:81-130, très populaire:131-250, saturé:250+),
-"competitorEstimationReasoning":"méthodologie","competitorEstimationReliable":bool,
-"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"2 phrases",
-"averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"explication",
-"supplierPrice":nb,"minimumViablePrice":nb (DOIT être > coût fournisseur total),"recommendedPrice":{"optimal":nb (DOIT être > prix moyen Etsy et > minimumViablePrice),"min":nb (prix minimum autorisé),"max":nb},
-"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"2-3 phrases",
-"launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":jours,"max":jours},"withAds":{"min":jours,"max":jours}},
-"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"2 phrases"},
-"viralTitleEN":"max 140 chars","viralTitleFR":"version FR","seoTags":["EXACTEMENT 13 tags OBLIGATOIRES (pas moins), max 20 chars chacun, séparés par des virgules"],
-"marketingAngles":[{"angle":"nom","why":"pourquoi","targetAudience":"cible"}],
-"strengths":["force1","force2","force3"],"risks":["risque1","risque2","risque3"],
-"finalVerdict":"2-3 phrases","warningIfAny":"avertissement ou null"}`;
+"estimatedCompetitors":nb VARIÉ,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,
+"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"1 phrase",
+"averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court",
+"supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},
+"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"1 phrase",
+"launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},
+"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"1 phrase"},
+"viralTitleEN":"max 140","viralTitleFR":"max 140","seoTags":["13 tags"],
+"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],
+"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -352,7 +317,7 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
             }
           ],
           temperature: 0.2, // Paramètre original qui fonctionnait
-          max_tokens: 1500, // Paramètre original qui fonctionnait
+          max_tokens: 1200, // Réduit pour accélérer (prompt plus court = réponse plus courte)
         }),
         signal: controller.signal,
       });
