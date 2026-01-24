@@ -1,8 +1,23 @@
-// Etsmart Subscription Types
+// Etsmart Subscription Types - Updated per requirements
 
-export type PlanId = 'smart' | 'pro' | 'scale';
+export type PlanId = 'FREE' | 'SMART' | 'PRO' | 'SCALE';
 
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
+export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'past_due';
+
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  subscriptionPlan: PlanId;
+  subscriptionStatus: SubscriptionStatus;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  analysisUsedThisMonth: number;
+  analysisQuota: number;
+  currentPeriodStart: Date | string;
+  currentPeriodEnd: Date | string;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface Subscription {
   id: string;
@@ -44,18 +59,28 @@ export interface PlanFeature {
   available: boolean;
 }
 
-// Plan limits per plan type
-export const PLAN_LIMITS: Record<PlanId, number> = {
-  smart: 20,
-  pro: 50,
-  scale: 100,
+// Plan quotas per plan type (as per requirements)
+export const PLAN_QUOTAS: Record<PlanId, number> = {
+  FREE: 0,
+  SMART: 20,
+  PRO: 50,
+  SCALE: 100,
+};
+
+// Plan prices per plan type (as per requirements)
+export const PLAN_PRICES: Record<PlanId, number> = {
+  FREE: 0,
+  SMART: 19.99,
+  PRO: 29.99,
+  SCALE: 49.99,
 };
 
 // Stripe Price IDs for each plan
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
-  smart: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
-  pro: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
-  scale: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Scale - $49.99/month
+  FREE: null,
+  SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
+  PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
+  SCALE: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Scale - $49.99/month (TODO: Update with correct price ID)
 };
 
 // All plans have access to all features - only difference is number of analyses per month
@@ -75,43 +100,44 @@ const ALL_FEATURES: PlanFeature[] = [
 
 // Plan features configuration - all plans have the same features
 export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
-  smart: ALL_FEATURES,
-  pro: ALL_FEATURES,
-  scale: ALL_FEATURES,
+  FREE: [],
+  SMART: ALL_FEATURES,
+  PRO: ALL_FEATURES,
+  SCALE: ALL_FEATURES,
 };
 
 // Plan definitions
 export const PLANS: Plan[] = [
   {
-    id: 'smart',
+    id: 'SMART',
     name: 'Etsmart Smart',
     description: 'Perfect for sellers who want to test products seriously. All features included.',
     price: 19.99,
     currency: 'USD',
     analysesPerMonth: 20,
-    features: PLAN_FEATURES.smart,
-    stripePriceId: STRIPE_PRICE_IDS.smart || undefined,
+    features: PLAN_FEATURES.SMART,
+    stripePriceId: STRIPE_PRICE_IDS.SMART || undefined,
   },
   {
-    id: 'pro',
+    id: 'PRO',
     name: 'Etsmart Pro',
     description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
     price: 29.99,
     currency: 'USD',
     analysesPerMonth: 50,
-    features: PLAN_FEATURES.pro,
-    stripePriceId: STRIPE_PRICE_IDS.pro || undefined,
+    features: PLAN_FEATURES.PRO,
+    stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
     popular: true,
   },
   {
-    id: 'scale',
+    id: 'SCALE',
     name: 'Etsmart Scale',
     description: 'For high-volume shops testing many products strategically. All features included.',
     price: 49.99,
     currency: 'USD',
     analysesPerMonth: 100,
-    features: PLAN_FEATURES.scale,
-    stripePriceId: STRIPE_PRICE_IDS.scale || undefined,
+    features: PLAN_FEATURES.SCALE,
+    stripePriceId: STRIPE_PRICE_IDS.SCALE || undefined,
   },
 ];
 
@@ -120,11 +146,12 @@ export function getPlanById(planId: PlanId): Plan | undefined {
   return PLANS.find(plan => plan.id === planId);
 }
 
-export function getPlanLimit(planId: PlanId): number {
-  return PLAN_LIMITS[planId] || 0;
+export function getPlanQuota(planId: PlanId): number {
+  return PLAN_QUOTAS[planId] || 0;
 }
 
 export function hasFeature(planId: PlanId, featureId: string): boolean {
+  if (planId === 'FREE') return false;
   const plan = getPlanById(planId);
   if (!plan) return false;
   
@@ -139,3 +166,12 @@ export function getStripePriceId(planId: PlanId): string | null {
   return STRIPE_PRICE_IDS[planId] || null;
 }
 
+/**
+ * Get upgrade suggestion based on current plan
+ */
+export function getUpgradeSuggestion(currentPlan: PlanId): PlanId | null {
+  if (currentPlan === 'FREE') return 'SMART';
+  if (currentPlan === 'SMART') return 'PRO';
+  if (currentPlan === 'PRO') return 'SCALE';
+  return null;
+}

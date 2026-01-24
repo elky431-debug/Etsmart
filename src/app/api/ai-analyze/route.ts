@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireActiveSubscriptionAndQuota } from '@/lib/middleware/subscription';
+import { incrementAnalysisCount } from '@/lib/subscription-quota';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ETSMART AI ANALYSIS API - GPT-4o VISION
@@ -150,6 +152,12 @@ let isAnalyzing = false;
 let currentAnalysisPromise: Promise<any> | null = null;
 
 export async function POST(request: NextRequest) {
+  // ⚠️ PAYWALL PROTECTION : Vérifier l'abonnement et le quota
+  const paywallCheck = await requireActiveSubscriptionAndQuota(request);
+  if (paywallCheck) {
+    return paywallCheck; // Retourne l'erreur de paywall
+  }
+  
   // ⚠️ PROTECTION : Empêcher les analyses simultanées
   if (isAnalyzing) {
     return NextResponse.json({
@@ -164,6 +172,23 @@ export async function POST(request: NextRequest) {
   isAnalyzing = true;
   
   try {
+    // Get user ID from auth token
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const { createSupabaseAdminClient } = await import('@/lib/supabase-admin');
+    const supabase = createSupabaseAdminClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token || '');
+    
+    if (authError || !user) {
+      isAnalyzing = false;
+      return NextResponse.json({
+        success: false,
+        error: 'UNAUTHORIZED',
+        message: 'Authentication required.',
+        canAnalyze: false,
+      }, { status: 401 });
+    }
+    
     const body: AIAnalysisRequest = await request.json();
     const { productPrice, niche, productCategory, productImageUrl } = body;
 
@@ -786,6 +811,24 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
       responseTime: `${responseTime}ms`,
       promptLength: prompt.length,
     });
+    
+    // ⚠️ PAYWALL : Incrémenter le compteur d'analyses (côté serveur uniquement)
+    try {
+      const incrementResult = await incrementAnalysisCount(user.id);
+      if (!incrementResult.success) {
+        console.error('⚠️ Failed to increment analysis count:', incrementResult.error);
+        // On continue quand même - l'analyse est déjà faite
+      } else {
+        console.log('✅ Analysis count incremented:', {
+          used: incrementResult.used,
+          quota: incrementResult.quota,
+          remaining: incrementResult.remaining,
+        });
+      }
+    } catch (quotaError: any) {
+      console.error('⚠️ Error incrementing quota:', quotaError);
+      // On continue quand même - l'analyse est déjà faite
+    }
     
     return NextResponse.json({
       success: true,
