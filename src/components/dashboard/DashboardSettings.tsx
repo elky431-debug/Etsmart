@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Globe, DollarSign, Target, Shield, Languages, Save, Lock, Eye, EyeOff, ChevronDown, Check, Sparkles, Facebook, Instagram, Share2, Trash2, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, DollarSign, Target, Shield, Languages, Save, Lock, Eye, EyeOff, ChevronDown, Check, Sparkles, Facebook, Instagram, Share2 } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -210,12 +210,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-  
-  // Account deletion state
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -308,55 +302,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
       alert('Error saving: ' + (error?.message || 'Unknown error'));
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    // Verify confirmation text
-    if (deleteConfirmText !== 'DELETE') {
-      setDeleteError('Please type "DELETE" to confirm');
-      return;
-    }
-
-    setIsDeleting(true);
-    setDeleteError(null);
-
-    try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch('/api/user/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        const errorMessage = data.message || data.error || 'Failed to delete account';
-        
-        // Don't show technical errors to user
-        if (errorMessage.includes('SUPABASE_SERVICE_ROLE_KEY') || 
-            errorMessage.includes('Server configuration')) {
-          throw new Error('Account deletion is temporarily unavailable. Please contact support.');
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Account deleted successfully - redirect to home
-      alert('Your account has been deleted successfully.');
-      window.location.href = '/';
-    } catch (error: any) {
-      console.error('Error deleting account:', error);
-      setDeleteError(error.message || 'Failed to delete account. Please try again.');
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -708,113 +653,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <span>{isChangingPassword ? 'Changing...' : 'Change Password'}</span>
               </button>
             </div>
-          </motion.div>
-
-          {/* Delete Account Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-red-50 rounded-xl border-2 border-red-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-red-900">Delete Account</h2>
-                <p className="text-sm text-red-700 mt-1">
-                  Permanently delete your account and all associated data
-                </p>
-              </div>
-            </div>
-
-            {!showDeleteConfirm ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-white rounded-lg border border-red-200">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-red-900 mb-2">
-                        This action cannot be undone
-                      </p>
-                      <p className="text-sm text-red-700">
-                        Deleting your account will permanently remove:
-                      </p>
-                      <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
-                        <li>All your product analyses</li>
-                        <li>All your saved products</li>
-                        <li>Your subscription and settings</li>
-                        <li>Your account and login credentials</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all"
-                >
-                  <Trash2 size={18} />
-                  <span>Delete My Account</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 bg-white rounded-lg border-2 border-red-300">
-                  <p className="text-sm font-semibold text-red-900 mb-3">
-                    Type <strong className="font-mono">DELETE</strong> to confirm:
-                  </p>
-                  <input
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => {
-                      setDeleteConfirmText(e.target.value);
-                      setDeleteError(null);
-                    }}
-                    placeholder="Type DELETE"
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-mono"
-                  />
-                </div>
-
-                {deleteError && (
-                  <div className="p-3 bg-red-100 border border-red-300 rounded-lg">
-                    <p className="text-sm text-red-700">{deleteError}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDeleteConfirm(false);
-                      setDeleteConfirmText('');
-                      setDeleteError(null);
-                    }}
-                    disabled={isDeleting}
-                    className="flex-1 px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition-all disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting || deleteConfirmText !== 'DELETE'}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Deleting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 size={18} />
-                        <span>Delete Account</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
           </motion.div>
 
           {/* Save button */}
