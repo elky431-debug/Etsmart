@@ -21,7 +21,6 @@ import { analyzeProduct, AnalysisBlockedError } from '@/lib/mockAnalysis';
 import { supabase } from '@/lib/supabase';
 import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
-import { Paywall } from '@/components/paywall/Paywall';
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
@@ -33,15 +32,6 @@ export function AnalysisStep() {
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [startTime] = useState(Date.now());
   const MINIMUM_DURATION = 30000; // 30 secondes minimum
-  
-  // Paywall state
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallData, setPaywallData] = useState<{
-    quotaReached?: boolean;
-    used?: number;
-    quota?: number;
-    requiresUpgrade?: string;
-  } | null>(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FONCTION HELPER: Sauvegarde fiable de l'analyse dans la DB
@@ -162,23 +152,8 @@ export function AnalysisStep() {
         } catch (error: any) {
           console.error(`❌ Error analyzing product:`, error);
           
-          // ═══════════════════════════════════════════════════════════════════════════
-          // GESTION DU PAYWALL - AFFICHER LE PAYWALL SI ERREUR 401/403
-          // ═══════════════════════════════════════════════════════════════════════════
-          if (error instanceof AnalysisBlockedError && (error as any).isPaywallError) {
-            console.log('🔒 Paywall error detected, showing paywall - NO FALLBACK DATA');
-            setShowPaywall(true);
-            setPaywallData((error as any).paywallData || {});
-            setIsAnalyzing(false);
-            setGlobalIsAnalyzing(false);
-            return; // ⚠️ CRITIQUE : Ne PAS créer de fallback pour les erreurs de paywall
-          }
-          
-          // ⚠️ IMPORTANT : Le fallback ne doit être utilisé QUE pour les erreurs techniques
-          // (timeout, erreur serveur, etc.) - JAMAIS pour les erreurs de paywall
-          // Si l'erreur n'est pas une erreur de paywall, on peut créer un fallback minimal
-          // mais seulement si c'est une erreur technique (pas d'authentification/abonnement)
-          console.warn('⚠️ Technical error during analysis, creating minimal fallback');
+          // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
+          // Mais on crée une analyse minimale pour ne pas bloquer
           const fallbackAnalysis = {
             id: `analysis-${product.id}-${Date.now()}`,
             product,
