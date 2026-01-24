@@ -128,11 +128,11 @@ export function AnalysisStep() {
       try {
         // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
         // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
-        // Timeout de 50 secondes max (pour correspondre à la limite Netlify de 50s)
-        // Note: Même si l'analyse timeout, on attendra quand même les 30 secondes minimum avec progression animée
+        // Timeout de 120 secondes max (pour permettre les retries côté serveur: 3 tentatives × 45s = 135s max)
+        // Le serveur a un timeout de 45s par tentative avec 3 retries, donc on doit attendre plus longtemps côté client
         const analysisPromise = analyzeProduct(product, (niche || 'custom') as Niche);
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Product timeout')), 50000) // 50s pour correspondre à Netlify
+          setTimeout(() => reject(new Error('Product timeout')), 120000) // 120s pour permettre les retries
         );
         
         const analysis = await Promise.race([analysisPromise, timeout]) as any;
