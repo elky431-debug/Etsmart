@@ -66,7 +66,7 @@ interface AIAnalysisResponse {
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
-  marketingAngles: {
+  marketingAngles?: {
     angle: string;
     why: string;
     targetAudience: string;
@@ -136,8 +136,8 @@ interface AIAnalysisResponse {
   };
   
   // Analyse
-  strengths: string[];
-  risks: string[];
+  strengths?: string[];
+  risks?: string[];
   finalVerdict: string;
   warningIfAny: string | null;
 }
@@ -245,7 +245,7 @@ Réponds UNIQUEMENT en JSON valide:
 5.PRIX VENTE:Coût×3 si <$70,sinon ×2.Prix>marché×1.05
 6.TAGS:13 tags max 20 chars
 
-JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
+JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -591,40 +591,6 @@ JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearc
             },
             viralTitleEN: 'Product - Handmade Gift',
             seoTags: ['gift', 'handmade', 'product', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'],
-            marketingAngles: [{
-              angle: 'Gift',
-              why: 'Ideal gift',
-              targetAudience: 'Gift buyers',
-            }],
-            strategicMarketing: {
-              positioning: {
-                mainPositioning: 'Gift product',
-                justification: 'Based on market analysis',
-                competitiveAdvantage: 'Quality',
-              },
-              underexploitedAngles: [],
-              competitorMistakes: [],
-              visualRecommendations: [],
-              psychologicalTriggers: [],
-              anglesToAvoid: [],
-            },
-            acquisitionMarketing: {
-              targetAudience: {
-                ageRange: '25-45',
-                situation: 'General',
-                buyingBehavior: 'reflective',
-                description: 'General audience',
-              },
-              acquisitionChannel: {
-                primary: 'facebook',
-                justification: 'Suitable for Facebook',
-                notSuitableForTikTok: false,
-              },
-              tiktokIdeas: [],
-              facebookIdeas: [],
-            },
-            strengths: ['Product quality'],
-            risks: ['Market competition'],
             finalVerdict: 'Product can be launched with proper optimization',
             warningIfAny: null,
           } as AIAnalysisResponse;
