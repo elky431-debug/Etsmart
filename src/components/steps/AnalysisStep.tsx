@@ -33,6 +33,60 @@ export function AnalysisStep() {
   const [startTime] = useState(Date.now());
   const MINIMUM_DURATION = 30000; // 30 secondes minimum
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FONCTION HELPER: Sauvegarde fiable de l'analyse dans la DB
+  // ═══════════════════════════════════════════════════════════════════════════
+  const saveAnalysisToDatabase = async (analysis: any) => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        console.log('ℹ️ User not authenticated, analysis will be saved in localStorage only');
+        return; // Pas connecté, on skip (mais l'analyse est dans le store)
+      }
+      
+      try {
+        // First, save the product to database
+        let savedProduct = analysis.product;
+        try {
+          const { data: existingProducts } = await supabase
+            .from('products')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('url', analysis.product.url)
+            .limit(1);
+          
+          if (existingProducts && existingProducts.length > 0) {
+            savedProduct = {
+              ...analysis.product,
+              id: existingProducts[0].id,
+            };
+          } else {
+            savedProduct = await productDb.createProduct(user.id, analysis.product);
+          }
+        } catch (productError: any) {
+          console.error('❌ Error saving product to database:', productError?.message);
+          // Continue anyway - on utilisera le produit original
+        }
+        
+        // Then save the analysis
+        const analysisWithSavedProduct = {
+          ...analysis,
+          product: savedProduct,
+        };
+        
+        await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
+        console.log('✅ Analysis saved to database successfully');
+      } catch (saveError: any) {
+        console.error('❌ Error saving analysis to database:', saveError?.message);
+        // Non-critique, on continue - l'analyse est dans le store local
+      }
+    } catch (error: any) {
+      console.error('❌ Error in saveAnalysisToDatabase:', error?.message);
+      // Silently fail - not critical, analysis is in local store
+    }
+  };
+
   const phases = [
     { text: 'Product image analysis', icon: Eye },
     { text: 'Etsy market evaluation', icon: BarChart3 },
@@ -93,54 +147,8 @@ export function AnalysisStep() {
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
           
-          // Sauvegarde DB en arrière-plan (non-bloquante)
-          (async () => {
-            try {
-              const { data: { user }, error: authError } = await supabase.auth.getUser();
-              
-              if (authError || !user) {
-                return; // Pas connecté, on skip
-              }
-              
-            try {
-              // First, save the product to database
-              let savedProduct = analysis.product;
-              try {
-                const { data: existingProducts } = await supabase
-                  .from('products')
-                  .select('*')
-                  .eq('user_id', user.id)
-                  .eq('url', analysis.product.url)
-                  .limit(1);
-                
-                if (existingProducts && existingProducts.length > 0) {
-                  savedProduct = {
-                    ...analysis.product,
-                    id: existingProducts[0].id,
-                  };
-                } else {
-                  savedProduct = await productDb.createProduct(user.id, analysis.product);
-                }
-              } catch (productError: any) {
-                  console.warn('⚠️ Error saving product to database:', productError?.message);
-                  // Continue anyway
-                }
-                
-                // Then save the analysis
-              const analysisWithSavedProduct = {
-                ...analysis,
-                product: savedProduct,
-              };
-              
-              await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
-            } catch (saveError: any) {
-                console.warn('⚠️ Error saving analysis to database:', saveError?.message);
-                // Non-critique, on continue
-              }
-            } catch (error: any) {
-              // Silently fail - not critical
-            }
-          })();
+          // Sauvegarde DB en arrière-plan (non-bloquante) - TOUJOURS sauvegarder
+          saveAnalysisToDatabase(analysis);
         } catch (error: any) {
           console.error(`❌ Error analyzing product:`, error);
           // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
@@ -268,6 +276,9 @@ export function AnalysisStep() {
           addAnalysis(fallbackAnalysis);
           setCompletedProducts(prev => [...prev, product.id]);
           setAnalysisComplete(true);
+          
+          // Sauvegarder aussi le fallback analysis dans la DB
+          saveAnalysisToDatabase(fallbackAnalysis);
         }
       
       console.log('✅ All analyses completed');

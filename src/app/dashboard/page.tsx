@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
 import { analysisDb } from '@/lib/db/analyses';
+import { useStore } from '@/store/useStore';
 import type { ProductAnalysis } from '@/types';
 import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysisDetail';
@@ -62,14 +63,53 @@ export default function DashboardPage() {
     }
   }, [user]);
 
+  // Recharger les analyses quand l'utilisateur revient sur la page (focus)
+  useEffect(() => {
+    if (!user) return;
+    
+    const handleFocus = () => {
+      loadAnalyses();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user]);
+
   const loadAnalyses = async () => {
     if (!user) return;
     
     try {
       setIsLoading(true);
-      const data = await analysisDb.getAnalyses(user.id);
-      console.log('📊 Loaded analyses from database:', data.length);
-      setAnalyses(data);
+      
+      // 1. Charger les analyses depuis la DB
+      const dbAnalyses = await analysisDb.getAnalyses(user.id);
+      console.log('📊 Loaded analyses from database:', dbAnalyses.length);
+      
+      // 2. Synchroniser les analyses du store local vers la DB (si pas déjà présentes)
+      const { analyses: localAnalyses } = useStore.getState();
+      if (localAnalyses && localAnalyses.length > 0) {
+        console.log('🔄 Syncing local analyses to database...', localAnalyses.length);
+        for (const localAnalysis of localAnalyses) {
+          try {
+            // Vérifier si l'analyse existe déjà dans la DB
+            const exists = dbAnalyses.some(db => db.product.id === localAnalysis.product.id);
+            if (!exists) {
+              // Sauvegarder l'analyse locale dans la DB
+              await analysisDb.saveAnalysis(user.id, localAnalysis);
+              console.log('✅ Synced local analysis to database:', localAnalysis.product.title);
+            }
+          } catch (syncError: any) {
+            console.warn('⚠️ Error syncing local analysis:', syncError?.message);
+            // Continue avec les autres analyses
+          }
+        }
+        
+        // Recharger les analyses après la synchronisation
+        const updatedAnalyses = await analysisDb.getAnalyses(user.id);
+        setAnalyses(updatedAnalyses);
+      } else {
+        setAnalyses(dbAnalyses);
+      }
     } catch (error: any) {
       console.error('❌ Error loading analyses:', {
         message: error?.message,
