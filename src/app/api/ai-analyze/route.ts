@@ -312,7 +312,7 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
       maxTokens: 1500,
       temperature: 0.2,
       model: 'gpt-4o-mini',
-      timeout: '30s',
+      timeout: '45s',
       netlifyLimit: '50s',
     });
     
@@ -321,12 +321,12 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
     // ⚡ SOLUTION RADICALE: Utiliser directement GPT-4o-mini (le plus rapide)
-    // Timeout à 30s pour éviter les timeouts prématurés (sous la limite Netlify de 50s)
+    // Timeout à 45s pour éviter les timeouts prématurés (sous la limite Netlify de 50s)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.error('⏱️ GPT-4o-mini timeout après 30s');
+      console.error('⏱️ GPT-4o-mini timeout après 45s');
       controller.abort();
-    }, 30000); // 30 secondes max (GPT-4o-mini répond généralement en 15-25s)
+    }, 45000); // 45 secondes max (sous la limite Netlify de 50s)
     
     try {
       openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -340,7 +340,7 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
           messages: [
             {
               role: 'system',
-              content: 'Expert e-commerce. Réponds UNIQUEMENT en JSON valide.'
+              content: 'Expert e-commerce. Réponds UNIQUEMENT en JSON valide. Sois concis.'
             },
             {
               role: 'user',
@@ -349,6 +349,9 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
                   type: 'image_url',
                   image_url: {
                     url: productImageUrl,
+                    detail: 'low' // ⚡ Optimisation: utiliser 'low' pour réduire le temps de traitement
+                  }
+                },
                     detail: 'low' // 'low' pour vitesse maximale
                   }
                 },
@@ -359,8 +362,8 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
               ]
             }
           ],
-          temperature: 0.2,
-          max_tokens: 1000, // ⚡ RÉDUIT à 1000 (marketing supprimé = réponse plus courte)
+          temperature: 0.1, // ⚡ Réduire pour accélérer
+          max_tokens: 1200, // ⚡ Optimisé pour vitesse
         }),
         signal: controller.signal,
       });
@@ -384,17 +387,17 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
         console.error('⏱️ TIMEOUT - GPT-4o-mini timeout:', {
           elapsedTime: `${elapsedTime}ms`,
-          timeoutLimit: '30s',
+          timeoutLimit: '45s',
           netlifyLimit: '50s',
-          reason: 'GPT-4o-mini n\'a pas répondu dans les 30s. Vérifiez les logs Netlify.',
+          reason: 'GPT-4o-mini n\'a pas répondu dans les 45s. Vérifiez les logs Netlify.',
         });
         return NextResponse.json({
           success: false,
           error: 'TIMEOUT',
-          message: `GPT-4o-mini a timeout après ${Math.round(elapsedTime / 1000)} secondes. Normalement il répond en 15-25s.`,
+          message: `GPT-4o-mini a timeout après ${Math.round(elapsedTime / 1000)} secondes. Normalement il répond en 15-30s.`,
           troubleshooting: 'Vérifiez les logs Netlify. L\'API OpenAI peut être surchargée ou votre connexion lente.',
           elapsedTime: elapsedTime,
-          timeoutLimit: 30000,
+          timeoutLimit: 45000,
           model: 'gpt-4o-mini',
         }, { status: 503 });
       }

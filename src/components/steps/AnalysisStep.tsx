@@ -138,11 +138,11 @@ export function AnalysisStep() {
       try {
         // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
         // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
-        // Timeout de 60 secondes max (pour laisser le temps à l'API OpenAI de répondre)
+        // Timeout de 50 secondes max (pour correspondre à la limite Netlify de 50s)
         // Note: Même si l'analyse timeout, on attendra quand même les 30 secondes minimum avec progression animée
         const analysisPromise = analyzeProduct(product, (niche || 'custom') as Niche);
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Product timeout')), 60000)
+          setTimeout(() => reject(new Error('Product timeout')), 50000) // 50s pour correspondre à Netlify
         );
         
         const analysis = await Promise.race([analysisPromise, timeout]) as any;
@@ -166,16 +166,19 @@ export function AnalysisStep() {
           // GESTION DU PAYWALL - AFFICHER LE PAYWALL SI ERREUR 401/403
           // ═══════════════════════════════════════════════════════════════════════════
           if (error instanceof AnalysisBlockedError && (error as any).isPaywallError) {
-            console.log('🔒 Paywall error detected, showing paywall');
+            console.log('🔒 Paywall error detected, showing paywall - NO FALLBACK DATA');
             setShowPaywall(true);
             setPaywallData((error as any).paywallData || {});
             setIsAnalyzing(false);
             setGlobalIsAnalyzing(false);
-            return; // Ne pas continuer avec le fallback
+            return; // ⚠️ CRITIQUE : Ne PAS créer de fallback pour les erreurs de paywall
           }
           
-          // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
-          // Mais on crée une analyse minimale pour ne pas bloquer
+          // ⚠️ IMPORTANT : Le fallback ne doit être utilisé QUE pour les erreurs techniques
+          // (timeout, erreur serveur, etc.) - JAMAIS pour les erreurs de paywall
+          // Si l'erreur n'est pas une erreur de paywall, on peut créer un fallback minimal
+          // mais seulement si c'est une erreur technique (pas d'authentification/abonnement)
+          console.warn('⚠️ Technical error during analysis, creating minimal fallback');
           const fallbackAnalysis = {
             id: `analysis-${product.id}-${Date.now()}`,
             product,
