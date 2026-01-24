@@ -231,30 +231,18 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT ULTRA-OPTIMISÉ POUR RÉPONSE RAPIDE (<25s)
-    // Version ultra-condensée pour éviter les timeouts
-    const prompt = `Analyse produit Etsy rapide. Niche: ${niche}. Prix: ${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
+    // ⚡ PROMPT ULTRA-OPTIMISÉ POUR RÉPONSE RAPIDE (<20s)
+    // Version ultra-condensée avec format JSON strict pour réponse plus rapide
+    const prompt = `Analyse Etsy. Niche:${niche}. Prix:${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
 
-1. VISION: Décris le produit en 1 phrase.
-2. PRIX FOURNISSEUR: Estime (bijoux:$0.5-12, déco:$2-35, autres:$1-25). Livraison:$1-20.
-3. REQUÊTE ETSY: 4-7 mots anglais.
-4. CONCURRENTS: Estime BOUTIQUES Etsy. 0-40=LANCER, 41-90=LANCER_CONCURRENTIEL, 91+=NE_PAS_LANCER. Prix marché crédible.
-5. PRIX VENTE: Coût×3 si <$70, sinon ×2. Prix > marché Etsy ×1.05. Justifie.
-6. TAGS: EXACTEMENT 13 tags, max 20 chars chacun.
+1.VISION:1 phrase produit
+2.PRIX:Estime fournisseur (bijoux:$0.5-12,déco:$2-35,autres:$1-25).Livraison:$1-20
+3.ETSY:4-7 mots anglais recherche
+4.CONCURRENTS:Boutiques Etsy.0-40=LANCER,41-90=LANCER_CONCURRENTIEL,91+=NE_PAS_LANCER.Prix marché
+5.PRIX VENTE:Coût×3 si <$70,sinon ×2.Prix>marché×1.05
+6.TAGS:13 tags max 20 chars
 
-JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots",
-"estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"1 phrase",
-"decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,
-"estimatedCompetitors":nb VARIÉ,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,
-"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"1 phrase",
-"averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court",
-"supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},
-"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"1 phrase",
-"launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},
-"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"1 phrase"},
-"viralTitleEN":"max 140","seoTags":["13 tags"],
-"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],
-"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
+JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -265,10 +253,11 @@ JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySear
       promptSizeKB: (prompt.length / 1024).toFixed(2),
       niche,
       price: productPrice,
-      maxTokens: 1500,
-      temperature: 0.2,
+      maxTokens: 1000,
+      temperature: 0.1,
       model: 'gpt-4o-mini',
-      timeout: '30s',
+      timeout: '45s',
+      retries: MAX_RETRIES + 1,
       netlifyLimit: '50s',
     });
     
@@ -276,103 +265,169 @@ JSON: {"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySear
     let openaiResponse: Response;
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
-    // ⚡ SOLUTION RADICALE: Utiliser directement GPT-4o-mini (le plus rapide)
-    // Timeout à 30s comme avant (fonctionnait parfaitement il y a 24h)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.error('⏱️ GPT-4o-mini timeout après 30s');
-      controller.abort();
-    }, 30000); // 30 secondes max (comme avant - fonctionnait parfaitement)
+    // ⚡ SOLUTION RADICALE: Retry avec timeout progressif
+    // Timeout à 50s (limite Netlify) avec retry automatique
+    const MAX_RETRIES = 2;
+    const INITIAL_TIMEOUT = 45000; // 45s pour laisser de la marge avec la limite Netlify (50s)
+    let lastError: any = null;
+    let openaiResponse: Response | null = null;
     
-    try {
-      openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini', // ⚡ Modèle le plus rapide directement
-          messages: [
-            {
-              role: 'system',
-              content: 'Expert e-commerce. Réponds UNIQUEMENT en JSON valide. Sois concis.'
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: productImageUrl,
-                    detail: 'low' // ⚡ Optimisation: utiliser 'low' pour réduire le temps de traitement
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error(`⏱️ GPT-4o-mini timeout après ${INITIAL_TIMEOUT}ms (tentative ${attempt + 1}/${MAX_RETRIES + 1})`);
+        controller.abort();
+      }, INITIAL_TIMEOUT);
+      
+      try {
+        console.log(`🔄 Tentative ${attempt + 1}/${MAX_RETRIES + 1} - Appel OpenAI API`);
+        
+        // Optimiser l'image si c'est une data URL trop grande
+        let optimizedImageUrl = productImageUrl;
+        if (productImageUrl.startsWith('data:image/')) {
+          // Si l'image est trop grande (>500KB), on la garde telle quelle mais on utilise 'low' detail
+          // Le serveur OpenAI gérera la compression
+          console.log('📷 Image data URL détectée, utilisation de detail: low pour optimisation');
+        }
+        
+        openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini', // ⚡ Modèle le plus rapide
+            messages: [
+              {
+                role: 'system',
+                content: 'Expert e-commerce. Réponds UNIQUEMENT en JSON valide. Sois concis.'
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: optimizedImageUrl,
+                      detail: 'low' // ⚡ CRITIQUE: 'low' réduit drastiquement le temps de traitement
+                    }
+                  },
+                  {
+                    type: 'text',
+                    text: prompt
                   }
-                },
-                {
-                  type: 'text',
-                  text: prompt
-                }
-              ]
-            }
-          ],
-          temperature: 0.2, // Paramètre original qui fonctionnait
-          max_tokens: 1200, // Réduit pour accélérer (prompt plus court = réponse plus courte)
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      const openaiDuration = Date.now() - openaiStartTime;
-      console.log('✅ GPT-4o-mini responded successfully after', openaiDuration, 'ms');
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      const elapsedTime = Date.now() - openaiStartTime;
-      
-      // Gestion des erreurs de réseau/timeout
-      console.error('❌ Fetch error caught:', {
-        name: fetchError?.name,
-        message: fetchError?.message,
-        model: usedModel,
-        elapsedTime: `${elapsedTime}ms`,
-        stack: fetchError?.stack?.substring(0, 300),
-      });
-      
-      if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
-        console.error('⏱️ TIMEOUT - GPT-4o-mini timeout:', {
-          elapsedTime: `${elapsedTime}ms`,
-          timeoutLimit: '30s',
-          netlifyLimit: '50s',
-          reason: 'GPT-4o-mini n\'a pas répondu dans les 30s. Vérifiez les logs Netlify.',
+                ]
+              }
+            ],
+            temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
+            max_tokens: 1000, // Réduit encore pour accélérer (prompt court = réponse courte)
+            response_format: { type: 'json_object' }, // Force JSON pour réponse plus rapide
+          }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
+        
+        // Si la réponse est OK, sortir de la boucle
+        if (openaiResponse.ok) {
+          const openaiDuration = Date.now() - openaiStartTime;
+          console.log(`✅ GPT-4o-mini responded successfully after ${openaiDuration}ms (tentative ${attempt + 1})`);
+          break;
+        }
+        
+        // Si erreur 429 (rate limit), attendre avant de retry
+        if (openaiResponse.status === 429 && attempt < MAX_RETRIES) {
+          const retryAfter = parseInt(openaiResponse.headers.get('retry-after') || '2');
+          console.log(`⏳ Rate limit hit, waiting ${retryAfter}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          continue;
+        }
+        
+        // Autre erreur, sortir de la boucle
+        break;
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        lastError = fetchError;
+        const elapsedTime = Date.now() - openaiStartTime;
+        
+        // Si c'est un timeout et qu'on peut retry
+        if ((fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') && attempt < MAX_RETRIES) {
+          console.warn(`⚠️ Timeout sur tentative ${attempt + 1}, retry dans 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Attendre 2s avant retry
+          continue;
+        }
+        
+        // Si c'est une erreur réseau et qu'on peut retry
+        if ((fetchError.message?.includes('fetch failed') || fetchError.message?.includes('network')) && attempt < MAX_RETRIES) {
+          console.warn(`⚠️ Erreur réseau sur tentative ${attempt + 1}, retry dans 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        
+        // Sinon, gérer l'erreur normalement
+        console.error('❌ Fetch error caught:', {
+          name: fetchError?.name,
+          message: fetchError?.message,
+          attempt: attempt + 1,
+          elapsedTime: `${elapsedTime}ms`,
+        });
+        
+        if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+          console.error('⏱️ TIMEOUT - GPT-4o-mini timeout:', {
+            elapsedTime: `${elapsedTime}ms`,
+            timeoutLimit: `${INITIAL_TIMEOUT}ms`,
+            attempts: attempt + 1,
+            netlifyLimit: '50s',
+          });
+          return NextResponse.json({
+            success: false,
+            error: 'TIMEOUT',
+            message: `GPT-4o-mini a timeout après ${Math.round(elapsedTime / 1000)} secondes (${attempt + 1} tentatives).`,
+            troubleshooting: 'L\'API OpenAI peut être surchargée. Réessayez dans quelques instants.',
+            elapsedTime: elapsedTime,
+            timeoutLimit: INITIAL_TIMEOUT,
+            attempts: attempt + 1,
+            model: 'gpt-4o-mini',
+          }, { status: 503 });
+        }
+        
+        if (fetchError.message?.includes('fetch failed') || fetchError.message?.includes('network')) {
+          console.error('🌐 NETWORK ERROR - Cannot reach OpenAI');
+          return NextResponse.json({
+            success: false,
+            error: 'NETWORK_ERROR',
+            message: 'Erreur de connexion au service OpenAI.',
+            troubleshooting: 'Vérifiez votre connexion internet et réessayez.',
+            attempts: attempt + 1,
+          }, { status: 503 });
+        }
+        
+        // Autre erreur de fetch
+        console.error('❌ UNKNOWN FETCH ERROR');
         return NextResponse.json({
           success: false,
-          error: 'TIMEOUT',
-          message: `GPT-4o-mini a timeout après ${Math.round(elapsedTime / 1000)} secondes. Normalement il répond en 15-25s.`,
-          troubleshooting: 'Vérifiez les logs Netlify. L\'API OpenAI peut être surchargée ou votre connexion lente.',
-          elapsedTime: elapsedTime,
-          timeoutLimit: 30000,
-          model: 'gpt-4o-mini',
+          error: 'FETCH_ERROR',
+          message: 'Impossible de contacter le service OpenAI.',
+          details: fetchError.message,
+          troubleshooting: 'Vérifiez les logs Netlify pour plus de détails.',
+          attempts: attempt + 1,
         }, { status: 503 });
       }
-      
-      if (fetchError.message?.includes('fetch failed') || fetchError.message?.includes('network')) {
-        console.error('🌐 NETWORK ERROR - Cannot reach OpenAI');
-        return NextResponse.json({
-          success: false,
-          error: 'NETWORK_ERROR',
-          message: 'Erreur de connexion au service OpenAI.',
-          troubleshooting: 'Vérifiez votre connexion internet et réessayez.',
-        }, { status: 503 });
-      }
-      
-      // Autre erreur de fetch
-      console.error('❌ UNKNOWN FETCH ERROR');
+    }
+    
+    // Si on arrive ici sans réponse, c'est qu'on a épuisé les tentatives
+    if (!openaiResponse) {
+      const elapsedTime = Date.now() - openaiStartTime;
       return NextResponse.json({
         success: false,
-        error: 'FETCH_ERROR',
-        message: 'Impossible de contacter le service OpenAI.',
-        details: fetchError.message,
-        troubleshooting: 'Vérifiez les logs Netlify pour plus de détails.',
+        error: 'TIMEOUT',
+        message: `GPT-4o-mini n'a pas répondu après ${MAX_RETRIES + 1} tentatives (${Math.round(elapsedTime / 1000)}s total).`,
+        troubleshooting: 'L\'API OpenAI est peut-être surchargée. Réessayez dans quelques instants.',
+        elapsedTime: elapsedTime,
+        attempts: MAX_RETRIES + 1,
+        model: 'gpt-4o-mini',
       }, { status: 503 });
     }
 
