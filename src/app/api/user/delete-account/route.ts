@@ -166,20 +166,57 @@ export async function DELETE(request: NextRequest) {
     // DELETE USER ACCOUNT (Supabase Auth)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // Use admin client to delete the user
-    // Note: deleteUser returns { data, error } format
-    try {
-      const { data: deleteResult, error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DELETE USER ACCOUNT (Supabase Auth)
+    // ═══════════════════════════════════════════════════════════════════════════
 
-      if (deleteUserError) {
+    // Use admin client to delete the user via REST API
+    // Note: We use the REST API directly because auth.admin.deleteUser might not work
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (!supabaseUrl || !serviceRoleKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      // Delete user via Supabase Management API
+      const deleteResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'apikey': serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!deleteResponse.ok) {
+        const errorText = await deleteResponse.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+
         console.error('Error deleting user account:', {
-          error: deleteUserError,
-          message: deleteUserError.message,
-          code: deleteUserError.status,
+          status: deleteResponse.status,
+          statusText: deleteResponse.statusText,
+          error: errorData,
         });
-        
+
+        // Check if user doesn't exist (already deleted)
+        if (deleteResponse.status === 404 || errorData.message?.includes('not found')) {
+          // User already deleted, but data cleanup was successful
+          console.log('User already deleted, but data cleanup completed');
+          return NextResponse.json({
+            success: true,
+            message: 'Account deleted successfully',
+          });
+        }
+
         // Check if it's a permission error
-        if (deleteUserError.message?.includes('permission') || deleteUserError.message?.includes('role')) {
+        if (deleteResponse.status === 403 || errorData.message?.includes('permission') || errorData.message?.includes('role')) {
           return NextResponse.json(
             { 
               error: 'Permission error',
@@ -188,17 +225,7 @@ export async function DELETE(request: NextRequest) {
             { status: 403 }
           );
         }
-        
-        // Check if user doesn't exist (already deleted)
-        if (deleteUserError.message?.includes('not found') || deleteUserError.status === 404) {
-          // User already deleted, but data cleanup was successful
-          console.log('User already deleted, but data cleanup completed');
-          return NextResponse.json({
-            success: true,
-            message: 'Account deleted successfully',
-          });
-        }
-        
+
         return NextResponse.json(
           { 
             error: 'Failed to delete account',
@@ -209,7 +236,6 @@ export async function DELETE(request: NextRequest) {
       }
 
       console.log(`✅ Account deleted successfully for user ${userId}`);
-      console.log('Delete result:', deleteResult);
 
       return NextResponse.json({
         success: true,
