@@ -81,6 +81,54 @@ function assessNicheSaturation(niche: string): 'low' | 'medium' | 'high' {
 }
 
 /**
+ * RÈGLE SPÉCIALE: Détecte les bijoux génériques sans spécificité hors normes
+ * Si c'est un bijou générique, la note sera forcée à < 3
+ */
+function isGenericJewelry(
+  niche: string,
+  productType: string,
+  productTitle: string,
+  productVisualDescription?: string
+): boolean {
+  const nicheLower = niche.toLowerCase();
+  const typeLower = productType.toLowerCase();
+  const titleLower = productTitle.toLowerCase();
+  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  const combined = `${titleLower} ${descriptionLower}`;
+  
+  // Vérifier si c'est un bijou (niche ou type)
+  const isJewelryNiche = nicheLower.includes('jewelry') || nicheLower.includes('bijou');
+  const jewelryTypes = ['bracelet', 'necklace', 'ring', 'earring', 'earrings', 'pendant', 'charm', 'chain', 'jewelry', 'bijou', 'bijoux'];
+  const isJewelryType = jewelryTypes.some(type => typeLower.includes(type) || titleLower.includes(type));
+  
+  if (!isJewelryNiche && !isJewelryType) {
+    return false; // Ce n'est pas un bijou
+  }
+  
+  // Mots-clés indiquant une spécificité hors normes (ex: "medieval", "personalized", etc.)
+  const highSpecificityKeywords = [
+    'personalized', 'personnalisé', 'custom', 'sur mesure',
+    'engraved', 'gravé', 'monogram', 'monogramme',
+    'medieval', 'médiéval', 'viking', 'celtic', 'gothic',
+    'themed', 'thématique', 'niche', 'specialized',
+    'vintage', 'antique', 'handmade', 'artisanal',
+    'unique', 'one of a kind', 'limited edition',
+    'wedding', 'mariage', 'anniversary', 'anniversaire',
+    'pet', 'animal', 'dog', 'cat', 'chien', 'chat',
+    'baby', 'bébé', 'newborn', 'nouveau-né',
+    'name', 'initial', 'letter', 'birthstone', 'zodiac',
+    'religious', 'religieux', 'cross', 'crucifix',
+  ];
+  
+  // Si aucun mot-clé de spécificité n'est trouvé, c'est un bijou générique
+  const hasSpecificity = highSpecificityKeywords.some(keyword => 
+    combined.includes(keyword)
+  );
+  
+  return !hasSpecificity; // Bijou générique si pas de spécificité
+}
+
+/**
  * PILIER 3: Spécificité du produit
  * Détermine si le produit est générique, semi-spécifique ou très spécifique
  */
@@ -145,52 +193,13 @@ function assessProductSpecificity(
 }
 
 /**
- * Vérifie si un produit est un bijou sans spécificité particulière
- * (ex: pas de style médiéval, vintage, personnalisé, etc.)
- */
-function isGenericJewelry(
-  niche: string,
-  productTitle: string,
-  productVisualDescription?: string
-): boolean {
-  const nicheLower = niche.toLowerCase();
-  const isJewelryNiche = nicheLower.includes('jewelry') || nicheLower.includes('bijou');
-  
-  if (!isJewelryNiche) return false;
-  
-  // Mots-clés indiquant une spécificité particulière (style médiéval, vintage, etc.)
-  const specificityKeywords = [
-    'medieval', 'médiéval', 'médieval',
-    'vintage', 'antique', 'retro', 'rétro',
-    'personalized', 'personnalisé', 'custom', 'sur mesure',
-    'engraved', 'gravé', 'monogram', 'monogramme',
-    'themed', 'thématique', 'niche', 'specialized',
-    'handmade', 'artisanal', 'unique', 'one of a kind',
-    'wedding', 'mariage', 'anniversary', 'anniversaire',
-    'gothic', 'gothique', 'steampunk', 'fantasy', 'fantastique',
-  ];
-  
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
-  const combined = `${titleLower} ${descriptionLower}`;
-  
-  // Si aucun mot-clé de spécificité n'est trouvé, c'est un bijou générique
-  const hasSpecificity = specificityKeywords.some(keyword => combined.includes(keyword));
-  
-  return !hasSpecificity;
-}
-
-/**
  * MATRICE DE NOTATION
  * Calcule le score sur 10 à partir des 3 piliers
  */
 function calculateScoreFromMatrix(
   competitionDensity: 'low' | 'medium' | 'high',
   nicheSaturation: 'low' | 'medium' | 'high',
-  productSpecificity: 'low' | 'medium' | 'high',
-  niche?: string,
-  productTitle?: string,
-  productVisualDescription?: string
+  productSpecificity: 'low' | 'medium' | 'high'
 ): number {
   // Matrice de notation - Ajustée pour être plus généreuse
   const matrix: Record<string, Record<string, Record<string, { min: number; max: number }>>> = {
@@ -272,22 +281,6 @@ function calculateScoreFromMatrix(
   
   if (competitionDensity === 'high' && nicheSaturation === 'high') {
     adjustment -= 0.2; // Réduit de -0.3 à -0.2
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // RÈGLE SPÉCIALE: Bijoux sans spécificité particulière
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // Si c'est un bijou sans spécificité hors normes (ex: pas de style médiéval),
-  // on ajoute un bonus significatif pour compenser la saturation de la niche
-  if (niche && productTitle && isGenericJewelry(niche, productTitle, productVisualDescription)) {
-    // Bonus pour bijoux génériques: +1.5 à +2.5 points selon la concurrence
-    if (competitionDensity === 'low') {
-      adjustment += 2.5; // Bonus maximal si faible concurrence
-    } else if (competitionDensity === 'medium') {
-      adjustment += 2.0; // Bonus moyen si concurrence modérée
-    } else {
-      adjustment += 1.5; // Bonus minimal si forte concurrence (mais toujours présent)
-    }
   }
   
   const finalScore = Math.max(0, Math.min(10, baseScore + adjustment));
@@ -383,6 +376,14 @@ function generateExplanation(
 export function calculateLaunchPotentialScore(
   input: LaunchPotentialInput
 ): LaunchPotentialResult {
+  // ⚠️ RÈGLE SPÉCIALE: Bijoux génériques = note forcée < 3
+  const isGenericJewelryProduct = isGenericJewelry(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
   // Évaluer les 3 piliers
   const competitionDensity = assessCompetitionDensity(input.competitionScore);
   const nicheSaturation = assessNicheSaturation(input.niche);
@@ -393,24 +394,27 @@ export function calculateLaunchPotentialScore(
   );
   
   // Calculer le score à partir de la matrice
-  const score = calculateScoreFromMatrix(
-    competitionDensity,
-    nicheSaturation,
-    productSpecificity,
-    input.niche,
-    input.productTitle,
-    input.productVisualDescription
-  );
+  let score = calculateScoreFromMatrix(competitionDensity, nicheSaturation, productSpecificity);
+  
+  // ⚠️ FORCER LA NOTE < 3 pour les bijoux génériques
+  if (isGenericJewelryProduct) {
+    score = Math.min(2.9, score); // Forcer à maximum 2.9
+  }
   
   // Déterminer la tranche et le verdict
   const { tier, verdict, badge } = getTierAndVerdict(score);
   
   // Générer l'explication
-  const explanation = generateExplanation(score, tier, {
+  let explanation = generateExplanation(score, tier, {
     competitionDensity,
     nicheSaturation,
     productSpecificity,
   });
+  
+  // Ajouter une explication spéciale pour les bijoux génériques
+  if (isGenericJewelryProduct) {
+    explanation = 'Generic jewelry products without unique specificity (such as medieval style, personalization, or niche themes) face extremely high market saturation on Etsy. ' + explanation;
+  }
   
   return {
     score,
