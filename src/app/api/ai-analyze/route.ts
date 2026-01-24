@@ -352,9 +352,6 @@ Tags pertinents pour le produit, la niche, et le marché Etsy.
                     detail: 'low' // ⚡ Optimisation: utiliser 'low' pour réduire le temps de traitement
                   }
                 },
-                    detail: 'low' // 'low' pour vitesse maximale
-                  }
-                },
                 {
                   type: 'text',
                   text: prompt
