@@ -131,3 +131,4 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION reset_monthly_quotas() TO authenticated;
 GRANT EXECUTE ON FUNCTION increment_analysis_count(UUID) TO authenticated;
 
+

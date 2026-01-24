@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireActiveSubscription } from '@/lib/middleware/subscription';
 
 export async function POST(request: NextRequest) {
+  // ⚠️ PAYWALL PROTECTION : Vérifier l'abonnement actif
+  const paywallCheck = await requireActiveSubscription(request);
+  if (paywallCheck) {
+    return paywallCheck; // Retourne l'erreur de paywall
+  }
+  
   try {
     const body = await request.json();
     const {

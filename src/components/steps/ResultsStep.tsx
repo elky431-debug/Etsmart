@@ -331,10 +331,20 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
     
     setIsGeneratingDescription(true);
     try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
       const response = await fetch('/api/generate-etsy-description', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           productVisualDescription: analysis.verdict.productVisualDescription || analysis.product.title,
@@ -348,14 +358,33 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate description');
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Check if it's a paywall error
+        if (response.status === 401 || response.status === 403) {
+          const isPaywallError = errorData.error === 'Unauthorized' || 
+                                 errorData.error === 'Subscription required' ||
+                                 errorData.error === 'Subscription inactive' ||
+                                 errorData.requiresSubscription === true;
+          
+          if (isPaywallError) {
+            alert('Subscription required. Please subscribe to generate product descriptions.');
+            // Optionally redirect to pricing page
+            window.location.href = '/pricing';
+            return;
+          }
+        }
+        
+        throw new Error(errorData.message || 'Failed to generate description');
       }
 
       const data = await response.json();
       setEtsyDescription(data.description);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating description:', error);
-      alert('Erreur lors de la génération de la description. Veuillez réessayer.');
+      if (error.message && !error.message.includes('Subscription required')) {
+        alert(error.message || 'Erreur lors de la génération de la description. Veuillez réessayer.');
+      }
     } finally {
       setIsGeneratingDescription(false);
     }
