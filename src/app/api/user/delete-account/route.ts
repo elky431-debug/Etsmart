@@ -167,25 +167,64 @@ export async function DELETE(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Use admin client to delete the user
-    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
+    // Note: deleteUser returns { data, error } format
+    try {
+      const { data: deleteResult, error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
 
-    if (deleteUserError) {
-      console.error('Error deleting user account:', deleteUserError);
+      if (deleteUserError) {
+        console.error('Error deleting user account:', {
+          error: deleteUserError,
+          message: deleteUserError.message,
+          code: deleteUserError.status,
+        });
+        
+        // Check if it's a permission error
+        if (deleteUserError.message?.includes('permission') || deleteUserError.message?.includes('role')) {
+          return NextResponse.json(
+            { 
+              error: 'Permission error',
+              message: 'Account deletion requires proper server configuration. Please contact support.',
+            },
+            { status: 403 }
+          );
+        }
+        
+        // Check if user doesn't exist (already deleted)
+        if (deleteUserError.message?.includes('not found') || deleteUserError.status === 404) {
+          // User already deleted, but data cleanup was successful
+          console.log('User already deleted, but data cleanup completed');
+          return NextResponse.json({
+            success: true,
+            message: 'Account deleted successfully',
+          });
+        }
+        
+        return NextResponse.json(
+          { 
+            error: 'Failed to delete account',
+            message: 'Unable to delete user account. Please contact support if this issue persists.',
+          },
+          { status: 500 }
+        );
+      }
+
+      console.log(`✅ Account deleted successfully for user ${userId}`);
+      console.log('Delete result:', deleteResult);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Account deleted successfully',
+      });
+    } catch (deleteError: any) {
+      console.error('Exception deleting user account:', deleteError);
       return NextResponse.json(
         { 
           error: 'Failed to delete account',
-          message: deleteUserError.message,
+          message: deleteError.message || 'An unexpected error occurred. Please contact support.',
         },
         { status: 500 }
       );
     }
-
-    console.log(`✅ Account deleted successfully for user ${userId}`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Account deleted successfully',
-    });
 
   } catch (error: any) {
     console.error('Error in delete account:', error);
