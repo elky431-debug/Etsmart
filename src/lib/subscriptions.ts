@@ -42,9 +42,10 @@ export async function canPerformAnalysis(userId: string): Promise<{
   }
   
   const planLimits: Record<PlanId, number> = {
-    smart: 15,
-    pro: 30,
-    scale: 100,
+    FREE: 0,
+    SMART: 20,
+    PRO: 50,
+    SCALE: 100,
   };
   
   const limit = planLimits[subscription.plan_id] || 0;
@@ -99,9 +100,10 @@ export async function getUsageStats(userId: string): Promise<{
   }
   
   const planLimits: Record<PlanId, number> = {
-    smart: 15,
-    pro: 30,
-    scale: 100,
+    FREE: 0,
+    SMART: 20,
+    PRO: 50,
+    SCALE: 100,
   };
   
   const limit = planLimits[subscription.plan_id] || 0;

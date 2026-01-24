@@ -71,6 +71,7 @@ export function useSubscription() {
   const quotaPercentage = subscription && subscription.quota > 0
     ? (subscription.used / subscription.quota) * 100
     : 0;
+  const requiresUpgrade = subscription?.requiresUpgrade;
 
   return {
     subscription,
@@ -80,6 +81,7 @@ export function useSubscription() {
     hasQuota,
     canAnalyze,
     quotaPercentage,
+    requiresUpgrade,
   };
 }
 
