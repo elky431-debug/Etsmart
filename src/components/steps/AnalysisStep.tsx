@@ -342,25 +342,6 @@ export function AnalysisStep() {
 
   const currentProduct = products[currentIndex];
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // AFFICHER LE PAYWALL SI NÉCESSAIRE
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (showPaywall) {
-    return (
-      <Paywall
-        title={paywallData?.quotaReached ? 'Quota Reached' : 'Subscription Required'}
-        message={paywallData?.quotaReached 
-          ? `You have used ${paywallData.used} / ${paywallData.quota} analyses this month.`
-          : 'Subscribe to start analyzing products.'
-        }
-        quotaReached={paywallData?.quotaReached || false}
-        used={paywallData?.used}
-        quota={paywallData?.quota}
-        requiresUpgrade={paywallData?.requiresUpgrade as any}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
       {/* Animated background */}
