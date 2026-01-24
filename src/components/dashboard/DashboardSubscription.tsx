@@ -133,9 +133,9 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         <span className="text-slate-600">/month</span>
                       </div>
                     </div>
-                    {plan.id === 'pro' ? (
+                    {plan.id === 'PRO' ? (
                       <Crown className="w-8 h-8 text-[#00d4ff]" />
-                    ) : plan.id === 'scale' ? (
+                    ) : plan.id === 'SCALE' ? (
                       <Zap className="w-8 h-8 text-[#00d4ff]" />
                     ) : (
                       <Zap className="w-8 h-8 text-slate-400" />
@@ -330,9 +330,9 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                       <span className="text-slate-600">/month</span>
                     </div>
                   </div>
-                  {plan.id === 'pro' ? (
+                  {plan.id === 'PRO' ? (
                     <Crown className="w-8 h-8 text-[#00d4ff]" />
-                  ) : plan.id === 'scale' ? (
+                  ) : plan.id === 'SCALE' ? (
                     <Zap className="w-8 h-8 text-[#00d4ff]" />
                   ) : (
                     <Zap className="w-8 h-8 text-slate-400" />

@@ -117,9 +117,9 @@ export default function PricingPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold text-slate-900">{plan.name}</h2>
-                  {plan.id === 'pro' ? (
+                  {plan.id === 'PRO' ? (
                     <Crown className="w-8 h-8 text-[#00d4ff]" />
-                  ) : plan.id === 'scale' ? (
+                  ) : plan.id === 'SCALE' ? (
                     <Zap className="w-8 h-8 text-[#00d4ff]" />
                   ) : (
                     <Logo size="sm" showText={false} className="opacity-50" />

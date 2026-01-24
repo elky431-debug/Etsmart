@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate plan ID
-    if (!['smart', 'pro', 'scale'].includes(planId)) {
+    if (!['SMART', 'PRO', 'SCALE'].includes(planId)) {
       return NextResponse.json(
         { error: 'Invalid plan ID' },
         { status: 400 }

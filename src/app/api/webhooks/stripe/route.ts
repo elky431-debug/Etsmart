@@ -15,7 +15,7 @@ import { PLAN_QUOTAS, PLAN_PRICES, type PlanId } from '@/types/subscription';
 
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-11-20.acacia',
+      apiVersion: '2025-12-15.clover',
     })
   : null;
 
@@ -116,9 +116,14 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription?.id;
+        // In Stripe API, subscription can be a string ID or a Subscription object
+        // Use type assertion to access subscription property
+        const invoiceWithSubscription = invoice as any;
+        const subscriptionId = invoiceWithSubscription.subscription 
+          ? (typeof invoiceWithSubscription.subscription === 'string' 
+              ? invoiceWithSubscription.subscription 
+              : invoiceWithSubscription.subscription?.id || null)
+          : null;
 
         if (!subscriptionId) {
           console.error('Missing subscription ID in invoice');
@@ -126,7 +131,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get subscription details from Stripe
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
         const customerId = typeof subscription.customer === 'string'
           ? subscription.customer
           : subscription.customer?.id;
@@ -149,8 +154,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Reset monthly quota on renewal
-        const periodStart = new Date(subscription.current_period_start * 1000);
-        const periodEnd = new Date(subscription.current_period_end * 1000);
+        // Access properties using type assertion for compatibility
+        const subscriptionData = subscription as any;
+        const periodStart = new Date((subscriptionData.current_period_start || subscriptionData.currentPeriodStart) * 1000);
+        const periodEnd = new Date((subscriptionData.current_period_end || subscriptionData.currentPeriodEnd) * 1000);
         const quota = PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
 
         const { error: updateError } = await supabase
@@ -246,12 +253,17 @@ export async function POST(request: NextRequest) {
           subscriptionStatus = 'canceled';
         }
 
+        // Access properties using type assertion for compatibility
+        const subscriptionData = subscription as any;
+        const periodStart = new Date((subscriptionData.current_period_start || subscriptionData.currentPeriodStart) * 1000);
+        const periodEnd = new Date((subscriptionData.current_period_end || subscriptionData.currentPeriodEnd) * 1000);
+        
         const { error: updateError } = await supabase
           .from('users')
           .update({
             subscriptionStatus,
-            currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+            currentPeriodStart: periodStart.toISOString(),
+            currentPeriodEnd: periodEnd.toISOString(),
           })
           .eq('id', user.id);
 
