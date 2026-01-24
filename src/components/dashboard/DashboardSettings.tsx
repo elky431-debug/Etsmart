@@ -338,7 +338,15 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Failed to delete account');
+        const errorMessage = data.message || data.error || 'Failed to delete account';
+        
+        // Don't show technical errors to user
+        if (errorMessage.includes('SUPABASE_SERVICE_ROLE_KEY') || 
+            errorMessage.includes('Server configuration')) {
+          throw new Error('Account deletion is temporarily unavailable. Please contact support.');
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Account deleted successfully - redirect to home

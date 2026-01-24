@@ -23,7 +23,32 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const supabase = createSupabaseAdminClient();
+    
+    // Check if service role key is configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          message: 'Account deletion is temporarily unavailable. Please contact support.',
+        },
+        { status: 503 }
+      );
+    }
+    
+    let supabase;
+    try {
+      supabase = createSupabaseAdminClient();
+    } catch (error: any) {
+      console.error('Error creating Supabase admin client:', error);
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          message: 'Account deletion is temporarily unavailable. Please contact support.',
+        },
+        { status: 503 }
+      );
+    }
     
     // Verify token and get user
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
