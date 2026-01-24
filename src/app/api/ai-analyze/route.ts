@@ -224,21 +224,75 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT ULTRA-OPTIMISÉ POUR RÉPONSE RAPIDE (<20s)
+    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE ET PRÉCISE
     // IMPORTANT: Avec response_format: json_object, le prompt DOIT explicitement demander du JSON
-    // Version ultra-condensée pour maximiser la vitesse
-    const prompt = `Etsy analyse. Niche:${niche}. Prix:${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
+    const prompt = `Tu es un expert e-commerce spécialisé dans l'analyse de produits Etsy. Analyse ce produit et fournis une évaluation complète.
 
-Réponds UNIQUEMENT en JSON valide:
+CONTEXTE:
+- Niche: ${niche}
+- Prix fournisseur: ${productPrice > 0 ? `$${productPrice}` : 'non fourni'}
 
-1.VISION:1 phrase produit
-2.PRIX:Fournisseur (bijoux:$0.5-12,déco:$2-35,autres:$1-25).Livraison:$1-20
-3.ETSY:4-7 mots anglais
-4.CONCURRENTS:Boutiques Etsy.0-40=LANCER,41-90=LANCER_CONCURRENTIEL,91+=NE_PAS_LANCER.Prix marché
-5.PRIX VENTE:Coût×3 si <$70,sinon ×2.Prix>marché×1.05
-6.TAGS:13 tags max 20 chars
+INSTRUCTIONS DÉTAILLÉES:
 
-JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
+1. VISION DU PRODUIT:
+   - Décris le produit que tu vois dans l'image en 1 phrase claire et précise
+   - Indique si tu peux identifier le produit (canIdentifyProduct: true/false)
+   - Sois spécifique sur les caractéristiques visibles (couleur, forme, matériau, style)
+
+2. ESTIMATION PRIX FOURNISSEUR:
+   - Estime le coût d'achat chez le fournisseur selon la niche:
+     * Bijoux: $0.5-12
+     * Décoration: $2-35
+     * Autres: $1-25
+   - Estime les frais de livraison: $1-20 selon le poids et la taille
+   - Justifie brièvement ton estimation
+
+3. REQUÊTE DE RECHERCHE ETSY:
+   - Génère une requête de recherche Etsy en anglais (4-7 mots)
+   - Utilise des mots-clés pertinents pour trouver des produits similaires
+   - Base-toi sur la description visuelle du produit
+
+4. ANALYSE DE LA CONCURRENCE:
+   - Estime le nombre de BOUTIQUES Etsy vendant des produits similaires
+   - Règles de décision basées sur le nombre de concurrents:
+     * 0-40 concurrents = LANCER (marché accessible)
+     * 41-90 concurrents = LANCER_CONCURRENTIEL (marché compétitif mais accessible)
+     * 91+ concurrents = NE_PAS_LANCER (marché saturé)
+   - Estime le prix moyen du marché Etsy pour ce type de produit
+   - Justifie ton estimation de concurrence
+
+5. CALCUL DU PRIX DE VENTE RECOMMANDÉ:
+   - Règle de base: Coût total × 3 si < $70, sinon × 2
+   - Le prix recommandé doit être supérieur au prix moyen du marché × 1.05
+   - Calcule le prix minimum viable (coût × multiplicateur)
+   - Détermine le niveau de risque (faible/moyen/élevé)
+   - Justifie ton analyse de prix
+
+6. SIMULATION DE LANCEMENT:
+   - Temps avant première vente:
+     * Sans publicité: 7-21 jours (estimation min-max)
+     * Avec publicité Etsy Ads: 3-10 jours (estimation min-max)
+   - Ventes après 3 mois:
+     * Scénario prudent: estimation conservatrice
+     * Scénario réaliste: estimation probable
+     * Scénario optimiste: estimation si tout va bien
+   - Ajoute une note explicative
+
+7. TAGS SEO:
+   - Génère EXACTEMENT 13 tags SEO en anglais
+   - Maximum 20 caractères par tag
+   - Utilise des mots-clés pertinents pour Etsy
+
+8. TITRE VIRAL:
+   - Génère un titre SEO optimisé en anglais (maximum 140 caractères)
+   - Attractif et descriptif pour Etsy
+
+9. VERDICT FINAL:
+   - Fournis un verdict final en 1 phrase
+   - Ajoute un avertissement si nécessaire (ou null)
+
+FORMAT DE RÉPONSE REQUIS (JSON uniquement):
+{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase descriptive","etsySearchQuery":"4-7 mots anglais","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"justification courte","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"justification courte","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"analyse courte","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"justification courte","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"analyse courte","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"note explicative"},"viralTitleEN":"titre max 140 caractères","seoTags":["tag1","tag2",...,"tag13"],"finalVerdict":"verdict en 1 phrase","warningIfAny":"avertissement ou null"}`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -322,7 +376,7 @@ JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearc
               }
             ],
             temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
-            max_tokens: 800, // Réduit encore pour accélérer (moins de tokens = réponse plus rapide)
+            max_tokens: 1200, // Augmenté pour permettre une réponse plus détaillée
             response_format: { type: 'json_object' }, // Force JSON - le prompt doit explicitement demander du JSON
             stream: false // Pas de streaming pour réduire la latence
           }),
