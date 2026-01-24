@@ -224,75 +224,177 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE ET PRÉCISE
+    // ⚡ PROMPT COMPLET ET DÉTAILLÉ POUR ANALYSE PRÉCISE
     // IMPORTANT: Avec response_format: json_object, le prompt DOIT explicitement demander du JSON
-    const prompt = `Tu es un expert e-commerce spécialisé dans l'analyse de produits Etsy. Analyse ce produit et fournis une évaluation complète.
+    const prompt = `Tu es un expert e-commerce de niveau international, spécialisé dans l'analyse approfondie de produits pour la plateforme Etsy. Ta mission est d'analyser ce produit avec une précision maximale et de fournir une évaluation complète et détaillée qui aidera un vendeur à prendre une décision éclairée.
 
-CONTEXTE:
-- Niche: ${niche}
-- Prix fournisseur: ${productPrice > 0 ? `$${productPrice}` : 'non fourni'}
+═══════════════════════════════════════════════════════════════════════════════
+CONTEXTE DE L'ANALYSE
+═══════════════════════════════════════════════════════════════════════════════
 
-INSTRUCTIONS DÉTAILLÉES:
+- Niche du produit: ${niche}
+- Prix fournisseur indiqué: ${productPrice > 0 ? `$${productPrice}` : 'non fourni (à estimer)'}
+- Image du produit: Analyse l'image fournie pour identifier tous les détails visuels
 
-1. VISION DU PRODUIT:
-   - Décris le produit que tu vois dans l'image en 1 phrase claire et précise
-   - Indique si tu peux identifier le produit (canIdentifyProduct: true/false)
-   - Sois spécifique sur les caractéristiques visibles (couleur, forme, matériau, style)
+═══════════════════════════════════════════════════════════════════════════════
+INSTRUCTIONS DÉTAILLÉES PAR SECTION
+═══════════════════════════════════════════════════════════════════════════════
 
-2. ESTIMATION PRIX FOURNISSEUR:
-   - Estime le coût d'achat chez le fournisseur selon la niche:
-     * Bijoux: $0.5-12
-     * Décoration: $2-35
-     * Autres: $1-25
-   - Estime les frais de livraison: $1-20 selon le poids et la taille
-   - Justifie brièvement ton estimation
+1. ANALYSE VISUELLE DU PRODUIT (VISION):
+   - Examine attentivement l'image du produit
+   - Décris le produit que tu vois dans l'image en 1 phrase claire, précise et descriptive
+   - Indique clairement si tu peux identifier le produit (canIdentifyProduct: true/false)
+   - Sois très spécifique sur les caractéristiques visibles:
+     * Couleurs dominantes et accents
+     * Forme générale et dimensions apparentes
+     * Matériaux visibles (métal, plastique, tissu, bois, etc.)
+     * Style et esthétique (moderne, vintage, minimaliste, etc.)
+     * Détails distinctifs (textures, motifs, finitions)
+   - Si le produit n'est pas clairement identifiable, indique-le mais fournis quand même une description basée sur ce que tu peux voir
+
+2. ESTIMATION DU PRIX FOURNISSEUR:
+   - Estime le coût d'achat probable chez le fournisseur (AliExpress/Alibaba) selon la niche:
+     * Bijoux et accessoires: $0.5-12 (dépend de la complexité et des matériaux)
+     * Décoration et objets d'art: $2-35 (dépend de la taille et de la qualité)
+     * Autres catégories: $1-25 (estimation générale)
+   - Estime les frais de livraison depuis le fournisseur: $1-20 selon:
+     * Le poids apparent du produit
+     * La taille et le volume
+     * La fragilité (emballage renforcé si nécessaire)
+   - Justifie brièvement ton estimation en mentionnant les facteurs pris en compte
+   - Le champ "supplierPrice" doit être égal à estimatedSupplierPrice + estimatedShippingCost
 
 3. REQUÊTE DE RECHERCHE ETSY:
-   - Génère une requête de recherche Etsy en anglais (4-7 mots)
-   - Utilise des mots-clés pertinents pour trouver des produits similaires
-   - Base-toi sur la description visuelle du produit
+   - Génère une requête de recherche Etsy optimale en anglais (4-7 mots exactement)
+   - Utilise des mots-clés pertinents qui permettront de trouver des produits similaires sur Etsy
+   - Base-toi sur la description visuelle du produit que tu as analysé
+   - La requête doit être suffisamment spécifique pour trouver des produits comparables mais pas trop restrictive
+   - Exemples de bonnes requêtes: "handmade leather wallet", "vintage brass keychain", "wooden wall art"
 
-4. ANALYSE DE LA CONCURRENCE:
-   - Estime le nombre de BOUTIQUES Etsy vendant des produits similaires
-   - Règles de décision basées sur le nombre de concurrents:
-     * 0-40 concurrents = LANCER (marché accessible)
-     * 41-90 concurrents = LANCER_CONCURRENTIEL (marché compétitif mais accessible)
-     * 91+ concurrents = NE_PAS_LANCER (marché saturé)
-   - Estime le prix moyen du marché Etsy pour ce type de produit
-   - Justifie ton estimation de concurrence
+4. ANALYSE APPROFONDIE DE LA CONCURRENCE:
+   - Estime le nombre de BOUTIQUES Etsy (pas de listings individuels) vendant des produits similaires
+   - Cette estimation doit être réaliste et basée sur:
+     * La popularité de la niche
+     * La spécificité du produit
+     * Les tendances du marché Etsy
+   - Règles de décision STRICTES basées sur le nombre de concurrents:
+     * 0-40 concurrents = LANCER (marché accessible, opportunité claire)
+     * 41-90 concurrents = LANCER_CONCURRENTIEL (marché compétitif mais accessible avec optimisation)
+     * 91+ concurrents = NE_PAS_LANCER (marché saturé, difficulté d'entrée trop élevée)
+   - Estime le prix moyen du marché Etsy pour ce type de produit (averageMarketPrice)
+   - Détermine une fourchette de prix crédible (marketPriceRange: min et max)
+   - Justifie ton estimation de concurrence en expliquant ton raisonnement
+   - Indique si ton estimation est fiable (competitorEstimationReliable: true/false)
+   - Détermine le niveau de saturation:
+     * "non_sature" si < 40 concurrents
+     * "concurrentiel" si 41-90 concurrents
+     * "sature" si 91+ concurrents
+   - Fournis une analyse de saturation en 1 phrase
 
-5. CALCUL DU PRIX DE VENTE RECOMMANDÉ:
-   - Règle de base: Coût total × 3 si < $70, sinon × 2
-   - Le prix recommandé doit être supérieur au prix moyen du marché × 1.05
-   - Calcule le prix minimum viable (coût × multiplicateur)
-   - Détermine le niveau de risque (faible/moyen/élevé)
-   - Justifie ton analyse de prix
+5. CALCUL DÉTAILLÉ DU PRIX DE VENTE RECOMMANDÉ:
+   - Calcule d'abord le coût total (estimatedSupplierPrice + estimatedShippingCost)
+   - Applique les règles de multiplicateur:
+     * Si coût total < $70: Multiplicateur × 3 (marge importante nécessaire)
+     * Si coût total ≥ $70: Multiplicateur × 2 (marge réduite acceptable)
+   - Le prix recommandé optimal doit être supérieur au prix moyen du marché × 1.05 (positionnement premium)
+   - Calcule le prix minimum viable (minimumViablePrice) = coût total × multiplicateur
+   - Détermine le prix optimal (recommendedPrice.optimal) = max(prix minimum viable, prix moyen marché × 1.05)
+   - Définis une fourchette:
+     * recommendedPrice.min = prix minimum viable
+     * recommendedPrice.max = prix optimal × 1.3 (marge pour promotions)
+   - Évalue le niveau de risque (priceRiskLevel):
+     * "faible" si le prix recommandé est compétitif et la marge est confortable
+     * "moyen" si le prix est dans la moyenne du marché
+     * "élevé" si le prix est au-dessus du marché ou la marge est serrée
+   - Fournis une analyse de prix détaillée en 1 phrase expliquant ta recommandation
 
-6. SIMULATION DE LANCEMENT:
-   - Temps avant première vente:
-     * Sans publicité: 7-21 jours (estimation min-max)
-     * Avec publicité Etsy Ads: 3-10 jours (estimation min-max)
-   - Ventes après 3 mois:
-     * Scénario prudent: estimation conservatrice
-     * Scénario réaliste: estimation probable
-     * Scénario optimiste: estimation si tout va bien
-   - Ajoute une note explicative
+6. SIMULATION COMPLÈTE DE LANCEMENT:
+   - Temps estimé avant première vente:
+     * Sans publicité (withoutAds): 7-21 jours (estimation min-max réaliste)
+     * Avec publicité Etsy Ads (withAds): 3-10 jours (estimation min-max avec budget publicitaire)
+   - Ventes projetées après 3 mois:
+     * Scénario prudent: estimation conservatrice (conditions défavorables)
+     * Scénario réaliste: estimation probable (conditions normales)
+     * Scénario optimiste: estimation si tout va bien (conditions favorables)
+   - Ajoute une note explicative (simulationNote) qui explique les hypothèses de ta simulation
 
-7. TAGS SEO:
-   - Génère EXACTEMENT 13 tags SEO en anglais
-   - Maximum 20 caractères par tag
-   - Utilise des mots-clés pertinents pour Etsy
+7. TAGS SEO OPTIMISÉS POUR ETSY:
+   - Génère EXACTEMENT 13 tags SEO en anglais (pas plus, pas moins)
+   - Maximum 20 caractères par tag (contrainte Etsy)
+   - Utilise des mots-clés pertinents et recherchés sur Etsy
+   - Inclus des variations: matériaux, couleurs, usages, occasions
+   - Évite les doublons et les tags trop génériques
+   - Les tags doivent être optimisés pour le référencement Etsy
 
-8. TITRE VIRAL:
+8. TITRE VIRAL ET SEO:
    - Génère un titre SEO optimisé en anglais (maximum 140 caractères)
-   - Attractif et descriptif pour Etsy
+   - Le titre doit être attractif, descriptif et optimisé pour Etsy
+   - Inclus les mots-clés principaux
+   - Rends-le accrocheur tout en restant professionnel
+   - Le titre doit inciter au clic tout en étant informatif
 
-9. VERDICT FINAL:
-   - Fournis un verdict final en 1 phrase
-   - Ajoute un avertissement si nécessaire (ou null)
+9. VERDICT FINAL ET RECOMMANDATIONS:
+   - Fournis un verdict final en 1 phrase qui résume ta recommandation
+   - Le verdict doit être clair et actionnable
+   - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
+   - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-FORMAT DE RÉPONSE REQUIS (JSON uniquement):
-{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase descriptive","etsySearchQuery":"4-7 mots anglais","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"justification courte","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"justification courte","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"analyse courte","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"justification courte","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"analyse courte","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"note explicative"},"viralTitleEN":"titre max 140 caractères","seoTags":["tag1","tag2",...,"tag13"],"finalVerdict":"verdict en 1 phrase","warningIfAny":"avertissement ou null"}`;
+10. SCORE DE CONFIANCE:
+    - Attribue un score de confiance entre 30 et 95
+    - Le score doit refléter la fiabilité de ton analyse
+    - Facteurs à considérer:
+      * Clarté de l'image du produit
+      * Spécificité de la niche
+      * Qualité de tes estimations
+      * Cohérence de tes données
+
+═══════════════════════════════════════════════════════════════════════════════
+FORMAT DE RÉPONSE STRICT (JSON UNIQUEMENT)
+═══════════════════════════════════════════════════════════════════════════════
+
+Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
+
+{
+  "canIdentifyProduct": bool,
+  "productVisualDescription": "1 phrase descriptive et précise",
+  "etsySearchQuery": "4-7 mots anglais exactement",
+  "estimatedSupplierPrice": nombre,
+  "estimatedShippingCost": nombre,
+  "supplierPriceReasoning": "justification courte de l'estimation",
+  "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
+  "confidenceScore": nombre entre 30 et 95,
+  "estimatedCompetitors": nombre,
+  "competitorEstimationReasoning": "justification courte de l'estimation",
+  "competitorEstimationReliable": bool,
+  "saturationLevel": "non_sature" | "concurrentiel" | "sature",
+  "saturationAnalysis": "analyse courte en 1 phrase",
+  "averageMarketPrice": nombre,
+  "marketPriceRange": {"min": nombre, "max": nombre},
+  "marketPriceReasoning": "justification courte du prix marché",
+  "supplierPrice": nombre (estimatedSupplierPrice + estimatedShippingCost),
+  "minimumViablePrice": nombre,
+  "recommendedPrice": {"optimal": nombre, "min": nombre, "max": nombre},
+  "priceRiskLevel": "faible" | "moyen" | "élevé",
+  "pricingAnalysis": "analyse détaillée en 1 phrase",
+  "launchSimulation": {
+    "timeToFirstSale": {
+      "withoutAds": {"min": nombre, "max": nombre},
+      "withAds": {"min": nombre, "max": nombre}
+    },
+    "salesAfter3Months": {
+      "prudent": nombre,
+      "realiste": nombre,
+      "optimise": nombre
+    },
+    "simulationNote": "note explicative détaillée"
+  },
+  "viralTitleEN": "titre max 140 caractères en anglais",
+  "seoTags": ["tag1", "tag2", ..., "tag13"] (EXACTEMENT 13 tags),
+  "finalVerdict": "verdict final en 1 phrase",
+  "warningIfAny": "avertissement si nécessaire" | null
+}
+
+IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans explications, sans commentaires. Le JSON doit être valide et complet.`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -376,7 +478,7 @@ FORMAT DE RÉPONSE REQUIS (JSON uniquement):
               }
             ],
             temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
-            max_tokens: 1200, // Augmenté pour permettre une réponse plus détaillée
+            max_tokens: 1500, // Augmenté pour permettre une réponse très détaillée
             response_format: { type: 'json_object' }, // Force JSON - le prompt doit explicitement demander du JSON
             stream: false // Pas de streaming pour réduire la latence
           }),
