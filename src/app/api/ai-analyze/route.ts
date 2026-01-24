@@ -257,16 +257,15 @@ JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearc
       temperature: 0.1,
       model: 'gpt-4o-mini',
       timeout: '45s',
-      retries: MAX_RETRIES + 1,
+      retries: 3,
       netlifyLimit: '50s',
     });
     
     const openaiStartTime = Date.now();
-    let openaiResponse: Response;
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
     // ⚡ SOLUTION RADICALE: Retry avec timeout progressif
-    // Timeout à 50s (limite Netlify) avec retry automatique
+    // Timeout à 45s (limite Netlify 50s) avec retry automatique
     const MAX_RETRIES = 2;
     const INITIAL_TIMEOUT = 45000; // 45s pour laisser de la marge avec la limite Netlify (50s)
     let lastError: any = null;
