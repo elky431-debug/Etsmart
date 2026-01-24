@@ -231,21 +231,21 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<20s)
+    // ⚡ PROMPT ULTRA-OPTIMISÉ POUR RÉPONSE RAPIDE (<20s)
     // IMPORTANT: Avec response_format: json_object, le prompt DOIT explicitement demander du JSON
-    const prompt = `Analyse produit Etsy. Niche: ${niche}. Prix: ${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
+    // Version ultra-condensée pour maximiser la vitesse
+    const prompt = `Etsy analyse. Niche:${niche}. Prix:${productPrice > 0 ? `$${productPrice}` : 'non fourni'}.
 
-Réponds UNIQUEMENT en JSON valide avec cette structure exacte:
+Réponds UNIQUEMENT en JSON valide:
 
-1. VISION: Décris le produit en 1 phrase
-2. PRIX FOURNISSEUR: Estime (bijoux:$0.5-12, déco:$2-35, autres:$1-25). Livraison:$1-20
-3. REQUÊTE ETSY: 4-7 mots anglais
-4. CONCURRENTS: Estime boutiques Etsy. 0-40=LANCER, 41-90=LANCER_CONCURRENTIEL, 91+=NE_PAS_LANCER. Prix marché crédible
-5. PRIX VENTE: Coût×3 si <$70, sinon ×2. Prix > marché ×1.05
-6. TAGS: EXACTEMENT 13 tags, max 20 chars chacun
+1.VISION:1 phrase produit
+2.PRIX:Fournisseur (bijoux:$0.5-12,déco:$2-35,autres:$1-25).Livraison:$1-20
+3.ETSY:4-7 mots anglais
+4.CONCURRENTS:Boutiques Etsy.0-40=LANCER,41-90=LANCER_CONCURRENTIEL,91+=NE_PAS_LANCER.Prix marché
+5.PRIX VENTE:Coût×3 si <$70,sinon ×2.Prix>marché×1.05
+6.TAGS:13 tags max 20 chars
 
-Format JSON requis:
-{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
+JSON:{"canIdentifyProduct":bool,"productVisualDescription":"1 phrase","etsySearchQuery":"4-7 mots","estimatedSupplierPrice":nb,"estimatedShippingCost":nb,"supplierPriceReasoning":"court","decision":"LANCER|LANCER_CONCURRENTIEL|NE_PAS_LANCER","confidenceScore":30-95,"estimatedCompetitors":nb,"competitorEstimationReasoning":"court","competitorEstimationReliable":bool,"saturationLevel":"non_sature|concurrentiel|sature","saturationAnalysis":"court","averageMarketPrice":nb,"marketPriceRange":{"min":nb,"max":nb},"marketPriceReasoning":"court","supplierPrice":nb,"minimumViablePrice":nb,"recommendedPrice":{"optimal":nb,"min":nb,"max":nb},"priceRiskLevel":"faible|moyen|eleve","pricingAnalysis":"court","launchSimulation":{"timeToFirstSale":{"withoutAds":{"min":nb,"max":nb},"withAds":{"min":nb,"max":nb}},"salesAfter3Months":{"prudent":nb,"realiste":nb,"optimise":nb},"simulationNote":"court"},"viralTitleEN":"max 140","seoTags":["13 tags"],"marketingAngles":[{"angle":"nom","why":"court","targetAudience":"cible"}],"strengths":["3 max"],"risks":["3 max"],"finalVerdict":"1 phrase","warningIfAny":"ou null"}`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -324,7 +324,7 @@ Format JSON requis:
               }
             ],
             temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
-            max_tokens: 1200, // Augmenté légèrement pour éviter les troncatures
+            max_tokens: 1000, // Réduit pour accélérer (prompt plus court = réponse plus courte)
             response_format: { type: 'json_object' } // Force JSON - le prompt doit explicitement demander du JSON
           }),
           signal: controller.signal,
