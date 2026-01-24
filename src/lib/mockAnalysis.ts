@@ -977,11 +977,17 @@ const fetchAIAnalysis = async (
     imageLength: productImageUrl?.length,
   });
 
+  // Get authentication token
+  const { getSession } = await import('@/lib/auth');
+  const session = await getSession();
+  const token = session?.access_token;
+  
   const startTime = Date.now();
   const response = await fetch('/api/ai-analyze', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
     },
     body: JSON.stringify({ 
       productTitle: '', // ⚠️ IGNORÉ - L'IA utilise uniquement l'image
