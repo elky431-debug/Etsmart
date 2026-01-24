@@ -25,10 +25,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial user
-    getCurrentUser().then((user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    getCurrentUser()
+      .then((user) => {
+        setUser(user);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error getting current user:', error);
+        // If refresh token is invalid, clear session and redirect to login
+        if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh')) {
+          signOut().catch(() => {});
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+            router.push('/login');
+          }
+        }
+        setLoading(false);
+      });
 
     // Listen to auth state changes
     const { data: { subscription } } = onAuthStateChange((user) => {
