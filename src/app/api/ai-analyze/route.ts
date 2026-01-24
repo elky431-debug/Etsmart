@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<45s)
+    // ⚡ PROMPT OPTIMISÉ POUR RÉPONSE RAPIDE (<40s)
     // Version condensée qui garde toutes les fonctionnalités essentielles
     const prompt = `Etsmart VISION EXPERT - Analyse e-commerce rapide.
 
