@@ -869,6 +869,10 @@ interface AIAnalysisResult {
     simulationNote: string;
   };
   
+  // Strengths & Risks
+  strengths?: string[];
+  risks?: string[];
+  
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
@@ -2300,6 +2304,8 @@ export const analyzeProduct = async (
       verdict: {
         verdict: 'test',
         confidenceScore: 30,
+        strengths: ['Product can be analyzed', 'Market opportunity exists'],
+        risks: ['Limited data available', 'Analysis accuracy may be reduced'],
         improvements: [],
         summary: 'Analysis completed with emergency fallback data. Results may be less accurate.',
         aiComment: '⚠️ Emergency fallback used - original analysis failed completely.',

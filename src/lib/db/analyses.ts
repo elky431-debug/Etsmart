@@ -66,6 +66,8 @@ export const analysisDb = {
       estimated_supplier_price: analysis.verdict.estimatedSupplierPrice,
       estimated_shipping_cost: analysis.verdict.estimatedShippingCost,
       supplier_price_reasoning: analysis.verdict.supplierPriceReasoning,
+      strengths: analysis.verdict.strengths || [],
+      risks: analysis.verdict.risks || [],
       marketing_angles: analysis.marketing?.angles || null,
       marketing_keywords: analysis.marketing?.topKeywords || [],
       marketing_hooks: analysis.marketing?.emotionalHooks || [],
@@ -159,6 +161,8 @@ function transformAnalysisFromDb(dbAnalysis: any): ProductAnalysis {
     verdict: {
       verdict: dbAnalysis.verdict as 'launch' | 'test' | 'avoid',
       confidenceScore: dbAnalysis.confidence_score,
+      strengths: Array.isArray(dbAnalysis.strengths) ? dbAnalysis.strengths as string[] : [],
+      risks: Array.isArray(dbAnalysis.risks) ? dbAnalysis.risks as string[] : [],
       summary: dbAnalysis.summary,
       aiComment: dbAnalysis.ai_comment,
       difficultyAnalysis: dbAnalysis.difficulty_analysis,
