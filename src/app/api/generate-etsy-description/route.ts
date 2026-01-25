@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert Etsy copywriter. Generate a product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
+    const prompt = `You are an expert Etsy copywriter. Generate a comprehensive, detailed product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
 
 CRITICAL RULES:
 - The description must be in ENGLISH ONLY
@@ -28,9 +28,11 @@ CRITICAL RULES:
 - Avoid promises of "fast shipping"
 - Avoid trademarked brand names
 - Keep it generic and legally safe
-- No emojis, no excessive capitalization, no aggressive marketing
+- MUST include at least 3 emojis strategically placed throughout the description (use relevant emojis that enhance the message)
 - Warm, human, natural tone
 - The description must be ready to copy-paste directly into Etsy
+- Make it LONG and DETAILED - aim for 300-500 words minimum
+- Be descriptive, engaging, and comprehensive
 
 PRODUCT INFORMATION:
 - Product description: ${productVisualDescription}
@@ -40,41 +42,68 @@ PRODUCT INFORMATION:
 ${psychologicalTriggers ? `- Psychological triggers: ${psychologicalTriggers.map((t: any) => t.trigger).join(', ')}` : ''}
 ${buyerMirror ? `- Buyer mirror effect: ${buyerMirror}` : ''}
 
-REQUIRED STRUCTURE (follow exactly):
+REQUIRED STRUCTURE (follow exactly - expand each section with details):
 
-1. EMOTIONAL HOOK (1-2 sentences)
-   - Capture attention
+1. EMOTIONAL HOOK (2-3 sentences)
+   - Capture attention immediately
    - Speak directly to emotion or main need
-   Example: "Looking for a meaningful gift that truly shows how much you care?"
+   - Use vivid, engaging language
+   - Include 1 emoji here
+   - Example: "Looking for a meaningful gift that truly shows how much you care? ✨ This beautiful piece is designed to create lasting memories and bring joy to your loved ones."
 
-2. CLEAR PRODUCT PRESENTATION
-   - Explain immediately what it is
-   - No jargon, no exaggerated promises
-   - Product type, main usage, key benefit for buyer
+2. CLEAR PRODUCT PRESENTATION (3-4 sentences)
+   - Explain in detail what it is
+   - Describe its appearance, style, and design
+   - Mention materials, colors, dimensions if relevant
+   - Product type, main usage, key benefits for buyer
+   - Be specific and descriptive
 
-3. WHY PEOPLE BUY IT (FOR / BECAUSE)
+3. DETAILED FEATURES & BENEFITS (4-5 sentences or bullet points)
+   - List key features with explanations
+   - Explain why each feature matters to the buyer
+   - Connect features to real-world benefits
+   - Use bullet points with "-" for clarity
+   - Include 1 emoji in this section
+
+4. WHY PEOPLE BUY IT (FOR / BECAUSE) (3-4 sentences)
    - Connect with real purchase motivation
    - Natural, customer-oriented, emotional but credible
+   - Explain the emotional and practical reasons to buy
+   - Paint a picture of how it improves their life
 
-4. IDEAL FOR... (purchase contexts)
+5. IDEAL FOR... (purchase contexts) (2-3 sentences)
    - Help buyer project themselves
-   - Examples: "Birthdays", "Anniversaries", "Gifts for pet lovers", "Special occasions"
+   - List multiple use cases and occasions
+   - Examples: "Birthdays", "Anniversaries", "Gifts for pet lovers", "Special occasions", "Home decoration", "Personal use"
+   - Make it relatable and specific
 
-6. REASSURING TONE & CONFIDENCE
+6. QUALITY & CRAFTSMANSHIP (2-3 sentences)
+   - Reassuring tone & confidence
    - Reduce objections, increase conversion
    - Mention perceived quality, ease of use, attention to detail
+   - Describe durability, finish, and overall quality
    - DO NOT mention "handmade" if it's not true
+   - Include 1 emoji here
 
-7. SOFT CALL-TO-ACTION (Etsy-friendly)
+7. USAGE & CARE (2-3 sentences)
+   - How to use the product
+   - Care instructions if relevant
+   - Tips for getting the most out of it
+
+8. SOFT CALL-TO-ACTION (Etsy-friendly) (1-2 sentences)
    - Encourage purchase without aggressiveness
-   - Example: "Add it to your cart and create a meaningful moment today."
+   - Create urgency in a gentle way
+   - Example: "Add it to your cart and create a meaningful moment today. Perfect for yourself or as a thoughtful gift that will be cherished for years to come."
 
 OUTPUT FORMAT:
 - Return ONLY the final description text
 - No explanations, no comments, no meta-text
 - Just the ready-to-use description
 - Use proper paragraph breaks for readability
-- Use bullet points with "-" for the strengths section
+- Use bullet points with "-" for features/benefits sections
+- Minimum 300 words, aim for 400-500 words
+- MUST include at least 3 emojis (strategically placed, relevant to content)
+- Make it comprehensive, detailed, and engaging
 
 Generate the description now:`;
 
@@ -106,7 +135,7 @@ Generate the description now:`;
           },
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 2000, // Augmenté pour permettre des descriptions longues et détaillées
       }),
     });
 
