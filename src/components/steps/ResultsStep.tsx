@@ -497,6 +497,57 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 )}
 
+                {/* Strengths & Risks */}
+                {(analysis.verdict.strengths?.length > 0 || analysis.verdict.risks?.length > 0) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Strengths */}
+                    {analysis.verdict.strengths && analysis.verdict.strengths.length > 0 && (
+                      <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+                            <CheckCircle2 size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">Strengths</h3>
+                            <p className="text-xs text-slate-500">Product advantages</p>
+                          </div>
+                        </div>
+                        <ul className="space-y-2">
+                          {analysis.verdict.strengths.map((strength, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                              <span className="text-emerald-500 mt-0.5">✓</span>
+                              <span>{strength}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Risks */}
+                    {analysis.verdict.risks && analysis.verdict.risks.length > 0 && (
+                      <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
+                            <AlertTriangle size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">Risks</h3>
+                            <p className="text-xs text-slate-500">Potential challenges</p>
+                          </div>
+                        </div>
+                        <ul className="space-y-2">
+                          {analysis.verdict.risks.map((risk, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                              <span className="text-amber-500 mt-0.5">⚠</span>
+                              <span>{risk}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Explication estimation (si disponible) */}
                 {analysis.competitors.competitorEstimationReasoning && (
                   <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">

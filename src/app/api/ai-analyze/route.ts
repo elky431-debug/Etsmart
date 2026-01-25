@@ -63,6 +63,10 @@ interface AIAnalysisResponse {
   etsySearchQuery: string;
   canIdentifyProduct: boolean;
   
+  // Strengths & Risks
+  strengths: string[];
+  risks: string[];
+  
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
@@ -326,20 +330,28 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Évite les doublons et les tags trop génériques
    - Les tags doivent être optimisés pour le référencement Etsy
 
-8. TITRE VIRAL ET SEO:
+8. FORCES ET RISQUES DU PRODUIT:
+   - Génère 3-5 forces (strengths) du produit sous forme de liste
+   - Chaque force doit être une phrase courte et claire
+   - Les forces doivent être basées sur l'analyse visuelle, la niche, et le marché
+   - Génère 2-4 risques (risks) potentiels du produit sous forme de liste
+   - Chaque risque doit être une phrase courte et réaliste
+   - Les risques doivent être basés sur la concurrence, le prix, et les défis du marché
+
+9. TITRE VIRAL ET SEO:
    - Génère un titre SEO optimisé en anglais (maximum 140 caractères)
    - Le titre doit être attractif, descriptif et optimisé pour Etsy
    - Inclus les mots-clés principaux
    - Rends-le accrocheur tout en restant professionnel
    - Le titre doit inciter au clic tout en étant informatif
 
-9. VERDICT FINAL ET RECOMMANDATIONS:
+10. VERDICT FINAL ET RECOMMANDATIONS:
    - Fournis un verdict final en 1 phrase qui résume ta recommandation
    - Le verdict doit être clair et actionnable
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE:
+11. SCORE DE CONFIANCE:
     - Attribue un score de confiance entre 30 et 95
     - Le score doit refléter la fiabilité de ton analyse
     - Facteurs à considérer:
@@ -388,6 +400,8 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
     },
     "simulationNote": "note explicative détaillée"
   },
+  "strengths": ["force 1", "force 2", "force 3", ...] (3-5 forces),
+  "risks": ["risque 1", "risque 2", ...] (2-4 risques),
   "viralTitleEN": "titre max 140 caractères en anglais",
   "seoTags": ["tag1", "tag2", ..., "tag13"] (EXACTEMENT 13 tags),
   "finalVerdict": "verdict final en 1 phrase",
@@ -744,6 +758,8 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
               },
               simulationNote: 'Estimation basée sur le marché',
             },
+            strengths: ['Market opportunity exists', 'Competitive pricing possible', 'Good profit margin potential'],
+            risks: ['Moderate competition requires differentiation', 'Need for quality marketing'],
             viralTitleEN: 'Product - Handmade Gift',
             seoTags: ['gift', 'handmade', 'product', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'],
             finalVerdict: 'Product can be launched with proper optimization',

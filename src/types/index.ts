@@ -285,6 +285,8 @@ export type Verdict = 'launch' | 'test' | 'avoid';
 export interface ProductVerdict {
   verdict: Verdict;
   confidenceScore: number;
+  strengths: string[];
+  risks: string[];
   improvements: string[];
   summary: string;
   
