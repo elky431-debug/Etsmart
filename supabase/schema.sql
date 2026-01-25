@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS public.users (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
+  -- Subscription fields
+  subscriptionPlan TEXT DEFAULT 'FREE' CHECK (subscriptionPlan IN ('FREE', 'SMART', 'PRO', 'SCALE')),
+  subscriptionStatus TEXT DEFAULT 'inactive' CHECK (subscriptionStatus IN ('active', 'inactive', 'canceled', 'past_due')),
+  stripeCustomerId TEXT,
+  stripeSubscriptionId TEXT,
+  analysisQuota INTEGER DEFAULT 0,
+  analysisUsedThisMonth INTEGER DEFAULT 0,
+  currentPeriodStart TIMESTAMP WITH TIME ZONE,
+  currentPeriodEnd TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
