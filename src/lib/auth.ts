@@ -24,6 +24,9 @@ export async function signUp(email: string, password: string, fullName?: string)
       data: {
         full_name: fullName,
       },
+      emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined,
+      // Disable email verification requirement
+      // User will be automatically logged in after signup
     },
   });
 
