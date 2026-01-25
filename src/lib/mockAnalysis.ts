@@ -1067,35 +1067,8 @@ const fetchAIAnalysis = async (
       return null; // Retourner null pour déclencher le fallback sans erreur
     }
     
-    // ═══════════════════════════════════════════════════════════════════════════
-    // DÉTECTION DES ERREURS DE PAYWALL (401/403)
-    // ═══════════════════════════════════════════════════════════════════════════
-    if (response.status === 401 || response.status === 403) {
-      const isPaywallError = errorData.requiresSubscription || 
-                            errorData.error === 'Subscription required' ||
-                            errorData.error === 'Subscription inactive' ||
-                            errorData.error === 'Quota exceeded' ||
-                            errorData.error === 'No quota available';
-      
-      if (isPaywallError) {
-        const paywallError = new AnalysisBlockedError(
-          errorData.error || 'Subscription required',
-          errorData.message || 'A subscription is required to perform analyses.',
-          errorData.requiresUpgrade 
-            ? `Upgrade to ${errorData.requiresUpgrade} to continue.`
-            : 'Please subscribe to access this feature.'
-        );
-        
-        // Marquer comme erreur de paywall
-        (paywallError as any).isPaywallError = true;
-        (paywallError as any).quotaReached = errorData.quotaReached || false;
-        (paywallError as any).used = errorData.used;
-        (paywallError as any).quota = errorData.quota;
-        (paywallError as any).requiresUpgrade = errorData.requiresUpgrade;
-        
-        throw paywallError;
-      }
-    }
+    // ⚠️ PAYWALL ERROR DETECTION DISABLED (paywall removed but subscription system kept)
+    // Previously blocked on 401/403 subscription errors, now allowing access
     
     console.error('❌ API Error:', response.status, errorData);
     
