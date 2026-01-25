@@ -714,6 +714,8 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       console.log('👁️ Has productVisualDescription:', !!analysis.productVisualDescription);
       console.log('🔍 Has etsySearchQuery:', !!analysis.etsySearchQuery);
       console.log('📈 Has estimatedCompetitors:', !!analysis.estimatedCompetitors);
+      console.log('💪 Has strengths:', !!analysis.strengths, 'Count:', analysis.strengths?.length || 0);
+      console.log('⚠️ Has risks:', !!analysis.risks, 'Count:', analysis.risks?.length || 0);
     } catch (parseError: any) {
       console.error('❌ Parse error:', parseError);
       console.error('Raw response (first 1000 chars):', aiContent.substring(0, 1000));
@@ -838,6 +840,42 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       analysis.saturationLevel = analysis.estimatedCompetitors <= 100 ? 'non_sature' : 
                                   analysis.estimatedCompetitors <= 130 ? 'concurrentiel' : 'sature';
     }
+    
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // VALIDATION : GARANTIR QUE STRENGTHS ET RISKS SONT PRÉSENTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+    if (!analysis.strengths || !Array.isArray(analysis.strengths) || analysis.strengths.length === 0) {
+      console.warn('⚠️ No strengths provided by AI, generating fallback');
+      const competitorCount = analysis.estimatedCompetitors || 50;
+      const marketPrice = analysis.averageMarketPrice || 25;
+      const recommendedPrice = analysis.recommendedPrice?.optimal || marketPrice;
+      
+      analysis.strengths = [
+        competitorCount < 40 ? 'Low competition market opportunity' : 'Moderate competition with differentiation potential',
+        `Good profit margin potential (${Math.round((1 - (analysis.estimatedSupplierPrice || 10) / recommendedPrice) * 100)}%)`,
+        'Market demand exists based on competitor presence',
+        recommendedPrice > marketPrice ? 'Premium positioning possible' : 'Competitive pricing strategy viable',
+      ];
+    }
+    
+    if (!analysis.risks || !Array.isArray(analysis.risks) || analysis.risks.length === 0) {
+      console.warn('⚠️ No risks provided by AI, generating fallback');
+      const competitorCount = analysis.estimatedCompetitors || 50;
+      const marketPrice = analysis.averageMarketPrice || 25;
+      const recommendedPrice = analysis.recommendedPrice?.optimal || marketPrice;
+      const margin = Math.round((1 - (analysis.estimatedSupplierPrice || 10) / recommendedPrice) * 100);
+      
+      analysis.risks = [
+        competitorCount > 90 ? 'High competition requires strong differentiation' : competitorCount > 40 ? 'Moderate competition needs marketing strategy' : 'Market validation required',
+        margin < 50 ? 'Tight profit margin requires careful cost management' : 'Standard market risks apply',
+        'Need for quality product photography and listing optimization',
+      ];
+    }
+    
+    console.log('✅ Strengths & Risks validated:', {
+      strengthsCount: analysis.strengths.length,
+      risksCount: analysis.risks.length,
+    });
     
     // S'assurer que les prix recommandés existent (avec règles strictes)
     if (!analysis.recommendedPrice) {
