@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       ],
       customer_email: userEmail || undefined,
       metadata: {
-        plan_id: planId,
+        plan_id: normalizedPlanId,
         user_id: userId || '',
       },
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}&success=true`,
