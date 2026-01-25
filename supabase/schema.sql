@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS public.product_analyses (
   estimated_shipping_cost DECIMAL(10, 2),
   supplier_price_reasoning TEXT,
   
+  -- Strengths & Risks
+  strengths TEXT[] DEFAULT '{}',
+  risks TEXT[] DEFAULT '{}',
+  
   -- Marketing data (stored as JSONB for flexibility)
   marketing_angles JSONB,
   marketing_keywords TEXT[],
