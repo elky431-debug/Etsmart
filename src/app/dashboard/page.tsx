@@ -19,7 +19,8 @@ import {
   Calculator,
   CheckCircle2,
   ArrowRight,
-  BarChart3
+  BarChart3,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,7 +32,8 @@ import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysisDetail';
 import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
-type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings';
+import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
+type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings' | 'subscription';
 
 interface MenuItem {
   id: DashboardSection;
@@ -168,6 +170,7 @@ export default function DashboardPage() {
 
   const menuItems: MenuItem[] = [
     { id: 'analyze', label: 'Start analyzing', icon: BarChart3 },
+    { id: 'subscription', label: 'Subscription', icon: CreditCard },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'history', label: 'History', icon: History },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -512,6 +515,10 @@ export default function DashboardPage() {
               onBack={handleBackToHistory}
               onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
             />
+          )}
+
+          {activeSection === 'subscription' && (
+            <DashboardSubscription user={user} />
           )}
 
           {activeSection === 'profile' && (

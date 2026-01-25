@@ -1,114 +1,102 @@
-# 💰 Coût d'analyse d'un produit avec GPT-4o
+# Coût d'une analyse de produit sur OpenAI
 
-## 📊 Analyse des appels API
+## Analyse principale (obligatoire)
 
-### 1. Analyse principale (`/api/ai-analyze`)
-- **Modèle** : GPT-4o Vision
-- **Input** :
-  - Prompt système : ~50 tokens
-  - Prompt utilisateur : ~3,500-4,000 tokens (prompt très détaillé de ~565 lignes)
-  - Image (high detail) : 1 image = coût fixe
-  - **Total input** : ~3,550-4,050 tokens
-- **Output** :
-  - `max_tokens: 2500`
-  - Réponse moyenne : ~1,500-2,000 tokens (JSON structuré)
-  - **Total output** : ~1,500-2,000 tokens
+**Modèle utilisé:** `gpt-4o-mini`
 
-### 2. Description Etsy (optionnel, `/api/generate-etsy-description`)
-- **Modèle** : GPT-4o (sans vision)
-- **Input** :
-  - Prompt système : ~30 tokens
-  - Prompt utilisateur : ~400-500 tokens
-  - **Total input** : ~430-530 tokens
-- **Output** :
-  - `max_tokens: 1000`
-  - Réponse moyenne : ~600-800 tokens
-  - **Total output** : ~600-800 tokens
+### Consommation de tokens estimée:
 
-## 💵 Prix OpenAI GPT-4o (décembre 2024)
+1. **Input (prompt):**
+   - Prompt texte: ~2,500 tokens (prompt très détaillé)
+   - Image avec `detail: 'low'`: ~85 tokens
+   - Message système: ~30 tokens
+   - **Total input: ~2,615 tokens**
 
-- **Input** : $2.50 par million de tokens
-- **Output** : $10.00 par million de tokens
-- **Vision (image high detail)** : ~$0.01-0.02 par image
+2. **Output (réponse):**
+   - max_tokens configuré: 1,500 tokens
+   - Réponse JSON moyenne: ~800-1,200 tokens
+   - **Total output estimé: ~1,000 tokens**
 
-## 🧮 Calcul du coût par analyse
+### Coût GPT-4o-mini (prix OpenAI, janvier 2024):
+- **Input:** $0.15 par 1M tokens
+- **Output:** $0.60 par 1M tokens
 
-### Analyse principale uniquement :
-```
-Input : 4,000 tokens × $2.50 / 1M = $0.01
-Output : 2,000 tokens × $10.00 / 1M = $0.02
-Image : $0.015 (coût fixe pour high detail)
-─────────────────────────────────────────
-Total : ~$0.045 (≈ 4.5 centimes)
-```
+### Calcul:
+- Input: 2,615 tokens × $0.15 / 1,000,000 = **$0.00039**
+- Output: 1,000 tokens × $0.60 / 1,000,000 = **$0.00060**
+- **Total analyse principale: ~$0.001 (0.1 centime)**
 
-### Avec description Etsy (analyse complète) :
-```
-Analyse principale : $0.045
-Description Etsy :
-  - Input : 500 tokens × $2.50 / 1M = $0.00125
-  - Output : 700 tokens × $10.00 / 1M = $0.007
-─────────────────────────────────────────
-Total : ~$0.053 (≈ 5.3 centimes)
-```
+---
 
-## 📈 Estimation finale
+## Description Etsy (optionnelle)
 
-**Coût par analyse complète : ~$0.05-0.06 (5-6 centimes USD)**
+**Modèle utilisé:** `gpt-4o` (plus cher mais meilleure qualité)
 
-### Détails :
-- ✅ Analyse principale avec vision : **~$0.045**
-- ✅ Description Etsy (optionnel) : **~$0.008**
-- **Total : ~$0.053 par produit**
+### Consommation de tokens estimée:
 
-## 💡 Notes importantes
+1. **Input (prompt):**
+   - Prompt texte: ~600 tokens
+   - Message système: ~30 tokens
+   - **Total input: ~630 tokens**
 
-1. **Coût très faible** : L'analyse complète coûte environ **5-6 centimes USD** par produit
-2. **Variabilité** : Le coût peut varier selon :
-   - La longueur réelle de la réponse (peut être plus courte que le max)
-   - La taille de l'image (coût vision peut varier)
-   - Les erreurs/retries (si l'API échoue et doit être relancée)
-3. **Marge de sécurité** : Pour être prudent, prévoyez **~$0.10 par analyse** pour inclure :
-   - Les variations de tokens
-   - Les erreurs/retries possibles
-   - Les coûts d'infrastructure (Supabase, etc.)
+2. **Output (réponse):**
+   - max_tokens configuré: 2,000 tokens
+   - Description moyenne (300-500 mots): ~400-800 tokens
+   - **Total output estimé: ~600 tokens**
 
-## 🎯 Recommandation pour la tarification
+### Coût GPT-4o (prix OpenAI, janvier 2024):
+- **Input:** $2.50 par 1M tokens
+- **Output:** $10.00 par 1M tokens
 
-Si vous facturez l'analyse aux utilisateurs :
-- **Coût réel** : ~$0.05-0.06
-- **Marge recommandée** : 10-20x pour un SaaS
-- **Prix suggéré** : **$0.50-$1.00 par analyse** (ou inclus dans un abonnement)
+### Calcul:
+- Input: 630 tokens × $2.50 / 1,000,000 = **$0.00158**
+- Output: 600 tokens × $10.00 / 1,000,000 = **$0.00600**
+- **Total description Etsy: ~$0.0076 (0.76 centimes)**
 
-## 📊 Volume et coûts mensuels
+---
 
-| Analyses/mois | Coût OpenAI | Coût avec marge 20% |
-|---------------|-------------|---------------------|
-| 100 | $5-6 | $6-7 |
-| 500 | $25-30 | $30-36 |
-| 1,000 | $50-60 | $60-72 |
-| 5,000 | $250-300 | $300-360 |
-| 10,000 | $500-600 | $600-720 |
+## Coût total par analyse complète
 
-## ⚠️ Points d'attention
+### Scénario 1: Analyse seule (sans description Etsy)
+- **Coût: ~$0.001 (0.1 centime)**
 
-1. **Quota OpenAI** : Vérifiez votre limite de quota mensuel
-2. **Rate limiting** : GPT-4o peut avoir des limites de requêtes/minute
-3. **Erreurs** : Les erreurs API peuvent nécessiter des retries (coût supplémentaire)
-4. **Monitoring** : Surveillez les coûts réels via le dashboard OpenAI
+### Scénario 2: Analyse + Description Etsy
+- Analyse principale: $0.001
+- Description Etsy: $0.0076
+- **Coût total: ~$0.0086 (0.86 centimes)**
 
+---
 
+## Projections de coûts
 
+### Pour 100 analyses:
+- Analyse seule: **$0.10**
+- Analyse + Description: **$0.86**
 
+### Pour 1,000 analyses:
+- Analyse seule: **$1.00**
+- Analyse + Description: **$8.60**
 
+### Pour 10,000 analyses:
+- Analyse seule: **$10.00**
+- Analyse + Description: **$86.00**
 
+---
 
+## Notes importantes
 
+1. **Retry mechanism:** Le code inclut un mécanisme de retry (jusqu'à 3 tentatives). En cas d'échec, le coût peut être multiplié par 2-3.
 
+2. **Image detail:** L'image utilise `detail: 'low'` pour réduire les coûts. Si vous passez à `'high'`, le coût de l'image passerait à ~170 tokens (2x plus cher).
 
+3. **Prix variables:** Les prix OpenAI peuvent changer. Vérifiez les tarifs actuels sur [platform.openai.com/pricing](https://platform.openai.com/pricing).
 
+4. **Optimisations possibles:**
+   - Réduire `max_tokens` de 1,500 à 1,000: économie de ~$0.0003 par analyse
+   - Utiliser `gpt-4o-mini` pour la description Etsy au lieu de `gpt-4o`: économie de ~$0.006 par description
 
+---
 
+## Conclusion
 
-
-
+**Le coût d'une analyse complète (analyse + description) est d'environ 0.86 centimes d'euro**, ce qui est extrêmement économique. Pour 1,000 analyses, vous payerez environ **$8.60**.

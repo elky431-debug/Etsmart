@@ -24,7 +24,8 @@ import {
   Menu,
   X,
   Info,
-  LayoutDashboard
+  LayoutDashboard,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
@@ -193,6 +194,9 @@ export default function HomePage() {
               <nav className="hidden md:flex items-center gap-8">
                 <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
                   Features
+                </a>
+                <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Pricing
                 </a>
                 <a href="#testimonials" className="hidden md:block text-slate-600 hover:text-slate-900 transition-colors">
                   Testimonials
@@ -540,6 +544,173 @@ export default function HomePage() {
                 <ArrowRight size={18} />
               </button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-16 sm:py-32 relative bg-slate-50">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pricing</span>
+            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+              <span className="text-slate-900">Transparent</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">pricing</span>
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+              Start for free, upgrade when you're ready.
+            </p>
+          </div>
+
+          {/* Plans */}
+          <div className="hidden md:grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                name: 'Smart',
+                price: '$19.99',
+                period: '/month',
+                description: 'Perfect for sellers who want to test products seriously. All features included.',
+                features: ['20 analyses / month', 'All features included'],
+                cta: 'Get started',
+                popular: false,
+              },
+              {
+                name: 'Pro',
+                price: '$29.99',
+                period: '/month',
+                description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
+                features: ['50 analyses / month', 'All features included'],
+                cta: 'Choose plan',
+                popular: true,
+              },
+              {
+                name: 'Scale',
+                price: '$49.99',
+                period: '/month',
+                description: 'For high-volume shops testing many products strategically. All features included.',
+                features: ['100 analyses / month', 'All features included'],
+                cta: 'Choose plan',
+                popular: false,
+              },
+            ].map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative p-8 rounded-3xl ${
+                  plan.popular 
+                    ? 'bg-white border-2 border-[#00d4ff] shadow-xl' 
+                    : 'bg-white border border-slate-200'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <span className="px-4 py-1.5 bg-[#00d4ff] text-white text-sm font-semibold rounded-full shadow-lg">
+                      Most popular
+                    </span>
+                  </div>
+                )}
+                
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">{plan.name}</h3>
+                <p className="text-slate-500 text-sm mb-6">{plan.description}</p>
+                
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{plan.price}</span>
+                  <span className="text-slate-500">{plan.period}</span>
+                </div>
+                
+                <ul className="space-y-4 mb-8">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-[#00d4ff]/10 flex items-center justify-center">
+                        <CheckCircle2 className="w-3 h-3 text-[#00d4ff]" />
+                      </div>
+                      <span className="text-slate-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                
+                <Link href="/pricing">
+                  <button 
+                    className={`w-full py-3.5 rounded-full font-semibold transition-all ${
+                      plan.popular 
+                        ? 'bg-[#00d4ff] hover:bg-[#00b8e6] text-white shadow-lg shadow-[#00d4ff]/20' 
+                        : 'bg-slate-100 border border-slate-200 text-slate-800 hover:bg-slate-200'
+                    }`}
+                  >
+                    {plan.cta}
+                  </button>
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          {/* Version mobile simplifiée */}
+          <div className="md:hidden grid grid-cols-1 gap-6 max-w-md mx-auto">
+            {[
+              {
+                name: 'Smart',
+                price: '$19.99',
+                period: '/month',
+                analysesCount: '20 analyses / month',
+                popular: false,
+              },
+              {
+                name: 'Pro',
+                price: '$29.99',
+                period: '/month',
+                analysesCount: '50 analyses / month',
+                popular: true,
+              },
+              {
+                name: 'Scale',
+                price: '$49.99',
+                period: '/month',
+                analysesCount: '100 analyses / month',
+                popular: false,
+              },
+            ].map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative p-6 rounded-2xl ${
+                  plan.popular 
+                    ? 'bg-white border-2 border-[#00d4ff] shadow-lg' 
+                    : 'bg-white border border-slate-200'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="px-3 py-1 bg-[#00d4ff] text-white text-xs font-semibold rounded-full">
+                      Popular
+                    </span>
+                  </div>
+                )}
+                
+                <h3 className="text-lg font-semibold text-slate-900 mb-1 text-center">{plan.name}</h3>
+                
+                <div className="flex items-baseline justify-center gap-1 mb-4">
+                  <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{plan.price}</span>
+                  <span className="text-slate-500 text-sm">{plan.period}</span>
+                </div>
+                
+                <div className="mb-6 text-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-[#00d4ff]" />
+                    <span className="text-slate-900 font-semibold">{plan.analysesCount}</span>
+                  </div>
+                </div>
+                
+                <Link href="/pricing">
+                  <button 
+                    className={`w-full py-3 rounded-full font-semibold text-sm ${
+                      plan.popular 
+                        ? 'bg-[#00d4ff] text-white shadow-lg shadow-[#00d4ff]/20' 
+                        : 'bg-slate-100 border border-slate-200 text-slate-800'
+                    }`}
+                  >
+                    Choose plan
+                  </button>
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>

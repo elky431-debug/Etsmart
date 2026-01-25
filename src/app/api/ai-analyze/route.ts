@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireActiveSubscriptionAndQuota } from '@/lib/middleware/subscription';
+import { incrementAnalysisCount } from '@/lib/subscription-quota';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ETSMART AI ANALYSIS API - GPT-4o VISION
@@ -146,6 +149,12 @@ let isAnalyzing = false;
 let currentAnalysisPromise: Promise<any> | null = null;
 
 export async function POST(request: NextRequest) {
+  // ⚠️ PAYWALL PROTECTION : Vérifier l'abonnement et le quota
+  const paywallCheck = await requireActiveSubscriptionAndQuota(request);
+  if (paywallCheck) {
+    return paywallCheck; // Retourne l'erreur de paywall
+  }
+  
   // ⚠️ PROTECTION : Empêcher les analyses simultanées
   if (isAnalyzing) {
     return NextResponse.json({
@@ -955,6 +964,21 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       );
     }
 
+    // ⚠️ INCREMENT QUOTA AFTER SUCCESSFUL ANALYSIS
+    const authHeaderForQuota = request.headers.get('authorization');
+    if (authHeaderForQuota?.startsWith('Bearer ')) {
+      const token = authHeaderForQuota.replace('Bearer ', '');
+      const supabase = createSupabaseAdminClient();
+      const { data: { user } } = await supabase.auth.getUser(token);
+      
+      if (user) {
+        const quotaResult = await incrementAnalysisCount(user.id);
+        if (!quotaResult.success) {
+          console.warn('⚠️ Failed to increment quota, but analysis completed');
+        }
+      }
+    }
+    
     const responseTime = Date.now() - openaiStartTime;
     console.log('✅ Analysis completed successfully:', {
       model: usedModel,
