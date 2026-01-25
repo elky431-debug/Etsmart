@@ -76,17 +76,11 @@ export const PLAN_PRICES: Record<PlanId, number> = {
 };
 
 // Stripe Price IDs for each plan
-// ⚠️ IMPORTANT: SCALE needs a unique Price ID for $49.99/month
-// To get the correct Price ID:
-// 1. Go to Stripe Dashboard → Products → Create/Find Scale product
-// 2. Create a recurring price of $49.99/month
-// 3. Copy the Price ID (starts with price_)
-// 4. Update SCALE below
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
   SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
   PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
-  SCALE: null, // ⚠️ TODO: Create $49.99/month price in Stripe and add Price ID here
+  SCALE: 'price_1Sqx01Cn17QPHnzEa3ekDcOD', // Etsmart Scale - $49.99/month
 };
 
 // All plans have access to all features - only difference is number of analyses per month
