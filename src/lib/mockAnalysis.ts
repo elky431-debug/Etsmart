@@ -795,22 +795,6 @@ const generateVerdict = (
   return {
     verdict,
     confidenceScore: Math.min(90, Math.max(30, score)),
-    strengths: verdict === 'launch' ? [
-      `Market with ${totalCompetitors < 30 ? 'low' : 'moderate'} competition`,
-      `Good profit margin potential (${Math.round(marginAtRecommended)}%)`,
-      `Price positioning is competitive`,
-    ] : verdict === 'test' ? [
-      `Market opportunity exists but requires optimization`,
-      `Moderate competition allows for entry`,
-    ] : [],
-    risks: verdict === 'avoid' ? [
-      `High competition (${totalCompetitors}+ competitors)`,
-      `Low profit margin (${Math.round(marginAtRecommended)}%)`,
-      `Saturated market makes it difficult to stand out`,
-    ] : verdict === 'test' ? [
-      `Competitive market requires strong differentiation`,
-      `Profit margins may be tight`,
-    ] : [],
     improvements: improvements.slice(0, 4),
     summary: summaries[verdict],
   };
@@ -868,10 +852,6 @@ interface AIAnalysisResult {
     };
     simulationNote: string;
   };
-  
-  // Strengths & Risks
-  strengths?: string[];
-  risks?: string[];
   
   // SEO & Marketing
   viralTitleEN: string;
@@ -2065,8 +2045,6 @@ export const analyzeProduct = async (
     const verdict: ProductVerdict = {
     verdict: finalVerdict,
     confidenceScore: aiAnalysis.confidenceScore,
-    strengths: aiAnalysis.strengths || [],
-    risks: aiAnalysis.risks || [],
     improvements: [],
     summary: aiAnalysis.finalVerdict,
     
@@ -2334,8 +2312,6 @@ export const analyzeProduct = async (
       verdict: {
         verdict: 'test',
         confidenceScore: 30,
-        strengths: ['Product can be analyzed', 'Market opportunity exists'],
-        risks: ['Limited data available', 'Analysis accuracy may be reduced'],
         improvements: [],
         summary: 'Analysis completed with emergency fallback data. Results may be less accurate.',
         aiComment: '⚠️ Emergency fallback used - original analysis failed completely.',
