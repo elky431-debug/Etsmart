@@ -28,8 +28,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate plan ID
-    if (!['smart', 'pro', 'scale'].includes(planId)) {
+    // Validate plan ID (case-insensitive)
+    const normalizedPlanId = planId.toUpperCase() as PlanId;
+    if (!['SMART', 'PRO', 'SCALE'].includes(normalizedPlanId)) {
       return NextResponse.json(
         { error: 'Invalid plan ID' },
         { status: 400 }
@@ -37,10 +38,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Stripe Price ID for the plan
-    const priceId = getStripePriceId(planId as PlanId);
+    const priceId = getStripePriceId(normalizedPlanId);
     if (!priceId) {
       return NextResponse.json(
-        { error: `Stripe Price ID not configured for plan: ${planId}` },
+        { 
+          error: `Stripe Price ID not configured for plan: ${normalizedPlanId}`,
+          message: normalizedPlanId === 'SCALE' 
+            ? 'The SCALE plan Price ID needs to be configured. Please create a $49.99/month price in Stripe Dashboard and update STRIPE_PRICE_IDS.SCALE in src/types/subscription.ts'
+            : `Please configure the Price ID for ${normalizedPlanId} plan in Stripe Dashboard.`
+        },
         { status: 400 }
       );
     }
