@@ -1024,6 +1024,9 @@ export function ResultsStep() {
   
   // Utiliser les analyses du store si disponibles (analyse récente), sinon DB
   const analyses = storeAnalyses.length > 0 ? storeAnalyses : dbAnalyses;
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    analyses.length > 0 ? analyses[0].product.id : null
+  );
   
   // Mettre à jour selectedProductId quand analyses change
   useEffect(() => {
