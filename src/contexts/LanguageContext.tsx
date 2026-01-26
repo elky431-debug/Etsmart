@@ -15,18 +15,21 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [language, setLanguageState] = useState<Language>('fr');
+  // Initialize from localStorage first (works immediately)
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const savedLang = localStorage.getItem('etsmart-language') as Language | null;
+      if (savedLang && (savedLang === 'fr' || savedLang === 'en')) {
+        return savedLang;
+      }
+    }
+    return 'fr';
+  });
 
-  // Load language from user settings
+  // Load language from user settings when user is available
   useEffect(() => {
     if (user) {
       loadLanguage();
-    } else {
-      // If not logged in, try to get from localStorage
-      const savedLang = localStorage.getItem('etsmart-language') as Language | null;
-      if (savedLang && (savedLang === 'fr' || savedLang === 'en')) {
-        setLanguageState(savedLang);
-      }
     }
   }, [user]);
 

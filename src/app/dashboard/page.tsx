@@ -182,11 +182,11 @@ export default function DashboardPage() {
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'analyze', label: t('nav.startAnalyzing'), icon: BarChart3 },
-    { id: 'subscription', label: t('nav.subscription'), icon: CreditCard },
-    { id: 'profile', label: t('nav.profile'), icon: User },
-    { id: 'history', label: t('nav.history'), icon: History },
-    { id: 'settings', label: t('nav.settings'), icon: Settings },
+    { id: 'analyze', label: t('startAnalyzing'), icon: BarChart3 },
+    { id: 'subscription', label: t('subscription'), icon: CreditCard },
+    { id: 'profile', label: t('profile'), icon: User },
+    { id: 'history', label: t('history'), icon: History },
+    { id: 'settings', label: t('settings'), icon: Settings },
   ];
 
   return (
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <Home size={18} />
-                <span className="font-medium">{t('nav.returnHome')}</span>
+                <span className="font-medium">{t('returnHome')}</span>
               </Link>
               
               <button
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <LogOut size={18} />
-                <span className="font-medium">{t('nav.signOut')}</span>
+                <span className="font-medium">{t('signOut')}</span>
               </button>
             </div>
           </div>

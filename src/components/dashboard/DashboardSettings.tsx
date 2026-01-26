@@ -300,7 +300,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
         setLanguage(settings.language);
       }
 
-      alert(t('settings.saved'));
+      alert(t('saved'));
     } catch (error: any) {
       console.error('Error saving settings:', error);
       alert('Error saving: ' + (error?.message || 'Unknown error'));
@@ -386,7 +386,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   return (
     <div className="p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">{t('settings.title')}</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-8">{t('settingsTitle')}</h1>
 
         <div className="space-y-6">
           {/* General settings */}
@@ -399,14 +399,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                 <Globe className="w-5 h-5 text-[#00d4ff]" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">{t('settings.general')}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t('general')}</h2>
             </div>
 
             <div className="space-y-4">
               {/* Target country */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  {t('settings.targetCountry')}
+                  {t('targetCountry')}
                 </label>
                 <FilterDropdown
                   value={settings.targetCountry}
@@ -422,7 +422,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   icon={Globe}
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('settings.targetCountryDesc')}
+                  {t('targetCountryDesc')}
                 </p>
               </div>
 
@@ -431,7 +431,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <DollarSign size={16} />
-                    <span>{t('settings.currency')}</span>
+                    <span>{t('currency')}</span>
                   </div>
                 </label>
                 <FilterDropdown
@@ -452,7 +452,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Languages size={16} />
-                    <span>{t('settings.language')}</span>
+                    <span>{t('language')}</span>
                   </div>
                 </label>
                 <FilterDropdown
@@ -479,14 +479,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
                 <Lock className="w-5 h-5 text-red-600" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">{t('settings.changePassword')}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t('changePassword')}</h2>
             </div>
 
             <div className="space-y-4">
               {/* Current Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  {t('settings.currentPassword')}
+                  {t('currentPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -512,7 +512,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               {/* New Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  {t('settings.newPassword')}
+                  {t('newPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -534,14 +534,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('settings.passwordMinLength')}
+                  {t('passwordMinLength')}
                 </p>
               </div>
 
               {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  {t('settings.confirmPassword')}
+                  {t('confirmPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -585,7 +585,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Lock size={18} />
-                <span>{isChangingPassword ? t('settings.changing') : t('settings.changePasswordButton')}</span>
+                <span>{isChangingPassword ? t('changing') : t('changePasswordButton')}</span>
               </button>
             </div>
           </motion.div>
@@ -603,7 +603,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
             >
               <Save size={20} />
-              <span>{isSaving ? t('settings.saving') : t('settings.saveSettings')}</span>
+              <span>{isSaving ? t('saving') : t('saveSettings')}</span>
             </button>
           </motion.div>
         </div>
