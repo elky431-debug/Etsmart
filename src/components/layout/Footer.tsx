@@ -24,9 +24,13 @@ export function Footer() {
           </div>
         </div>
         
-        <div className="mt-4 pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
-          <AlertTriangle size={10} />
-          <span>Les données affichées sont des estimations basées sur l&apos;analyse IA. Aucune garantie de revenus n&apos;est promise.</span>
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-1.5 text-center">
+            <AlertTriangle size={12} className="text-slate-400 flex-shrink-0" />
+            <span className="text-[10px] sm:text-[10px] text-slate-400 px-2 sm:px-0 leading-relaxed">
+              Les données affichées sont des estimations basées sur l&apos;analyse IA. Aucune garantie de revenus n&apos;est promise.
+            </span>
+          </div>
         </div>
       </div>
     </footer>
