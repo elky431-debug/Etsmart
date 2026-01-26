@@ -119,12 +119,13 @@ export default function AboutPage() {
             <div className="space-y-4 text-lg text-slate-700 leading-relaxed">
               <p>
                 Etsmart was built to help Etsy sellers make confident decisions before launching products.
-                We believe every product deserves a chance to succeed—but only if it’s launched at the right time,
+                We believe every product deserves a chance to succeed—but only if it's launched at the right time,
                 at the right price, with the right strategy.
               </p>
               <p>
-                With <strong className="text-slate-900">GPT-4o Vision</strong>, we analyze your AliExpress products and provide a clear verdict:
-                <strong className="text-[#00d4ff]"> Launch now</strong>, <strong className="text-amber-600">Launch but optimize</strong>, or <strong className="text-red-600">Don’t launch</strong>.
+                With <strong className="text-slate-900">GPT-4o Vision</strong>, we analyze your AliExpress products and provide a complete analysis including:
+                a <strong className="text-[#00d4ff]">Launch Potential Score</strong> (0-10), competitor analysis, pricing recommendations,
+                launch simulation, and a complete marketing strategy with SEO tags, viral titles, and ad ideas.
               </p>
             </div>
           </div>
@@ -156,8 +157,8 @@ export default function AboutPage() {
               },
               {
                 icon: Target,
-                title: 'Competition-driven verdict',
-                description: 'A clear decision based on competitor count: Launch now (0–100), Launch but optimize (100–130), or Don’t launch (131+).',
+                title: 'Launch Potential Score',
+                description: 'Get a clear 0-10 score that evaluates market saturation, competition density, and product specificity to guide your launch decision.',
                 color: 'from-[#00d4ff] to-[#00c9b7]',
               },
               {
