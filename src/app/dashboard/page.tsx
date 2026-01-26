@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   History, 
   User, 
@@ -20,8 +20,11 @@ import {
   CheckCircle2,
   ArrowRight,
   BarChart3,
-  CreditCard
+  CreditCard,
+  ChevronDown,
+  Menu
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
@@ -45,10 +48,12 @@ interface MenuItem {
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState<DashboardSection>('history');
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Check URL parameter to set initial section
   useEffect(() => {
@@ -221,34 +226,109 @@ export default function DashboardPage() {
 
         {/* Tabs Navigation */}
         <div className="border-b border-slate-200 bg-white">
-          <div className="w-full">
-            <nav className="flex" aria-label="Tabs">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSection === item.id && !selectedAnalysis;
-                
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveSection(item.id);
-                      setSelectedAnalysis(null);
-                    }}
-                    className={`
-                      flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-t-lg font-medium text-sm transition-all relative
-                      ${isActive
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }
-                    `}
+          {isMobile ? (
+            /* Mobile: Menu déroulant */
+            <div className="relative">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className={`
+                  w-full flex items-center justify-between px-4 py-3 font-medium text-sm transition-all
+                  ${activeSection && !selectedAnalysis
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                    : 'text-slate-600 bg-white'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const activeItem = menuItems.find(item => item.id === activeSection);
+                    const Icon = activeItem?.icon || Menu;
+                    return (
+                      <>
+                        <Icon size={18} />
+                        <span>{activeItem?.label || 'Menu'}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+                <ChevronDown 
+                  size={18} 
+                  className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-lg z-50"
                   >
-                    <Icon size={18} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+                    {menuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id && !selectedAnalysis;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setSelectedAnalysis(null);
+                            setIsMenuOpen(false);
+                          }}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-3 font-medium text-sm transition-all border-b border-slate-100 last:border-b-0
+                            ${isActive
+                              ? 'bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 text-[#00d4ff]'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }
+                          `}
+                        >
+                          <Icon size={18} />
+                          <span>{item.label}</span>
+                          {isActive && (
+                            <div className="ml-auto w-2 h-2 rounded-full bg-[#00d4ff]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            /* Desktop: Onglets horizontaux */
+            <div className="w-full">
+              <nav className="flex" aria-label="Tabs">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.id && !selectedAnalysis;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                        setSelectedAnalysis(null);
+                      }}
+                      className={`
+                        flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-t-lg font-medium text-sm transition-all relative
+                        ${isActive
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }
+                      `}
+                    >
+                      <Icon size={18} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
