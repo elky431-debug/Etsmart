@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Globe, DollarSign, Languages, Save, Lock, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, Save, Lock, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,8 +13,6 @@ interface DashboardSettingsProps {
 
 interface UserSettings {
   targetCountry: string;
-  currency: string;
-  language: string;
 }
 
 interface FilterDropdownProps<T extends string> {
@@ -186,8 +184,6 @@ function FilterDropdown<T extends string>({
 
 const defaultSettings: UserSettings = {
   targetCountry: 'ALL', // Default to "All countries"
-  currency: 'EUR',
-  language: 'fr',
 };
 
 export function DashboardSettings({ user }: DashboardSettingsProps) {
@@ -240,8 +236,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
       if (data) {
         setSettings({
           targetCountry: data.target_country || defaultSettings.targetCountry,
-          currency: data.currency || defaultSettings.currency,
-          language: data.language || defaultSettings.language,
         });
       }
     } catch (error: any) {
@@ -263,8 +257,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
         .upsert({
           user_id: user.id,
           target_country: settings.targetCountry,
-          currency: settings.currency,
-          language: settings.language,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id',
@@ -405,46 +397,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <p className="mt-1 text-xs text-slate-500">
                   Main country for your Etsy sales
                 </p>
-              </div>
-
-              {/* Currency */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <div className="flex items-center gap-2">
-                    <DollarSign size={16} />
-                    <span>Currency</span>
-                  </div>
-                </label>
-                <FilterDropdown
-                  value={settings.currency}
-                  onChange={(value) => setSettings({ ...settings, currency: value })}
-                  options={[
-                    { value: 'EUR', label: 'EUR (€)', icon: DollarSign },
-                    { value: 'USD', label: 'USD ($)', icon: DollarSign },
-                    { value: 'GBP', label: 'GBP (£)', icon: DollarSign },
-                    { value: 'CAD', label: 'CAD (C$)', icon: DollarSign },
-                  ]}
-                  icon={DollarSign}
-                />
-              </div>
-
-              {/* Language */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <div className="flex items-center gap-2">
-                    <Languages size={16} />
-                    <span>Language</span>
-                  </div>
-                </label>
-                <FilterDropdown
-                  value={settings.language}
-                  onChange={(value) => setSettings({ ...settings, language: value })}
-                  options={[
-                    { value: 'fr', label: 'French', icon: Languages },
-                    { value: 'en', label: 'English', icon: Languages },
-                  ]}
-                  icon={Languages}
-                />
               </div>
             </div>
           </motion.div>
