@@ -62,8 +62,8 @@ export interface PlanFeature {
 // Plan quotas per plan type (as per requirements)
 export const PLAN_QUOTAS: Record<PlanId, number> = {
   FREE: 0,
-  SMART: 20,
-  PRO: 50,
+  SMART: 30,
+  PRO: 60,
   SCALE: 100,
 };
 
@@ -114,7 +114,7 @@ export const PLANS: Plan[] = [
     description: 'Perfect for sellers who want to test products seriously. All features included.',
     price: 19.99,
     currency: 'USD',
-    analysesPerMonth: 20,
+    analysesPerMonth: 30,
     features: PLAN_FEATURES.SMART,
     stripePriceId: STRIPE_PRICE_IDS.SMART || undefined,
   },
@@ -124,7 +124,7 @@ export const PLANS: Plan[] = [
     description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
     price: 29.99,
     currency: 'USD',
-    analysesPerMonth: 50,
+    analysesPerMonth: 60,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
     popular: true,
