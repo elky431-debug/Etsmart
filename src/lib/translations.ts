@@ -255,6 +255,12 @@ export const translations = {
 
 export function getTranslation(key: string, lang: Language): string {
   try {
+    // First, try to find the key directly (for keys like 'home.features')
+    if (translations[lang] && typeof translations[lang][key] === 'string') {
+      return translations[lang][key];
+    }
+    
+    // If not found, try nested access (for keys like 'common.loading')
     const keys = key.split('.');
     let value: any = translations[lang];
     
@@ -270,7 +276,12 @@ export function getTranslation(key: string, lang: Language): string {
       return value;
     }
     
-    // Fallback to English if translation missing
+    // Fallback to English - try direct key first
+    if (translations.en && typeof translations.en[key] === 'string') {
+      return translations.en[key];
+    }
+    
+    // Fallback to English - try nested access
     value = translations.en;
     for (const k of keys) {
       if (value === undefined || value === null) {
