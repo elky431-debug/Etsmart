@@ -25,7 +25,7 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
       // Redirect to dashboard is handled by AuthContext
-      router.push('/dashboard');
+      router.push('/dashboard?section=analyze');
     } catch (err: any) {
       setError(err.message || 'Incorrect email or password');
       setIsLoading(false);

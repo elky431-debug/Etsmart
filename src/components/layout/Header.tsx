@@ -40,7 +40,7 @@ export function Header() {
                 </Button>
               </Link>
               
-              <Link href="/dashboard" className="hidden sm:block">
+              <Link href="/dashboard?section=analyze" className="hidden sm:block">
                 <Button
                   variant="ghost"
                   size="sm"

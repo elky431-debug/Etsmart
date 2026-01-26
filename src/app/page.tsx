@@ -210,7 +210,7 @@ export default function HomePage() {
               <div className="hidden md:flex items-center gap-4">
                 {!loading && user ? (
                   // Utilisateur connecté - afficher seulement Dashboard
-                  <Link href="/dashboard">
+                  <Link href="/dashboard?section=analyze">
                     <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
                       <span className="text-white">Dashboard</span>
                       <ArrowRight size={16} className="text-white" />
@@ -323,7 +323,7 @@ export default function HomePage() {
                   {/* CTA Section */}
                   <div className="space-y-2.5">
                     {!loading && user ? (
-                      <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/dashboard?section=analyze" onClick={() => setMobileMenuOpen(false)}>
                         <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:opacity-90 touch-manipulation">
                           <LayoutDashboard size={20} />
                           <span>Dashboard</span>

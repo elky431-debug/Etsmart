@@ -50,6 +50,17 @@ export default function DashboardPage() {
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Check URL parameter to set initial section
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const section = params.get('section') as DashboardSection | null;
+      if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription'].includes(section)) {
+        setActiveSection(section);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');

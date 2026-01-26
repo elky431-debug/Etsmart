@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user && typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
         if (currentPath === '/login' || currentPath === '/register') {
-          router.push('/dashboard');
+          router.push('/dashboard?section=analyze');
         }
       }
     });
@@ -66,12 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignUp = async (email: string, password: string, fullName?: string) => {
     await signUp(email, password, fullName);
     // User will be set via auth state change
-    router.push('/dashboard');
+    router.push('/dashboard?section=analyze');
   };
 
   const handleSignIn = async (email: string, password: string) => {
     await signIn(email, password);
-    router.push('/dashboard');
+    router.push('/dashboard?section=analyze');
   };
 
   const handleSignOut = async () => {

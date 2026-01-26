@@ -7,7 +7,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') || '/dashboard';
+  const next = requestUrl.searchParams.get('next') || '/dashboard?section=analyze';
 
   if (code) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   // If there's an error or no code, redirect to login
   return NextResponse.redirect(new URL('/login?error=oauth_error', request.url));
 }
+
 
 
 
