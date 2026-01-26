@@ -211,7 +211,7 @@ export default function HomePage() {
                 {!loading && user ? (
                   // Utilisateur connecté - afficher seulement Dashboard
                   <Link href="/dashboard">
-                    <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
+                    <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
                       <span className="text-white">Dashboard</span>
                       <ArrowRight size={16} className="text-white" />
                     </button>
@@ -223,7 +223,7 @@ export default function HomePage() {
                       Login
                     </Link>
                     <Link href="/register">
-                      <button className="px-5 py-2.5 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
+                      <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
                         <span className="text-white">Create account</span>
                         <ArrowRight size={16} className="text-white" />
                       </button>
@@ -399,7 +399,7 @@ export default function HomePage() {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-16 px-4 sm:px-0">
               <Link href="/app" className="w-full sm:w-auto">
-                <button className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all btn-mobile">
+                <button className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all btn-mobile">
                   <Play size={16} className="fill-white sm:w-[18px] sm:h-[18px]" />
                   <span className="text-sm sm:text-base">Analyze my product</span>
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform sm:w-[18px] sm:h-[18px]" />
@@ -539,7 +539,7 @@ export default function HomePage() {
           {/* CTA */}
           <div className="text-center mt-16">
             <Link href="/app">
-              <button className="inline-flex items-center gap-2 px-8 py-4 bg-[#00d4ff] hover:bg-[#00b8e6] text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
+              <button className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
                 Get started now
                 <ArrowRight size={18} />
               </button>
@@ -632,7 +632,7 @@ export default function HomePage() {
                   <button 
                     className={`w-full py-3.5 rounded-full font-semibold transition-all ${
                       plan.popular 
-                        ? 'bg-[#00d4ff] hover:bg-[#00b8e6] text-white shadow-lg shadow-[#00d4ff]/20' 
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white shadow-lg shadow-[#00d4ff]/20' 
                         : 'bg-slate-100 border border-slate-200 text-slate-800 hover:bg-slate-200'
                     }`}
                   >
@@ -702,7 +702,7 @@ export default function HomePage() {
                   <button 
                     className={`w-full py-3 rounded-full font-semibold text-sm ${
                       plan.popular 
-                        ? 'bg-[#00d4ff] text-white shadow-lg shadow-[#00d4ff]/20' 
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white shadow-lg shadow-[#00d4ff]/20' 
                         : 'bg-slate-100 border border-slate-200 text-slate-800'
                     }`}
                   >
