@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { Logo } from '@/components/ui/Logo';
 import { analysisDb } from '@/lib/db/analyses';
 import { useStore } from '@/store/useStore';
@@ -45,7 +44,6 @@ interface MenuItem {
 
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
-  const { t } = useLanguage();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<DashboardSection>('history');
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
@@ -171,7 +169,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-white">
           <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d4ff]"></div>
-          <p className="mt-4 text-slate-600">{t('common.loading')}</p>
+          <p className="mt-4 text-slate-600">Loading...</p>
         </div>
       </div>
     );
@@ -182,11 +180,11 @@ export default function DashboardPage() {
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'analyze', label: t('startAnalyzing'), icon: BarChart3 },
-    { id: 'subscription', label: t('subscription'), icon: CreditCard },
-    { id: 'profile', label: t('profile'), icon: User },
-    { id: 'history', label: t('history'), icon: History },
-    { id: 'settings', label: t('settings'), icon: Settings },
+    { id: 'analyze', label: 'Start analyzing', icon: BarChart3 },
+    { id: 'subscription', label: 'Subscription', icon: CreditCard },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'history', label: 'History', icon: History },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -207,7 +205,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <Home size={18} />
-                <span className="font-medium">{t('returnHome')}</span>
+                <span className="font-medium">Return to home</span>
               </Link>
               
               <button
@@ -215,7 +213,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
               >
                 <LogOut size={18} />
-                <span className="font-medium">{t('signOut')}</span>
+                <span className="font-medium">Sign out</span>
               </button>
             </div>
           </div>
@@ -272,10 +270,10 @@ export default function DashboardPage() {
                     <BarChart3 className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-4xl font-bold text-slate-900 mb-4">
-                    {t('dashboard.howItWorks')}
+                    How does the analysis work?
                   </h2>
                   <p className="text-slate-600 text-lg max-w-2xl mx-auto mb-8">
-                    {t('dashboard.description')}
+                    Our AI deeply analyzes your AliExpress products to give you all the information needed for an informed decision
                   </p>
                 </div>
 
@@ -287,10 +285,10 @@ export default function DashboardPage() {
                   className="text-center bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-2xl p-8 border border-[#00d4ff]/20 mb-12"
                 >
                   <h3 className="text-2xl font-bold text-slate-900 mb-3">
-                    {t('dashboard.ready')}
+                    Ready to discover your products' potential?
                   </h3>
                   <p className="text-slate-600 mb-6 max-w-xl mx-auto">
-                    {t('dashboard.readyDesc')}
+                    Launch your first analysis in a few clicks and receive a complete report in less than 2 minutes
                   </p>
                   <Link href="/app">
                     <motion.button
@@ -299,7 +297,7 @@ export default function DashboardPage() {
                       className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
                     >
                       <BarChart3 size={20} />
-                      <span>{t('dashboard.startAnalyzing')}</span>
+                      <span>Start analyzing</span>
                       <ArrowRight size={18} />
                     </motion.button>
                   </Link>
@@ -307,7 +305,7 @@ export default function DashboardPage() {
 
                 {/* Process Steps */}
                 <div className="mb-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">{t('dashboard.processTitle')}</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-6">The process in 3 steps</h3>
                   <div className="grid md:grid-cols-3 gap-6">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -318,9 +316,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <Eye className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">{t('dashboard.step1Title')}</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">1. Visual analysis</h4>
                       <p className="text-slate-600 text-sm">
-                        {t('dashboard.step1Desc')}
+                        Our AI examines your product image to understand what it is, identify its niche and estimate its value
                       </p>
                     </motion.div>
 
@@ -333,9 +331,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <TrendingUp className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">{t('dashboard.step2Title')}</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">2. Market analysis</h4>
                       <p className="text-slate-600 text-sm">
-                        {t('dashboard.step2Desc')}
+                        Search for competitors on Etsy, analyze market saturation and estimate sales potential
                       </p>
                     </motion.div>
 
@@ -348,9 +346,9 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <FileText className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">{t('dashboard.step3Title')}</h4>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">3. Complete report</h4>
                       <p className="text-slate-600 text-sm">
-                        {t('dashboard.step3Desc')}
+                        You receive a clear verdict with all necessary data: pricing, marketing, SEO and strategy
                       </p>
                     </motion.div>
                   </div>

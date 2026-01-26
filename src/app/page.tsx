@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   ArrowRight, 
   Sparkles, 
@@ -33,7 +32,6 @@ import { Logo } from '@/components/ui/Logo';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
-  const { t } = useLanguage();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Initialiser isMobile à true par défaut pour éviter les erreurs sur mobile au premier rendu
@@ -100,62 +98,62 @@ export default function HomePage() {
   const features = [
     {
       icon: Cpu,
-      title: t('home.feature1Title'),
-      description: t('home.feature1Desc'),
+      title: 'Advanced AI Analysis',
+      description: 'Our AI deeply analyzes the Etsy market and predicts your products\' potential.',
     },
     {
       icon: LineChart,
-      title: t('home.feature2Title'),
-      description: t('home.feature2Desc'),
+      title: 'Realistic Simulation',
+      description: 'Simulate your sales with conservative, realistic, and optimistic projections.',
     },
     {
       icon: Target,
-      title: t('home.feature3Title'),
-      description: t('home.feature3Desc'),
+      title: 'Optimal Pricing',
+      description: 'Receive pricing recommendations based on competition and your margins.',
     },
     {
       icon: Shield,
-      title: t('home.feature4Title'),
-      description: t('home.feature4Desc'),
+      title: 'Risk Detection',
+      description: 'Identify saturated markets and avoid costly mistakes before launching.',
     },
     {
       icon: ShoppingBag,
-      title: t('home.feature5Title'),
-      description: t('home.feature5Desc'),
+      title: 'Competitor Analysis',
+      description: 'Discover who dominates your niche and how to differentiate effectively.',
     },
     {
       icon: Sparkles,
-      title: t('home.feature6Title'),
-      description: t('home.feature6Desc'),
+      title: 'Intelligent Verdict',
+      description: 'A clear and actionable verdict: Launch, Competitive Market, or Avoid.',
     },
   ];
 
   const stats = [
-    { value: '10K+', label: t('home.stats1') },
-    { value: '2.5K+', label: t('home.stats2') },
-    { value: '95%', label: t('home.stats3') },
-    { value: '24/7', label: t('home.stats4') },
+    { value: '10K+', label: 'Products analyzed' },
+    { value: '2.5K+', label: 'Active sellers' },
+    { value: '95%', label: 'AI accuracy' },
+    { value: '24/7', label: 'Availability' },
   ];
 
   const testimonials = [
     {
       name: 'Marie Laurent',
-      role: t('home.testimonial1Role'),
-      content: t('home.testimonial1Content'),
+      role: 'Etsy Pro Seller',
+      content: 'Etsmart saved me from launching 3 products that would have been failures. The AI analysis is impressively accurate.',
       avatar: 'M',
       rating: 5,
     },
     {
       name: 'Thomas Dubois',
-      role: t('home.testimonial2Role'),
-      content: t('home.testimonial2Content'),
+      role: 'Dropshipper',
+      content: 'The Launch/Avoid verdict saves me hours of research. Essential for any serious seller.',
       avatar: 'T',
       rating: 5,
     },
     {
       name: 'Sophie Martin',
-      role: t('home.testimonial3Role'),
-      content: t('home.testimonial3Content'),
+      role: 'POD Creator',
+      content: 'The pricing recommendations are spot-on. I increased my margins by 40% thanks to Etsmart.',
       avatar: 'S',
       rating: 5,
     },
@@ -195,16 +193,16 @@ export default function HomePage() {
               {/* Navigation Desktop */}
               <nav className="hidden md:flex items-center gap-8">
                 <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  {t('home.features')}
+                  Features
                 </a>
                 <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  {t('home.pricing')}
+                  Pricing
                 </a>
                 <a href="#testimonials" className="hidden md:block text-slate-600 hover:text-slate-900 transition-colors">
-                  {t('home.testimonials')}
+                  Testimonials
                 </a>
                 <Link href="/about" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  {t('home.about')}
+                  About
                 </Link>
               </nav>
 
@@ -222,11 +220,11 @@ export default function HomePage() {
                   // User not logged in - show Login and Create account
                   <>
                     <Link href="/login" className="text-slate-600 hover:text-slate-900 transition-colors">
-                      {t('home.login')}
+                      Login
                     </Link>
                     <Link href="/register">
                       <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                        <span className="text-white">{t('home.createAccount')}</span>
+                        <span className="text-white">Create account</span>
                         <ArrowRight size={16} className="text-white" />
                       </button>
                     </Link>
@@ -379,20 +377,23 @@ export default function HomePage() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6 sm:mb-8">
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">{t('home.poweredBy')}</span>
+              <span className="text-sm text-slate-700">Powered by AI • GPT-4</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </div>
 
             {/* Main headline */}
             <h1 className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-8 px-4 sm:px-0">
-              <span className="text-slate-900">{t('home.title')}</span>
+              <span className="text-slate-900">Launch profitable products</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{t('home.subtitle')}</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">on Etsy</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed px-4 sm:px-0">
-              {t('home.descriptionFull')}
+              Our AI analyzes your AliExpress products and reveals{' '}
+              <span className="text-slate-900 font-medium">their real potential</span> on Etsy.
+              <br className="hidden sm:block" />
+              No more costly failures, launch with confidence.
             </p>
 
             {/* CTA Buttons */}
@@ -400,13 +401,13 @@ export default function HomePage() {
               <Link href="/app" className="w-full sm:w-auto">
                 <button className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all btn-mobile">
                   <Play size={16} className="fill-white sm:w-[18px] sm:h-[18px]" />
-                  <span className="text-sm sm:text-base">{t('home.analyzeButton')}</span>
+                  <span className="text-sm sm:text-base">Analyze my product</span>
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform sm:w-[18px] sm:h-[18px]" />
                 </button>
               </Link>
               <a href="#features" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 sm:py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all btn-mobile">
-                  <span className="text-sm sm:text-base">{t('home.discoverFeatures')}</span>
+                  <span className="text-sm sm:text-base">Discover features</span>
                   <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </a>
@@ -445,14 +446,15 @@ export default function HomePage() {
       <section id="features" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-20">
-            <span className="text-[#00d4ff] font-medium mb-3 sm:mb-4 block uppercase tracking-wider text-xs sm:text-sm">{t('home.features')}</span>
+            <span className="text-[#00d4ff] font-medium mb-3 sm:mb-4 block uppercase tracking-wider text-xs sm:text-sm">Features</span>
             <h2 className="text-2xl sm:text-4xl sm:text-5xl font-bold mb-4 sm:mb-6">
-              <span className="text-slate-900">{t('home.featuresTitle')}</span>
+              <span className="text-slate-900">Everything you need to</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{t('home.featuresSubtitle')}</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominate on Etsy</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-lg px-4 sm:px-0">
-              {t('home.featuresDesc')}
+              A complete suite of AI tools to analyze, simulate and optimize 
+              your product launches.
             </p>
           </div>
 
@@ -479,10 +481,10 @@ export default function HomePage() {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">{t('home.howItWorks')}</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">How it works</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">{t('home.howItWorksTitle')}</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{t('home.howItWorksSubtitle')}</span>
+              <span className="text-slate-900">Analyze in</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 steps</span>
             </h2>
           </div>
 
@@ -491,20 +493,20 @@ export default function HomePage() {
               {
                 step: '01',
                 icon: ShoppingBag,
-                title: t('home.step1Title'),
-                description: t('home.step1Desc'),
+                title: 'Choose your niche',
+                description: 'Select from our popular niches or enter your own.',
               },
               {
                 step: '02',
                 icon: Globe,
-                title: t('home.step2Title'),
-                description: t('home.step2Desc'),
+                title: 'Add your products',
+                description: 'Paste the AliExpress link or enter your product details.',
               },
               {
                 step: '03',
                 icon: Sparkles,
-                title: t('home.step3Title'),
-                description: t('home.step3Desc'),
+                title: 'Get your verdict',
+                description: 'Our AI analyzes and gives you a clear and actionable verdict.',
               },
             ].map((item, index) => (
               <div
@@ -538,7 +540,7 @@ export default function HomePage() {
           <div className="text-center mt-16">
             <Link href="/app">
               <button className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
-                {t('home.getStarted')}
+                Get started now
                 <ArrowRight size={18} />
               </button>
             </Link>
@@ -550,13 +552,13 @@ export default function HomePage() {
       <section id="pricing" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">{t('home.pricing')}</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pricing</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">{t('home.pricingTitle')}</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{t('home.pricingSubtitle')}</span>
+              <span className="text-slate-900">Transparent</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">pricing</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-              {t('home.pricingDesc')}
+              Start for free, upgrade when you're ready.
             </p>
           </div>
 
@@ -564,30 +566,30 @@ export default function HomePage() {
           <div className="hidden md:grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               {
-                name: t('home.planSmart'),
+                name: 'Smart',
                 price: '$19.99',
-                period: t('home.planMonth'),
-                description: t('home.planSmartDesc'),
-                features: [`20 ${t('home.planFeature1')}`, t('home.planFeature2')],
-                cta: t('home.planGetStarted'),
+                period: '/month',
+                description: 'Perfect for sellers who want to test products seriously. All features included.',
+                features: ['20 analyses / month', 'All features included'],
+                cta: 'Get started',
                 popular: false,
               },
               {
-                name: t('home.planPro'),
+                name: 'Pro',
                 price: '$29.99',
-                period: t('home.planMonth'),
-                description: t('home.planProDesc'),
-                features: [`50 ${t('home.planFeature1')}`, t('home.planFeature2')],
-                cta: t('home.choosePlan'),
+                period: '/month',
+                description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
+                features: ['50 analyses / month', 'All features included'],
+                cta: 'Choose plan',
                 popular: true,
               },
               {
-                name: t('home.planScale'),
+                name: 'Scale',
                 price: '$49.99',
-                period: t('home.planMonth'),
-                description: t('home.planScaleDesc'),
-                features: [`100 ${t('home.planFeature1')}`, t('home.planFeature2')],
-                cta: t('home.choosePlan'),
+                period: '/month',
+                description: 'For high-volume shops testing many products strategically. All features included.',
+                features: ['100 analyses / month', 'All features included'],
+                cta: 'Choose plan',
                 popular: false,
               },
             ].map((plan) => (
@@ -602,7 +604,7 @@ export default function HomePage() {
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="px-4 py-1.5 bg-[#00d4ff] text-white text-sm font-semibold rounded-full shadow-lg">
-                      {t('home.planMostPopular')}
+                      Most popular
                     </span>
                   </div>
                 )}
@@ -645,24 +647,24 @@ export default function HomePage() {
           <div className="md:hidden grid grid-cols-1 gap-6 max-w-md mx-auto">
             {[
               {
-                name: t('home.planSmart'),
+                name: 'Smart',
                 price: '$19.99',
-                period: t('home.planMonth'),
-                analysesCount: `20 ${t('home.planFeature1')}`,
+                period: '/month',
+                analysesCount: '20 analyses / month',
                 popular: false,
               },
               {
-                name: t('home.planPro'),
+                name: 'Pro',
                 price: '$29.99',
-                period: t('home.planMonth'),
-                analysesCount: `50 ${t('home.planFeature1')}`,
+                period: '/month',
+                analysesCount: '50 analyses / month',
                 popular: true,
               },
               {
-                name: t('home.planScale'),
+                name: 'Scale',
                 price: '$49.99',
-                period: t('home.planMonth'),
-                analysesCount: `100 ${t('home.planFeature1')}`,
+                period: '/month',
+                analysesCount: '100 analyses / month',
                 popular: false,
               },
             ].map((plan) => (
@@ -677,7 +679,7 @@ export default function HomePage() {
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span className="px-3 py-1 bg-[#00d4ff] text-white text-xs font-semibold rounded-full">
-                      {t('home.planMostPopular')}
+                      Popular
                     </span>
                   </div>
                 )}
@@ -704,7 +706,7 @@ export default function HomePage() {
                         : 'bg-slate-100 border border-slate-200 text-slate-800'
                     }`}
                   >
-                    {t('home.choosePlan')}
+                    Choose plan
                   </button>
                 </Link>
               </div>
@@ -717,10 +719,10 @@ export default function HomePage() {
       <section id="testimonials" className="hidden md:block py-16 sm:py-32 relative bg-white">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">{t('home.testimonials')}</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Testimonials</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">{t('home.testimonialsTitle')}</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">{t('home.testimonialsSubtitle')}</span>
+              <span className="text-slate-900">They trust</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">us</span>
             </h2>
           </div>
 
@@ -759,22 +761,23 @@ export default function HomePage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 text-white">
-              {t('home.finalCtaTitle')}
+              Ready to launch your
               <br />
-              {t('home.finalCtaSubtitle')}
+              next success?
             </h2>
             <p className="text-white/80 text-lg mb-12 max-w-2xl mx-auto">
-              {t('home.finalCtaDesc')}
+              Join thousands of sellers using Etsmart to 
+              make better decisions and maximize their profits.
             </p>
             <Link href="/app">
               <button className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
-                {t('home.finalCtaButton')}
+                Start for free
                 <ArrowUpRight size={20} className="text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
             </Link>
             <p className="mt-6 text-white/60 text-sm flex items-center justify-center gap-2">
               <Lock size={14} />
-              {t('home.finalCtaNoCard')}
+              No credit card required
             </p>
           </div>
         </div>
