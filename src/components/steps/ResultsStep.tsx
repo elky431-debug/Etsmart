@@ -1022,18 +1022,47 @@ export function ResultsStep() {
     loadAnalyses();
   }, []);
   
+  // Récupérer le produit actuel du store pour identifier l'analyse à afficher
+  const { products: currentProducts } = useStore();
+  const currentProductId = currentProducts.length > 0 ? currentProducts[0].id : null;
+  
   // Utiliser les analyses du store si disponibles (analyse récente), sinon DB
-  const analyses = storeAnalyses.length > 0 ? storeAnalyses : dbAnalyses;
+  const allAnalyses = storeAnalyses.length > 0 ? storeAnalyses : dbAnalyses;
+  
+  // Trouver l'analyse du produit actuel, sinon prendre la plus récente
+  const getAnalysisToDisplay = () => {
+    if (allAnalyses.length === 0) return null;
+    
+    // D'abord, chercher l'analyse du produit actuel (priorité absolue)
+    if (currentProductId) {
+      const currentProductAnalysis = allAnalyses.find(a => a.product.id === currentProductId);
+      if (currentProductAnalysis) {
+        console.log('✅ Using analysis for current product:', currentProductId);
+        return currentProductAnalysis;
+      }
+    }
+    
+    // Sinon, prendre la plus récente (première dans la liste triée par date)
+    console.log('⚠️ No analysis for current product, using most recent');
+    return allAnalyses[0];
+  };
+  
+  const analysisToDisplay = getAnalysisToDisplay();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    analyses.length > 0 ? analyses[0].product.id : null
+    analysisToDisplay?.product.id || null
   );
   
-  // Mettre à jour selectedProductId quand analyses change
+  // Mettre à jour selectedProductId quand analyses change ou quand le produit change
   useEffect(() => {
-    if (analyses.length > 0 && (!selectedProductId || !analyses.find(a => a.product.id === selectedProductId))) {
-      setSelectedProductId(analyses[0].product.id);
+    const newAnalysis = getAnalysisToDisplay();
+    if (newAnalysis && newAnalysis.product.id !== selectedProductId) {
+      console.log('🔄 Updating selected analysis to:', newAnalysis.product.id);
+      setSelectedProductId(newAnalysis.product.id);
     }
-  }, [analyses, selectedProductId]);
+  }, [allAnalyses, currentProductId, selectedProductId]);
+  
+  // Utiliser allAnalyses pour selectedAnalysis
+  const analyses = allAnalyses;
   
   const selectedAnalysis = analyses.find((a) => a.product.id === selectedProductId);
   
