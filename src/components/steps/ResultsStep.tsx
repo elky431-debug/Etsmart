@@ -1037,32 +1037,47 @@ export function ResultsStep() {
   
   const selectedAnalysis = analyses.find((a) => a.product.id === selectedProductId);
   
-  // Nettoyer le store après avoir chargé depuis la DB
+  // Nettoyer le store après avoir chargé depuis la DB (seulement si on a des analyses en DB)
   const { setAnalyses: setAnalysesStore } = useStore();
   useEffect(() => {
-    if (dbAnalyses.length > 0 && storeAnalyses.length > 0) {
+    // Attendre que la DB soit chargée et qu'on ait des analyses
+    if (!isLoading && dbAnalyses.length > 0 && storeAnalyses.length > 0) {
       // Retirer les analyses du store car elles sont maintenant en DB
-      setAnalysesStore([]);
+      // Mais seulement après un petit délai pour s'assurer que l'affichage est fait
+      setTimeout(() => {
+        setAnalysesStore([]);
+      }, 1000);
     }
-  }, [dbAnalyses.length, storeAnalyses.length, setAnalysesStore]);
+  }, [isLoading, dbAnalyses.length, storeAnalyses.length, setAnalysesStore]);
 
-  // ⚠️ Ce cas ne devrait JAMAIS se produire car l'analyse ne peut jamais échouer
-  // Mais si ça arrive, on crée une analyse par défaut pour éviter une erreur
-  if (!selectedAnalysis || analyses.length === 0) {
-    // Fallback ultime - créer une analyse minimale pour éviter le crash
-    console.warn('⚠️ No analyses found - this should never happen. Creating fallback analysis.');
-    
-    // Si on a des produits mais pas d'analyses, les analyses sont probablement en cours
-    // Rediriger vers l'étape d'analyse
-    setTimeout(() => {
-      setStep(3);
-    }, 100);
-    
+  // ⚠️ Attendre le chargement avant de vérifier
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
-          <p className="text-xl text-slate-900 mb-4">Preparing analysis...</p>
+          <p className="text-xl text-slate-900 mb-4">Loading analysis...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ⚠️ Si pas d'analyses après chargement, ne pas rediriger - afficher un message
+  if (!selectedAnalysis || analyses.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <Package className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">No analysis found</h2>
+          <p className="text-slate-600 mb-6">
+            No analysis results are available. Please start a new analysis.
+          </p>
+          <button
+            onClick={() => setStep(1)}
+            className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:opacity-90 transition-all"
+          >
+            Start new analysis
+          </button>
         </div>
       </div>
     );
