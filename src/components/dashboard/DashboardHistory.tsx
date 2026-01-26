@@ -361,9 +361,12 @@ export function DashboardHistory({
         {/* Products list */}
         <div className="space-y-4">
           {filteredAnalyses.map((analysis, index) => {
-            // Utiliser confidenceScore comme note (sur 100, converti en /10)
-            const score = analysis.verdict.confidenceScore / 10;
-            const scoreDisplay = getScoreDisplay(analysis.verdict.confidenceScore);
+            // Utiliser Launch Potential Score si disponible, sinon confidenceScore/10
+            const launchScore = analysis.competitors.launchPotentialScore?.score;
+            const score = launchScore !== undefined ? launchScore : (analysis.verdict.confidenceScore / 10);
+            // Pour le code couleur, multiplier par 10 pour avoir la valeur sur 100
+            const scoreForColor = launchScore !== undefined ? launchScore * 10 : analysis.verdict.confidenceScore;
+            const scoreDisplay = getScoreDisplay(scoreForColor);
             const nicheInfo = getNicheById(analysis.niche);
 
             return (
