@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   description: "Analyze your products' potential on Etsy with AI. Competitor detection, sales simulation, optimal pricing and intelligent verdict.",
   keywords: ["Etsy", "dropshipping", "AI analysis", "e-commerce", "AliExpress", "Alibaba", "POD"],
   authors: [{ name: "Etsmart" }],
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' },
+    ],
+  },
   openGraph: {
     title: "Etsmart - AI Copilot for Etsy",
     description: "Know BEFORE launching if a product can succeed on Etsy with AI",
@@ -37,6 +46,15 @@ export default function RootLayout({
       <body 
         className="antialiased bg-white"
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}
+      >
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+
       >
         <AuthProvider>
           {children}
