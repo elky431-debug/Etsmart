@@ -66,6 +66,21 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Fermer le menu au clic en dehors
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.mobile-menu-container')) {
+        setIsMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -228,7 +243,7 @@ export default function DashboardPage() {
         <div className="border-b border-slate-200 bg-white">
           {isMobile ? (
             /* Mobile: Menu déroulant */
-            <div className="relative">
+            <div className="relative mobile-menu-container">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`
