@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const sora = Sora({ 
   subsets: ["latin"],
@@ -39,7 +40,9 @@ export default function RootLayout({
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}
       >
         <AuthProvider>
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

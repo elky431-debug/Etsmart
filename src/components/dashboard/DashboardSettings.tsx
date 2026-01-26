@@ -6,6 +6,7 @@ import { Settings as SettingsIcon, Globe, DollarSign, Languages, Save, Lock, Eye
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DashboardSettingsProps {
   user: SupabaseUser;
@@ -192,6 +193,7 @@ const defaultSettings: UserSettings = {
 
 export function DashboardSettings({ user }: DashboardSettingsProps) {
   const { updatePassword } = useAuth();
+  const { setLanguage, t } = useLanguage();
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -238,11 +240,16 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
       }
 
       if (data) {
+        const loadedLanguage = data.language || defaultSettings.language;
         setSettings({
           targetCountry: data.target_country || defaultSettings.targetCountry,
           currency: data.currency || defaultSettings.currency,
-          language: data.language || defaultSettings.language,
+          language: loadedLanguage,
         });
+        // Update language context immediately
+        if (loadedLanguage === 'fr' || loadedLanguage === 'en') {
+          setLanguage(loadedLanguage);
+        }
       }
     } catch (error: any) {
       // Catch any unexpected errors, but don't break the UI
@@ -288,7 +295,12 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
         throw error;
       }
 
-      alert('Settings saved successfully!');
+      // Update language context when saved
+      if (settings.language === 'fr' || settings.language === 'en') {
+        setLanguage(settings.language);
+      }
+
+      alert(t('settings.saved'));
     } catch (error: any) {
       console.error('Error saving settings:', error);
       alert('Error saving: ' + (error?.message || 'Unknown error'));
@@ -364,10 +376,17 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
     );
   }
 
+  const handleLanguageChange = (newLanguage: string) => {
+    setSettings({ ...settings, language: newLanguage });
+    if (newLanguage === 'fr' || newLanguage === 'en') {
+      setLanguage(newLanguage);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Settings</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-8">{t('settings.title')}</h1>
 
         <div className="space-y-6">
           {/* General settings */}
@@ -380,14 +399,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                 <Globe className="w-5 h-5 text-[#00d4ff]" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">General</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t('settings.general')}</h2>
             </div>
 
             <div className="space-y-4">
               {/* Target country */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Target country
+                  {t('settings.targetCountry')}
                 </label>
                 <FilterDropdown
                   value={settings.targetCountry}
@@ -403,7 +422,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   icon={Globe}
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  Main country for your Etsy sales
+                  {t('settings.targetCountryDesc')}
                 </p>
               </div>
 
@@ -412,7 +431,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <DollarSign size={16} />
-                    <span>Currency</span>
+                    <span>{t('settings.currency')}</span>
                   </div>
                 </label>
                 <FilterDropdown
@@ -433,12 +452,12 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Languages size={16} />
-                    <span>Language</span>
+                    <span>{t('settings.language')}</span>
                   </div>
                 </label>
                 <FilterDropdown
                   value={settings.language}
-                  onChange={(value) => setSettings({ ...settings, language: value })}
+                  onChange={handleLanguageChange}
                   options={[
                     { value: 'fr', label: 'French', icon: Languages },
                     { value: 'en', label: 'English', icon: Languages },
@@ -460,14 +479,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
                 <Lock className="w-5 h-5 text-red-600" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Change Password</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t('settings.changePassword')}</h2>
             </div>
 
             <div className="space-y-4">
               {/* Current Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Current password
+                  {t('settings.currentPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -493,7 +512,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               {/* New Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  New password
+                  {t('settings.newPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -515,14 +534,14 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  Must be at least 8 characters long
+                  {t('settings.passwordMinLength')}
                 </p>
               </div>
 
               {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Confirm new password
+                  {t('settings.confirmPassword')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -566,7 +585,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Lock size={18} />
-                <span>{isChangingPassword ? 'Changing...' : 'Change Password'}</span>
+                <span>{isChangingPassword ? t('settings.changing') : t('settings.changePasswordButton')}</span>
               </button>
             </div>
           </motion.div>
@@ -584,7 +603,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
             >
               <Save size={20} />
-              <span>{isSaving ? 'Saving...' : 'Save settings'}</span>
+              <span>{isSaving ? t('settings.saving') : t('settings.saveSettings')}</span>
             </button>
           </motion.div>
         </div>
