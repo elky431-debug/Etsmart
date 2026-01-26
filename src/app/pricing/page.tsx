@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, Crown, Zap, Loader2 } from 'lucide-react';
+import { Check, Crown, Zap, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { PLANS, type Plan, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,20 +55,6 @@ export default function PricingPage() {
       setLoadingPlan(null);
     }
   };
-  // Feature comparison table data
-  const featureComparison = [
-    { id: 'competition', name: 'Competition & saturation analysis', smart: true, pro: true, scale: true },
-    { id: 'basic_sim', name: 'Simplified launch simulation', smart: true, pro: true, scale: true },
-    { id: 'full_sim', name: 'Complete launch simulation', smart: true, pro: true, scale: true },
-    { id: 'advanced_sim', name: 'Advanced simulation (risk / effort)', smart: true, pro: true, scale: true },
-    { id: 'full_sheet', name: 'Complete product sheet', smart: true, pro: true, scale: true },
-    { id: 'advanced_marketing', name: 'Advanced marketing', smart: true, pro: true, scale: true },
-    { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', smart: true, pro: true, scale: true },
-    { id: 'ad_prompt', name: 'AI ad image prompt', smart: true, pro: true, scale: true },
-    { id: 'extended_market', name: 'Extended market analysis', smart: true, pro: true, scale: true },
-    { id: 'advanced_history', name: 'Advanced history organization', smart: true, pro: true, scale: true },
-    { id: 'beta_access', name: 'Early access to new features (beta)', smart: true, pro: true, scale: true },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -197,81 +183,6 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Feature Comparison Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 mb-16"
-        >
-          <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center">
-            Feature Comparison
-          </h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-slate-200">
-                  <th className="text-left py-4 px-4 font-semibold text-slate-900">Features</th>
-                  <th className="text-center py-4 px-4 font-semibold text-slate-900">Smart</th>
-                  <th className="text-center py-4 px-4 font-semibold text-slate-900">Pro</th>
-                  <th className="text-center py-4 px-4 font-semibold text-slate-900">Scale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {featureComparison.map((feature, index) => (
-                  <tr
-                    key={feature.id}
-                    className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}
-                  >
-                    <td className="py-4 px-4 text-sm text-slate-700 font-medium">
-                      {feature.name}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.smart === 'boolean' ? (
-                        feature.smart ? (
-                          <Check className="w-5 h-5 text-[#00c9b7] mx-auto" />
-                        ) : (
-                          <X className="w-5 h-5 text-slate-300 mx-auto" />
-                        )
-                      ) : (
-                        <span className="text-sm font-semibold text-slate-900">
-                          {feature.smart}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.pro === 'boolean' ? (
-                        feature.pro ? (
-                          <Check className="w-5 h-5 text-[#00c9b7] mx-auto" />
-                        ) : (
-                          <X className="w-5 h-5 text-slate-300 mx-auto" />
-                        )
-                      ) : (
-                        <span className="text-sm font-semibold text-slate-900">
-                          {feature.pro}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.scale === 'boolean' ? (
-                        feature.scale ? (
-                          <Check className="w-5 h-5 text-[#00c9b7] mx-auto" />
-                        ) : (
-                          <X className="w-5 h-5 text-slate-300 mx-auto" />
-                        )
-                      ) : (
-                        <span className="text-sm font-semibold text-slate-900">
-                          {feature.scale}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
 
         {/* Important Notice */}
         <motion.div
