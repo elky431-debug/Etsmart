@@ -1120,7 +1120,7 @@ export function ResultsStep() {
   }
 
   // ⚠️ Si pas d'analyses après chargement, ne pas rediriger - afficher un message
-  if (!selectedAnalysis || analyses.length === 0) {
+  if (!selectedAnalysis || allAnalyses.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
