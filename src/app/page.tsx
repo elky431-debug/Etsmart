@@ -759,23 +759,22 @@ export default function HomePage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 text-white">
-              Ready to launch your
+              {t('home.finalCtaTitle')}
               <br />
-              next success?
+              {t('home.finalCtaSubtitle')}
             </h2>
             <p className="text-white/80 text-lg mb-12 max-w-2xl mx-auto">
-              Join thousands of sellers using Etsmart to 
-              make better decisions and maximize their profits.
+              {t('home.finalCtaDesc')}
             </p>
             <Link href="/app">
               <button className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
-                Start for free
+                {t('home.finalCtaButton')}
                 <ArrowUpRight size={20} className="text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
             </Link>
             <p className="mt-6 text-white/60 text-sm flex items-center justify-center gap-2">
               <Lock size={14} />
-              No credit card required
+              {t('home.finalCtaNoCard')}
             </p>
           </div>
         </div>
