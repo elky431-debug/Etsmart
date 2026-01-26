@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { 
@@ -1029,15 +1029,15 @@ export function ResultsStep() {
   // Combiner store et DB, en priorisant le store pour l'analyse récente
   const allAnalyses = [...storeAnalyses, ...dbAnalyses.filter(db => !storeAnalyses.some(s => s.product.id === db.product.id))];
   
-  // FORCER l'utilisation de l'analyse du produit actuel - NE JAMAIS CHANGER
-  const findAnalysisForCurrentProduct = useCallback(() => {
+  // VERROUILLAGE TOTAL: Trouver l'analyse du produit actuel UNE FOIS et ne JAMAIS changer
+  const findAndLockAnalysis = useCallback(() => {
     if (!currentProductId) return null;
     
     // PRIORITÉ ABSOLUE: Chercher l'analyse du produit actuel dans le store
     if (storeAnalyses.length > 0) {
       const storeAnalysis = storeAnalyses.find(a => a.product.id === currentProductId);
       if (storeAnalysis) {
-        console.log('✅✅✅ FORCING store analysis for current product:', currentProductId);
+        console.log('🔒🔒🔒 LOCKED: Store analysis for current product:', currentProductId);
         return storeAnalysis;
       }
     }
@@ -1046,62 +1046,53 @@ export function ResultsStep() {
     if (dbAnalyses.length > 0) {
       const dbAnalysis = dbAnalyses.find(a => a.product.id === currentProductId);
       if (dbAnalysis) {
-        console.log('✅✅✅ FORCING DB analysis for current product:', currentProductId);
+        console.log('🔒🔒🔒 LOCKED: DB analysis for current product:', currentProductId);
         return dbAnalysis;
       }
     }
     
-    console.log('❌❌❌ NO ANALYSIS FOUND for current product:', currentProductId);
     return null;
   }, [currentProductId, storeAnalyses, dbAnalyses]);
   
-  // Initialiser avec l'analyse du produit actuel
+  // Initialiser UNE SEULE FOIS avec l'analyse du produit actuel - NE JAMAIS CHANGER
+  const lockedAnalysisRef = useRef<ProductAnalysis | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(() => {
-    const analysis = findAnalysisForCurrentProduct();
+    // Chercher l'analyse du produit actuel
+    const analysis = findAndLockAnalysis();
     if (analysis) {
-      console.log('🎯 Initial selectedProductId:', analysis.product.id);
+      lockedAnalysisRef.current = analysis;
+      console.log('🔒 INITIAL LOCK:', analysis.product.id, 'for product:', currentProductId);
       return analysis.product.id;
     }
     // Fallback: prendre la plus récente du store
     if (storeAnalyses.length > 0) {
-      console.log('🎯 Fallback to most recent store analysis:', storeAnalyses[0].product.id);
+      lockedAnalysisRef.current = storeAnalyses[0];
+      console.log('🔒 INITIAL LOCK (fallback):', storeAnalyses[0].product.id);
       return storeAnalyses[0].product.id;
     }
     return null;
   });
   
-  // FORCER la sélection de l'analyse du produit actuel - NE JAMAIS CHANGER VERS UNE AUTRE
+  // Si on a déjà verrouillé une analyse, NE JAMAIS CHANGER
+  // Seulement mettre à jour si on n'avait pas encore d'analyse verrouillée
   useEffect(() => {
-    if (!currentProductId) return;
-    
-    const correctAnalysis = findAnalysisForCurrentProduct();
-    
-    if (correctAnalysis) {
-      // Si on a l'analyse du produit actuel, FORCER son utilisation
-      if (selectedProductId !== correctAnalysis.product.id) {
-        console.log('🔒🔒🔒 LOCKING to current product analysis:', correctAnalysis.product.id, 'was:', selectedProductId);
-        setSelectedProductId(correctAnalysis.product.id);
-      }
-    } else {
-      // Si on n'a pas l'analyse du produit actuel, garder ce qu'on a (ne pas changer)
-      console.log('⚠️ No analysis for current product, keeping current selection:', selectedProductId);
+    // Si on a déjà une analyse verrouillée, NE RIEN FAIRE
+    if (lockedAnalysisRef.current) {
+      console.log('🔒 KEEPING LOCKED ANALYSIS:', lockedAnalysisRef.current.product.id);
+      return;
     }
-  }, [currentProductId, findAnalysisForCurrentProduct, selectedProductId]);
-  
-  // Trouver l'analyse sélectionnée
-  const selectedAnalysis = allAnalyses.find((a) => a.product.id === selectedProductId);
-  
-  // Log pour debug
-  useEffect(() => {
-    if (selectedAnalysis) {
-      console.log('📊 Current selected analysis:', {
-        productId: selectedAnalysis.product.id,
-        productTitle: selectedAnalysis.product.title?.substring(0, 50),
-        currentProductId,
-        matches: selectedAnalysis.product.id === currentProductId
-      });
+    
+    // Sinon, chercher et verrouiller l'analyse du produit actuel
+    const analysis = findAndLockAnalysis();
+    if (analysis && analysis.product.id !== selectedProductId) {
+      lockedAnalysisRef.current = analysis;
+      console.log('🔒 LOCKING ANALYSIS:', analysis.product.id);
+      setSelectedProductId(analysis.product.id);
     }
-  }, [selectedAnalysis, currentProductId]);
+  }, [findAndLockAnalysis, selectedProductId]);
+  
+  // Trouver l'analyse sélectionnée - utiliser celle verrouillée si disponible
+  const selectedAnalysis = lockedAnalysisRef.current || allAnalyses.find((a) => a.product.id === selectedProductId);
   
   // Nettoyer le store après avoir chargé depuis la DB (seulement si on a des analyses en DB)
   const { setAnalyses: setAnalysesStore } = useStore();
