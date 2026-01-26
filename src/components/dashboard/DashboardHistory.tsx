@@ -224,33 +224,27 @@ export function DashboardHistory({
     });
   }, [analyses, searchQuery, verdictFilter, nicheFilter]);
 
-  const getVerdictDisplay = (verdict: Verdict, competitors: number) => {
-    if (competitors <= 100) {
+  const getScoreDisplay = (score: number) => {
+    // Score sur 10, converti en note sur 10
+    const note = score / 10;
+    
+    if (note < 3.9) {
       return {
-        label: 'LAUNCH QUICKLY',
-        color: 'bg-green-600',
-        icon: CheckCircle2,
-        textColor: 'text-green-700',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
       };
-    } else if (competitors <= 130) {
+    } else if (note >= 4 && note <= 7) {
       return {
-        label: 'LAUNCH BUT OPTIMIZE',
-        color: 'bg-amber-500',
-        icon: AlertTriangle,
-        textColor: 'text-amber-700',
-        bgColor: 'bg-amber-50',
-        borderColor: 'border-amber-200',
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-50',
+        borderColor: 'border-yellow-200',
       };
     } else {
       return {
-        label: 'DON\'T LAUNCH',
-        color: 'bg-red-500',
-        icon: XCircle,
-        textColor: 'text-red-700',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200',
       };
     }
   };
@@ -367,8 +361,9 @@ export function DashboardHistory({
         {/* Products list */}
         <div className="space-y-4">
           {filteredAnalyses.map((analysis, index) => {
-            const verdictDisplay = getVerdictDisplay(analysis.verdict.verdict, analysis.competitors.totalCompetitors);
-            const VerdictIcon = verdictDisplay.icon;
+            // Utiliser confidenceScore comme note (sur 100, converti en /10)
+            const score = analysis.verdict.confidenceScore / 10;
+            const scoreDisplay = getScoreDisplay(analysis.verdict.confidenceScore);
             const nicheInfo = getNicheById(analysis.niche);
 
             return (
@@ -427,15 +422,14 @@ export function DashboardHistory({
                         </div>
                       </div>
 
-                      {/* Verdict badge */}
+                      {/* Score badge */}
                       <div className="flex-shrink-0">
                         <div className={`
-                          px-4 py-2 rounded-lg border-2 ${verdictDisplay.borderColor} ${verdictDisplay.bgColor}
+                          px-4 py-2 rounded-lg border-2 ${scoreDisplay.borderColor} ${scoreDisplay.bgColor}
                           flex items-center gap-2
                         `}>
-                          <VerdictIcon size={18} className={verdictDisplay.textColor} />
-                          <span className={`text-sm font-bold ${verdictDisplay.textColor}`}>
-                            {verdictDisplay.label}
+                          <span className={`text-lg font-bold ${scoreDisplay.color}`}>
+                            {score.toFixed(1)}/10
                           </span>
                         </div>
                       </div>
