@@ -37,7 +37,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { useStore as useStoreDirect } from '@/store/useStore';
 import { Logo } from '@/components/ui';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
