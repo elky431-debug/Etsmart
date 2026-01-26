@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Globe, DollarSign, Target, Shield, Languages, Save, Lock, Eye, EyeOff, ChevronDown, Check, Sparkles, Facebook, Instagram, Share2 } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, DollarSign, Languages, Save, Lock, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,8 +14,6 @@ interface DashboardSettingsProps {
 interface UserSettings {
   targetCountry: string;
   currency: string;
-  preferredChannel: 'auto' | 'all' | 'tiktok' | 'facebook' | 'instagram' | 'pinterest';
-  aiPrudenceLevel: 'conservative' | 'balanced' | 'aggressive';
   language: string;
 }
 
@@ -189,8 +187,6 @@ function FilterDropdown<T extends string>({
 const defaultSettings: UserSettings = {
   targetCountry: 'ALL', // Default to "All countries"
   currency: 'EUR',
-  preferredChannel: 'auto',
-  aiPrudenceLevel: 'balanced',
   language: 'fr',
 };
 
@@ -245,8 +241,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
         setSettings({
           targetCountry: data.target_country || defaultSettings.targetCountry,
           currency: data.currency || defaultSettings.currency,
-          preferredChannel: data.preferred_channel || defaultSettings.preferredChannel,
-          aiPrudenceLevel: data.ai_prudence_level || defaultSettings.aiPrudenceLevel,
           language: data.language || defaultSettings.language,
         });
       }
@@ -270,8 +264,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
           user_id: user.id,
           target_country: settings.targetCountry,
           currency: settings.currency,
-          preferred_channel: settings.preferredChannel,
-          ai_prudence_level: settings.aiPrudenceLevel,
           language: settings.language,
           updated_at: new Date().toISOString(),
         }, {
@@ -457,87 +449,11 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             </div>
           </motion.div>
 
-          {/* Marketing settings */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border-2 border-slate-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-[#00c9b7]/10 flex items-center justify-center">
-                <Target className="w-5 h-5 text-[#00c9b7]" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">Marketing</h2>
-            </div>
-
-            <div className="space-y-4">
-              {/* Preferred channel */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Preferred advertising channel
-                </label>
-                <FilterDropdown
-                  value={settings.preferredChannel}
-                  onChange={(value) => setSettings({ ...settings, preferredChannel: value as any })}
-                  options={[
-                    { value: 'auto', label: 'Automatic (AI recommended)', icon: Sparkles },
-                    { value: 'all', label: 'All channels', icon: Target },
-                    { value: 'tiktok', label: 'TikTok', icon: Sparkles },
-                    { value: 'facebook', label: 'Facebook', icon: Facebook },
-                    { value: 'instagram', label: 'Instagram', icon: Instagram },
-                    { value: 'pinterest', label: 'Pinterest', icon: Share2 },
-                  ]}
-                  icon={Target}
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  The AI will automatically choose the best channel if &quot;Automatic&quot; is selected
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* AI settings */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border-2 border-slate-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-purple-600" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">AI Prudence Level</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  How should the AI evaluate risks?
-                </label>
-                <FilterDropdown
-                  value={settings.aiPrudenceLevel}
-                  onChange={(value) => setSettings({ ...settings, aiPrudenceLevel: value as any })}
-                  options={[
-                    { value: 'conservative', label: 'Conservative (less risk, more selective)', icon: Shield },
-                    { value: 'balanced', label: 'Balanced (recommended)', icon: Shield },
-                    { value: 'aggressive', label: 'Aggressive (more opportunities, more risk)', icon: Shield },
-                  ]}
-                  icon={Shield}
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  Influences how the AI evaluates market saturation and risks
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
           {/* Password Change Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.1 }}
             className="bg-white rounded-xl border-2 border-slate-200 p-6"
           >
             <div className="flex items-center gap-3 mb-6">
@@ -659,7 +575,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
+            transition={{ delay: 0.2 }}
             className="flex justify-end"
           >
             <button
