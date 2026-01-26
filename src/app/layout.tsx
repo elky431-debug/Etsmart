@@ -54,12 +54,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-      >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
-  );
-}
