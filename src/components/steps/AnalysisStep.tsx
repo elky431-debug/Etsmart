@@ -144,7 +144,7 @@ export function AnalysisStep() {
         // La progression sera gérée par l'animation de 30 secondes
         setAnalysisComplete(true);
         
-        // Ajouter l'analyse au store immédiatement
+        // Ajouter l'analyse au store temporairement (pour l'affichage)
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
           

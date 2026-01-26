@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { 
@@ -37,8 +37,10 @@ import {
   Loader2
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { useStore as useStoreDirect } from '@/store/useStore';
 import { Logo } from '@/components/ui';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 import { 
   formatCurrency, 
   getPhaseLabel,
@@ -997,12 +999,50 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 }
 
 export function ResultsStep() {
-  const { analyses, setStep } = useStore();
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    analyses.length > 0 ? analyses[0].product.id : null
-  );
-
+  const { analyses: storeAnalyses, setStep } = useStore();
+  const [dbAnalyses, setDbAnalyses] = useState<ProductAnalysis[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Charger les analyses depuis la DB au montage
+  useEffect(() => {
+    const loadAnalyses = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { analysisDb } = await import('@/lib/db/analyses');
+        const analyses = await analysisDb.getAnalyses(user.id);
+        setDbAnalyses(analyses);
+      } catch (error) {
+        console.error('Error loading analyses:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAnalyses();
+  }, []);
+  
+  // Utiliser les analyses du store si disponibles (analyse récente), sinon DB
+  const analyses = storeAnalyses.length > 0 ? storeAnalyses : dbAnalyses;
+  
+  // Mettre à jour selectedProductId quand analyses change
+  useEffect(() => {
+    if (analyses.length > 0 && (!selectedProductId || !analyses.find(a => a.product.id === selectedProductId))) {
+      setSelectedProductId(analyses[0].product.id);
+    }
+  }, [analyses, selectedProductId]);
+  
   const selectedAnalysis = analyses.find((a) => a.product.id === selectedProductId);
+  
+  // Nettoyer le store après avoir chargé depuis la DB
+  const { setAnalyses: setAnalysesStore } = useStore();
+  useEffect(() => {
+    if (dbAnalyses.length > 0 && storeAnalyses.length > 0) {
+      // Retirer les analyses du store car elles sont maintenant en DB
+      setAnalysesStore([]);
+    }
+  }, [dbAnalyses.length, storeAnalyses.length, setAnalysesStore]);
 
   // ⚠️ Ce cas ne devrait JAMAIS se produire car l'analyse ne peut jamais échouer
   // Mais si ça arrive, on crée une analyse par défaut pour éviter une erreur

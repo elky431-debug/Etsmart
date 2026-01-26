@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -161,9 +161,14 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
 }
 
 export function NicheSelection() {
-  const { selectedNiche, setNiche, customNiche, setCustomNiche, setStep } = useStore();
+  const { selectedNiche, setNiche, customNiche, setCustomNiche, setStep, setAnalyses } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const isMobile = useIsMobile();
+
+  // Nettoyer les analyses du store quand on démarre une nouvelle analyse
+  useEffect(() => {
+    setAnalyses([]);
+  }, [setAnalyses]);
 
   const filteredNiches = niches.filter((niche) =>
     niche.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
