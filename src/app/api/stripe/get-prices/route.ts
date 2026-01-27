@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       current: {
         SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4',
         PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R',
-        SCALE: 'price_1SuHKgCn17QPHnzELM74Uiv7', // Updated to new test price ID
+        SCALE: 'price_1SuKbpCn17QPHnzEKdta67Nm', // Etsmart Scale - $0.10/month
       },
     });
   } catch (error: any) {

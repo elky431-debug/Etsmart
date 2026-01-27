@@ -53,8 +53,10 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
                     (request.headers.get('origin') || 'http://localhost:3000');
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    // Create Stripe Checkout Session with immediate payment
+    // IMPORTANT: The issue might be in Stripe Dashboard configuration
+    // Check: Products > Price > Billing settings > "Charge immediately" should be enabled
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -72,7 +74,22 @@ export async function POST(request: NextRequest) {
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-    });
+      payment_method_collection: 'always',
+      subscription_data: {
+        // Explicitly disable trial period
+        trial_period_days: null,
+        // Set billing cycle anchor to now (immediate)
+        billing_cycle_anchor: Math.floor(Date.now() / 1000),
+        // Force collection method
+        collection_method: 'charge_automatically',
+      },
+      // Force invoice settings for immediate payment
+      invoice_creation: {
+        enabled: true,
+      },
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return NextResponse.json({ 
       sessionId: session.id,

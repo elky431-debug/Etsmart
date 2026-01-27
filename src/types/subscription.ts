@@ -80,7 +80,7 @@ export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
   SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
   PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
-  SCALE: 'price_1SuHKgCn17QPHnzELM74Uiv7', // Etsmart Scale - $0.10/month
+  SCALE: 'price_1SuKbpCn17QPHnzEKdta67Nm', // Etsmart Scale - $0.10/month
 };
 
 // All plans have access to all features - only difference is number of analyses per month
