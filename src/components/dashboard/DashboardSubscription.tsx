@@ -32,6 +32,30 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
     try {
       setLoading(true);
+      
+      // Force sync with Stripe first to ensure we have latest data
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          const syncResponse = await fetch('/api/sync-subscription', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (syncResponse.ok) {
+            console.log('[Dashboard] Subscription synced from Stripe');
+          }
+        }
+      } catch (syncError) {
+        console.error('Error syncing subscription:', syncError);
+      }
+      
+      // Then load subscription data (which will also check Stripe)
       const sub = await getUserSubscription(authUser.id);
       setSubscription(sub);
       
