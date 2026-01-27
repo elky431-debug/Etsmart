@@ -88,17 +88,40 @@ export function ProductImport() {
       const params = new URLSearchParams(window.location.search);
       const success = params.get('success');
       if (success === 'true') {
-        // Wait a bit for webhook to process, then check subscription
+        // Multiple checks to catch subscription activation
         setTimeout(() => {
           if (canAnalyze && showPaywall) {
             setShowPaywall(false);
           }
-        }, 3000);
+        }, 2000);
+        setTimeout(() => {
+          if (canAnalyze && showPaywall) {
+            setShowPaywall(false);
+          }
+        }, 5000);
+        setTimeout(() => {
+          if (canAnalyze && showPaywall) {
+            setShowPaywall(false);
+          }
+        }, 10000);
       }
     }
     
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
+  }, [showPaywall, canAnalyze]);
+
+  // Periodic check to close paywall if subscription becomes active
+  useEffect(() => {
+    if (!showPaywall) return;
+    
+    const interval = setInterval(() => {
+      if (canAnalyze && showPaywall) {
+        setShowPaywall(false);
+      }
+    }, 5000); // Check every 5 seconds when paywall is shown
+    
+    return () => clearInterval(interval);
   }, [showPaywall, canAnalyze]);
 
   // Close paywall automatically when subscription becomes active

@@ -4,7 +4,12 @@
  */
 
 import { createSupabaseAdminClient } from './supabase-admin';
-import { PLAN_QUOTAS, getUpgradeSuggestion, type PlanId } from '@/types/subscription';
+import { PLAN_QUOTAS, getUpgradeSuggestion, STRIPE_PRICE_IDS, type PlanId } from '@/types/subscription';
+import Stripe from 'stripe';
+
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 /**
  * Increment analysis count for user (server-side only)
@@ -126,7 +131,139 @@ export async function incrementAnalysisCount(userId: string): Promise<{
 }
 
 /**
+ * Sync subscription from Stripe to database
+ */
+async function syncSubscriptionFromStripe(userId: string, userEmail: string): Promise<{
+  plan: PlanId | null;
+  status: string;
+  stripeSubscriptionId: string | null;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+}> {
+  if (!stripe) {
+    return {
+      plan: null,
+      status: 'inactive',
+      stripeSubscriptionId: null,
+      periodStart: null,
+      periodEnd: null,
+    };
+  }
+
+  try {
+    // Find customer by email
+    const customers = await stripe.customers.list({
+      email: userEmail,
+      limit: 1,
+    });
+
+    if (customers.data.length === 0) {
+      return {
+        plan: null,
+        status: 'inactive',
+        stripeSubscriptionId: null,
+        periodStart: null,
+        periodEnd: null,
+      };
+    }
+
+    const customer = customers.data[0];
+
+    // Get active subscriptions
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return {
+        plan: null,
+        status: 'inactive',
+        stripeSubscriptionId: null,
+        periodStart: null,
+        periodEnd: null,
+      };
+    }
+
+    const subscription = subscriptions.data[0];
+    const priceId = subscription.items.data[0]?.price.id;
+
+    // Find plan by price ID
+    let plan: PlanId | null = null;
+    for (const [planId, planPriceId] of Object.entries(STRIPE_PRICE_IDS)) {
+      if (planPriceId === priceId) {
+        plan = planId as PlanId;
+        break;
+      }
+    }
+
+    if (!plan) {
+      return {
+        plan: null,
+        status: 'inactive',
+        stripeSubscriptionId: null,
+        periodStart: null,
+        periodEnd: null,
+      };
+    }
+
+    // Update database
+    const supabase = createSupabaseAdminClient();
+    const quota = PLAN_QUOTAS[plan] || 0;
+
+    await supabase
+      .from('users')
+      .update({
+        subscriptionPlan: plan,
+        subscriptionStatus: 'active',
+        analysisQuota: quota,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+        stripeCustomerId: customer.id,
+        stripeSubscriptionId: subscription.id,
+      })
+      .eq('id', userId);
+
+    // Also update subscriptions table
+    await supabase
+      .from('subscriptions')
+      .upsert({
+        user_id: userId,
+        plan_id: plan,
+        status: 'active',
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: customer.id,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        analyses_used_current_month: 0,
+        month_reset_date: new Date(subscription.current_period_end * 1000).toISOString(),
+      }, {
+        onConflict: 'user_id',
+      });
+
+    return {
+      plan,
+      status: 'active',
+      stripeSubscriptionId: subscription.id,
+      periodStart: new Date(subscription.current_period_start * 1000),
+      periodEnd: new Date(subscription.current_period_end * 1000),
+    };
+  } catch (error: any) {
+    console.error('Error syncing subscription from Stripe:', error);
+    return {
+      plan: null,
+      status: 'inactive',
+      stripeSubscriptionId: null,
+      periodStart: null,
+      periodEnd: null,
+    };
+  }
+}
+
+/**
  * Get user quota information
+ * Checks database first, then syncs from Stripe if needed
  */
 export async function getUserQuotaInfo(userId: string): Promise<{
   plan: PlanId;
@@ -141,9 +278,10 @@ export async function getUserQuotaInfo(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
+    // First, get user data including email
     const { data: user, error } = await supabase
       .from('users')
-      .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
+      .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, email')
       .eq('id', userId)
       .single();
     
@@ -157,6 +295,37 @@ export async function getUserQuotaInfo(userId: string): Promise<{
         periodStart: null,
         periodEnd: null,
       };
+    }
+
+    // If subscription is not active in database, check Stripe directly
+    if (user.subscriptionStatus !== 'active' && stripe && user.email) {
+      console.log(`[Subscription Sync] User ${userId} has inactive subscription in DB, checking Stripe...`);
+      const stripeData = await syncSubscriptionFromStripe(userId, user.email);
+      
+      if (stripeData.status === 'active' && stripeData.plan) {
+        // Re-fetch user data after sync
+        const { data: updatedUser } = await supabase
+          .from('users')
+          .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
+          .eq('id', userId)
+          .single();
+        
+        if (updatedUser) {
+          const quota = updatedUser.analysisQuota || PLAN_QUOTAS[updatedUser.subscriptionPlan as PlanId] || 0;
+          const used = updatedUser.analysisUsedThisMonth || 0;
+          const remaining = Math.max(0, quota - used);
+          
+          return {
+            plan: updatedUser.subscriptionPlan as PlanId,
+            status: updatedUser.subscriptionStatus,
+            used,
+            quota,
+            remaining,
+            periodStart: updatedUser.currentPeriodStart ? new Date(updatedUser.currentPeriodStart) : null,
+            periodEnd: updatedUser.currentPeriodEnd ? new Date(updatedUser.currentPeriodEnd) : null,
+          };
+        }
+      }
     }
     
     const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;

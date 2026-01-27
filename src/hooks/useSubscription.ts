@@ -63,6 +63,7 @@ export function useSubscription() {
 
   useEffect(() => {
     fetchSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Refresh subscription when returning from payment
@@ -74,10 +75,10 @@ export function useSubscription() {
       const params = new URLSearchParams(window.location.search);
       const success = params.get('success');
       if (success === 'true') {
-        // Wait a bit for webhook to process, then refresh
-        setTimeout(() => {
-          fetchSubscription();
-        }, 2000);
+        // Multiple refresh attempts to catch webhook updates
+        setTimeout(() => fetchSubscription(), 2000);
+        setTimeout(() => fetchSubscription(), 5000);
+        setTimeout(() => fetchSubscription(), 10000);
       }
     }
 
@@ -88,6 +89,19 @@ export function useSubscription() {
     
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Periodic refresh to sync with Stripe (every 30 seconds)
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(() => {
+      fetchSubscription();
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const hasActiveSubscription = subscription?.status === 'active';
