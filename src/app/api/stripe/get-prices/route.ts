@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Trouver les prix correspondant aux plans Etsmart
     const smartPrice = monthlyPrices.find(p => Math.abs(p.amount - 19.99) < 0.01);
     const proPrice = monthlyPrices.find(p => Math.abs(p.amount - 29.99) < 0.01);
-    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 0.10) < 0.01); // Updated to $0.10
+    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 1.00) < 0.01); // Updated to $1.00
 
     return NextResponse.json({
       success: true,
