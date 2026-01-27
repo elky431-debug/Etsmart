@@ -80,145 +80,105 @@ export function Paywall({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl w-full"
+        className="max-w-5xl w-full"
       >
-        <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] p-6 sm:p-8 text-center">
+        {/* Header */}
+        <div className="text-center mb-8 sm:mb-12">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-4 shadow-lg"
+          >
+            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          </motion.div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2">{title}</h1>
+          <p className="text-slate-600 text-sm sm:text-base">{message}</p>
+        </div>
+
+        {/* Plans Grid - Simplified */}
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          {PLANS.map((plan, index) => (
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-4"
+              key={plan.id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className={`
+                bg-white rounded-2xl shadow-lg border-2 p-6 sm:p-8 relative flex flex-col items-center text-center
+                transition-all duration-300 hover:shadow-xl hover:scale-105
+                ${plan.popular
+                  ? 'border-[#00d4ff] shadow-2xl shadow-[#00d4ff]/30 scale-105'
+                  : 'border-slate-200 hover:border-[#00d4ff]/50'
+                }
+              `}
             >
-              <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-            </motion.div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 break-words">{title}</h1>
-            <p className="text-white/90 text-base sm:text-lg break-words px-2">{message}</p>
-          </div>
-
-          {/* Content */}
-          <div className="p-4 sm:p-6 lg:p-8">
-            {quotaReached && used !== undefined && quota !== undefined && (
-              <div className="mb-6 p-4 sm:p-6 rounded-xl bg-amber-50 border-2 border-amber-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Zap className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                  <h3 className="font-bold text-amber-900 text-sm sm:text-base">Quota Reached</h3>
+              {plan.popular && (
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
+                    Most Popular
+                  </span>
                 </div>
-                <p className="text-amber-800 mb-3 text-sm sm:text-base break-words">
-                  You have used <strong>{used} / {quota}</strong> analyses this month.
-                </p>
-                {upgradePlanData && (
-                  <p className="text-amber-700 text-sm sm:text-base break-words">
-                    Upgrade to <strong>{upgradePlanData.name}</strong> to unlock{' '}
-                    <strong>{upgradePlanData.analysesPerMonth} analyses per month</strong>.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* All Plans Grid */}
-            <div className="mb-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-6 text-center">
-                Choose Your Plan
+              )}
+              
+              {/* Plan Name */}
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
+                {plan.name}
               </h3>
-              <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
-                {PLANS.map((plan, index) => (
-                  <motion.div
-                    key={plan.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className={`
-                      bg-white rounded-2xl shadow-lg border-2 p-4 sm:p-6 relative flex flex-col
-                      ${plan.popular
-                        ? 'border-[#00d4ff] shadow-2xl shadow-[#00d4ff]/20 scale-105'
-                        : 'border-slate-200'
-                      }
-                    `}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-1 rounded-full whitespace-nowrap">
-                          Most Popular
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div className="flex-1">
-                      <h4 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 break-words">
-                        {plan.name}
-                      </h4>
-                      <p className="text-sm sm:text-base text-slate-600 mb-4 break-words min-h-[3rem]">
-                        {plan.description}
-                      </p>
-                      
-                      <div className="mb-6">
-                        <div className="text-3xl sm:text-4xl font-bold text-[#00d4ff] mb-1">
-                          ${plan.price}
-                          <span className="text-lg sm:text-xl text-slate-600">/mo</span>
-                        </div>
-                      </div>
 
-                      <div className="space-y-2 mb-6">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-[#00c9b7] flex-shrink-0 mt-0.5" />
-                          <span className="text-sm sm:text-base text-slate-700 break-words">
-                            <strong>{plan.analysesPerMonth} analyses</strong> per month
-                          </span>
-                        </div>
-                        {plan.features.slice(0, 3).map((feature) => (
-                          <div key={feature.id} className="flex items-start gap-2">
-                            <CheckCircle2 className="w-5 h-5 text-[#00c9b7] flex-shrink-0 mt-0.5" />
-                            <span className="text-sm sm:text-base text-slate-700 break-words">
-                              {feature.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={loadingPlan === plan.id}
-                      className={`
-                        w-full py-3 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base
-                        ${plan.popular
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg hover:shadow-xl'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-                        }
-                        ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}
-                    >
-                      {loadingPlan === plan.id ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          {plan.popular ? 'Upgrade Now' : 'Choose Plan'}
-                          {plan.popular && <ArrowRight className="w-5 h-5" />}
-                        </>
-                      )}
-                    </motion.button>
-                  </motion.div>
-                ))}
+              {/* Price */}
+              <div className="mb-6">
+                <div className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">
+                  ${plan.price}
+                </div>
+                <div className="text-sm text-slate-500 font-medium">per month</div>
               </div>
-            </div>
-          </div>
 
-          {/* Footer */}
-          <div className="bg-slate-50 p-4 sm:p-6 border-t border-slate-200 text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Logo size="sm" showText={false} />
-              <span className="text-xs sm:text-sm text-slate-600">Etsmart</span>
-            </div>
-            <p className="text-xs text-slate-500 break-words px-2">
-              All subscriptions provide analyses and recommendations only.
-            </p>
+              {/* Number of Analyses */}
+              <div className="mb-8 flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5 text-[#00c9b7]" />
+                <span className="text-2xl sm:text-3xl font-bold text-slate-900">
+                  {plan.analysesPerMonth}
+                </span>
+                <span className="text-base sm:text-lg text-slate-600">analyses</span>
+              </div>
+
+              {/* CTA Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleSubscribe(plan.id)}
+                disabled={loadingPlan === plan.id}
+                className={`
+                  w-full py-3.5 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-base sm:text-lg
+                  ${plan.popular
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg hover:shadow-xl'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-2 border-slate-200'
+                  }
+                  ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                {loadingPlan === plan.id ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {plan.popular ? 'Subscribe Now' : 'Choose Plan'}
+                    {plan.popular && <ArrowRight className="w-5 h-5" />}
+                  </>
+                )}
+              </motion.button>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Logo size="sm" showText={false} />
+            <span className="text-sm text-slate-600">Etsmart</span>
           </div>
         </div>
       </motion.div>
