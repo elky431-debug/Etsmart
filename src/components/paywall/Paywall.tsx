@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, ArrowRight, Zap, CheckCircle2, Loader2, Home } from 'lucide-react';
+import { Lock, ArrowRight, Zap, Loader2, Home } from 'lucide-react';
 import Link from 'next/link';
-import { Logo } from '@/components/ui/Logo';
 import { PLANS, getUpgradeSuggestion, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
