@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import { PLANS, type Plan, type Subscription } from '@/types/subscription';
 import { getUserSubscription, getUsageStats } from '@/lib/subscriptions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -327,9 +327,55 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             </div>
           </div>
 
+          {/* Cancel Subscription */}
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <button
+              onClick={async () => {
+                if (!confirm('Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your billing period.')) {
+                  return;
+                }
+
+                try {
+                  const { supabase } = await import('@/lib/supabase');
+                  const { data: { session } } = await supabase.auth.getSession();
+                  
+                  if (!session?.access_token) {
+                    alert('Please sign in to cancel your subscription');
+                    return;
+                  }
+
+                  const response = await fetch('/api/cancel-subscription', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${session.access_token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  });
+
+                  const data = await response.json();
+
+                  if (!response.ok) {
+                    throw new Error(data.error || 'Failed to cancel subscription');
+                  }
+
+                  alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
+                  // Refresh subscription data
+                  loadSubscription();
+                } catch (error: any) {
+                  console.error('Error canceling subscription:', error);
+                  alert(error.message || 'Failed to cancel subscription. Please try again.');
+                }
+              }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+            >
+              <XCircle className="w-4 h-4" />
+              Cancel subscription
+            </button>
+          </div>
+
           {/* Upgrade CTA */}
           {subscription?.plan_id !== 'SCALE' && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
+            <div className="mt-4 pt-4 border-t border-slate-200">
               <Link
                 href="/pricing"
                 className="inline-flex items-center gap-2 text-sm font-medium text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
