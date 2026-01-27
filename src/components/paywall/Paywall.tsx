@@ -106,13 +106,14 @@ export function Paywall({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 pt-16 sm:pt-20 pb-8 sm:pb-12 relative">
-      {/* Subtle glow effect */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 flex items-center justify-center p-4 pt-16 sm:pt-20 pb-8 sm:pb-12 relative overflow-hidden">
+      {/* Subtle background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00c9b7]/5 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
-      {/* Home Button - Small, top left */}
+      {/* Home Button - Floating pill */}
       <Link 
         href="/"
         className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10"
@@ -120,7 +121,7 @@ export function Paywall({
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all text-sm text-slate-700 hover:text-slate-900"
+          className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-md border border-slate-200/50 rounded-full shadow-sm hover:shadow-md transition-all text-sm text-slate-700 hover:text-slate-900"
         >
           <Home size={16} />
           <span className="hidden sm:inline">Home</span>
@@ -128,101 +129,123 @@ export function Paywall({
       </Link>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-5xl w-full"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="max-w-6xl w-full relative z-10"
       >
         {/* Header */}
-        <div className="text-center mb-8 sm:mb-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="text-center mb-12 sm:mb-16"
+        >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring' }}
-            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-4 shadow-lg"
+            transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30"
           >
-            <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </motion.div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">{title}</h1>
-          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto">{message}</p>
-        </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 tracking-tight">{title}</h1>
+          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">{message}</p>
+        </motion.div>
 
-        {/* Plans Grid - Rounded Cards */}
-        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        {/* Plans Grid - Floating Bubble Cards */}
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-12">
           {PLANS.map((plan, index) => (
             <motion.div
               key={plan.id}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative flex flex-col"
+              transition={{ duration: 0.6, delay: 0.4 + index * 0.1, ease: 'easeOut' }}
+              className={`
+                relative flex flex-col
+                ${plan.popular ? 'md:-mt-2' : ''}
+              `}
             >
+              {/* Floating Badge */}
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.4 }}
+                  className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20"
+                >
+                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-semibold px-5 py-2 rounded-full shadow-lg shadow-[#00d4ff]/40 whitespace-nowrap backdrop-blur-sm">
                     Most Popular
                   </span>
-                </div>
+                </motion.div>
               )}
               
+              {/* Card */}
               <motion.div
-                whileHover={{ scale: 1.02, y: -2 }}
+                whileHover={{ 
+                  scale: plan.popular ? 1.03 : 1.05, 
+                  y: -8,
+                  transition: { duration: 0.2 }
+                }}
                 className={`
-                  bg-white rounded-3xl border-2 p-6 sm:p-7 relative flex flex-col items-center text-center
-                  transition-all duration-300 shadow-lg
+                  bg-gradient-to-br from-white to-cyan-50/30 rounded-3xl p-8 sm:p-10 relative flex flex-col items-center text-center
+                  transition-all duration-300
                   ${plan.popular
-                    ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/20'
-                    : 'border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl'
+                    ? 'shadow-2xl shadow-[#00d4ff]/20 border border-[#00d4ff]/20'
+                    : 'shadow-xl shadow-slate-200/50 border border-slate-100/50 hover:border-[#00d4ff]/30 hover:shadow-2xl hover:shadow-[#00d4ff]/10'
                   }
                 `}
               >
                 {/* Plan Name */}
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 mt-1">
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 tracking-tight">
                   {plan.name}
                 </h3>
 
                 {/* Price */}
-                <div className="mb-6">
-                  <div className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">
+                <div className="mb-8">
+                  <div className="text-4xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff] mb-2 leading-none tracking-tight">
                     ${plan.price}
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 font-medium">per month</div>
+                  <div className="text-sm text-slate-500 font-medium">per month</div>
                 </div>
 
                 {/* Number of Analyses */}
-                <div className="mb-8 flex items-center justify-center gap-2">
-                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#00c9b7]" />
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl sm:text-2xl font-bold text-slate-900">
+                <div className="mb-10 flex items-center justify-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10">
+                    <Zap className="w-5 h-5 text-[#00c9b7]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                       {plan.analysesPerMonth}
                     </span>
-                    <span className="text-sm sm:text-base text-slate-600">analyses</span>
+                    <span className="text-base sm:text-lg text-slate-600 font-medium">analyses</span>
                   </div>
                 </div>
 
-                {/* CTA Button */}
+                {/* CTA Button - Pill Shaped */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={loadingPlan === plan.id}
                   className={`
-                    w-full py-3 sm:py-3.5 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base
+                    w-full py-4 sm:py-4.5 font-semibold rounded-full transition-all flex items-center justify-center gap-2 text-base sm:text-lg
                     ${plan.popular
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-md hover:shadow-lg'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/30 hover:shadow-xl hover:shadow-[#00d4ff]/40'
+                      : 'bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 hover:border-[#00d4ff]/50 shadow-sm hover:shadow-md'
                     }
                     ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
                 >
                   {loadingPlan === plan.id ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                       Processing...
                     </>
                   ) : (
                     <>
                       {plan.popular ? 'Subscribe Now' : 'Choose Plan'}
-                      {plan.popular && <ArrowRight className="w-4 h-4" />}
+                      {plan.popular && <ArrowRight className="w-5 h-5" />}
                     </>
                   )}
                 </motion.button>
@@ -232,12 +255,17 @@ export function Paywall({
         </div>
 
         {/* Footer */}
-        <div className="text-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-center"
+        >
           <div className="flex items-center justify-center gap-2">
             <Logo size="sm" showText={false} />
-            <span className="text-xs sm:text-sm text-slate-500">Etsmart</span>
+            <span className="text-sm text-slate-400">Etsmart</span>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );
