@@ -254,18 +254,7 @@ export function Paywall({
           ))}
         </div>
 
-        {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Logo size="sm" showText={false} />
-            <span className="text-sm text-slate-400">Etsmart</span>
-          </div>
-        </motion.div>
+        {/* Footer - Removed to avoid logo display issue */}
       </motion.div>
     </div>
   );
