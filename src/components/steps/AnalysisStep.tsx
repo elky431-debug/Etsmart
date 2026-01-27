@@ -387,7 +387,7 @@ export function AnalysisStep() {
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
           <Button
             onClick={() => setStep(2)}
-            variant="outline"
+            variant="secondary"
             className="bg-white"
           >
             Back to import
