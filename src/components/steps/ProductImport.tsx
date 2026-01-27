@@ -182,11 +182,11 @@ export function ProductImport() {
         initial={isMobile ? undefined : { opacity: 0 }}
         animate={isMobile ? undefined : { opacity: 1 }}
         exit={isMobile ? undefined : { opacity: 0 }}
-        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-16"
+        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
       >
         {/* Header Section */}
         <motion.div 
-          className="text-center mb-8 sm:mb-16"
+          className="text-center mb-6 sm:mb-10"
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -195,7 +195,7 @@ export function ProductImport() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
+            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-3 sm:mb-5 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">STEP 2 OF 3</span>
@@ -209,7 +209,7 @@ export function ProductImport() {
           </motion.div>
           
           <motion.h1 
-            className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-3 sm:mb-6"
+            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-3 sm:mb-4"
             initial={isMobile ? undefined : { opacity: 0, y: 20 }}
             animate={isMobile ? undefined : { opacity: 1, y: 0 }}
             transition={isMobile ? undefined : { delay: 0.3 }}
@@ -222,7 +222,7 @@ export function ProductImport() {
           </motion.h1>
           
           <motion.p 
-            className="text-sm sm:text-base md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0"
+            className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0"
             initial={isMobile ? undefined : { opacity: 0 }}
             animate={isMobile ? undefined : { opacity: 1 }}
             transition={isMobile ? undefined : { delay: 0.4 }}
@@ -240,19 +240,19 @@ export function ProductImport() {
         >
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-slate-200 shadow-2xl p-4 sm:p-8">
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl border-2 border-slate-200 shadow-xl p-4 sm:p-6">
               <div className="text-center">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00c9b7]/10 to-[#00d4ff]/10 flex items-center justify-center mx-auto mb-4 border-2 border-[#00c9b7]/20"
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00c9b7]/10 to-[#00d4ff]/10 flex items-center justify-center mx-auto mb-3 border-2 border-[#00c9b7]/20"
                 >
-                  <ImageIcon className="w-10 h-10 text-[#00c9b7]" />
+                  <ImageIcon className="w-8 h-8 text-[#00c9b7]" />
                 </motion.div>
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
                   Take a screenshot
                 </h3>
-                <p className="text-sm sm:text-base text-slate-600 mb-4 sm:mb-6 px-2 sm:px-0">
+                <p className="text-sm text-slate-600 mb-4 sm:mb-5 px-2 sm:px-0">
                   Take a photo of the AliExpress/Alibaba product page and we will automatically extract all information
                 </p>
                 
@@ -270,7 +270,7 @@ export function ProductImport() {
                   whileHover={!isLoadingImage && !isMobile ? { scale: 1.02 } : {}}
                   whileTap={!isLoadingImage && !isMobile ? { scale: 0.98 } : {}}
                   className={`
-                    inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-lg cursor-pointer transition-all w-full sm:w-auto justify-center btn-mobile
+                    inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base cursor-pointer transition-all w-full sm:w-auto justify-center btn-mobile
                     ${isLoadingImage
                       ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] text-white shadow-xl shadow-[#00c9b7]/30 hover:shadow-[#00c9b7]/50'
@@ -562,7 +562,7 @@ export function ProductImport() {
               whileHover={products.length > 0 && !products.some(p => p.price === 0) && !isMobile ? { scale: 1.05, y: -2 } : {}}
               whileTap={products.length > 0 && !products.some(p => p.price === 0) && !isMobile ? { scale: 0.95 } : {}}
               className={`
-                group relative w-full sm:w-auto px-6 sm:px-16 py-2.5 sm:py-4 md:py-6 text-sm sm:text-lg md:text-xl font-bold rounded-xl sm:rounded-2xl transition-all duration-300 overflow-hidden btn-mobile
+                group relative w-full sm:w-auto px-6 sm:px-12 py-2.5 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-bold rounded-xl transition-all duration-300 overflow-hidden btn-mobile
                 ${products.length === 0 || products.some(p => p.price === 0)
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60'
