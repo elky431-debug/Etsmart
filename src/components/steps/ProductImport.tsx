@@ -32,7 +32,7 @@ export function ProductImport() {
   const { selectedNiche, products, addProduct, removeProduct, setStep } = useStore();
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota } = useSubscription();
+  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, refreshSubscription } = useSubscription();
   const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
   
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -76,11 +76,9 @@ export function ProductImport() {
   // Refresh subscription after payment and close paywall if subscription is active
   useEffect(() => {
     // Check if we're returning from payment
-    const handleFocus = () => {
-      // If user now has active subscription, close paywall
-      if (showPaywall && canAnalyze) {
-        setShowPaywall(false);
-      }
+    const handleFocus = async () => {
+      // Force refresh subscription when window regains focus
+      await refreshSubscription(true);
     };
     
     // Also check URL params for success
@@ -88,41 +86,28 @@ export function ProductImport() {
       const params = new URLSearchParams(window.location.search);
       const success = params.get('success');
       if (success === 'true') {
-        // Multiple checks to catch subscription activation
-        setTimeout(() => {
-          if (canAnalyze && showPaywall) {
-            setShowPaywall(false);
-          }
-        }, 2000);
-        setTimeout(() => {
-          if (canAnalyze && showPaywall) {
-            setShowPaywall(false);
-          }
-        }, 5000);
-        setTimeout(() => {
-          if (canAnalyze && showPaywall) {
-            setShowPaywall(false);
-          }
-        }, 10000);
+        // Force sync with Stripe immediately
+        refreshSubscription(true);
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
       }
     }
     
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [showPaywall, canAnalyze]);
+  }, [refreshSubscription]);
 
   // Periodic check to close paywall if subscription becomes active
   useEffect(() => {
     if (!showPaywall) return;
     
-    const interval = setInterval(() => {
-      if (canAnalyze && showPaywall) {
-        setShowPaywall(false);
-      }
-    }, 5000); // Check every 5 seconds when paywall is shown
+    const interval = setInterval(async () => {
+      await refreshSubscription(true);
+    }, 5000); // Force sync every 5 seconds when paywall is shown
     
     return () => clearInterval(interval);
-  }, [showPaywall, canAnalyze]);
+  }, [showPaywall, refreshSubscription]);
 
   // Close paywall automatically when subscription becomes active
   useEffect(() => {

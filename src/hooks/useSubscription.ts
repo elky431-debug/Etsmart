@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { PlanId } from '@/types/subscription';
 
@@ -21,7 +21,7 @@ export function useSubscription() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async (forceSync = false) => {
     if (!user) {
       setSubscription(null);
       setLoading(false);
@@ -38,6 +38,18 @@ export function useSubscription() {
       if (!session?.access_token) {
         throw new Error('Not authenticated');
       }
+
+      // Force sync with Stripe if requested
+      if (forceSync) {
+        console.log('[useSubscription] Force syncing with Stripe...');
+        await fetch('/api/sync-subscription', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
       
       const response = await fetch('/api/user/subscription', {
         headers: {
@@ -50,6 +62,7 @@ export function useSubscription() {
       }
       
       const data = await response.json();
+      console.log('[useSubscription] Subscription data:', data);
       setSubscription(data);
       setError(null);
     } catch (err: any) {
@@ -59,7 +72,7 @@ export function useSubscription() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchSubscription();
@@ -112,6 +125,11 @@ export function useSubscription() {
     : 0;
   const requiresUpgrade = subscription?.requiresUpgrade;
 
+  // Expose refresh function for manual sync
+  const refreshSubscription = useCallback((forceSync = true) => {
+    return fetchSubscription(forceSync);
+  }, [fetchSubscription]);
+
   return {
     subscription,
     loading,
@@ -121,6 +139,7 @@ export function useSubscription() {
     canAnalyze,
     quotaPercentage,
     requiresUpgrade,
+    refreshSubscription,
   };
 }
 

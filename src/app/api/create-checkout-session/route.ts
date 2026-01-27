@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         plan_id: normalizedPlanId,
         user_id: userId || '',
       },
-      success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}&success=true`,
+      success_url: `${baseUrl}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
