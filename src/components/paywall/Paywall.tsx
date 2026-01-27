@@ -106,11 +106,11 @@ export function Paywall({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 flex items-center justify-center p-4 pt-16 sm:pt-20 pb-8 sm:pb-12 relative overflow-hidden">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4 pt-16 sm:pt-20 pb-8 sm:pb-12 relative overflow-hidden">
       {/* Subtle background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00c9b7]/5 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/3 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00c9b7]/3 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       {/* Home Button - Floating pill */}
@@ -203,7 +203,7 @@ export function Paywall({
 
                 {/* Price */}
                 <div className="mb-8">
-                  <div className="text-4xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff] mb-2 leading-none tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff] mb-2 leading-none tracking-tight">
                     ${plan.price}
                   </div>
                   <div className="text-sm text-slate-500 font-medium">per month</div>
