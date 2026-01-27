@@ -585,7 +585,7 @@ export default function HomePage() {
               },
               {
                 name: 'Scale',
-                price: '$49.99',
+                price: '$0.10',
                 period: '/month',
                 description: 'For high-volume shops testing many products strategically. All features included.',
                 features: ['100 analyses / month', 'All features included'],
@@ -662,7 +662,7 @@ export default function HomePage() {
               },
               {
                 name: 'Scale',
-                price: '$49.99',
+                price: '$0.10',
                 period: '/month',
                 analysesCount: '100 analyses / month',
                 popular: false,

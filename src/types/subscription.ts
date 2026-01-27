@@ -72,15 +72,15 @@ export const PLAN_PRICES: Record<PlanId, number> = {
   FREE: 0,
   SMART: 19.99,
   PRO: 29.99,
-  SCALE: 49.99,
+  SCALE: 0.10,
 };
 
-// Stripe Price IDs for each plan
+// Stripe Price IDs for each plan (PRODUCTION)
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
   SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4', // Etsmart Smart - $19.99/month
   PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
-  SCALE: 'price_1Sqx01Cn17QPHnzEa3ekDcOD', // Etsmart Scale - $49.99/month
+  SCALE: 'price_1SuHKgCn17QPHnzELM74Uiv7', // Etsmart Scale - $0.10/month
 };
 
 // All plans have access to all features - only difference is number of analyses per month
@@ -133,7 +133,7 @@ export const PLANS: Plan[] = [
     id: 'SCALE',
     name: 'Etsmart Scale',
     description: 'For high-volume shops testing many products strategically. All features included.',
-    price: 49.99,
+    price: 0.10,
     currency: 'USD',
     analysesPerMonth: 100,
     features: PLAN_FEATURES.SCALE,

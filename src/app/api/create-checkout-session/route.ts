@@ -43,9 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: `Stripe Price ID not configured for plan: ${normalizedPlanId}`,
-          message: normalizedPlanId === 'SCALE' 
-            ? 'The SCALE plan Price ID needs to be configured. Please create a $49.99/month price in Stripe Dashboard and update STRIPE_PRICE_IDS.SCALE in src/types/subscription.ts'
-            : `Please configure the Price ID for ${normalizedPlanId} plan in Stripe Dashboard.`
+          message: `Please configure the Price ID for ${normalizedPlanId} plan in Stripe Dashboard.`
         },
         { status: 400 }
       );

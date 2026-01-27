@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Trouver les prix correspondant aux plans Etsmart
     const smartPrice = monthlyPrices.find(p => Math.abs(p.amount - 19.99) < 0.01);
     const proPrice = monthlyPrices.find(p => Math.abs(p.amount - 29.99) < 0.01);
-    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 49.99) < 0.01);
+    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 0.10) < 0.01); // Updated to $0.10
 
     return NextResponse.json({
       success: true,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       current: {
         SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4',
         PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R',
-        SCALE: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // ⚠️ Same as PRO - needs update
+        SCALE: 'price_1SuHKgCn17QPHnzELM74Uiv7', // Updated to new test price ID
       },
     });
   } catch (error: any) {

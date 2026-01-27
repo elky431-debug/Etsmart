@@ -22,7 +22,8 @@ import {
   BarChart3,
   CreditCard,
   ChevronDown,
-  Menu
+  Menu,
+  X
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import Link from 'next/link';
@@ -54,14 +55,31 @@ export default function DashboardPage() {
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
-  // Check URL parameter to set initial section
+  // Check URL parameter to set initial section and show success notification
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const section = params.get('section') as DashboardSection | null;
       if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription'].includes(section)) {
         setActiveSection(section);
+      }
+      
+      // Check if coming from successful subscription
+      const success = params.get('success');
+      if (success === 'true') {
+        setShowSuccessNotification(true);
+        // Auto-hide after 8 seconds
+        const timer = setTimeout(() => {
+          setShowSuccessNotification(false);
+        }, 8000);
+        
+        // Clean up URL parameters
+        const newUrl = window.location.pathname + (section ? `?section=${section}` : '');
+        window.history.replaceState({}, '', newUrl);
+        
+        return () => clearTimeout(timer);
       }
     }
   }, []);
@@ -209,6 +227,41 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Success Notification */}
+      <AnimatePresence>
+        {showSuccessNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4"
+          >
+            <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-xl shadow-2xl shadow-[#00d4ff]/40 p-4 border-2 border-white/20">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-lg mb-1">
+                    Subscription activated successfully!
+                  </h3>
+                  <p className="text-white/90 text-sm">
+                    Your subscription is now active. You can start analyzing products right away.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSuccessNotification(false)}
+                  className="text-white/80 hover:text-white transition-colors flex-shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header with Logo and Logout */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

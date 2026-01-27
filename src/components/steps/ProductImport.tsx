@@ -15,7 +15,8 @@ import {
   Zap,
   Upload,
   Image as ImageIcon,
-  Eye
+  Eye,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
@@ -445,9 +446,6 @@ export function ProductImport() {
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
               Products to analyze
             </h2>
-            <span className="px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-2 border-[#00d4ff]/20 text-[#00d4ff] font-bold text-xs sm:text-sm shadow-sm whitespace-nowrap flex-shrink-0">
-              Product
-            </span>
           </div>
 
           {products.length === 0 ? (
@@ -639,6 +637,24 @@ export function ProductImport() {
               </span>
             </motion.button>
           </div>
+        </motion.div>
+
+        {/* Home Button - Small at bottom */}
+        <motion.div 
+          className="flex justify-center mt-8 mb-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          <motion.a
+            href="/"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 transition-all text-xs font-medium"
+          >
+            <Home size={12} />
+            <span>Home</span>
+          </motion.a>
         </motion.div>
       </motion.div>
 
