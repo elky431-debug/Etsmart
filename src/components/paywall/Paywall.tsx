@@ -105,7 +105,7 @@ export function Paywall({
   }, []);
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-3 sm:px-4 pt-12 sm:pt-16 pb-6 sm:pb-12 relative overflow-hidden">
+    <div className="min-h-screen bg-white flex items-center justify-center px-2 sm:px-4 pt-10 sm:pt-16 pb-4 sm:pb-12 relative overflow-hidden">
       {/* Subtle background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/3 rounded-full blur-[120px] animate-pulse" />
@@ -115,14 +115,14 @@ export function Paywall({
       {/* Home Button - Floating pill */}
       <Link 
         href="/"
-        className="absolute top-3 left-3 sm:top-6 sm:left-6 z-10"
+        className="absolute top-2 left-2 sm:top-6 sm:left-6 z-10"
       >
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/80 backdrop-blur-md border border-slate-200/50 rounded-full shadow-sm hover:shadow-md transition-all text-xs sm:text-sm text-slate-700 hover:text-slate-900"
+          className="flex items-center gap-1 px-2 sm:px-4 py-1 sm:py-2 bg-white/80 backdrop-blur-md border border-slate-200/50 rounded-full shadow-sm hover:shadow-md transition-all text-xs sm:text-sm text-slate-700 hover:text-slate-900"
         >
-          <Home size={14} className="sm:w-4 sm:h-4" />
+          <Home size={12} className="sm:w-4 sm:h-4" />
           <span className="hidden sm:inline">Home</span>
         </motion.button>
       </Link>
@@ -138,22 +138,22 @@ export function Paywall({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="text-center mb-8 sm:mb-12 md:mb-16"
+          className="text-center mb-6 sm:mb-12 md:mb-16"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-            className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg shadow-[#00d4ff]/30"
+            className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-3 sm:mb-6 shadow-lg shadow-[#00d4ff]/30"
           >
-            <Lock className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
+            <Lock className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
           </motion.div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-2 sm:mb-3 tracking-tight px-2">{title}</h1>
-          <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed px-2">{message}</p>
+          <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-1.5 sm:mb-3 tracking-tight px-2">{title}</h1>
+          <p className="text-xs sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed px-2">{message}</p>
         </motion.div>
 
         {/* Plans Grid - Floating Bubble Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-8 sm:mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 md:gap-8 mb-6 sm:mb-12">
           {PLANS.map((plan, index) => (
             <motion.div
               key={plan.id}
@@ -171,9 +171,9 @@ export function Paywall({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.4 }}
-                  className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2 z-20"
+                  className="absolute -top-2.5 sm:-top-4 left-1/2 transform -translate-x-1/2 z-20"
                 >
-                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-semibold px-4 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-lg shadow-[#00d4ff]/40 whitespace-nowrap backdrop-blur-sm">
+                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-[10px] sm:text-xs font-semibold px-3 sm:px-5 py-1 sm:py-2 rounded-full shadow-lg shadow-[#00d4ff]/40 whitespace-nowrap backdrop-blur-sm">
                     Most Popular
                   </span>
                 </motion.div>
@@ -187,7 +187,7 @@ export function Paywall({
                   transition: { duration: 0.2 }
                 }}
                 className={`
-                  bg-gradient-to-br from-white to-cyan-50/30 rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 relative flex flex-col items-center text-center
+                  bg-gradient-to-br from-white to-cyan-50/30 rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-10 relative flex flex-col items-center text-center
                   transition-all duration-300
                   ${plan.popular
                     ? 'shadow-2xl shadow-[#00d4ff]/20 border border-[#00d4ff]/20'
@@ -196,28 +196,28 @@ export function Paywall({
                 `}
               >
                 {/* Plan Name */}
-                <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 mb-3 sm:mb-4 tracking-tight">
+                <h3 className="text-base sm:text-xl md:text-2xl font-bold text-slate-900 mb-2 sm:mb-4 tracking-tight">
                   {plan.name}
                 </h3>
 
                 {/* Price */}
-                <div className="mb-6 sm:mb-8">
-                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff] mb-1 sm:mb-2 leading-none tracking-tight">
+                <div className="mb-4 sm:mb-8">
+                  <div className="text-xl sm:text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff] mb-0.5 sm:mb-2 leading-none tracking-tight">
                     ${plan.price}
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 font-medium">per month</div>
+                  <div className="text-[10px] sm:text-sm text-slate-500 font-medium">per month</div>
                 </div>
 
                 {/* Number of Analyses */}
-                <div className="mb-8 sm:mb-10 flex items-center justify-center gap-2 sm:gap-3">
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#00c9b7]" />
+                <div className="mb-6 sm:mb-10 flex items-center justify-center gap-1.5 sm:gap-3">
+                  <div className="p-1.5 sm:p-2.5 rounded-xl bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10">
+                    <Zap className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#00c9b7]" />
                   </div>
-                  <div className="flex items-baseline gap-1.5 sm:gap-2">
-                    <span className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900">
+                  <div className="flex items-baseline gap-1 sm:gap-2">
+                    <span className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-900">
                       {plan.analysesPerMonth}
                     </span>
-                    <span className="text-sm sm:text-base md:text-lg text-slate-600 font-medium">analyses</span>
+                    <span className="text-xs sm:text-base md:text-lg text-slate-600 font-medium">analyses</span>
                   </div>
                 </div>
 
@@ -228,7 +228,7 @@ export function Paywall({
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={loadingPlan === plan.id}
                   className={`
-                    w-full py-3.5 sm:py-4 font-semibold rounded-full transition-all flex items-center justify-center gap-2 text-sm sm:text-base
+                    w-full py-2.5 sm:py-4 font-semibold rounded-full transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-base
                     ${plan.popular
                       ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/30 hover:shadow-xl hover:shadow-[#00d4ff]/40'
                       : 'bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 hover:border-[#00d4ff]/50 shadow-sm hover:shadow-md'
@@ -238,13 +238,13 @@ export function Paywall({
                 >
                   {loadingPlan === plan.id ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Processing...</span>
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      <span className="text-xs sm:text-sm">Processing...</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-center">{plan.popular ? 'Subscribe Now' : 'Choose Plan'}</span>
-                      {plan.popular && <ArrowRight className="w-4 h-4 flex-shrink-0" />}
+                      <span className="text-center text-xs sm:text-base">{plan.popular ? 'Subscribe Now' : 'Choose Plan'}</span>
+                      {plan.popular && <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />}
                     </>
                   )}
                 </motion.button>
