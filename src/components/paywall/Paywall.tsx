@@ -106,7 +106,7 @@ export function Paywall({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 py-8 sm:py-12 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 pt-16 sm:pt-20 pb-8 sm:pb-12 relative">
       {/* Subtle glow effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px]" />
