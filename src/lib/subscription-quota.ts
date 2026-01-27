@@ -187,8 +187,8 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     }
 
     // Explicitly type as Stripe.Subscription to access current_period_* fields
-    const subscription = subscriptions.data[0] as Stripe.Subscription;
-    const priceId = subscription.items.data[0]?.price.id;
+    const stripeSubscription: Stripe.Subscription = subscriptions.data[0] as Stripe.Subscription;
+    const priceId = stripeSubscription.items.data[0]?.price.id;
 
     // Find plan by price ID
     let plan: PlanId | null = null;
@@ -213,10 +213,10 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     const supabase = createSupabaseAdminClient();
     const quota = PLAN_QUOTAS[plan] || 0;
 
-    // Extract period dates with proper typing
-    const currentPeriodStart = subscription.current_period_start;
-    const currentPeriodEnd = subscription.current_period_end;
-    const subscriptionId = subscription.id;
+    // Extract period dates with proper typing from Stripe.Subscription
+    const currentPeriodStart: number = stripeSubscription.current_period_start;
+    const currentPeriodEnd: number = stripeSubscription.current_period_end;
+    const subscriptionId: string = stripeSubscription.id;
 
     await supabase
       .from('users')
