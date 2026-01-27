@@ -21,9 +21,15 @@ import { analyzeProduct } from '@/lib/mockAnalysis';
 import { supabase } from '@/lib/supabase';
 import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Paywall } from '@/components/paywall/Paywall';
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
+  const { user } = useAuth();
+  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota } = useSubscription();
+  const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -31,7 +37,34 @@ export function AnalysisStep() {
   const [completedProducts, setCompletedProducts] = useState<string[]>([]);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [startTime] = useState(Date.now());
+  const [showPaywall, setShowPaywall] = useState(false);
   const MINIMUM_DURATION = 30000; // 30 secondes minimum
+
+  // ⚠️ CRITICAL: Check subscription before allowing analysis
+  useEffect(() => {
+    if (subscriptionLoading) return; // Wait for subscription to load
+    
+    if (!user) {
+      // User not authenticated - redirect to login
+      setStep(2); // Go back to import step
+      return;
+    }
+    
+    if (!canAnalyze) {
+      // No active subscription or quota exceeded - show paywall
+      setShowPaywall(true);
+      setIsAnalyzing(false);
+      setGlobalIsAnalyzing(false);
+      return;
+    }
+    
+    // User has active subscription and quota - proceed with analysis
+    // Only start analysis if not already analyzing and not complete
+    if (!globalIsAnalyzing && !analysisComplete && !showPaywall && canAnalyze) {
+      runAnalysis();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscriptionLoading, canAnalyze, user, showPaywall]);
   
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -334,12 +367,35 @@ export function AnalysisStep() {
     return () => clearInterval(interval);
   }, [analysisComplete, progress, startTime, setStep, setGlobalIsAnalyzing]);
 
-  useEffect(() => {
-    runAnalysis();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Removed duplicate useEffect - analysis is now triggered by subscription check useEffect
 
   const currentProduct = products[currentIndex];
+
+  // Show paywall if subscription check failed
+  if (showPaywall) {
+    return (
+      <div className="min-h-screen w-full relative overflow-hidden">
+        <Paywall
+          title="Unlock product analysis"
+          message="To analyze products and access full results, you need an active subscription."
+          currentPlan={subscription?.plan || 'FREE'}
+          quotaReached={quotaReached}
+          used={subscription?.used}
+          quota={subscription?.quota}
+          requiresUpgrade={subscription?.requiresUpgrade}
+        />
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <Button
+            onClick={() => setStep(2)}
+            variant="outline"
+            className="bg-white"
+          >
+            Back to import
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">

@@ -173,6 +173,34 @@ export async function POST(request: NextRequest) {
         canAnalyze: false,
       }, { status: 401 });
     }
+
+    // ⚠️ CRITICAL: Check subscription status before allowing analysis
+    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    
+    if (quotaInfo.status !== 'active') {
+      isAnalyzing = false;
+      return NextResponse.json({
+        success: false,
+        error: 'SUBSCRIPTION_REQUIRED',
+        message: 'An active subscription is required to analyze products.',
+        canAnalyze: false,
+        subscriptionStatus: quotaInfo.status,
+      }, { status: 403 });
+    }
+
+    if (quotaInfo.remaining <= 0) {
+      isAnalyzing = false;
+      return NextResponse.json({
+        success: false,
+        error: 'QUOTA_EXCEEDED',
+        message: 'You have reached your monthly analysis limit. Please upgrade your plan.',
+        canAnalyze: false,
+        used: quotaInfo.used,
+        quota: quotaInfo.quota,
+        requiresUpgrade: quotaInfo.requiresUpgrade,
+      }, { status: 403 });
+    }
     
     const body: AIAnalysisRequest = await request.json();
     const { productPrice, niche, productCategory, productImageUrl } = body;
@@ -940,20 +968,20 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       );
     }
 
-    // ⚠️ QUOTA TRACKING DISABLED (paywall removed but subscription system kept)
-    // Uncomment to re-enable quota tracking:
-    // const authHeaderForQuota = request.headers.get('authorization');
-    // if (authHeaderForQuota?.startsWith('Bearer ')) {
-    //   const token = authHeaderForQuota.replace('Bearer ', '');
-    //   const supabase = createSupabaseAdminClient();
-    //   const { data: { user } } = await supabase.auth.getUser(token);
-    //   if (user) {
-    //     const quotaResult = await incrementAnalysisCount(user.id);
-    //     if (!quotaResult.success) {
-    //       console.warn('⚠️ Failed to increment quota, but analysis completed');
-    //     }
-    //   }
-    // }
+    // ⚠️ CRITICAL: Increment quota AFTER successful analysis
+    // Quota was already checked before analysis started, now we increment it
+    const quotaResult = await incrementAnalysisCount(user.id);
+    if (!quotaResult.success) {
+      console.warn('⚠️ Failed to increment quota after analysis:', quotaResult.error);
+      // Analysis already completed, but quota wasn't incremented
+      // This is logged but doesn't block the response
+    } else {
+      console.log('✅ Quota incremented successfully:', {
+        used: quotaResult.used,
+        quota: quotaResult.quota,
+        remaining: quotaResult.remaining,
+      });
+    }
     
     const responseTime = Date.now() - openaiStartTime;
     console.log('✅ Analysis completed successfully:', {

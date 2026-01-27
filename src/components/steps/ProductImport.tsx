@@ -23,15 +23,22 @@ import { formatCurrency } from '@/lib/utils';
 import { niches } from '@/lib/niches';
 import type { SupplierProduct } from '@/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Paywall } from '@/components/paywall/Paywall';
 
 export function ProductImport() {
   const { selectedNiche, products, addProduct, removeProduct, setStep } = useStore();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota } = useSubscription();
+  const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
   
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showExample, setShowExample] = useState(true); // Visible par défaut
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
 
@@ -39,6 +46,44 @@ export function ProductImport() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
+
+  // Handle Analyze button click - check subscription before proceeding
+  const handleAnalyzeClick = () => {
+    // Check if user is authenticated
+    if (!user) {
+      // Redirect to login or show auth required message
+      setError('Please sign in to analyze products');
+      return;
+    }
+
+    // Wait for subscription to load
+    if (subscriptionLoading) {
+      return;
+    }
+
+    // Check subscription status
+    if (!canAnalyze) {
+      // Show paywall instead of proceeding to analysis
+      setShowPaywall(true);
+      return;
+    }
+
+    // User has active subscription and quota - proceed to analysis
+    setStep(3);
+  };
+
+  // Refresh subscription after payment (when returning from pricing page)
+  useEffect(() => {
+    // Check if we're returning from payment
+    const handleFocus = () => {
+      // Subscription hook will automatically refresh
+      if (showPaywall && canAnalyze) {
+        setShowPaywall(false);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [showPaywall, canAnalyze]);
 
   // Fonction pour compresser l'image (optimisée pour tenir dans 26 secondes)
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<File> => {
@@ -562,32 +607,83 @@ export function ProductImport() {
               </motion.div>
             )}
             <motion.button
-              onClick={() => setStep(3)}
-              disabled={products.length === 0 || products.some(p => p.price === 0)}
-              whileHover={products.length > 0 && !products.some(p => p.price === 0) && !isMobile ? { scale: 1.05, y: -2 } : {}}
-              whileTap={products.length > 0 && !products.some(p => p.price === 0) && !isMobile ? { scale: 0.95 } : {}}
+              onClick={handleAnalyzeClick}
+              disabled={products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading}
+              whileHover={products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && !isMobile ? { scale: 1.05, y: -2 } : {}}
+              whileTap={products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && !isMobile ? { scale: 0.95 } : {}}
               className={`
                 group relative w-full sm:w-auto px-6 sm:px-12 py-2.5 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-bold rounded-xl transition-all duration-300 overflow-hidden btn-mobile
-                ${products.length === 0 || products.some(p => p.price === 0)
+                ${products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60'
                 }
               `}
             >
-              {products.length > 0 && !products.some(p => p.price === 0) && (
+              {products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && (
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                 />
               )}
               <span className="relative z-10 flex items-center gap-3">
-                Analyze
-                <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                {subscriptionLoading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    Analyze
+                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </span>
             </motion.button>
           </div>
         </motion.div>
       </motion.div>
 
+      {/* Paywall Modal */}
+      <AnimatePresence>
+        {showPaywall && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowPaywall(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl"
+            >
+              <Paywall
+                title="Unlock product analysis"
+                message="To analyze products and access full results, you need an active subscription."
+                currentPlan={subscription?.plan || 'FREE'}
+                quotaReached={quotaReached}
+                used={subscription?.used}
+                quota={subscription?.quota}
+                requiresUpgrade={subscription?.requiresUpgrade}
+                onUpgrade={() => {
+                  // The Paywall component already has a link to /pricing
+                  // We can close the paywall when user clicks upgrade
+                }}
+              />
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowPaywall(false)}
+                  className="px-6 py-3 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Back to dashboard
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
