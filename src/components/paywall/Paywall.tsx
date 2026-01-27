@@ -104,8 +104,22 @@ export function Paywall({
     };
   }, []);
 
+  // Hide Footer when paywall is displayed
+  useEffect(() => {
+    const footer = document.querySelector('footer');
+    if (footer) {
+      (footer as HTMLElement).style.display = 'none';
+    }
+
+    return () => {
+      if (footer) {
+        (footer as HTMLElement).style.display = '';
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-1.5 sm:px-4 pt-6 sm:pt-16 pb-2 sm:pb-12 relative overflow-hidden" style={{ fontSize: 'clamp(0.75rem, 2vw, 1rem)' }}>
+    <div className="min-h-screen bg-white flex items-center justify-center px-1.5 sm:px-4 pt-6 sm:pt-16 pb-12 sm:pb-12 relative overflow-hidden" style={{ fontSize: 'clamp(0.75rem, 2vw, 1rem)' }}>
       {/* Subtle background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/3 rounded-full blur-[120px] animate-pulse" />
