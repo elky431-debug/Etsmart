@@ -186,7 +186,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
       };
     }
 
-    const subscription = subscriptions.data[0];
+    const subscription: Stripe.Subscription = subscriptions.data[0];
     const priceId = subscription.items.data[0]?.price.id;
 
     // Find plan by price ID
