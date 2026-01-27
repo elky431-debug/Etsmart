@@ -229,7 +229,7 @@ export function Paywall({
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={loadingPlan === plan.id}
                   className={`
-                    w-full py-4 sm:py-4.5 font-semibold rounded-full transition-all flex items-center justify-center gap-2 text-base sm:text-lg
+                    w-full py-3.5 sm:py-4 font-semibold rounded-full transition-all flex items-center justify-center gap-2 text-sm sm:text-base
                     ${plan.popular
                       ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/30 hover:shadow-xl hover:shadow-[#00d4ff]/40'
                       : 'bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 hover:border-[#00d4ff]/50 shadow-sm hover:shadow-md'
@@ -239,13 +239,13 @@ export function Paywall({
                 >
                   {loadingPlan === plan.id ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Processing...
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Processing...</span>
                     </>
                   ) : (
                     <>
-                      {plan.popular ? 'Subscribe Now' : 'Choose Plan'}
-                      {plan.popular && <ArrowRight className="w-5 h-5" />}
+                      <span className="text-center">{plan.popular ? 'Subscribe Now' : 'Choose Plan'}</span>
+                      {plan.popular && <ArrowRight className="w-4 h-4 flex-shrink-0" />}
                     </>
                   )}
                 </motion.button>
