@@ -93,13 +93,13 @@ export function ProductImport() {
 
     // Vérifier que c'est une image
     if (!file.type.startsWith('image/')) {
-      setError('Veuillez sélectionner une image (PNG, JPG, etc.)');
+      setError('Please select an image (PNG, JPG, etc.)');
       return;
     }
 
     // Limiter la taille (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setError('L\'image est trop grande (max 10MB)');
+      setError('Image is too large (max 10MB)');
       return;
     }
 
@@ -157,12 +157,12 @@ export function ProductImport() {
         e.target.value = '';
       } else {
         // Extraire le message d'erreur
-        const errorMessage = data.message || data.error || 'Impossible d\'extraire les informations du screenshot. Essayez de prendre une photo plus claire de la page produit.';
+        const errorMessage = data.message || data.error || 'Unable to extract information from the screenshot. Try taking a clearer photo of the product page.';
         setError(errorMessage);
       }
     } catch (error: any) {
       console.error('Image upload error:', error);
-      setError('Erreur lors de l\'upload de l\'image. Réessayez.');
+      setError('Error uploading image. Please try again.');
     } finally {
       setIsLoadingImage(false);
     }
@@ -227,7 +227,7 @@ export function ProductImport() {
             animate={isMobile ? undefined : { opacity: 1 }}
             transition={isMobile ? undefined : { delay: 0.4 }}
           >
-            Prenez un screenshot de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
+            Take a screenshot of the AliExpress/Alibaba product page and we will automatically extract all information
           </motion.p>
         </motion.div>
 
@@ -250,10 +250,10 @@ export function ProductImport() {
                   <ImageIcon className="w-10 h-10 text-[#00c9b7]" />
                 </motion.div>
                 <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                  Prendre un screenshot
+                  Take a screenshot
                 </h3>
                 <p className="text-sm sm:text-base text-slate-600 mb-4 sm:mb-6 px-2 sm:px-0">
-                  Prenez une photo de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
+                  Take a photo of the AliExpress/Alibaba product page and we will automatically extract all information
                 </p>
                 
                 <input
@@ -280,12 +280,12 @@ export function ProductImport() {
                   {isLoadingImage ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Analyse en cours...
+                      Analyzing...
                     </>
                   ) : (
                     <>
                       <Upload size={20} />
-                      Choisir une image
+                      Choose an image
                     </>
                   )}
                 </motion.label>
@@ -297,7 +297,7 @@ export function ProductImport() {
                     className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
                   >
                     <Eye size={16} />
-                    {showExample ? 'Masquer l\'exemple' : 'Voir un exemple de screenshot valide'}
+                    {showExample ? 'Hide example' : 'Show example of valid screenshot'}
                   </button>
                   
                   {showExample && (
@@ -309,12 +309,12 @@ export function ProductImport() {
                       <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-slate-900 mb-2">
-                            Exemple de screenshot valide
+                            Example of valid screenshot
                           </h4>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Prenez un screenshot de la page produit AliExpress ou Alibaba montrant l'image du produit, le titre et le prix.
+                            Take a screenshot of the AliExpress or Alibaba product page showing the product image, title, and price.
                             <br />
-                            <span className="text-slate-500 italic">Cet exemple est uniquement à titre illustratif.</span>
+                            <span className="text-slate-500 italic">This example is for illustrative purposes only.</span>
                           </p>
                         </div>
                         <div className="relative rounded-xl overflow-hidden border-2 border-slate-300 shadow-lg bg-white">
@@ -331,8 +331,8 @@ export function ProductImport() {
                               if (parent) {
                                 parent.innerHTML = `
                                   <div class="p-12 text-center text-slate-400">
-                                    <p class="text-sm mb-2">Image d'exemple à ajouter</p>
-                                    <p class="text-xs">Placez votre screenshot dans /public/examples/screenshot-example.png</p>
+                                    <p class="text-sm mb-2">Example image to add</p>
+                                    <p class="text-xs">Place your screenshot in /public/examples/screenshot-example.png</p>
                                   </div>
                                 `;
                               }
@@ -340,7 +340,7 @@ export function ProductImport() {
                           />
                         </div>
                         <p className="mt-4 text-xs text-slate-500 text-center">
-                          📸 Screenshot d'une page produit AliExpress avec le produit "Etsmart Cup"
+                          📸 Screenshot of an AliExpress product page with the product "Etsmart Cup"
                         </p>
                       </div>
                     </motion.div>
@@ -410,7 +410,7 @@ export function ProductImport() {
                 <Package className="w-12 h-12 text-[#00d4ff]" />
               </motion.div>
               <p className="text-lg font-bold text-slate-700 mb-2">No products added</p>
-              <p className="text-sm text-slate-500">Prenez un screenshot de la page produit AliExpress/Alibaba ci-dessus pour commencer</p>
+              <p className="text-sm text-slate-500">Take a screenshot of the AliExpress/Alibaba product page above to get started</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -466,7 +466,7 @@ export function ProductImport() {
                                     const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
-                                    alert('Veuillez entrer un prix valide supérieur à 0');
+                                    alert('Please enter a valid price greater than 0');
                                   }
                                 }}
                                 className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors font-semibold text-xs sm:text-sm"
@@ -488,7 +488,7 @@ export function ProductImport() {
                                     const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
-                                    alert('Veuillez entrer un prix valide supérieur à 0');
+                                    alert('Please enter a valid price greater than 0');
                                   }
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-lg transition-all"
@@ -542,7 +542,7 @@ export function ProductImport() {
             className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
           >
             <ArrowLeft size={20} />
-            Retour
+            Back
           </motion.button>
 
           <div className="flex flex-col items-end gap-3">
