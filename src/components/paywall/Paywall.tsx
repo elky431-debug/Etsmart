@@ -253,7 +253,24 @@ export function Paywall({
           ))}
         </div>
 
-        {/* Footer - Removed to avoid logo display issue */}
+        {/* Footer with Home Button */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-center mt-4 sm:mt-8"
+        >
+          <Link href="/">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-1 px-3 py-1.5 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-full shadow-sm hover:shadow-md transition-all text-xs text-slate-600 hover:text-slate-900 mx-auto"
+            >
+              <Home size={12} />
+              <span>Home</span>
+            </motion.button>
+          </Link>
+        </motion.div>
       </motion.div>
     </div>
   );
