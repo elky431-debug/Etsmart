@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       billing_address_collection: 'auto',
       payment_method_collection: 'always',
       subscription_data: {
-        // Explicitly disable trial period
-        trial_period_days: null,
+        // Explicitly disable trial period - use undefined instead of null
+        // trial_period_days is omitted to disable trial (or set to undefined)
         // Set billing cycle anchor to now (immediate)
         billing_cycle_anchor: Math.floor(Date.now() / 1000),
         // Force collection method
