@@ -106,10 +106,10 @@ export function Paywall({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4 py-8 sm:py-12 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 py-8 sm:py-12 relative">
       {/* Subtle glow effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#00d4ff]/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px]" />
       </div>
 
       {/* Home Button - Small, top left */}
@@ -120,7 +120,7 @@ export function Paywall({
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-lg hover:bg-white/20 transition-all text-sm text-white"
+          className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all text-sm text-slate-700 hover:text-slate-900"
         >
           <Home size={16} />
           <span className="hidden sm:inline">Home</span>
@@ -130,80 +130,72 @@ export function Paywall({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl w-full"
+        className="max-w-5xl w-full"
       >
         {/* Header */}
-        <div className="text-center mb-10 sm:mb-12">
+        <div className="text-center mb-8 sm:mb-10">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/50"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-4 shadow-lg"
           >
-            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </motion.div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">{title}</h1>
-          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">{message}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">{title}</h1>
+          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto">{message}</p>
         </div>
 
-        {/* Plans Grid - Premium Design */}
-        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-8">
+        {/* Plans Grid - Rounded Cards */}
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8">
           {PLANS.map((plan, index) => (
             <motion.div
               key={plan.id}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`
-                relative flex flex-col
-                ${plan.popular
-                  ? 'md:-mt-4 md:mb-4'
-                  : ''
-                }
-              `}
+              className="relative flex flex-col"
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-[#00d4ff]/50 whitespace-nowrap">
+                  <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap">
                     Most Popular
                   </span>
                 </div>
               )}
               
               <motion.div
-                whileHover={{ scale: plan.popular ? 1.02 : 1.05, y: plan.popular ? 0 : -5 }}
+                whileHover={{ scale: 1.02, y: -2 }}
                 className={`
-                  bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border-2 p-6 sm:p-8 relative flex flex-col items-center text-center
-                  transition-all duration-300
+                  bg-white rounded-3xl border-2 p-6 sm:p-7 relative flex flex-col items-center text-center
+                  transition-all duration-300 shadow-lg
                   ${plan.popular
-                    ? 'border-[#00d4ff] shadow-2xl shadow-[#00d4ff]/30'
-                    : 'border-slate-700 hover:border-[#00d4ff]/50'
+                    ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/20'
+                    : 'border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl'
                   }
                 `}
               >
                 {/* Plan Name */}
-                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 mt-2">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 mt-1">
                   {plan.name}
                 </h3>
 
                 {/* Price */}
-                <div className="mb-8 mt-4">
-                  <div className="text-5xl sm:text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-2 leading-none">
+                <div className="mb-6">
+                  <div className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] mb-1">
                     ${plan.price}
                   </div>
-                  <div className="text-sm text-slate-400 font-medium">per month</div>
+                  <div className="text-xs sm:text-sm text-slate-500 font-medium">per month</div>
                 </div>
 
                 {/* Number of Analyses */}
-                <div className="mb-10 flex items-center justify-center gap-3">
-                  <div className="p-2 rounded-lg bg-[#00d4ff]/10">
-                    <Zap className="w-6 h-6 text-[#00c9b7]" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-bold text-white">
+                <div className="mb-8 flex items-center justify-center gap-2">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#00c9b7]" />
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-bold text-slate-900">
                       {plan.analysesPerMonth}
                     </span>
-                    <span className="text-lg sm:text-xl text-slate-400">analyses</span>
+                    <span className="text-sm sm:text-base text-slate-600">analyses</span>
                   </div>
                 </div>
 
@@ -214,23 +206,23 @@ export function Paywall({
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={loadingPlan === plan.id}
                   className={`
-                    w-full py-4 sm:py-5 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-base sm:text-lg
+                    w-full py-3 sm:py-3.5 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base
                     ${plan.popular
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/60'
-                      : 'bg-slate-700/50 text-white hover:bg-slate-700 border-2 border-slate-600 hover:border-[#00d4ff]/50'
+                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-md hover:shadow-lg'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }
                     ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
                 >
                   {loadingPlan === plan.id ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       Processing...
                     </>
                   ) : (
                     <>
                       {plan.popular ? 'Subscribe Now' : 'Choose Plan'}
-                      {plan.popular && <ArrowRight className="w-5 h-5" />}
+                      {plan.popular && <ArrowRight className="w-4 h-4" />}
                     </>
                   )}
                 </motion.button>
@@ -243,7 +235,7 @@ export function Paywall({
         <div className="text-center">
           <div className="flex items-center justify-center gap-2">
             <Logo size="sm" showText={false} />
-            <span className="text-sm text-slate-400">Etsmart</span>
+            <span className="text-xs sm:text-sm text-slate-500">Etsmart</span>
           </div>
         </div>
       </motion.div>
