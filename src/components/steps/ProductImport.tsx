@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -34,6 +34,11 @@ export function ProductImport() {
   const [showExample, setShowExample] = useState(true); // Visible par défaut
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   // Fonction pour compresser l'image (optimisée pour tenir dans 26 secondes)
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<File> => {
