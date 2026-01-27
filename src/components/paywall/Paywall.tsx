@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, ArrowRight, Zap, CheckCircle2, Loader2 } from 'lucide-react';
+import { Lock, ArrowRight, Zap, CheckCircle2, Loader2, Home } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 import { PLANS, getUpgradeSuggestion, type PlanId } from '@/types/subscription';
@@ -75,8 +75,53 @@ export function Paywall({
     }
   };
 
+  // Hide Header and Stepper when paywall is displayed
+  useEffect(() => {
+    // Hide Header (fixed top-12)
+    const header = document.querySelector('header.fixed.top-12');
+    if (header) {
+      (header as HTMLElement).style.display = 'none';
+    }
+
+    // Hide Stepper (fixed top-0 with border-b)
+    const stepperContainer = Array.from(document.querySelectorAll('div')).find(el => 
+      el.classList.contains('fixed') && 
+      el.classList.contains('top-0') && 
+      el.classList.contains('border-b')
+    );
+    if (stepperContainer) {
+      (stepperContainer as HTMLElement).style.display = 'none';
+    }
+
+    return () => {
+      // Restore Header
+      if (header) {
+        (header as HTMLElement).style.display = '';
+      }
+      // Restore Stepper
+      if (stepperContainer) {
+        (stepperContainer as HTMLElement).style.display = '';
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 py-8 sm:py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4 py-8 sm:py-12 relative">
+      {/* Home Button - Small, top left */}
+      <Link 
+        href="/"
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10"
+      >
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all text-sm text-slate-700 hover:text-slate-900"
+        >
+          <Home size={16} />
+          <span className="hidden sm:inline">Home</span>
+        </motion.button>
+      </Link>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
