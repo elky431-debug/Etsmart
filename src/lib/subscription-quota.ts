@@ -285,16 +285,23 @@ export async function getUserQuotaInfo(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
-    // First, get user email from Supabase Auth (more reliable)
-    const { data: { user: authUser }, error: authError } = await supabase.auth.admin.getUserById(userId);
-    const userEmail = authUser?.email;
-    
-    // Also get user data from users table
+    // Get user data from users table (includes email)
     const { data: user, error } = await supabase
       .from('users')
       .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, email')
       .eq('id', userId)
       .single();
+    
+    // Also try to get email from auth if not in users table
+    let userEmail = user?.email;
+    if (!userEmail) {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.admin.getUserById(userId);
+        userEmail = authUser?.email;
+      } catch (authErr) {
+        console.error('Error getting email from auth:', authErr);
+      }
+    }
     
     if (error || !user) {
       // If no user in DB, try to sync from Stripe anyway
