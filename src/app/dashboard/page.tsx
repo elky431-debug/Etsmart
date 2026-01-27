@@ -62,24 +62,26 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const section = params.get('section') as DashboardSection | null;
-      if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription'].includes(section)) {
-        setActiveSection(section);
-      }
       
       // Check if coming from successful subscription
       const success = params.get('success');
       if (success === 'true') {
+        // Redirect to subscription tab to show the new subscription
+        setActiveSection('subscription');
         setShowSuccessNotification(true);
-        // Auto-hide after 8 seconds
+        
+        // Auto-hide notification after 8 seconds
         const timer = setTimeout(() => {
           setShowSuccessNotification(false);
         }, 8000);
         
         // Clean up URL parameters
-        const newUrl = window.location.pathname + (section ? `?section=${section}` : '');
+        const newUrl = window.location.pathname + '?section=subscription';
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
+      } else if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription'].includes(section)) {
+        setActiveSection(section);
       }
     }
   }, []);

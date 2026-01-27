@@ -78,11 +78,8 @@ export async function POST(request: NextRequest) {
       subscription_data: {
         // Set billing cycle anchor to now (immediate payment)
         // Checkout Session already defaults to charge_automatically
+        // Invoices are created automatically for subscription mode
         billing_cycle_anchor: Math.floor(Date.now() / 1000),
-      },
-      // Force invoice settings for immediate payment
-      invoice_creation: {
-        enabled: true,
       },
     };
 

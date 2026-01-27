@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle } from 'lucide-react';
+import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { PLANS, type Plan, type Subscription } from '@/types/subscription';
 import { getUserSubscription, getUsageStats } from '@/lib/subscriptions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,27 +24,59 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadSubscription() {
-      if (!authUser?.id) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const sub = await getUserSubscription(authUser.id);
-        setSubscription(sub);
-        
-        const stats = await getUsageStats(authUser.id);
-        setUsageStats(stats);
-      } catch (error) {
-        console.error('Error loading subscription:', error);
-      } finally {
-        setLoading(false);
-      }
+  const loadSubscription = async () => {
+    if (!authUser?.id) {
+      setLoading(false);
+      return;
     }
 
+    try {
+      setLoading(true);
+      const sub = await getUserSubscription(authUser.id);
+      setSubscription(sub);
+      
+      const stats = await getUsageStats(authUser.id);
+      setUsageStats(stats);
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadSubscription();
+  }, [authUser]);
+
+  // Refresh subscription when returning from payment (check URL params)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      
+      if (success === 'true') {
+        // Wait a bit for webhook to process, then refresh
+        setTimeout(() => {
+          loadSubscription();
+        }, 2000);
+        
+        // Clean up URL
+        const newUrl = window.location.pathname + (params.get('section') ? `?section=${params.get('section')}` : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, []);
+
+  // Refresh subscription when window regains focus (after returning from Stripe)
+  useEffect(() => {
+    if (!authUser?.id) return;
+    
+    const handleFocus = () => {
+      loadSubscription();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [authUser]);
 
   // Get current plan info
@@ -63,11 +95,22 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
         >
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                <CreditCard className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold text-slate-900">Subscription</h1>
               </div>
-              <h1 className="text-3xl font-bold text-slate-900">Subscription</h1>
+              <button
+                onClick={loadSubscription}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh subscription"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
             </div>
             <p className="text-slate-600">
               Manage your subscription and access more features

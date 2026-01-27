@@ -73,18 +73,40 @@ export function ProductImport() {
     setStep(3);
   };
 
-  // Refresh subscription after payment (when returning from pricing page)
+  // Refresh subscription after payment and close paywall if subscription is active
   useEffect(() => {
     // Check if we're returning from payment
     const handleFocus = () => {
-      // Subscription hook will automatically refresh
+      // If user now has active subscription, close paywall
       if (showPaywall && canAnalyze) {
         setShowPaywall(false);
       }
     };
+    
+    // Also check URL params for success
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      if (success === 'true') {
+        // Wait a bit for webhook to process, then check subscription
+        setTimeout(() => {
+          if (canAnalyze && showPaywall) {
+            setShowPaywall(false);
+          }
+        }, 3000);
+      }
+    }
+    
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [showPaywall, canAnalyze]);
+
+  // Close paywall automatically when subscription becomes active
+  useEffect(() => {
+    if (canAnalyze && showPaywall) {
+      setShowPaywall(false);
+    }
+  }, [canAnalyze, showPaywall]);
 
   // Fonction pour compresser l'image (optimisée pour tenir dans 26 secondes)
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<File> => {
