@@ -213,16 +213,21 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     const supabase = createSupabaseAdminClient();
     const quota = PLAN_QUOTAS[plan] || 0;
 
+    // Extract period dates with proper typing
+    const currentPeriodStart = subscription.current_period_start;
+    const currentPeriodEnd = subscription.current_period_end;
+    const subscriptionId = subscription.id;
+
     await supabase
       .from('users')
       .update({
         subscriptionPlan: plan,
         subscriptionStatus: 'active',
         analysisQuota: quota,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+        currentPeriodStart: new Date(currentPeriodStart * 1000).toISOString(),
+        currentPeriodEnd: new Date(currentPeriodEnd * 1000).toISOString(),
         stripeCustomerId: customer.id,
-        stripeSubscriptionId: subscription.id,
+        stripeSubscriptionId: subscriptionId,
       })
       .eq('id', userId);
 
@@ -233,12 +238,12 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
         user_id: userId,
         plan_id: plan,
         status: 'active',
-        stripe_subscription_id: subscription.id,
+        stripe_subscription_id: subscriptionId,
         stripe_customer_id: customer.id,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
+        current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
         analyses_used_current_month: 0,
-        month_reset_date: new Date(subscription.current_period_end * 1000).toISOString(),
+        month_reset_date: new Date(currentPeriodEnd * 1000).toISOString(),
       }, {
         onConflict: 'user_id',
       });
@@ -246,9 +251,9 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     return {
       plan,
       status: 'active',
-      stripeSubscriptionId: subscription.id,
-      periodStart: new Date(subscription.current_period_start * 1000),
-      periodEnd: new Date(subscription.current_period_end * 1000),
+      stripeSubscriptionId: subscriptionId,
+      periodStart: new Date(currentPeriodStart * 1000),
+      periodEnd: new Date(currentPeriodEnd * 1000),
     };
   } catch (error: any) {
     console.error('Error syncing subscription from Stripe:', error);
