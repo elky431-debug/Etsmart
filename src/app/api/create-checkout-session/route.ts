@@ -76,12 +76,9 @@ export async function POST(request: NextRequest) {
       billing_address_collection: 'auto',
       payment_method_collection: 'always',
       subscription_data: {
-        // Explicitly disable trial period - use undefined instead of null
-        // trial_period_days is omitted to disable trial (or set to undefined)
-        // Set billing cycle anchor to now (immediate)
+        // Set billing cycle anchor to now (immediate payment)
+        // Checkout Session already defaults to charge_automatically
         billing_cycle_anchor: Math.floor(Date.now() / 1000),
-        // Force collection method
-        collection_method: 'charge_automatically',
       },
       // Force invoice settings for immediate payment
       invoice_creation: {
