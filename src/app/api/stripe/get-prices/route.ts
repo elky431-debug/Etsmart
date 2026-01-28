@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         SCALE: scalePrice?.id || null,
       },
       current: {
-        SMART: 'price_1Sqx4XCn17QPHnzEfQyRGJN4',
+        SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
         PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R',
         SCALE: 'price_1SuZZdCn17QPHnzEHKehuq0O', // Etsmart Scale - €49.99/month
       },
