@@ -94,9 +94,42 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             console.log('[Dashboard] Stripe check result:', stripeData);
             
             if (stripeData.hasSubscription) {
-              // Reload subscription data after Stripe sync
-              await loadSubscription();
-              return;
+              // USE STRIPE DATA DIRECTLY - don't rely on database
+              const planId = (stripeData.plan || 'SCALE').toUpperCase() as PlanId;
+              const plan = PLANS.find(p => p.id === planId);
+              
+              if (plan) {
+                setSubscription({
+                  id: stripeData.subscriptionId || `sub_${authUser.id}`,
+                  user_id: authUser.id,
+                  plan_id: planId,
+                  plan_name: plan.name,
+                  price: plan.price,
+                  currency: 'USD',
+                  status: 'active',
+                  analyses_used_current_month: stripeData.used || 0,
+                  current_period_start: stripeData.periodStart || new Date().toISOString(),
+                  current_period_end: stripeData.periodEnd || new Date().toISOString(),
+                  month_reset_date: stripeData.periodEnd || new Date().toISOString(),
+                  cancel_at_period_end: false,
+                  stripe_subscription_id: stripeData.subscriptionId,
+                  stripe_customer_id: stripeData.customerId,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                } as Subscription);
+                
+                setUsageStats({
+                  used: stripeData.used || 0,
+                  limit: stripeData.quota || plan.analysesPerMonth,
+                  remaining: stripeData.remaining || plan.analysesPerMonth,
+                  percentage: stripeData.quota ? ((stripeData.used || 0) / stripeData.quota) * 100 : 0,
+                  resetDate: stripeData.periodEnd ? new Date(stripeData.periodEnd) : null,
+                });
+                
+                setLoading(false);
+                console.log('[Dashboard] ✅ Using Stripe data directly - subscription active!');
+                return;
+              }
             }
           }
         }
