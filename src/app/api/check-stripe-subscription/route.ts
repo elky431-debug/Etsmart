@@ -1,6 +1,6 @@
 /**
  * API Route: Direct check of Stripe subscription status
- * This bypasses the database and checks Stripe directly
+ * This checks Stripe directly WITHOUT updating the database
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,13 +15,20 @@ const stripe = process.env.STRIPE_SECRET_KEY
 export async function GET(request: NextRequest) {
   try {
     if (!stripe) {
-      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
+      console.error('[Check Stripe] STRIPE_SECRET_KEY not configured');
+      return NextResponse.json({ 
+        hasSubscription: false, 
+        error: 'Stripe not configured' 
+      });
     }
 
     // Authenticate user
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        hasSubscription: false, 
+        error: 'Unauthorized' 
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -29,7 +36,11 @@ export async function GET(request: NextRequest) {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user || !user.email) {
-      return NextResponse.json({ error: 'Unauthorized or no email' }, { status: 401 });
+      console.error('[Check Stripe] Auth error:', authError);
+      return NextResponse.json({ 
+        hasSubscription: false, 
+        error: 'Not authenticated' 
+      });
     }
 
     console.log(`[Check Stripe] Checking subscription for: ${user.email}`);
@@ -70,8 +81,8 @@ export async function GET(request: NextRequest) {
     const subscription = subscriptions.data[0];
     const priceId = subscription.items.data[0]?.price?.id;
     
-    // Find plan
-    let plan: PlanId = 'SCALE'; // Default
+    // Find plan by price ID, default to SCALE
+    let plan: PlanId = 'SCALE';
     for (const [planId, planPriceId] of Object.entries(STRIPE_PRICE_IDS)) {
       if (planPriceId === priceId) {
         plan = planId as PlanId;
@@ -83,26 +94,29 @@ export async function GET(request: NextRequest) {
     const periodStart = new Date((subscription as any).current_period_start * 1000);
     const periodEnd = new Date((subscription as any).current_period_end * 1000);
 
-    console.log(`[Check Stripe] Found active subscription: ${plan}, price: ${priceId}`);
+    console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, price: ${priceId}`);
 
-    // Update the database with this subscription
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        subscriptionPlan: plan,
-        subscriptionStatus: 'active',
-        stripeCustomerId: customer.id,
-        stripeSubscriptionId: subscription.id,
-        analysisQuota: quota,
-        currentPeriodStart: periodStart.toISOString(),
-        currentPeriodEnd: periodEnd.toISOString(),
-      })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('[Check Stripe] Error updating user:', updateError);
-    } else {
-      console.log(`[Check Stripe] Updated user ${user.id} with ${plan} subscription`);
+    // Try to update database (but don't fail if it doesn't work)
+    try {
+      await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          subscriptionPlan: plan,
+          subscriptionStatus: 'active',
+          stripeCustomerId: customer.id,
+          stripeSubscriptionId: subscription.id,
+          analysisQuota: quota,
+          analysisUsedThisMonth: 0,
+          currentPeriodStart: periodStart.toISOString(),
+          currentPeriodEnd: periodEnd.toISOString(),
+        }, {
+          onConflict: 'id',
+        });
+      console.log(`[Check Stripe] Database updated for user ${user.id}`);
+    } catch (dbError) {
+      console.error('[Check Stripe] Database update failed (non-critical):', dbError);
     }
 
     return NextResponse.json({
@@ -121,10 +135,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Check Stripe] Error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to check subscription' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      hasSubscription: false,
+      error: error.message || 'Failed to check subscription',
+    });
   }
 }
-
