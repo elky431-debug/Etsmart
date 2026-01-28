@@ -39,18 +39,42 @@ export function useSubscription() {
         throw new Error('Not authenticated');
       }
 
-      // Force sync with Stripe if requested
+      // If force sync, check Stripe directly first
       if (forceSync) {
-        console.log('[useSubscription] Force syncing with Stripe...');
-        await fetch('/api/sync-subscription', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        console.log('[useSubscription] Checking Stripe directly...');
+        try {
+          const stripeCheck = await fetch('/api/check-stripe-subscription', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          if (stripeCheck.ok) {
+            const stripeData = await stripeCheck.json();
+            console.log('[useSubscription] Stripe direct check:', stripeData);
+            
+            if (stripeData.hasSubscription) {
+              // Use Stripe data directly
+              setSubscription({
+                plan: stripeData.plan,
+                status: 'active',
+                used: stripeData.used || 0,
+                quota: stripeData.quota,
+                remaining: stripeData.remaining || stripeData.quota,
+                periodStart: stripeData.periodStart ? new Date(stripeData.periodStart) : null,
+                periodEnd: stripeData.periodEnd ? new Date(stripeData.periodEnd) : null,
+              });
+              setError(null);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (stripeErr) {
+          console.error('[useSubscription] Stripe direct check failed:', stripeErr);
+        }
       }
       
+      // Fallback to regular subscription endpoint
       const response = await fetch('/api/user/subscription', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,

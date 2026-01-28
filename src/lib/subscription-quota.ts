@@ -141,6 +141,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
   periodEnd: Date | null;
 }> {
   if (!stripe) {
+    console.log('[syncSubscriptionFromStripe] Stripe not configured');
     return {
       plan: null,
       status: 'inactive',
@@ -151,6 +152,8 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
   }
 
   try {
+    console.log(`[syncSubscriptionFromStripe] Looking for customer with email: ${userEmail}`);
+    
     // Find customer by email
     const customers = await stripe.customers.list({
       email: userEmail,
@@ -158,6 +161,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     });
 
     if (customers.data.length === 0) {
+      console.log(`[syncSubscriptionFromStripe] No customer found for email: ${userEmail}`);
       return {
         plan: null,
         status: 'inactive',
@@ -168,6 +172,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     }
 
     const customer = customers.data[0];
+    console.log(`[syncSubscriptionFromStripe] Found customer: ${customer.id}`);
 
     // Get active subscriptions
     const subscriptions = await stripe.subscriptions.list({
@@ -177,6 +182,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     });
 
     if (subscriptions.data.length === 0) {
+      console.log(`[syncSubscriptionFromStripe] No active subscriptions for customer: ${customer.id}`);
       return {
         plan: null,
         status: 'inactive',
@@ -189,6 +195,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     // Force type to Stripe.Subscription using double assertion
     const stripeSubscription = subscriptions.data[0] as unknown as Stripe.Subscription;
     const priceId = stripeSubscription.items.data[0]?.price.id;
+    console.log(`[syncSubscriptionFromStripe] Found active subscription with price ID: ${priceId}`);
 
     // Find plan by price ID
     let plan: PlanId | null = null;
@@ -199,15 +206,14 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
       }
     }
 
+    // If no plan found by price ID, default to SCALE (the current active plan)
+    // This ensures we recognize ANY active subscription
     if (!plan) {
-      return {
-        plan: null,
-        status: 'inactive',
-        stripeSubscriptionId: null,
-        periodStart: null,
-        periodEnd: null,
-      };
+      console.log(`[syncSubscriptionFromStripe] Price ID ${priceId} not in STRIPE_PRICE_IDS, defaulting to SCALE`);
+      plan = 'SCALE';
     }
+    
+    console.log(`[syncSubscriptionFromStripe] Matched plan: ${plan}`);
 
     // Update database
     const supabase = createSupabaseAdminClient();
