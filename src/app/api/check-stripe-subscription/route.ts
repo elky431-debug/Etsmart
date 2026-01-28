@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
 
     const subscription = subscriptions.data[0];
     const priceId = subscription.items.data[0]?.price?.id;
+    const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
     
     // Find plan by price ID, default to SCALE
     let plan: PlanId = 'SCALE';
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       ? new Date(rawPeriodEnd * 1000) 
       : defaultEnd;
 
-    console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, price: ${priceId}`);
+    console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, cancelAtPeriodEnd: ${cancelAtPeriodEnd}`);
 
     // Try to update database (but don't fail if it doesn't work)
     try {
@@ -135,7 +136,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       hasSubscription: true,
       plan,
-      status: 'active',
+      status: cancelAtPeriodEnd ? 'canceling' : 'active',
+      cancelAtPeriodEnd,
       quota,
       used: 0,
       remaining: quota,

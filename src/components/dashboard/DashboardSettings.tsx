@@ -15,6 +15,12 @@ interface UserSettings {
   targetCountry: string;
 }
 
+interface SubscriptionInfo {
+  status: 'active' | 'canceling' | 'canceled' | 'none';
+  plan?: string;
+  cancelAt?: string;
+}
+
 interface FilterDropdownProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
@@ -191,6 +197,8 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo>({ status: 'none' });
   
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -203,8 +211,46 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  // Load subscription status
+  const loadSubscriptionStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('/api/check-stripe-subscription', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasSubscription) {
+          // Check if subscription is set to cancel
+          if (data.cancelAtPeriodEnd) {
+            setSubscriptionInfo({
+              status: 'canceling',
+              plan: data.plan,
+              cancelAt: data.periodEnd,
+            });
+          } else {
+            setSubscriptionInfo({
+              status: 'active',
+              plan: data.plan,
+            });
+          }
+        } else {
+          setSubscriptionInfo({ status: 'none' });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading subscription status:', error);
+    }
+  };
+
   useEffect(() => {
     loadSettings();
+    loadSubscriptionStatus();
   }, [user]);
 
   const loadSettings = async () => {
@@ -523,80 +569,167 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             </div>
           </motion.div>
 
-          {/* Cancel Subscription Section */}
+          {/* Subscription Management Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border-2 border-red-100 p-6"
+            className={`bg-white rounded-xl border-2 p-6 ${
+              subscriptionInfo.status === 'canceling' || subscriptionInfo.status === 'none'
+                ? 'border-cyan-100'
+                : 'border-red-100'
+            }`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-red-500" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">Cancel Subscription</h2>
-            </div>
-
-            <div className="bg-red-50/50 rounded-xl p-4 mb-5 border border-red-100">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-red-800 font-medium mb-1">
-                    Are you sure you want to cancel?
-                  </p>
-                  <p className="text-sm text-red-600">
-                    You will lose access to all premium features at the end of your current billing period. 
-                    Your analyses history will be preserved.
-                  </p>
+            {/* Active subscription - show cancel option */}
+            {subscriptionInfo.status === 'active' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">Cancel Subscription</h2>
                 </div>
-              </div>
-            </div>
 
-            <button
-              onClick={async () => {
-                if (!confirm('Are you sure you want to cancel your subscription? This action cannot be undone.')) {
-                  return;
-                }
+                <div className="bg-red-50/50 rounded-xl p-4 mb-5 border border-red-100">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-red-800 font-medium mb-1">
+                        Are you sure you want to cancel?
+                      </p>
+                      <p className="text-sm text-red-600">
+                        You will lose access to all premium features at the end of your current billing period. 
+                        Your analyses history will be preserved.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                try {
-                  const { data: { session } } = await supabase.auth.getSession();
-                  
-                  if (!session?.access_token) {
-                    alert('Please sign in to cancel your subscription');
-                    return;
-                  }
-
-                  const response = await fetch('/api/cancel-subscription', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${session.access_token}`,
-                      'Content-Type': 'application/json',
-                    },
-                  });
-
-                  const data = await response.json();
-
-                  if (!response.ok) {
-                    if (data.error === 'No active subscription found') {
-                      alert('You don\'t have an active subscription to cancel.');
-                    } else {
-                      throw new Error(data.error || 'Failed to cancel subscription');
+                <button
+                  onClick={async () => {
+                    if (!confirm('Are you sure you want to cancel your subscription? This action cannot be undone.')) {
+                      return;
                     }
-                    return;
-                  }
 
-                  alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
-                  window.location.href = '/dashboard?section=subscription';
-                } catch (error: any) {
-                  console.error('Error canceling subscription:', error);
-                  alert(error.message || 'Failed to cancel subscription. Please try again.');
-                }
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 hover:border-red-300 transition-all"
-            >
-              <XCircle size={18} />
-              <span>Cancel my subscription</span>
-            </button>
+                    setIsCanceling(true);
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      
+                      if (!session?.access_token) {
+                        alert('Please sign in to cancel your subscription');
+                        return;
+                      }
+
+                      const response = await fetch('/api/cancel-subscription', {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${session.access_token}`,
+                          'Content-Type': 'application/json',
+                        },
+                      });
+
+                      const data = await response.json();
+
+                      if (!response.ok) {
+                        if (data.error === 'No active subscription found') {
+                          alert('You don\'t have an active subscription to cancel.');
+                        } else {
+                          throw new Error(data.error || 'Failed to cancel subscription');
+                        }
+                        return;
+                      }
+
+                      alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
+                      setSubscriptionInfo({ status: 'canceling', plan: subscriptionInfo.plan });
+                    } catch (error: any) {
+                      console.error('Error canceling subscription:', error);
+                      alert(error.message || 'Failed to cancel subscription. Please try again.');
+                    } finally {
+                      setIsCanceling(false);
+                    }
+                  }}
+                  disabled={isCanceling}
+                  className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-50"
+                >
+                  <XCircle size={18} />
+                  <span>{isCanceling ? 'Canceling...' : 'Cancel my subscription'}</span>
+                </button>
+              </>
+            )}
+
+            {/* Subscription is canceling - show resubscribe option */}
+            {subscriptionInfo.status === 'canceling' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">Subscription Ending</h2>
+                </div>
+
+                <div className="bg-amber-50/50 rounded-xl p-4 mb-5 border border-amber-100">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-800 font-medium mb-1">
+                        Your subscription has been canceled
+                      </p>
+                      <p className="text-sm text-amber-700">
+                        You will retain access until the end of your billing period
+                        {subscriptionInfo.cancelAt && (
+                          <span className="font-semibold">
+                            {' '}({new Date(subscriptionInfo.cancelAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})
+                          </span>
+                        )}.
+                        After that, you will be switched to the free plan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                >
+                  <CreditCard size={18} />
+                  <span>Subscribe again</span>
+                </a>
+              </>
+            )}
+
+            {/* No subscription - show subscribe option */}
+            {subscriptionInfo.status === 'none' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">Subscription</h2>
+                </div>
+
+                <div className="bg-cyan-50/50 rounded-xl p-4 mb-5 border border-cyan-100">
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-cyan-800 font-medium mb-1">
+                        No active subscription
+                      </p>
+                      <p className="text-sm text-cyan-700">
+                        Subscribe to unlock all premium features and analyze unlimited products.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                >
+                  <CreditCard size={18} />
+                  <span>Subscribe now</span>
+                </a>
+              </>
+            )}
           </motion.div>
 
           {/* Save button */}
