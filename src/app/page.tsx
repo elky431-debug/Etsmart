@@ -797,9 +797,9 @@ export default function HomePage() {
             </Link>
             
             <div className="flex items-center gap-8 text-sm text-slate-500">
-              <a href="#" className="hover:text-slate-900 transition-colors">Legal</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Contact</a>
+              <Link href="/legal" className="hover:text-slate-900 transition-colors">Legal</Link>
+              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
+              <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             </div>
             
             <p className="text-sm text-slate-400">
