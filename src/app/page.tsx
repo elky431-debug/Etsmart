@@ -137,24 +137,24 @@ export default function HomePage() {
 
   const testimonials = [
     {
-      name: 'Marie Laurent',
+      name: 'Thomas Brikia',
       role: 'Etsy Pro Seller',
       content: 'Etsmart saved me from launching 3 products that would have been failures. The AI analysis is impressively accurate.',
-      avatar: 'M',
-      rating: 5,
-    },
-    {
-      name: 'Thomas Dubois',
-      role: 'Dropshipper',
-      content: 'The Launch/Avoid verdict saves me hours of research. Essential for any serious seller.',
       avatar: 'T',
       rating: 5,
     },
     {
-      name: 'Sophie Martin',
+      name: 'Samy Limam',
+      role: 'Dropshipper',
+      content: 'The Launch/Avoid verdict saves me hours of research. Essential for any serious seller.',
+      avatar: 'S',
+      rating: 5,
+    },
+    {
+      name: 'Yosri Aulombard',
       role: 'POD Creator',
       content: 'The pricing recommendations are spot-on. I increased my margins by 40% thanks to Etsmart.',
-      avatar: 'S',
+      avatar: 'Y',
       rating: 5,
     },
   ];
@@ -567,7 +567,7 @@ export default function HomePage() {
             {[
               {
                 name: 'Smart',
-                price: '$19.99',
+                price: '€19.99',
                 period: '/month',
                 description: 'Perfect for sellers who want to test products seriously. All features included.',
                 features: ['30 analyses / month', 'All features included'],
@@ -576,7 +576,7 @@ export default function HomePage() {
               },
               {
                 name: 'Pro',
-                price: '$29.99',
+                price: '€29.99',
                 period: '/month',
                 description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
                 features: ['60 analyses / month', 'All features included'],
@@ -648,14 +648,14 @@ export default function HomePage() {
             {[
               {
                 name: 'Smart',
-                price: '$19.99',
+                price: '€19.99',
                 period: '/month',
                 analysesCount: '30 analyses / month',
                 popular: false,
               },
               {
                 name: 'Pro',
-                price: '$29.99',
+                price: '€29.99',
                 period: '/month',
                 analysesCount: '60 analyses / month',
                 popular: true,
