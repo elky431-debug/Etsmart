@@ -69,7 +69,47 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   };
 
   useEffect(() => {
-    loadSubscription();
+    // Force check Stripe on every load
+    const checkStripe = async () => {
+      if (!authUser?.id) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          // Check Stripe directly
+          const stripeCheck = await fetch('/api/check-stripe-subscription', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          if (stripeCheck.ok) {
+            const stripeData = await stripeCheck.json();
+            console.log('[Dashboard] Stripe check result:', stripeData);
+            
+            if (stripeData.hasSubscription) {
+              // Reload subscription data after Stripe sync
+              await loadSubscription();
+              return;
+            }
+          }
+        }
+        
+        // Fallback to normal load
+        await loadSubscription();
+      } catch (error) {
+        console.error('Error checking Stripe:', error);
+        await loadSubscription();
+      }
+    };
+    
+    checkStripe();
   }, [authUser]);
 
   // Refresh subscription when returning from payment (check URL params)

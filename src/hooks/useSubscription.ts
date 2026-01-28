@@ -99,7 +99,8 @@ export function useSubscription() {
   }, [user]);
 
   useEffect(() => {
-    fetchSubscription();
+    // Always force sync on initial load to check Stripe directly
+    fetchSubscription(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
