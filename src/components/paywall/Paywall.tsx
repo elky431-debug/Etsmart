@@ -242,67 +242,45 @@ export function Paywall({
                     <div className="absolute inset-0 bg-gradient-to-br from-[#00d4ff]/5 via-transparent to-[#00c9b7]/5 pointer-events-none" />
                   )}
 
-                  {/* Plan header */}
-                  <div className="relative">
+                  {/* Plan content */}
+                  <div className="relative text-center">
                     {/* Icon */}
                     <div className={`
-                      inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4
+                      inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4
                       ${isPopular 
                         ? 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/25' 
                         : 'bg-slate-100'
                       }
                     `}>
-                      <Icon className={`w-6 h-6 ${isPopular ? 'text-white' : 'text-slate-600'}`} />
+                      <Icon className={`w-7 h-7 ${isPopular ? 'text-white' : 'text-slate-600'}`} />
                     </div>
 
                     {/* Plan name */}
-                    <h3 className="text-xl font-bold text-slate-900 mb-1">
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">
                       {plan.name.replace('Etsmart ', '')}
                     </h3>
 
+                    {/* MAIN INFO: Analyses count - PROMINENT */}
+                    <div className={`
+                      py-4 px-4 mb-4 rounded-2xl
+                      ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
+                    `}>
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Zap className={`w-5 h-5 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
+                        <span className={`text-4xl sm:text-5xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
+                          {plan.analysesPerMonth}
+                        </span>
+                      </div>
+                      <span className="text-slate-500 text-sm font-medium">analyses per month</span>
+                    </div>
+
                     {/* Price */}
-                    <div className="flex items-baseline gap-1 mb-4">
-                      <span className={`text-3xl sm:text-4xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
+                    <div className="flex items-baseline justify-center gap-1 mb-6">
+                      <span className={`text-2xl font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
                         ${plan.price}
                       </span>
                       <span className="text-slate-400 text-sm">/month</span>
                     </div>
-
-                    {/* Analyses count */}
-                    <div className={`
-                      flex items-center gap-3 mb-6 p-3 rounded-xl
-                      ${isPopular ? 'bg-[#00d4ff]/10' : 'bg-slate-50'}
-                    `}>
-                      <div className={`
-                        p-2 rounded-lg
-                        ${isPopular ? 'bg-[#00d4ff]/20' : 'bg-slate-200/50'}
-                      `}>
-                        <Zap className={`w-4 h-4 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
-                      </div>
-                      <div>
-                        <span className={`text-xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
-                          {plan.analysesPerMonth}
-                        </span>
-                        <span className="text-slate-500 text-sm ml-1">analyses/month</span>
-                      </div>
-                    </div>
-
-                    {/* Features */}
-                    <ul className="space-y-3 mb-6">
-                      {plan.features.slice(0, 4).map((feature, i) => (
-                        feature.available && (
-                          <li key={i} className="flex items-start gap-3">
-                            <div className={`
-                              mt-0.5 p-1 rounded-full flex-shrink-0
-                              ${isPopular ? 'bg-[#00c9b7]/20' : 'bg-slate-100'}
-                            `}>
-                              <Check className={`w-3 h-3 ${isPopular ? 'text-[#00c9b7]' : 'text-slate-400'}`} />
-                            </div>
-                            <span className="text-sm text-slate-600">{feature.name}</span>
-                          </li>
-                        )
-                      ))}
-                    </ul>
 
                     {/* CTA Button */}
                     <motion.button
