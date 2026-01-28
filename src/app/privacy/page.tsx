@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <Logo size={32} />
+            <Logo size="md" />
             <span className="text-xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">
               Etsmart
             </span>
