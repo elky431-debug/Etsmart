@@ -169,31 +169,31 @@ export function Paywall({
       >
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-          className="text-center mb-8 sm:mb-12"
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="text-center mb-5 sm:mb-10"
         >
           {/* Icon */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-xl shadow-[#00d4ff]/25 mb-6"
+            transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
+            className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/25 mb-4 sm:mb-5"
           >
-            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </motion.div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 mb-2 tracking-tight">
             {title}
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 max-w-md mx-auto">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto px-4">
             {message}
           </p>
         </motion.div>
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
           {PLANS.map((plan, index) => {
             const Icon = getPlanIcon(plan.id);
             const isHovered = hoveredPlan === plan.id;
@@ -202,23 +202,23 @@ export function Paywall({
             return (
               <motion.div
                 key={plan.id}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
+                transition={{ duration: 0.3, delay: 0.15 + index * 0.08 }}
                 onMouseEnter={() => setHoveredPlan(plan.id)}
                 onMouseLeave={() => setHoveredPlan(null)}
-                className={`relative ${isPopular ? 'md:-mt-4 md:mb-4' : ''}`}
+                className={`relative ${isPopular ? 'order-first md:order-none md:-mt-3 md:mb-3' : ''}`}
               >
                 {/* Popular badge */}
                 {isPopular && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 z-10"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10"
                   >
-                    <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-[#00d4ff]/30">
-                      <Sparkles size={12} />
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-[10px] sm:text-xs font-bold px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-lg shadow-[#00d4ff]/30">
+                      <Sparkles size={10} className="sm:w-3 sm:h-3" />
                       Popular
                     </span>
                   </motion.div>
@@ -226,14 +226,15 @@ export function Paywall({
 
                 {/* Card */}
                 <motion.div
-                  whileHover={{ y: -6, scale: 1.02 }}
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   className={`
-                    relative overflow-hidden rounded-2xl p-6 sm:p-8 h-full
+                    relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 h-full
                     bg-white border-2 transition-all duration-300
                     ${isPopular 
-                      ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/10' 
-                      : 'border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-lg hover:shadow-slate-200/50'
+                      ? 'border-[#00d4ff] shadow-lg shadow-[#00d4ff]/10' 
+                      : 'border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-md'
                     }
                   `}
                 >
@@ -242,71 +243,77 @@ export function Paywall({
                     <div className="absolute inset-0 bg-gradient-to-br from-[#00d4ff]/5 via-transparent to-[#00c9b7]/5 pointer-events-none" />
                   )}
 
-                  {/* Plan content */}
-                  <div className="relative text-center">
+                  {/* Plan content - Horizontal on mobile, vertical on desktop */}
+                  <div className="relative flex items-center gap-4 sm:block sm:text-center">
                     {/* Icon */}
                     <div className={`
-                      inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4
+                      flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl sm:mx-auto sm:mb-3
                       ${isPopular 
-                        ? 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/25' 
+                        ? 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-md shadow-[#00d4ff]/25' 
                         : 'bg-slate-100'
                       }
                     `}>
-                      <Icon className={`w-7 h-7 ${isPopular ? 'text-white' : 'text-slate-600'}`} />
+                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${isPopular ? 'text-white' : 'text-slate-600'}`} />
                     </div>
 
-                    {/* Plan name */}
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">
-                      {plan.name.replace('Etsmart ', '')}
-                    </h3>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 sm:text-center">
+                      {/* Plan name */}
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 sm:mb-2">
+                        {plan.name.replace('Etsmart ', '')}
+                      </h3>
 
-                    {/* Price - PROMINENT */}
-                    <div className="flex items-baseline justify-center gap-0.5 mb-4">
-                      <span className={`text-3xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
-                        ${plan.price.toFixed(2)}
-                      </span>
-                      <span className="text-slate-400 text-xs">/month</span>
-                    </div>
-
-                    {/* Analyses count */}
-                    <div className={`
-                      py-2.5 px-3 mb-5 rounded-xl
-                      ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
-                    `}>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Zap className={`w-3.5 h-3.5 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
-                        <span className={`text-lg font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
-                          {plan.analysesPerMonth}
+                      {/* Price */}
+                      <div className="flex items-baseline gap-0.5 sm:justify-center sm:mb-3">
+                        <span className={`text-xl sm:text-2xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
+                          ${plan.price.toFixed(2)}
                         </span>
-                        <span className="text-slate-500 text-xs font-medium">analyses/month</span>
+                        <span className="text-slate-400 text-[10px] sm:text-xs">/month</span>
+                      </div>
+
+                      {/* Analyses count - Hidden on mobile, visible on sm+ */}
+                      <div className={`
+                        hidden sm:block py-2 px-3 mb-4 rounded-lg
+                        ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
+                      `}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Zap className={`w-3.5 h-3.5 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
+                          <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
+                            {plan.analysesPerMonth}
+                          </span>
+                          <span className="text-slate-500 text-xs">analyses/mo</span>
+                        </div>
+                      </div>
+
+                      {/* Analyses - Inline on mobile */}
+                      <div className="flex sm:hidden items-center gap-1 text-slate-500 text-xs">
+                        <Zap className="w-3 h-3" />
+                        <span className="font-medium">{plan.analysesPerMonth} analyses/mo</span>
                       </div>
                     </div>
 
                     {/* CTA Button */}
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.97 }}
                       onClick={() => handleSubscribe(plan.id)}
                       disabled={loadingPlan === plan.id}
                       className={`
-                        w-full py-3.5 font-semibold rounded-xl transition-all 
-                        flex items-center justify-center gap-2 text-sm
+                        flex-shrink-0 sm:w-full px-4 py-2 sm:py-3 font-semibold rounded-lg sm:rounded-xl transition-all 
+                        flex items-center justify-center gap-1.5 text-xs sm:text-sm
                         ${isPopular
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25 hover:shadow-xl hover:shadow-[#00d4ff]/30'
-                          : 'bg-slate-900 text-white hover:bg-slate-800'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-md shadow-[#00d4ff]/20'
+                          : 'bg-slate-900 text-white'
                         }
                         ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
                       `}
                     >
                       {loadingPlan === plan.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Processing...</span>
-                        </>
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
-                          <span>{isPopular ? 'Get Started Now' : 'Choose Plan'}</span>
-                          <ArrowRight className="w-4 h-4" />
+                          <span className="hidden sm:inline">{isPopular ? 'Get Started' : 'Choose'}</span>
+                          <span className="sm:hidden">Go</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
                     </motion.button>
@@ -321,26 +328,20 @@ export function Paywall({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-10 sm:mt-12"
+          transition={{ delay: 0.6 }}
+          className="mt-6 sm:mt-10"
         >
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <div className="p-1.5 rounded-full bg-slate-100">
-                <Lock className="w-3.5 h-3.5" />
-              </div>
-              <span>Secure payment</span>
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
+              <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>Secure</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <div className="p-1.5 rounded-full bg-slate-100">
-                <Zap className="w-3.5 h-3.5" />
-              </div>
-              <span>Instant access</span>
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
+              <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>Instant</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <div className="p-1.5 rounded-full bg-slate-100">
-                <Check className="w-3.5 h-3.5" />
-              </div>
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
+              <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>Cancel anytime</span>
             </div>
           </div>
@@ -350,14 +351,14 @@ export function Paywall({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="text-center mt-8"
+          transition={{ delay: 0.8 }}
+          className="text-center mt-5 sm:mt-8"
         >
           <Link 
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-[#00d4ff] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 hover:text-[#00d4ff] transition-colors"
           >
-            <Home size={14} />
+            <Home size={12} className="sm:w-3.5 sm:h-3.5" />
             <span>Back to home</span>
           </Link>
         </motion.div>
