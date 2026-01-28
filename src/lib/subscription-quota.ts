@@ -132,6 +132,7 @@ export async function incrementAnalysisCount(userId: string): Promise<{
 
 /**
  * Sync subscription from Stripe to database
+ * IMPORTANT: Returns Stripe data even if database update fails
  */
 async function syncSubscriptionFromStripe(userId: string, userEmail: string): Promise<{
   plan: PlanId | null;
@@ -139,6 +140,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
   stripeSubscriptionId: string | null;
   periodStart: Date | null;
   periodEnd: Date | null;
+  quota: number;
 }> {
   if (!stripe) {
     console.log('[syncSubscriptionFromStripe] Stripe not configured');
@@ -148,6 +150,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
       stripeSubscriptionId: null,
       periodStart: null,
       periodEnd: null,
+      quota: 0,
     };
   }
 
@@ -168,6 +171,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
         stripeSubscriptionId: null,
         periodStart: null,
         periodEnd: null,
+        quota: 0,
       };
     }
 
@@ -189,6 +193,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
         stripeSubscriptionId: null,
         periodStart: null,
         periodEnd: null,
+        quota: 0,
       };
     }
 
@@ -198,26 +203,17 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     console.log(`[syncSubscriptionFromStripe] Found active subscription with price ID: ${priceId}`);
 
     // Find plan by price ID
-    let plan: PlanId | null = null;
+    let plan: PlanId = 'SCALE'; // Default to SCALE
     for (const [planId, planPriceId] of Object.entries(STRIPE_PRICE_IDS)) {
       if (planPriceId === priceId) {
         plan = planId as PlanId;
         break;
       }
     }
-
-    // If no plan found by price ID, default to SCALE (the current active plan)
-    // This ensures we recognize ANY active subscription
-    if (!plan) {
-      console.log(`[syncSubscriptionFromStripe] Price ID ${priceId} not in STRIPE_PRICE_IDS, defaulting to SCALE`);
-      plan = 'SCALE';
-    }
     
     console.log(`[syncSubscriptionFromStripe] Matched plan: ${plan}`);
-
-    // Update database
-    const supabase = createSupabaseAdminClient();
-    const quota = PLAN_QUOTAS[plan] || 0;
+    
+    const quota = PLAN_QUOTAS[plan] || 100;
 
     // Extract period dates - safely handle undefined values
     const rawPeriodStart = (stripeSubscription as any).current_period_start;
@@ -236,44 +232,56 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
       ? new Date(rawPeriodEnd * 1000) 
       : defaultEnd;
 
-    console.log(`[syncSubscriptionFromStripe] Period: ${periodStartDate.toISOString()} to ${periodEndDate.toISOString()}`);
+    console.log(`[syncSubscriptionFromStripe] ✅ ACTIVE subscription found: ${plan}, quota: ${quota}`);
 
-    await supabase
-      .from('users')
-      .update({
-        subscriptionPlan: plan,
-        subscriptionStatus: 'active',
-        analysisQuota: quota,
-        currentPeriodStart: periodStartDate.toISOString(),
-        currentPeriodEnd: periodEndDate.toISOString(),
-        stripeCustomerId: customer.id,
-        stripeSubscriptionId: subscriptionId,
-      })
-      .eq('id', userId);
+    // Try to update database (but don't fail if it doesn't work)
+    try {
+      const supabase = createSupabaseAdminClient();
+      
+      await supabase
+        .from('users')
+        .update({
+          subscriptionPlan: plan,
+          subscriptionStatus: 'active',
+          analysisQuota: quota,
+          currentPeriodStart: periodStartDate.toISOString(),
+          currentPeriodEnd: periodEndDate.toISOString(),
+          stripeCustomerId: customer.id,
+          stripeSubscriptionId: subscriptionId,
+        })
+        .eq('id', userId);
 
-    // Also update subscriptions table
-    await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: userId,
-        plan_id: plan,
-        status: 'active',
-        stripe_subscription_id: subscriptionId,
-        stripe_customer_id: customer.id,
-        current_period_start: periodStartDate.toISOString(),
-        current_period_end: periodEndDate.toISOString(),
-        analyses_used_current_month: 0,
-        month_reset_date: periodEndDate.toISOString(),
-      }, {
-        onConflict: 'user_id',
-      });
+      // Also update subscriptions table
+      await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          plan_id: plan,
+          status: 'active',
+          stripe_subscription_id: subscriptionId,
+          stripe_customer_id: customer.id,
+          current_period_start: periodStartDate.toISOString(),
+          current_period_end: periodEndDate.toISOString(),
+          analyses_used_current_month: 0,
+          month_reset_date: periodEndDate.toISOString(),
+        }, {
+          onConflict: 'user_id',
+        });
+        
+      console.log(`[syncSubscriptionFromStripe] Database updated successfully`);
+    } catch (dbError) {
+      // Database update failed, but we still have Stripe data!
+      console.error('[syncSubscriptionFromStripe] Database update failed (non-critical):', dbError);
+    }
 
+    // ALWAYS return Stripe data - this is the source of truth
     return {
       plan,
       status: 'active',
       stripeSubscriptionId: subscriptionId,
       periodStart: periodStartDate,
       periodEnd: periodEndDate,
+      quota,
     };
   } catch (error: any) {
     console.error('Error syncing subscription from Stripe:', error);
@@ -283,13 +291,14 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
       stripeSubscriptionId: null,
       periodStart: null,
       periodEnd: null,
+      quota: 0,
     };
   }
 }
 
 /**
  * Get user quota information
- * Always checks Stripe first to ensure data is up to date
+ * CRITICAL: Always checks Stripe first - Stripe is the source of truth
  */
 export async function getUserQuotaInfo(userId: string): Promise<{
   plan: PlanId;
@@ -304,118 +313,87 @@ export async function getUserQuotaInfo(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
-    // Get user data from users table (includes email)
-    const { data: user, error } = await supabase
+    // Get user email - try database first, then auth
+    let userEmail: string | null = null;
+    
+    const { data: user } = await supabase
       .from('users')
       .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, email')
       .eq('id', userId)
       .single();
     
-    // Also try to get email from auth if not in users table
-    let userEmail = user?.email;
+    userEmail = user?.email || null;
+    
+    // If no email in users table, get from auth
     if (!userEmail) {
       try {
         const { data: { user: authUser } } = await supabase.auth.admin.getUserById(userId);
-        userEmail = authUser?.email;
+        userEmail = authUser?.email || null;
       } catch (authErr) {
         console.error('Error getting email from auth:', authErr);
       }
     }
     
-    if (error || !user) {
-      // If no user in DB, try to sync from Stripe anyway
-      if (stripe && userEmail) {
-        console.log(`[Subscription Sync] No user in DB, checking Stripe for ${userEmail}...`);
-        const stripeData = await syncSubscriptionFromStripe(userId, userEmail);
-        if (stripeData.status === 'active' && stripeData.plan) {
-          // Re-fetch after sync
-          const { data: newUser } = await supabase
-            .from('users')
-            .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
-            .eq('id', userId)
-            .single();
-          
-          if (newUser) {
-            const quota = newUser.analysisQuota || PLAN_QUOTAS[newUser.subscriptionPlan as PlanId] || 0;
-            const used = newUser.analysisUsedThisMonth || 0;
-            return {
-              plan: newUser.subscriptionPlan as PlanId,
-              status: newUser.subscriptionStatus,
-              used,
-              quota,
-              remaining: Math.max(0, quota - used),
-              periodStart: newUser.currentPeriodStart ? new Date(newUser.currentPeriodStart) : null,
-              periodEnd: newUser.currentPeriodEnd ? new Date(newUser.currentPeriodEnd) : null,
-            };
-          }
-        }
+    // ⚠️ CRITICAL: ALWAYS check Stripe first - this is the source of truth
+    if (stripe && userEmail) {
+      console.log(`[getUserQuotaInfo] Checking Stripe for ${userEmail}...`);
+      const stripeData = await syncSubscriptionFromStripe(userId, userEmail);
+      
+      // If Stripe says user has active subscription, USE STRIPE DATA DIRECTLY
+      if (stripeData.status === 'active' && stripeData.plan) {
+        console.log(`[getUserQuotaInfo] ✅ Stripe says ACTIVE: ${stripeData.plan}, quota: ${stripeData.quota}`);
+        
+        // Get used count from database (if available)
+        const used = user?.analysisUsedThisMonth || 0;
+        const quota = stripeData.quota;
+        
+        return {
+          plan: stripeData.plan,
+          status: 'active', // STRIPE SAYS ACTIVE!
+          used,
+          quota,
+          remaining: Math.max(0, quota - used),
+          periodStart: stripeData.periodStart,
+          periodEnd: stripeData.periodEnd,
+        };
+      } else {
+        console.log(`[getUserQuotaInfo] Stripe says no active subscription for ${userEmail}`);
+      }
+    }
+    
+    // Fallback to database if Stripe check fails or no email
+    if (user && user.subscriptionStatus === 'active') {
+      const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
+      const used = user.analysisUsedThisMonth || 0;
+      const remaining = Math.max(0, quota - used);
+      
+      // Determine if upgrade is needed
+      let requiresUpgrade: PlanId | undefined;
+      if (used >= quota) {
+        requiresUpgrade = getUpgradeSuggestion(user.subscriptionPlan as PlanId) || undefined;
       }
       
       return {
-        plan: 'FREE',
-        status: 'inactive',
-        used: 0,
-        quota: 0,
-        remaining: 0,
-        periodStart: null,
-        periodEnd: null,
+        plan: user.subscriptionPlan as PlanId,
+        status: user.subscriptionStatus,
+        used,
+        quota,
+        remaining,
+        periodStart: user.currentPeriodStart ? new Date(user.currentPeriodStart) : null,
+        periodEnd: user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null,
+        requiresUpgrade,
       };
     }
-
-    // ALWAYS check Stripe to ensure we have the latest subscription status
-    const emailToUse = userEmail || user.email;
-    if (stripe && emailToUse) {
-      console.log(`[Subscription Sync] Checking Stripe for user ${userId} (${emailToUse})...`);
-      const stripeData = await syncSubscriptionFromStripe(userId, emailToUse);
-      
-      if (stripeData.status === 'active' && stripeData.plan) {
-        console.log(`[Subscription Sync] Found active subscription in Stripe: ${stripeData.plan}`);
-        // Re-fetch user data after sync
-        const { data: updatedUser } = await supabase
-          .from('users')
-          .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
-          .eq('id', userId)
-          .single();
-        
-        if (updatedUser) {
-          const quota = updatedUser.analysisQuota || PLAN_QUOTAS[updatedUser.subscriptionPlan as PlanId] || 0;
-          const used = updatedUser.analysisUsedThisMonth || 0;
-          const remaining = Math.max(0, quota - used);
-          
-          return {
-            plan: updatedUser.subscriptionPlan as PlanId,
-            status: updatedUser.subscriptionStatus,
-            used,
-            quota,
-            remaining,
-            periodStart: updatedUser.currentPeriodStart ? new Date(updatedUser.currentPeriodStart) : null,
-            periodEnd: updatedUser.currentPeriodEnd ? new Date(updatedUser.currentPeriodEnd) : null,
-          };
-        }
-      } else {
-        console.log(`[Subscription Sync] No active subscription found in Stripe for ${emailToUse}`);
-      }
-    }
     
-    const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
-    const used = user.analysisUsedThisMonth || 0;
-    const remaining = Math.max(0, quota - used);
-    
-    // Determine if upgrade is needed
-    let requiresUpgrade: PlanId | undefined;
-    if (used >= quota && user.subscriptionStatus === 'active') {
-      requiresUpgrade = getUpgradeSuggestion(user.subscriptionPlan as PlanId) || undefined;
-    }
-    
+    // No active subscription found
     return {
-      plan: user.subscriptionPlan as PlanId,
-      status: user.subscriptionStatus,
-      used,
-      quota,
-      remaining,
-      periodStart: user.currentPeriodStart ? new Date(user.currentPeriodStart) : null,
-      periodEnd: user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null,
-      requiresUpgrade,
+      plan: 'FREE',
+      status: 'inactive',
+      used: 0,
+      quota: 0,
+      remaining: 0,
+      periodStart: null,
+      periodEnd: null,
     };
   } catch (error: any) {
     console.error('Error getting user quota info:', error);
