@@ -298,7 +298,7 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
 
 /**
  * Get user quota information
- * CRITICAL: Always checks Stripe first - Stripe is the source of truth
+ * OPTIMIZED: Check database first (fast), only check Stripe if no active subscription in DB
  */
 export async function getUserQuotaInfo(userId: string): Promise<{
   plan: PlanId;
@@ -313,18 +313,39 @@ export async function getUserQuotaInfo(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
-    // Get user email - try database first, then auth
-    let userEmail: string | null = null;
-    
+    // STEP 1: Check database first (FAST - no external API call)
     const { data: user } = await supabase
       .from('users')
       .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, email')
       .eq('id', userId)
       .single();
     
-    userEmail = user?.email || null;
+    // If database says user has ACTIVE subscription, use it immediately (FAST PATH)
+    if (user && user.subscriptionStatus === 'active') {
+      console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscriptionPlan}`);
+      const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 100;
+      const used = user.analysisUsedThisMonth || 0;
+      const remaining = Math.max(0, quota - used);
+      
+      let requiresUpgrade: PlanId | undefined;
+      if (used >= quota) {
+        requiresUpgrade = getUpgradeSuggestion(user.subscriptionPlan as PlanId) || undefined;
+      }
+      
+      return {
+        plan: user.subscriptionPlan as PlanId,
+        status: 'active',
+        used,
+        quota,
+        remaining,
+        periodStart: user.currentPeriodStart ? new Date(user.currentPeriodStart) : null,
+        periodEnd: user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null,
+        requiresUpgrade,
+      };
+    }
     
-    // If no email in users table, get from auth
+    // STEP 2: Database says no active subscription - check Stripe with timeout (SLOW PATH)
+    let userEmail = user?.email || null;
     if (!userEmail) {
       try {
         const { data: { user: authUser } } = await supabase.auth.admin.getUserById(userId);
@@ -334,55 +355,32 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       }
     }
     
-    // ⚠️ CRITICAL: ALWAYS check Stripe first - this is the source of truth
     if (stripe && userEmail) {
-      console.log(`[getUserQuotaInfo] Checking Stripe for ${userEmail}...`);
-      const stripeData = await syncSubscriptionFromStripe(userId, userEmail);
+      console.log(`[getUserQuotaInfo] DB inactive, checking Stripe for ${userEmail}...`);
       
-      // If Stripe says user has active subscription, USE STRIPE DATA DIRECTLY
-      if (stripeData.status === 'active' && stripeData.plan) {
+      // Add timeout of 5 seconds for Stripe check
+      const stripePromise = syncSubscriptionFromStripe(userId, userEmail);
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+      
+      const stripeData = await Promise.race([stripePromise, timeoutPromise]);
+      
+      if (stripeData && stripeData.status === 'active' && stripeData.plan) {
         console.log(`[getUserQuotaInfo] ✅ Stripe says ACTIVE: ${stripeData.plan}, quota: ${stripeData.quota}`);
-        
-        // Get used count from database (if available)
         const used = user?.analysisUsedThisMonth || 0;
         const quota = stripeData.quota;
         
         return {
           plan: stripeData.plan,
-          status: 'active', // STRIPE SAYS ACTIVE!
+          status: 'active',
           used,
           quota,
           remaining: Math.max(0, quota - used),
           periodStart: stripeData.periodStart,
           periodEnd: stripeData.periodEnd,
         };
-      } else {
-        console.log(`[getUserQuotaInfo] Stripe says no active subscription for ${userEmail}`);
+      } else if (stripeData === null) {
+        console.warn(`[getUserQuotaInfo] ⚠️ Stripe check timed out`);
       }
-    }
-    
-    // Fallback to database if Stripe check fails or no email
-    if (user && user.subscriptionStatus === 'active') {
-      const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
-      const used = user.analysisUsedThisMonth || 0;
-      const remaining = Math.max(0, quota - used);
-      
-      // Determine if upgrade is needed
-      let requiresUpgrade: PlanId | undefined;
-      if (used >= quota) {
-        requiresUpgrade = getUpgradeSuggestion(user.subscriptionPlan as PlanId) || undefined;
-      }
-      
-      return {
-        plan: user.subscriptionPlan as PlanId,
-        status: user.subscriptionStatus,
-        used,
-        quota,
-        remaining,
-        periodStart: user.currentPeriodStart ? new Date(user.currentPeriodStart) : null,
-        periodEnd: user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null,
-        requiresUpgrade,
-      };
     }
     
     // No active subscription found

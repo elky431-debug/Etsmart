@@ -57,6 +57,37 @@ export default function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
+  // Force sync subscription from Stripe on page load
+  useEffect(() => {
+    const forceSync = async () => {
+      if (!user) return;
+      
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          console.log('[Dashboard] Force syncing subscription from Stripe...');
+          const response = await fetch('/api/force-sync-subscription', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[Dashboard] ✅ Force sync result:', data);
+          }
+        }
+      } catch (error) {
+        console.error('[Dashboard] Force sync error:', error);
+      }
+    };
+    
+    forceSync();
+  }, [user]);
+
   // Check URL parameter to set initial section and show success notification
   useEffect(() => {
     if (typeof window !== 'undefined') {
