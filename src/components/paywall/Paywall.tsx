@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, ArrowRight, Zap, Loader2, Home, Sparkles, Check, Crown, Star } from 'lucide-react';
+import { Lock, ArrowRight, Zap, Loader2, Home, Check, Crown, Rocket, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { PLANS, getUpgradeSuggestion, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/ui/Logo';
 
 interface PaywallProps {
   title?: string;
@@ -20,8 +21,8 @@ interface PaywallProps {
 }
 
 export function Paywall({
-  title = 'Unlock Your Potential',
-  message = 'Get unlimited access to powerful product analysis tools',
+  title = 'Unlock Product Analysis',
+  message = 'Choose your plan and start analyzing products with AI-powered insights',
   currentPlan = 'FREE',
   quotaReached = false,
   used,
@@ -93,271 +94,245 @@ export function Paywall({
     switch (planId) {
       case 'SMART': return Zap;
       case 'PRO': return Crown;
-      case 'SCALE': return Star;
+      case 'SCALE': return Rocket;
       default: return Zap;
     }
   };
 
-  const getPlanGradient = (planId: PlanId, isHovered: boolean) => {
-    const gradients: Record<PlanId, string> = {
-      FREE: isHovered 
-        ? 'from-slate-500 via-gray-500 to-zinc-500' 
-        : 'from-slate-400 via-gray-400 to-zinc-400',
-      SMART: isHovered 
-        ? 'from-violet-500 via-purple-500 to-fuchsia-500' 
-        : 'from-violet-400 via-purple-400 to-fuchsia-400',
-      PRO: isHovered 
-        ? 'from-cyan-400 via-teal-400 to-emerald-400' 
-        : 'from-cyan-300 via-teal-300 to-emerald-300',
-      SCALE: isHovered 
-        ? 'from-amber-400 via-orange-400 to-rose-400' 
-        : 'from-amber-300 via-orange-300 to-rose-300',
-    };
-    return gradients[planId];
-  };
-
-  const getPlanShadow = (planId: PlanId) => {
-    const shadows: Record<PlanId, string> = {
-      FREE: 'shadow-slate-500/25',
-      SMART: 'shadow-violet-500/25',
-      PRO: 'shadow-cyan-500/25',
-      SCALE: 'shadow-amber-500/25',
-    };
-    return shadows[planId];
-  };
-
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4 py-8 sm:py-16 relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Gradient orbs */}
-        <motion.div 
-          className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-br from-violet-600/20 to-transparent rounded-full blur-[100px]"
-          animate={{ 
-            x: [0, 50, 0], 
-            y: [0, 30, 0],
-            scale: [1, 1.1, 1],
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 flex items-center justify-center px-4 py-8 sm:py-12 relative overflow-hidden">
+      {/* Etsmart Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Primary gradient orb */}
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/10 rounded-full blur-[100px]" />
+        
+        {/* Secondary gradient orb */}
+        <div className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-[#00c9b7]/15 to-[#00d4ff]/5 rounded-full blur-[120px]" />
+        
+        {/* Subtle grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, #00d4ff 1px, transparent 0)`,
+            backgroundSize: '40px 40px',
           }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div 
-          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-gradient-to-br from-cyan-600/20 to-transparent rounded-full blur-[100px]"
-          animate={{ 
-            x: [0, -40, 0], 
-            y: [0, -40, 0],
-            scale: [1, 1.15, 1],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        />
-        <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-br from-emerald-600/10 to-transparent rounded-full blur-[120px]"
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
         />
         
-        {/* Grid pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px',
-          }}
+        {/* Decorative floating elements */}
+        <motion.div 
+          className="absolute top-20 left-[15%] w-3 h-3 rounded-full bg-[#00d4ff]/40"
+          animate={{ y: [0, -20, 0], opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
+        <motion.div 
+          className="absolute top-40 right-[20%] w-2 h-2 rounded-full bg-[#00c9b7]/50"
+          animate={{ y: [0, -15, 0], opacity: [0.5, 0.9, 0.5] }}
+          transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+        />
+        <motion.div 
+          className="absolute bottom-32 left-[25%] w-2.5 h-2.5 rounded-full bg-[#00d4ff]/30"
+          animate={{ y: [0, -25, 0], opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 5, repeat: Infinity, delay: 2 }}
         />
       </div>
 
-      {/* Home Button */}
-      <Link href="/" className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full text-sm text-white/70 hover:text-white hover:bg-white/10 transition-all"
-        >
-          <Home size={16} />
-          <span className="hidden sm:inline">Home</span>
-        </motion.button>
-      </Link>
+      {/* Top Navigation */}
+      <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 flex items-center justify-between z-20">
+        <Link href="/">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2"
+          >
+            <Logo size="sm" />
+          </motion.div>
+        </Link>
+        
+        <Link href="/">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-full text-sm text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:shadow-sm transition-all"
+          >
+            <Home size={16} />
+            <span className="hidden sm:inline">Return home</span>
+          </motion.button>
+        </Link>
+      </div>
 
       {/* Main Content */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className="max-w-6xl w-full relative z-10"
+        transition={{ duration: 0.6 }}
+        className="max-w-5xl w-full relative z-10 pt-16 sm:pt-8"
       >
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="text-center mb-8 sm:mb-16"
+          transition={{ delay: 0.1, duration: 0.5 }}
+          className="text-center mb-8 sm:mb-12"
         >
-          {/* Floating sparkles icon */}
+          {/* Icon */}
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-            className="relative inline-block mb-6"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-xl shadow-[#00d4ff]/25 mb-6"
           >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-2xl shadow-violet-500/30 rotate-3">
-              <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-            </div>
-            <motion.div 
-              className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-400 rounded-full"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            <motion.div 
-              className="absolute -bottom-1 -left-1 w-3 h-3 bg-emerald-400 rounded-full"
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-            />
+            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </motion.div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
-            <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
-              {title}
-            </span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">
+            {title}
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-white/50 max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-slate-500 max-w-md mx-auto">
             {message}
           </p>
         </motion.div>
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {PLANS.map((plan, index) => {
             const Icon = getPlanIcon(plan.id);
             const isHovered = hoveredPlan === plan.id;
-            const gradient = getPlanGradient(plan.id, isHovered);
-            const shadow = getPlanShadow(plan.id);
+            const isPopular = plan.popular;
 
             return (
               <motion.div
                 key={plan.id}
-                initial={{ opacity: 0, y: 50 }}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+                transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
                 onMouseEnter={() => setHoveredPlan(plan.id)}
                 onMouseLeave={() => setHoveredPlan(null)}
-                className={`relative ${plan.popular ? 'md:-mt-4 md:mb-4' : ''}`}
+                className={`relative ${isPopular ? 'md:-mt-4 md:mb-4' : ''}`}
               >
                 {/* Popular badge */}
-                {plan.popular && (
+                {isPopular && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.6 }}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
                     className="absolute -top-3 left-1/2 -translate-x-1/2 z-10"
                   >
-                    <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
-                      ⭐ MOST POPULAR
+                    <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-[#00d4ff]/30">
+                      <Sparkles size={12} />
+                      Popular
                     </span>
                   </motion.div>
                 )}
 
                 {/* Card */}
                 <motion.div
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 300 }}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   className={`
-                    relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 h-full
-                    bg-gradient-to-b from-white/[0.08] to-white/[0.02]
-                    border border-white/10 backdrop-blur-xl
-                    ${plan.popular ? `shadow-2xl ${shadow}` : 'hover:border-white/20'}
-                    transition-all duration-300
+                    relative overflow-hidden rounded-2xl p-6 sm:p-8 h-full
+                    bg-white border-2 transition-all duration-300
+                    ${isPopular 
+                      ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/10' 
+                      : 'border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-lg hover:shadow-slate-200/50'
+                    }
                   `}
                 >
-                  {/* Gradient overlay on hover */}
-                  <motion.div
-                    className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300`}
-                    animate={{ opacity: isHovered ? 0.05 : 0 }}
-                  />
+                  {/* Gradient background for popular */}
+                  {isPopular && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#00d4ff]/5 via-transparent to-[#00c9b7]/5 pointer-events-none" />
+                  )}
 
-                  {/* Plan icon */}
-                  <div className={`
-                    w-12 h-12 sm:w-14 sm:h-14 rounded-xl mb-4 sm:mb-6 flex items-center justify-center
-                    bg-gradient-to-br ${gradient} shadow-lg ${shadow}
-                  `}>
-                    <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                  </div>
+                  {/* Plan header */}
+                  <div className="relative">
+                    {/* Icon */}
+                    <div className={`
+                      inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4
+                      ${isPopular 
+                        ? 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/25' 
+                        : 'bg-slate-100'
+                      }
+                    `}>
+                      <Icon className={`w-6 h-6 ${isPopular ? 'text-white' : 'text-slate-600'}`} />
+                    </div>
 
-                  {/* Plan name */}
-                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                    {plan.name.replace('Etsmart ', '')}
-                  </h3>
+                    {/* Plan name */}
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">
+                      {plan.name.replace('Etsmart ', '')}
+                    </h3>
 
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className={`text-4xl sm:text-5xl font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
+                    {/* Price */}
+                    <div className="flex items-baseline gap-1 mb-4">
+                      <span className={`text-3xl sm:text-4xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
                         ${plan.price}
                       </span>
-                      <span className="text-white/40 text-sm">/month</span>
+                      <span className="text-slate-400 text-sm">/month</span>
                     </div>
+
+                    {/* Analyses count */}
+                    <div className={`
+                      flex items-center gap-3 mb-6 p-3 rounded-xl
+                      ${isPopular ? 'bg-[#00d4ff]/10' : 'bg-slate-50'}
+                    `}>
+                      <div className={`
+                        p-2 rounded-lg
+                        ${isPopular ? 'bg-[#00d4ff]/20' : 'bg-slate-200/50'}
+                      `}>
+                        <Zap className={`w-4 h-4 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
+                      </div>
+                      <div>
+                        <span className={`text-xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
+                          {plan.analysesPerMonth}
+                        </span>
+                        <span className="text-slate-500 text-sm ml-1">analyses/month</span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-6">
+                      {plan.features.slice(0, 4).map((feature, i) => (
+                        feature.available && (
+                          <li key={i} className="flex items-start gap-3">
+                            <div className={`
+                              mt-0.5 p-1 rounded-full flex-shrink-0
+                              ${isPopular ? 'bg-[#00c9b7]/20' : 'bg-slate-100'}
+                            `}>
+                              <Check className={`w-3 h-3 ${isPopular ? 'text-[#00c9b7]' : 'text-slate-400'}`} />
+                            </div>
+                            <span className="text-sm text-slate-600">{feature.name}</span>
+                          </li>
+                        )
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={loadingPlan === plan.id}
+                      className={`
+                        w-full py-3.5 font-semibold rounded-xl transition-all 
+                        flex items-center justify-center gap-2 text-sm
+                        ${isPopular
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25 hover:shadow-xl hover:shadow-[#00d4ff]/30'
+                          : 'bg-slate-900 text-white hover:bg-slate-800'
+                        }
+                        ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
+                      `}
+                    >
+                      {loadingPlan === plan.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{isPopular ? 'Get Started Now' : 'Choose Plan'}</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </motion.button>
                   </div>
-
-                  {/* Analyses count */}
-                  <div className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className={`p-2 rounded-lg bg-gradient-to-br ${gradient}/20`}>
-                      <Zap className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-2xl font-bold text-white">{plan.analysesPerMonth}</span>
-                      <span className="text-white/50 text-sm ml-1">analyses/month</span>
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.slice(0, 4).map((feature, i) => (
-                      feature.available && (
-                        <motion.li 
-                          key={i} 
-                          className="flex items-start gap-3"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.5 + i * 0.1 }}
-                        >
-                          <div className={`mt-0.5 p-1 rounded-full bg-gradient-to-br ${gradient}`}>
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                          <span className="text-sm text-white/70">{feature.name}</span>
-                        </motion.li>
-                      )
-                    ))}
-                  </ul>
-
-                  {/* CTA Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleSubscribe(plan.id)}
-                    disabled={loadingPlan === plan.id}
-                    className={`
-                      w-full py-3.5 sm:py-4 font-semibold rounded-xl transition-all 
-                      flex items-center justify-center gap-2
-                      ${plan.popular
-                        ? `bg-gradient-to-r ${gradient} text-white shadow-lg ${shadow} hover:shadow-xl`
-                        : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
-                      }
-                      ${loadingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    {loadingPlan === plan.id ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Processing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{plan.popular ? 'Get Started' : 'Choose Plan'}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </motion.button>
                 </motion.div>
               </motion.div>
             );
@@ -368,23 +343,45 @@ export function Paywall({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="mt-12 text-center"
+          transition={{ delay: 0.8 }}
+          className="mt-10 sm:mt-12"
         >
-          <div className="flex flex-wrap items-center justify-center gap-6 text-white/30 text-sm">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4" />
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="p-1.5 rounded-full bg-slate-100">
+                <Lock className="w-3.5 h-3.5" />
+              </div>
               <span>Secure payment</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="p-1.5 rounded-full bg-slate-100">
+                <Zap className="w-3.5 h-3.5" />
+              </div>
               <span>Instant access</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="p-1.5 rounded-full bg-slate-100">
+                <Check className="w-3.5 h-3.5" />
+              </div>
               <span>Cancel anytime</span>
             </div>
           </div>
+        </motion.div>
+
+        {/* Bottom home link */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="text-center mt-8"
+        >
+          <Link 
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-[#00d4ff] transition-colors"
+          >
+            <Home size={14} />
+            <span>Back to home</span>
+          </Link>
         </motion.div>
       </motion.div>
     </div>
