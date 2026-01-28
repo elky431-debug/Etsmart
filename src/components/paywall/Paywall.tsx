@@ -99,7 +99,10 @@ export function Paywall({
   };
 
   const getPlanGradient = (planId: PlanId, isHovered: boolean) => {
-    const gradients = {
+    const gradients: Record<PlanId, string> = {
+      FREE: isHovered 
+        ? 'from-slate-500 via-gray-500 to-zinc-500' 
+        : 'from-slate-400 via-gray-400 to-zinc-400',
       SMART: isHovered 
         ? 'from-violet-500 via-purple-500 to-fuchsia-500' 
         : 'from-violet-400 via-purple-400 to-fuchsia-400',
@@ -110,16 +113,17 @@ export function Paywall({
         ? 'from-amber-400 via-orange-400 to-rose-400' 
         : 'from-amber-300 via-orange-300 to-rose-300',
     };
-    return gradients[planId] || gradients.SMART;
+    return gradients[planId];
   };
 
   const getPlanShadow = (planId: PlanId) => {
-    const shadows = {
+    const shadows: Record<PlanId, string> = {
+      FREE: 'shadow-slate-500/25',
       SMART: 'shadow-violet-500/25',
       PRO: 'shadow-cyan-500/25',
       SCALE: 'shadow-amber-500/25',
     };
-    return shadows[planId] || shadows.SMART;
+    return shadows[planId];
   };
 
   return (
