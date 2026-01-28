@@ -261,24 +261,24 @@ export function Paywall({
                     </h3>
 
                     {/* Price - PROMINENT */}
-                    <div className="flex items-baseline justify-center gap-1 mb-4">
-                      <span className={`text-4xl sm:text-5xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
-                        ${plan.price}
+                    <div className="flex items-baseline justify-center gap-0.5 mb-4">
+                      <span className={`text-3xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
+                        ${plan.price.toFixed(2)}
                       </span>
-                      <span className="text-slate-400 text-sm">/month</span>
+                      <span className="text-slate-400 text-xs">/month</span>
                     </div>
 
                     {/* Analyses count */}
                     <div className={`
-                      py-3 px-4 mb-6 rounded-2xl
+                      py-2.5 px-3 mb-5 rounded-xl
                       ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
                     `}>
-                      <div className="flex items-center justify-center gap-2">
-                        <Zap className={`w-4 h-4 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
-                        <span className={`text-xl font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Zap className={`w-3.5 h-3.5 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
+                        <span className={`text-lg font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
                           {plan.analysesPerMonth}
                         </span>
-                        <span className="text-slate-500 text-sm font-medium">analyses/month</span>
+                        <span className="text-slate-500 text-xs font-medium">analyses/month</span>
                       </div>
                     </div>
 
