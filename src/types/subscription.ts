@@ -75,11 +75,11 @@ export const PLAN_PRICES: Record<PlanId, number> = {
   SCALE: 49.99,
 };
 
-// Stripe Price IDs for each plan (PRODUCTION)
+// Stripe Price IDs for each plan (PRODUCTION - All in EUR)
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
   SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
-  PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R', // Etsmart Pro - $29.99/month
+  PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
   SCALE: 'price_1SuZZdCn17QPHnzEHKehuq0O', // Etsmart Scale - €49.99/month
 };
 
@@ -123,7 +123,7 @@ export const PLANS: Plan[] = [
     name: 'Etsmart Pro',
     description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
     price: 29.99,
-    currency: 'USD',
+    currency: 'EUR',
     analysesPerMonth: 60,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,

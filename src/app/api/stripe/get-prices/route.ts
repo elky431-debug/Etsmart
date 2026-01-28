@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       },
       current: {
         SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
-        PRO: 'price_1Sqx2bCn17QPHnzEaBolPd8R',
+        PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
         SCALE: 'price_1SuZZdCn17QPHnzEHKehuq0O', // Etsmart Scale - €49.99/month
       },
     });
