@@ -6,10 +6,48 @@ import { PLAN_QUOTAS, PLAN_PRICES, PLANS } from '@/types/subscription';
 
 /**
  * Get user's current subscription
- * This function first syncs with Stripe, then reads from the local database
+ * This function checks both subscriptions and users tables
  */
 export async function getUserSubscription(userId: string): Promise<Subscription | null> {
-  // First, try to get from subscriptions table
+  console.log('[getUserSubscription] Checking subscription for user:', userId);
+  
+  // First, check users table (most reliable source after Stripe sync)
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, stripeSubscriptionId, stripeCustomerId')
+    .eq('id', userId)
+    .single();
+  
+  console.log('[getUserSubscription] User data:', userData, 'Error:', userError);
+  
+  if (!userError && userData && userData.subscriptionStatus === 'active') {
+    // Normalize plan ID to uppercase
+    const planId = (userData.subscriptionPlan || 'FREE').toUpperCase() as PlanId;
+    const plan = PLANS.find(p => p.id === planId);
+    
+    console.log('[getUserSubscription] Found active subscription:', planId);
+    
+    return {
+      id: userData.stripeSubscriptionId || `sub_${userId}`,
+      user_id: userId,
+      plan_id: planId,
+      plan_name: plan?.name || planId,
+      price: PLAN_PRICES[planId] || 0,
+      currency: 'USD',
+      status: userData.subscriptionStatus as SubscriptionStatus,
+      analyses_used_current_month: userData.analysisUsedThisMonth || 0,
+      current_period_start: userData.currentPeriodStart || new Date().toISOString(),
+      current_period_end: userData.currentPeriodEnd || new Date().toISOString(),
+      month_reset_date: userData.currentPeriodEnd || new Date().toISOString(),
+      cancel_at_period_end: false,
+      stripe_subscription_id: userData.stripeSubscriptionId,
+      stripe_customer_id: userData.stripeCustomerId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Subscription;
+  }
+  
+  // Fallback: check subscriptions table
   const { data, error } = await supabase
     .from('subscriptions')
     .select('*')
@@ -18,43 +56,22 @@ export async function getUserSubscription(userId: string): Promise<Subscription 
     .single();
   
   if (!error && data) {
-    return data as Subscription;
+    // Normalize plan ID to uppercase
+    const planId = (data.plan_id || 'FREE').toUpperCase() as PlanId;
+    const plan = PLANS.find(p => p.id === planId);
+    
+    console.log('[getUserSubscription] Found in subscriptions table:', planId);
+    
+    return {
+      ...data,
+      plan_id: planId,
+      plan_name: plan?.name || planId,
+      price: PLAN_PRICES[planId] || 0,
+    } as Subscription;
   }
   
-  // If not found in subscriptions table, check users table
-  // (subscription might be synced there from Stripe)
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, stripeSubscriptionId, stripeCustomerId')
-    .eq('id', userId)
-    .single();
-  
-  if (userError || !userData || userData.subscriptionStatus !== 'active') {
-    return null;
-  }
-  
-  // Convert users table data to Subscription format
-  const planId = userData.subscriptionPlan as PlanId;
-  const plan = PLANS.find(p => p.id === planId);
-  
-  return {
-    id: userData.stripeSubscriptionId || '',
-    user_id: userId,
-    plan_id: planId,
-    plan_name: plan?.name || planId,
-    price: PLAN_PRICES[planId] || 0,
-    currency: 'USD',
-    status: userData.subscriptionStatus as SubscriptionStatus,
-    analyses_used_current_month: userData.analysisUsedThisMonth || 0,
-    current_period_start: userData.currentPeriodStart || new Date().toISOString(),
-    current_period_end: userData.currentPeriodEnd || new Date().toISOString(),
-    month_reset_date: userData.currentPeriodEnd || new Date().toISOString(),
-    cancel_at_period_end: false,
-    stripe_subscription_id: userData.stripeSubscriptionId,
-    stripe_customer_id: userData.stripeCustomerId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  } as Subscription;
+  console.log('[getUserSubscription] No active subscription found');
+  return null;
 }
 
 /**

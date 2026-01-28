@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
-import { PLANS, type Plan, type Subscription } from '@/types/subscription';
+import { PLANS, type Plan, type Subscription, type PlanId } from '@/types/subscription';
 import { getUserSubscription, getUsageStats } from '@/lib/subscriptions';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
@@ -103,10 +103,17 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
     return () => window.removeEventListener('focus', handleFocus);
   }, [authUser]);
 
-  // Get current plan info
-  const currentPlan: Plan | null = subscription 
-    ? PLANS.find(p => p.id === subscription.plan_id) || null
+  // Get current plan info - normalize plan_id to uppercase
+  const normalizedPlanId = subscription?.plan_id 
+    ? subscription.plan_id.toUpperCase() as PlanId 
     : null;
+  const currentPlan: Plan | null = normalizedPlanId
+    ? PLANS.find(p => p.id === normalizedPlanId) || null
+    : null;
+  
+  console.log('[DashboardSubscription] subscription:', subscription);
+  console.log('[DashboardSubscription] normalizedPlanId:', normalizedPlanId);
+  console.log('[DashboardSubscription] currentPlan:', currentPlan);
 
   // Free plan (no subscription)
   if (!subscription && !loading) {
