@@ -260,26 +260,26 @@ export function Paywall({
                       {plan.name.replace('Etsmart ', '')}
                     </h3>
 
-                    {/* MAIN INFO: Analyses count - PROMINENT */}
-                    <div className={`
-                      py-4 px-4 mb-4 rounded-2xl
-                      ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
-                    `}>
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <Zap className={`w-5 h-5 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
-                        <span className={`text-4xl sm:text-5xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
-                          {plan.analysesPerMonth}
-                        </span>
-                      </div>
-                      <span className="text-slate-500 text-sm font-medium">analyses per month</span>
-                    </div>
-
-                    {/* Price */}
-                    <div className="flex items-baseline justify-center gap-1 mb-6">
-                      <span className={`text-2xl font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
+                    {/* Price - PROMINENT */}
+                    <div className="flex items-baseline justify-center gap-1 mb-4">
+                      <span className={`text-4xl sm:text-5xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
                         ${plan.price}
                       </span>
                       <span className="text-slate-400 text-sm">/month</span>
+                    </div>
+
+                    {/* Analyses count */}
+                    <div className={`
+                      py-3 px-4 mb-6 rounded-2xl
+                      ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-slate-50'}
+                    `}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Zap className={`w-4 h-4 ${isPopular ? 'text-[#00d4ff]' : 'text-slate-500'}`} />
+                        <span className={`text-xl font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
+                          {plan.analysesPerMonth}
+                        </span>
+                        <span className="text-slate-500 text-sm font-medium">analyses/month</span>
+                      </div>
                     </div>
 
                     {/* CTA Button */}
