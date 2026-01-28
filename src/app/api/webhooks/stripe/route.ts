@@ -179,8 +179,20 @@ export async function POST(request: NextRequest) {
         const planId = priceId ? findPlanByPriceId(priceId) : 'SCALE';
         const quota = PLAN_QUOTAS[planId] || 100;
 
-        const periodStart = new Date((subscription as any).current_period_start * 1000);
-        const periodEnd = new Date((subscription as any).current_period_end * 1000);
+        // Safely handle period dates
+        const rawPeriodStart = (subscription as any).current_period_start;
+        const rawPeriodEnd = (subscription as any).current_period_end;
+        
+        const now = new Date();
+        const defaultEnd = new Date(now);
+        defaultEnd.setDate(defaultEnd.getDate() + 30);
+        
+        const periodStart = (typeof rawPeriodStart === 'number' && rawPeriodStart > 0) 
+          ? new Date(rawPeriodStart * 1000) 
+          : now;
+        const periodEnd = (typeof rawPeriodEnd === 'number' && rawPeriodEnd > 0) 
+          ? new Date(rawPeriodEnd * 1000) 
+          : defaultEnd;
 
         // Determine status
         let status: 'active' | 'inactive' | 'canceled' | 'past_due' = 'inactive';

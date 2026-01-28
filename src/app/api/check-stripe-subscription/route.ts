@@ -91,8 +91,21 @@ export async function GET(request: NextRequest) {
     }
 
     const quota = PLAN_QUOTAS[plan] || 100;
-    const periodStart = new Date((subscription as any).current_period_start * 1000);
-    const periodEnd = new Date((subscription as any).current_period_end * 1000);
+    
+    // Safely handle period dates
+    const rawPeriodStart = (subscription as any).current_period_start;
+    const rawPeriodEnd = (subscription as any).current_period_end;
+    
+    const now = new Date();
+    const defaultEnd = new Date(now);
+    defaultEnd.setDate(defaultEnd.getDate() + 30);
+    
+    const periodStart = (typeof rawPeriodStart === 'number' && rawPeriodStart > 0) 
+      ? new Date(rawPeriodStart * 1000) 
+      : now;
+    const periodEnd = (typeof rawPeriodEnd === 'number' && rawPeriodEnd > 0) 
+      ? new Date(rawPeriodEnd * 1000) 
+      : defaultEnd;
 
     console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, price: ${priceId}`);
 
