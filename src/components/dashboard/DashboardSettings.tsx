@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Globe, Save, Lock, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, Save, Lock, Eye, EyeOff, ChevronDown, Check, CreditCard, XCircle, AlertTriangle } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -523,11 +523,87 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             </div>
           </motion.div>
 
-          {/* Save button */}
+          {/* Cancel Subscription Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl border-2 border-red-100 p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Cancel Subscription</h2>
+            </div>
+
+            <div className="bg-red-50/50 rounded-xl p-4 mb-5 border border-red-100">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-red-800 font-medium mb-1">
+                    Are you sure you want to cancel?
+                  </p>
+                  <p className="text-sm text-red-600">
+                    You will lose access to all premium features at the end of your current billing period. 
+                    Your analyses history will be preserved.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                if (!confirm('Are you sure you want to cancel your subscription? This action cannot be undone.')) {
+                  return;
+                }
+
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  
+                  if (!session?.access_token) {
+                    alert('Please sign in to cancel your subscription');
+                    return;
+                  }
+
+                  const response = await fetch('/api/cancel-subscription', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${session.access_token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  });
+
+                  const data = await response.json();
+
+                  if (!response.ok) {
+                    if (data.error === 'No active subscription found') {
+                      alert('You don\'t have an active subscription to cancel.');
+                    } else {
+                      throw new Error(data.error || 'Failed to cancel subscription');
+                    }
+                    return;
+                  }
+
+                  alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
+                  window.location.href = '/dashboard?section=subscription';
+                } catch (error: any) {
+                  console.error('Error canceling subscription:', error);
+                  alert(error.message || 'Failed to cancel subscription. Please try again.');
+                }
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 hover:border-red-300 transition-all"
+            >
+              <XCircle size={18} />
+              <span>Cancel my subscription</span>
+            </button>
+          </motion.div>
+
+          {/* Save button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
             className="flex justify-end"
           >
             <button

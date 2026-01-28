@@ -32,60 +32,108 @@ export async function POST(request: NextRequest) {
     
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
-    if (authError || !user) {
+    if (authError || !user || !user.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Get user's subscription from database
-    const { data: subscription, error: subError } = await supabase
+    console.log(`[Cancel] Attempting to cancel subscription for ${user.email}`);
+
+    let stripeSubscriptionId: string | null = null;
+
+    // Method 1: Try to get subscription from database
+    const { data: dbSub } = await supabase
       .from('subscriptions')
       .select('stripe_subscription_id, status')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .single();
 
-    if (subError || !subscription || !subscription.stripe_subscription_id) {
+    if (dbSub?.stripe_subscription_id) {
+      stripeSubscriptionId = dbSub.stripe_subscription_id;
+      console.log(`[Cancel] Found subscription in DB: ${stripeSubscriptionId}`);
+    }
+
+    // Method 2: Try to get from users table
+    if (!stripeSubscriptionId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('stripeSubscriptionId')
+        .eq('id', user.id)
+        .single();
+
+      if (userData?.stripeSubscriptionId) {
+        stripeSubscriptionId = userData.stripeSubscriptionId;
+        console.log(`[Cancel] Found subscription in users table: ${stripeSubscriptionId}`);
+      }
+    }
+
+    // Method 3: Search directly in Stripe by email
+    if (!stripeSubscriptionId) {
+      console.log(`[Cancel] Searching Stripe for customer: ${user.email}`);
+      
+      const customers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+
+      if (customers.data.length > 0) {
+        const customer = customers.data[0];
+        
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customer.id,
+          status: 'active',
+          limit: 1,
+        });
+
+        if (subscriptions.data.length > 0) {
+          stripeSubscriptionId = subscriptions.data[0].id;
+          console.log(`[Cancel] Found subscription in Stripe: ${stripeSubscriptionId}`);
+        }
+      }
+    }
+
+    if (!stripeSubscriptionId) {
       return NextResponse.json(
         { error: 'No active subscription found' },
         { status: 404 }
       );
     }
 
-    // Cancel the subscription in Stripe
-    const canceledSubscription = await stripe.subscriptions.cancel(
-      subscription.stripe_subscription_id
+    // Cancel the subscription in Stripe (at period end to be fair)
+    const canceledSubscription = await stripe.subscriptions.update(
+      stripeSubscriptionId,
+      { cancel_at_period_end: true }
     );
 
-    // Update subscription status in database
-    const { error: updateError } = await supabase
+    console.log(`[Cancel] ✅ Subscription marked for cancellation: ${stripeSubscriptionId}`);
+
+    // Update subscriptions table
+    await supabase
       .from('subscriptions')
       .update({
-        status: 'canceled',
+        status: 'canceling',
+        cancel_at_period_end: true,
         canceled_at: new Date().toISOString(),
       })
-      .eq('user_id', user.id)
-      .eq('stripe_subscription_id', subscription.stripe_subscription_id);
+      .eq('user_id', user.id);
 
-    if (updateError) {
-      console.error('Error updating subscription status:', updateError);
-    }
-
-    // Also update user table
+    // Update users table
     await supabase
       .from('users')
       .update({
-        subscriptionStatus: 'canceled',
-        subscriptionPlan: 'FREE',
+        subscriptionStatus: 'canceling',
       })
       .eq('id', user.id);
 
     return NextResponse.json({ 
       success: true,
-      message: 'Subscription canceled successfully',
-      subscription: canceledSubscription
+      message: 'Subscription will be canceled at the end of your billing period',
+      cancelAt: canceledSubscription.cancel_at 
+        ? new Date(canceledSubscription.cancel_at * 1000).toISOString() 
+        : null,
     });
 
   } catch (error: any) {
@@ -96,4 +144,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
