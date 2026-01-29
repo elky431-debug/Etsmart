@@ -44,16 +44,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
     // Listen to auth state changes
-    const { data: { subscription } } = onAuthStateChange((user) => {
+    const { data: { subscription } } = onAuthStateChange(async (user) => {
       setUser(user);
       setLoading(false);
       
-      // Redirect to dashboard if user just logged in (e.g., via Google OAuth)
-      // Only redirect if we're on login/register pages
+      // Redirect based on user state
       if (user && typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
         if (currentPath === '/login' || currentPath === '/register') {
-          router.push('/dashboard?section=analyze');
+          // Check if user is new (created in the last 30 seconds) → redirect to pricing
+          const createdAt = new Date(user.created_at || '');
+          const now = new Date();
+          const isNewUser = (now.getTime() - createdAt.getTime()) < 30000; // 30 seconds
+          
+          if (isNewUser) {
+            router.push('/pricing');
+          } else {
+            router.push('/dashboard?section=analyze');
+          }
         }
       }
     });
@@ -65,8 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignUp = async (email: string, password: string, fullName?: string) => {
     await signUp(email, password, fullName);
-    // User will be set via auth state change
-    router.push('/dashboard?section=analyze');
+    // Redirect new users to pricing/paywall
+    router.push('/pricing');
   };
 
   const handleSignIn = async (email: string, password: string) => {

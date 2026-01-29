@@ -7,15 +7,24 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') || '/dashboard?section=analyze';
 
   if (code) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
     
-    if (!error) {
-      // Redirect to dashboard after successful authentication
-      return NextResponse.redirect(new URL(next, request.url));
+    if (!error && data.user) {
+      // Check if user is new (created in the last 60 seconds) → redirect to pricing
+      const createdAt = new Date(data.user.created_at || '');
+      const now = new Date();
+      const isNewUser = (now.getTime() - createdAt.getTime()) < 60000; // 60 seconds
+      
+      if (isNewUser) {
+        // New user → redirect to pricing/paywall
+        return NextResponse.redirect(new URL('/pricing', request.url));
+      } else {
+        // Returning user → redirect to dashboard
+        return NextResponse.redirect(new URL('/dashboard?section=analyze', request.url));
+      }
     }
   }
 

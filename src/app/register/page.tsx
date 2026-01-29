@@ -31,8 +31,8 @@ export default function RegisterPage() {
 
     try {
       await signUp(email, password, name);
-      // Redirect to dashboard is handled by AuthContext
-      router.push('/dashboard?section=analyze');
+      // Redirect to pricing/paywall immediately after signup
+      router.push('/pricing');
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating the account');
       setIsLoading(false);
