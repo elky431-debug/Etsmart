@@ -207,30 +207,37 @@ export function DashboardHistory({
   const [nicheFilter, setNicheFilter] = useState<Niche | 'all'>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
+  // Helper function to determine verdict from score
+  const getVerdictFromScore = (analysis: ProductAnalysis): Verdict => {
+    // Get the score (Launch Potential Score or confidence score)
+    const launchScore = analysis.competitors?.launchPotentialScore?.score;
+    const confidenceScore = analysis.verdict?.confidenceScore;
+    
+    // Use launch score if available, otherwise use confidence score / 10
+    const score = launchScore !== undefined ? launchScore : (confidenceScore ? confidenceScore / 10 : 5);
+    
+    // Determine verdict based on score:
+    // - launch (green): score >= 7
+    // - test (orange): score >= 4 and < 7
+    // - avoid (red): score < 4
+    if (score >= 7) return 'launch';
+    if (score >= 4) return 'test';
+    return 'avoid';
+  };
+
   const filteredAnalyses = useMemo(() => {
-    console.log('🔍 [FILTER] Filtering analyses:', analyses.length, 'total');
-    console.log('🔍 [FILTER] Verdict filter:', verdictFilter);
-    
-    // Debug: Log all verdicts
-    if (analyses.length > 0) {
-      console.log('🔍 [FILTER] Available verdicts:', analyses.map(a => ({
-        title: a.product?.title?.substring(0, 30),
-        verdict: a.verdict?.verdict,
-        rawVerdict: typeof a.verdict === 'string' ? a.verdict : a.verdict?.verdict,
-      })));
-    }
-    
     return analyses.filter(analysis => {
       // Search filter
       const matchesSearch = searchQuery === '' || 
         analysis.product?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         analysis.verdict?.summary?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Verdict filter - handle both string verdict and nested verdict.verdict
-      const analysisVerdict = typeof analysis.verdict === 'string' 
-        ? analysis.verdict 
-        : analysis.verdict?.verdict;
-      const matchesVerdict = verdictFilter === 'all' || analysisVerdict === verdictFilter;
+      // Verdict filter - based on SCORE for accurate filtering
+      let matchesVerdict = true;
+      if (verdictFilter !== 'all') {
+        const derivedVerdict = getVerdictFromScore(analysis);
+        matchesVerdict = derivedVerdict === verdictFilter;
+      }
 
       // Niche filter
       const matchesNiche = nicheFilter === 'all' || analysis.niche === nicheFilter;
