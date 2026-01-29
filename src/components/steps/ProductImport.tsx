@@ -289,6 +289,30 @@ export function ProductImport() {
             <Zap size={16} className="text-[#00c9b7]" />
           </motion.div>
           
+          {/* Quota Indicator */}
+          {subscription && subscription.status === 'active' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border border-[#00d4ff]/30 mb-4"
+            >
+              <Zap size={14} className="text-[#00d4ff]" />
+              <span className="text-sm font-semibold text-slate-700">
+                {subscription.used} / {subscription.quota} analyses
+              </span>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                subscription.remaining > subscription.quota * 0.5 
+                  ? 'bg-emerald-100 text-emerald-700' 
+                  : subscription.remaining > subscription.quota * 0.2 
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-700'
+              }`}>
+                {subscription.remaining} left
+              </span>
+            </motion.div>
+          )}
+          
           <motion.h1 
             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-3 sm:mb-4"
             initial={isMobile ? undefined : { opacity: 0, y: 20 }}

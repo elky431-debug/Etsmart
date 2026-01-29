@@ -40,6 +40,7 @@ import { useStore } from '@/store/useStore';
 import { Logo } from '@/components/ui';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useSubscription } from '@/hooks/useSubscription';
 import { 
   formatCurrency, 
   getPhaseLabel,
@@ -1001,6 +1002,7 @@ export function ResultsStep() {
   const { analyses: storeAnalyses, setStep } = useStore();
   const [dbAnalyses, setDbAnalyses] = useState<ProductAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { subscription } = useSubscription();
   
   // Charger les analyses depuis la DB au montage ET sauvegarder l'analyse en cours si nécessaire
   useEffect(() => {
@@ -1286,6 +1288,15 @@ export function ResultsStep() {
 
             {/* Actions à droite */}
             <div className="flex items-center gap-3">
+              {/* Quota Indicator */}
+              {subscription && subscription.status === 'active' && (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border border-[#00d4ff]/30">
+                  <Zap size={14} className="text-[#00d4ff]" />
+                  <span className="text-sm font-semibold text-slate-700">
+                    {subscription.used}/{subscription.quota}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => setStep(1)}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#00d4ff] hover:bg-[#00d4ff]/10 hover:text-[#00b8e6] transition-all"
