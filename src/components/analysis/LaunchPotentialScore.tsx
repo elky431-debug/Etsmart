@@ -109,18 +109,6 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
           </motion.p>
         </div>
 
-        {/* Barre de progression visuelle */}
-        <div className="mb-4">
-          <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${(score.score / 10) * 100}%` }}
-              transition={{ delay: 0.7, duration: 1, ease: 'easeOut' }}
-              className={`h-full ${colors.iconBg} rounded-full`}
-            />
-          </div>
-        </div>
-
         {/* Texte explicatif obligatoire */}
         <motion.div
           initial={{ opacity: 0 }}
