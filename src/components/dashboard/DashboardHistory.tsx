@@ -208,14 +208,29 @@ export function DashboardHistory({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const filteredAnalyses = useMemo(() => {
+    console.log('🔍 [FILTER] Filtering analyses:', analyses.length, 'total');
+    console.log('🔍 [FILTER] Verdict filter:', verdictFilter);
+    
+    // Debug: Log all verdicts
+    if (analyses.length > 0) {
+      console.log('🔍 [FILTER] Available verdicts:', analyses.map(a => ({
+        title: a.product?.title?.substring(0, 30),
+        verdict: a.verdict?.verdict,
+        rawVerdict: typeof a.verdict === 'string' ? a.verdict : a.verdict?.verdict,
+      })));
+    }
+    
     return analyses.filter(analysis => {
       // Search filter
       const matchesSearch = searchQuery === '' || 
-        analysis.product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        analysis.verdict.summary.toLowerCase().includes(searchQuery.toLowerCase());
+        analysis.product?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        analysis.verdict?.summary?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Verdict filter
-      const matchesVerdict = verdictFilter === 'all' || analysis.verdict.verdict === verdictFilter;
+      // Verdict filter - handle both string verdict and nested verdict.verdict
+      const analysisVerdict = typeof analysis.verdict === 'string' 
+        ? analysis.verdict 
+        : analysis.verdict?.verdict;
+      const matchesVerdict = verdictFilter === 'all' || analysisVerdict === verdictFilter;
 
       // Niche filter
       const matchesNiche = nicheFilter === 'all' || analysis.niche === nicheFilter;
