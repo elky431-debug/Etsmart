@@ -20,29 +20,24 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    try {
-      // Submit to Netlify Forms
-      const response = await fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          'form-name': 'contact',
-          ...formData,
-        }).toString(),
-      });
-      
-      if (response.ok) {
-        setIsSubmitted(true);
-        setFormData({ name: '', email: '', subject: '', message: '' });
-      } else {
-        alert('Error sending message. Please try again or email us directly.');
-      }
-    } catch (error) {
-      console.error('Form submission error:', error);
-      alert('Error sending message. Please try again or email us directly.');
-    } finally {
+    // Create mailto link with form data
+    const subject = encodeURIComponent(`[Etsmart Contact] ${formData.subject}`);
+    const body = encodeURIComponent(
+      `Name: ${formData.name}\n` +
+      `Email: ${formData.email}\n` +
+      `Subject: ${formData.subject}\n\n` +
+      `Message:\n${formData.message}`
+    );
+    
+    // Open email client
+    window.location.href = `mailto:elky431@gmail.com?subject=${subject}&body=${body}`;
+    
+    // Show success after a short delay
+    setTimeout(() => {
       setIsSubmitting(false);
-    }
+      setIsSubmitted(true);
+      setFormData({ name: '', email: '', subject: '', message: '' });
+    }, 1000);
   };
 
   return (
@@ -158,9 +153,9 @@ export default function ContactPage() {
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/25">
                     <CheckCircle className="w-10 h-10 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-3">Message Sent!</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-3">Email Client Opened!</h2>
                   <p className="text-slate-600 mb-6">
-                    Thank you for reaching out. We'll get back to you as soon as possible.
+                    Your email app should have opened with your message. Just click "Send" to contact us!
                   </p>
                   <button
                     onClick={() => setIsSubmitted(false)}
