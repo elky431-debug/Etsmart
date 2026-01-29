@@ -9,22 +9,51 @@ interface LaunchPotentialScoreProps {
 }
 
 export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
-  // Toujours utiliser les couleurs d'Etsmart peu importe la note
-  const colors = {
-    bg: 'bg-gradient-to-br from-[#00d4ff]/10 via-[#00d4ff]/5 to-white',
-    border: 'border-[#00d4ff]/30',
-    shadow: 'shadow-[#00d4ff]/20',
-    glow: 'bg-gradient-to-r from-[#00d4ff]/20 to-[#00c9b7]/20',
-    iconBg: 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7]',
-    text: 'text-slate-800',
-    badgeBg: 'bg-white/90 border-[#00d4ff]/30 text-slate-800',
-    scoreText: 'text-[#00d4ff]',
+  // Couleurs dynamiques basées sur le score
+  // 0-3: Rouge, 4-6: Orange, 7-10: Vert
+  const getScoreColors = () => {
+    if (score.score <= 3) {
+      return {
+        bg: 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-white',
+        border: 'border-red-500/30',
+        shadow: 'shadow-red-500/20',
+        glow: 'bg-gradient-to-r from-red-500/20 to-red-400/20',
+        iconBg: 'bg-gradient-to-br from-red-500 to-red-600',
+        text: 'text-slate-800',
+        badgeBg: 'bg-white/90 border-red-500/30 text-slate-800',
+        scoreText: 'text-red-500',
+      };
+    } else if (score.score <= 6) {
+      return {
+        bg: 'bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-white',
+        border: 'border-orange-500/30',
+        shadow: 'shadow-orange-500/20',
+        glow: 'bg-gradient-to-r from-orange-500/20 to-amber-400/20',
+        iconBg: 'bg-gradient-to-br from-orange-500 to-amber-500',
+        text: 'text-slate-800',
+        badgeBg: 'bg-white/90 border-orange-500/30 text-slate-800',
+        scoreText: 'text-orange-500',
+      };
+    } else {
+      return {
+        bg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white',
+        border: 'border-emerald-500/30',
+        shadow: 'shadow-emerald-500/20',
+        glow: 'bg-gradient-to-r from-emerald-500/20 to-green-400/20',
+        iconBg: 'bg-gradient-to-br from-emerald-500 to-green-500',
+        text: 'text-slate-800',
+        badgeBg: 'bg-white/90 border-emerald-500/30 text-slate-800',
+        scoreText: 'text-emerald-500',
+      };
+    }
   };
 
+  const colors = getScoreColors();
+
   const getIcon = () => {
-    if (score.tier === 'favorable') {
+    if (score.score > 6) {
       return <CheckCircle2 size={32} className="text-white" />;
-    } else if (score.tier === 'competitive') {
+    } else if (score.score > 3) {
       return <AlertCircle size={32} className="text-white" />;
     } else {
       return <XCircle size={32} className="text-white" />;

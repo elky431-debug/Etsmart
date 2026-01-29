@@ -1002,25 +1002,80 @@ export function ResultsStep() {
   const [dbAnalyses, setDbAnalyses] = useState<ProductAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Charger les analyses depuis la DB au montage
+  // Charger les analyses depuis la DB au montage ET sauvegarder l'analyse en cours si nécessaire
   useEffect(() => {
-    const loadAnalyses = async () => {
+    const loadAndSaveAnalyses = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
         
         const { analysisDb } = await import('@/lib/db/analyses');
+        const { productDb } = await import('@/lib/db/products');
+        
+        // ═══════════════════════════════════════════════════════════════════════════
+        // SAUVEGARDE DE SECOURS: S'assurer que l'analyse actuelle est sauvegardée
+        // Cette sauvegarde se déclenche à chaque fois que ResultsStep est monté
+        // pour garantir que l'analyse apparaîtra dans l'historique
+        // ═══════════════════════════════════════════════════════════════════════════
+        if (storeAnalyses.length > 0) {
+          for (const analysis of storeAnalyses) {
+            try {
+              console.log('🔄 Backup save: Ensuring analysis is in database...', analysis.product.title?.substring(0, 30));
+              
+              // D'abord s'assurer que le produit existe dans la DB
+              let productId = analysis.product.id;
+              try {
+                const { data: existingProducts } = await supabase
+                  .from('products')
+                  .select('id')
+                  .eq('user_id', user.id)
+                  .eq('url', analysis.product.url)
+                  .limit(1);
+                
+                if (existingProducts && existingProducts.length > 0) {
+                  productId = existingProducts[0].id;
+                } else {
+                  // Créer le produit s'il n'existe pas
+                  const savedProduct = await productDb.createProduct(user.id, analysis.product);
+                  productId = savedProduct.id;
+                  console.log('✅ Product created in database:', productId);
+                }
+              } catch (productError) {
+                console.warn('⚠️ Product save issue:', productError);
+                // Continuer avec l'ID existant
+              }
+              
+              // Sauvegarder l'analyse avec le bon product_id
+              const analysisToSave = {
+                ...analysis,
+                product: { ...analysis.product, id: productId }
+              };
+              
+              await analysisDb.saveAnalysis(user.id, analysisToSave);
+              console.log('✅ Analysis backup saved successfully:', analysis.product.title?.substring(0, 30));
+            } catch (saveError) {
+              console.error('❌ Backup save failed for analysis:', saveError);
+              // Continuer avec les autres analyses
+            }
+          }
+        }
+        
+        // Charger les analyses depuis la DB
         const analyses = await analysisDb.getAnalyses(user.id);
         setDbAnalyses(analyses);
+        console.log('📊 Loaded', analyses.length, 'analyses from database');
       } catch (error) {
-        console.error('Error loading analyses:', error);
+        console.error('Error loading/saving analyses:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    loadAnalyses();
-  }, []);
+    loadAndSaveAnalyses();
+  }, [storeAnalyses]);
   
   // Récupérer le produit actuel du store pour identifier l'analyse à afficher
   const { products: currentProducts } = useStore();
