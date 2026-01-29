@@ -1,17 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Zap, 
   TrendingUp, 
   Sparkles, 
-  ArrowRight, 
   Clock, 
   Crown,
   BarChart3,
-  Rocket
+  Rocket,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
-import { Button } from '@/components/ui';
 import { PLAN_QUOTAS, PLAN_PRICES, type PlanId } from '@/types/subscription';
 
 interface QuotaExceededProps {
@@ -19,9 +20,58 @@ interface QuotaExceededProps {
   used: number;
   quota: number;
   resetDate?: Date | null;
-  onUpgrade: (plan: PlanId) => void;
+  onUpgrade?: (plan: PlanId) => void;
   onClose?: () => void;
 }
+
+// Hook to handle upgrade
+const useUpgrade = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const upgrade = async (newPlan: PlanId) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Non authentifié');
+      }
+
+      const response = await fetch('/api/upgrade-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ newPlan }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la mise à niveau');
+      }
+
+      if (data.type === 'checkout' && data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else if (data.type === 'upgraded') {
+        // Subscription upgraded instantly - refresh the page
+        window.location.href = '/dashboard?upgrade=success';
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  return { upgrade, isLoading, error };
+};
 
 export function QuotaExceeded({ 
   currentPlan, 
@@ -31,6 +81,8 @@ export function QuotaExceeded({
   onUpgrade,
   onClose 
 }: QuotaExceededProps) {
+  const { upgrade, isLoading, error } = useUpgrade();
+  
   // Determine upgrade suggestion
   const getUpgradePlan = (): PlanId | null => {
     if (currentPlan === 'SMART') return 'PRO';
@@ -42,6 +94,16 @@ export function QuotaExceeded({
   const upgradeQuota = upgradePlan ? PLAN_QUOTAS[upgradePlan] : 0;
   const upgradePrice = upgradePlan ? PLAN_PRICES[upgradePlan] : 0;
   const extraAnalyses = upgradeQuota - quota;
+
+  const handleUpgradeClick = () => {
+    if (upgradePlan) {
+      if (onUpgrade) {
+        onUpgrade(upgradePlan);
+      } else {
+        upgrade(upgradePlan);
+      }
+    }
+  };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('fr-FR', {
@@ -105,26 +167,45 @@ export function QuotaExceeded({
 
         {/* Content */}
         <div className="px-8 py-8">
+          {/* Error message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
+            >
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </motion.div>
+          )}
+
           {/* Options */}
           <div className="space-y-4">
             {/* Option 1: Upgrade */}
             {upgradePlan && (
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onUpgrade(upgradePlan)}
-                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 p-1"
+                whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                onClick={handleUpgradeClick}
+                disabled={isLoading}
+                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 p-1 disabled:opacity-70"
               >
                 <div className="relative rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-6 py-5 text-white">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
-                        <Rocket className="h-6 w-6" />
+                        {isLoading ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Rocket className="h-6 w-6" />
+                        )}
                       </div>
                       <div className="text-left">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">Passer à {upgradePlan}</span>
-                          <Crown className="h-4 w-4 text-yellow-300" />
+                          <span className="font-bold">
+                            {isLoading ? 'Mise à niveau...' : `Passer à ${upgradePlan}`}
+                          </span>
+                          {!isLoading && <Crown className="h-4 w-4 text-yellow-300" />}
                         </div>
                         <p className="text-sm text-white/80">
                           +{extraAnalyses} analyses/mois
@@ -138,12 +219,14 @@ export function QuotaExceeded({
                   </div>
                   
                   {/* Hover effect */}
-                  <motion.div
-                    className="absolute inset-0 bg-white/10"
-                    initial={{ x: '-100%' }}
-                    whileHover={{ x: '100%' }}
-                    transition={{ duration: 0.5 }}
-                  />
+                  {!isLoading && (
+                    <motion.div
+                      className="absolute inset-0 bg-white/10"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  )}
                 </div>
               </motion.button>
             )}

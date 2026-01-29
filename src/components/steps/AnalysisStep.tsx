@@ -25,7 +25,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Paywall } from '@/components/paywall/Paywall';
 import { QuotaExceeded } from '@/components/paywall/QuotaExceeded';
-import type { PlanId } from '@/types/subscription';
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
@@ -382,11 +381,6 @@ export function AnalysisStep() {
 
   const currentProduct = products[currentIndex];
 
-  // Handle upgrade - redirect to pricing
-  const handleUpgrade = (plan: PlanId) => {
-    window.location.href = `/pricing?upgrade=${plan}`;
-  };
-
   // Show QuotaExceeded modal if user has subscription but no quota
   if (showQuotaExceeded && subscription) {
     return (
@@ -396,7 +390,6 @@ export function AnalysisStep() {
           used={subscription.used}
           quota={subscription.quota}
           resetDate={subscription.periodEnd}
-          onUpgrade={handleUpgrade}
           onClose={() => setStep(2)}
         />
       </div>
