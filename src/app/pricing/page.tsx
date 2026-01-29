@@ -2,16 +2,21 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Crown, Zap, Loader2 } from 'lucide-react';
+import { Check, Crown, Zap, Loader2, LogOut } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { PLANS, type Plan, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function PricingPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/');
+  };
 
   const handleSubscribe = async (planId: PlanId) => {
     // Check if user is logged in
@@ -58,6 +63,21 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      {/* Logout Button - Top Right */}
+      {user && (
+        <div className="absolute top-4 right-4 z-50">
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-600 hover:text-slate-900 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-all"
+          >
+            <LogOut size={18} />
+            <span className="font-medium">Logout</span>
+          </motion.button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
         <motion.div
