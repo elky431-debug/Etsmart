@@ -214,7 +214,7 @@ function CreativePromptGenerator({
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
-            <span>Open ChatGPT, Midjourney or other image AI</span>
+            <span>Open an AI image generator (Midjourney, DALL-E, etc.)</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
@@ -450,7 +450,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <h3 className="font-bold text-amber-900 mb-1 text-sm">⚠️ Données par défaut utilisées</h3>
                         <p className="text-sm text-amber-800 leading-relaxed">
                           {analysis.verdict.warningIfAny || 
-                           'L\'API OpenAI n\'a pas pu répondre dans les temps (timeout >30s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite ou vérifier les logs Netlify.'}
+                           'L\'API d\'analyse n\'a pas pu répondre dans les temps (timeout >30s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite.'}
                         </p>
                         {analysis.dataSource === 'estimated' && (
                           <p className="text-xs text-amber-700 mt-2 italic">

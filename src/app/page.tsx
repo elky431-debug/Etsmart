@@ -377,7 +377,7 @@ export default function HomePage() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6 sm:mb-8">
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Powered by AI • GPT-4</span>
+              <span className="text-sm text-slate-700">Powered by AI</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </div>
 

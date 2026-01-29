@@ -171,7 +171,7 @@ export default function PrivacyPage() {
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li><strong>Stripe:</strong> Payment processing</li>
                   <li><strong>Supabase:</strong> Database and authentication</li>
-                  <li><strong>OpenAI:</strong> AI-powered analysis</li>
+                  <li><strong>AI Providers:</strong> AI-powered analysis</li>
                   <li><strong>Netlify:</strong> Hosting</li>
                 </ul>
                 <p className="mt-4">

@@ -1072,12 +1072,12 @@ const fetchAIAnalysis = async (
     
     console.error('❌ API Error:', response.status, errorData);
     
-    // Erreur OpenAI spécifique
+    // Erreur API spécifique
     if (errorData.error === 'OPENAI_ERROR' || errorData.error === 'INVALID_API_KEY' || errorData.error === 'QUOTA_EXCEEDED' || errorData.error === 'MODEL_NOT_AVAILABLE' || errorData.error === 'BAD_REQUEST') {
       throw new AnalysisBlockedError(
-        'Erreur API OpenAI',
-        errorData.message || 'L\'API OpenAI a retourné une erreur.',
-        errorData.details?.message || 'Vérifiez votre clé API et vos crédits OpenAI.'
+        'Erreur API d\'analyse',
+        errorData.message || 'L\'API d\'analyse a retourné une erreur.',
+        errorData.details?.message || 'Veuillez réessayer plus tard.'
       );
     }
     
@@ -1117,17 +1117,13 @@ const fetchAIAnalysis = async (
       );
     }
     
-    // Erreur OpenAI (fallback si pas déjà gérée)
+    // Erreur API (fallback si pas déjà gérée)
     if (errorData.error === 'OPENAI_ERROR' || errorData.error === 'OPENAI_API_KEY_MISSING') {
       const details = errorData.details ? JSON.stringify(errorData.details) : '';
       throw new AnalysisBlockedError(
-        'Erreur OpenAI',
-        `${errorData.message || 'L\'API OpenAI a retourné une erreur.'} ${details ? `(${details.substring(0, 100)})` : ''}`,
-        errorData.httpStatus === 401 
-          ? 'Votre clé API est invalide. Créez-en une nouvelle sur platform.openai.com'
-          : errorData.httpStatus === 403
-          ? 'Votre compte OpenAI n\'a pas accès à GPT-4o. Vérifiez vos crédits.'
-          : 'Vérifiez votre clé API et vos crédits OpenAI.'
+        'Erreur d\'analyse',
+        `${errorData.message || 'L\'API d\'analyse a retourné une erreur.'} ${details ? `(${details.substring(0, 100)})` : ''}`,
+        'Veuillez réessayer plus tard ou contacter le support.'
       );
     }
     
@@ -1152,16 +1148,16 @@ const fetchAIAnalysis = async (
       'Analysis failed',
       data?.message || data?.error || 'The AI could not complete the analysis.',
       data?.error === 'OPENAI_API_KEY_MISSING' 
-        ? 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables.'
+        ? 'Analysis service is temporarily unavailable. Please try again later.'
         : data?.error === 'INVALID_API_KEY'
-        ? 'Your OpenAI API key is invalid. Create a new one on platform.openai.com'
+        ? 'Analysis service configuration error. Please contact support.'
         : data?.error === 'QUOTA_EXCEEDED'
-        ? 'Your OpenAI quota has been exceeded. Check your credits on platform.openai.com'
+        ? 'Analysis service is temporarily unavailable. Please try again later.'
         : data?.error === 'PRODUCT_NOT_IDENTIFIABLE'
         ? 'The AI could not identify the product. Please provide a clearer image.'
         : data?.error === 'NO_ETSY_QUERY'
         ? 'Could not generate an Etsy search query. Please try with a different image.'
-        : 'Try again with a different image or check your OpenAI API key.'
+        : 'Try again with a different image or contact support if the issue persists.'
     );
   }
   
@@ -1709,7 +1705,7 @@ export const analyzeProduct = async (
         : defaultCompetitors <= 90
         ? 'Product can be launched but requires careful optimization.'
         : 'Launch is risky due to high competition.',
-      warningIfAny: '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API OpenAI n\'a pas pu répondre. Les résultats peuvent être moins précis.',
+      warningIfAny: '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API d\'analyse n\'a pas pu répondre. Les résultats peuvent être moins précis.',
     };
     
     console.log('✅ Using fallback analysis data');

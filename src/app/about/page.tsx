@@ -69,7 +69,7 @@ export default function AboutPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-8"
             >
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Powered by AI • GPT-4o</span>
+              <span className="text-sm text-slate-700">Powered by AI</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </motion.div>
 
@@ -123,7 +123,7 @@ export default function AboutPage() {
                 at the right price, with the right strategy.
               </p>
               <p>
-                With <strong className="text-slate-900">GPT-4o Vision</strong>, we analyze your AliExpress products and provide a complete analysis including:
+                With <strong className="text-slate-900">our advanced AI</strong>, we analyze your AliExpress products and provide a complete analysis including:
                 a <strong className="text-[#00d4ff]">Launch Potential Score</strong> (0-10), competitor analysis, pricing recommendations,
                 launch simulation, and a complete marketing strategy with SEO tags, viral titles, and ad ideas.
               </p>
