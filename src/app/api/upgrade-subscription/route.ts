@@ -142,25 +142,34 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Upgrade] ✅ Subscription upgraded successfully`);
 
-    // Update the database immediately
+    // Update the database immediately - RESET usage to 0 on plan change
     const newQuota = PLAN_QUOTAS[newPlan as PlanId] || 100;
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setDate(periodEnd.getDate() + 30);
     
     await supabase
       .from('users')
       .update({
         subscription_plan: newPlan,
         analysis_quota: newQuota,
-        // Keep the current usage - don't reset on upgrade
+        analysis_used_this_month: 0, // Reset to 0 on upgrade!
+        current_period_start: now.toISOString(),
+        current_period_end: periodEnd.toISOString(),
       })
       .eq('id', user.id);
+
+    console.log(`[Upgrade] ✅ Reset usage to 0 for user ${user.id}`);
 
     return NextResponse.json({
       type: 'upgraded',
       success: true,
       plan: newPlan,
       quota: newQuota,
-      message: `Félicitations ! Tu es maintenant sur le plan ${newPlan} avec ${newQuota} analyses/mois.`,
+      used: 0,
+      message: `Félicitations ! Tu es maintenant sur le plan ${newPlan} avec ${newQuota} analyses/mois. Ton compteur a été remis à zéro.`,
       prorationApplied: true,
+      usageReset: true,
     });
 
   } catch (error: any) {
