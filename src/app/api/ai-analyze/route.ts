@@ -297,23 +297,35 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
 3. REQUÊTE DE RECHERCHE ETSY (CRITIQUE POUR TROUVER LES CONCURRENTS):
    - Génère une requête de recherche Etsy ULTRA-PRÉCISE en anglais (5-8 mots)
    - OBJECTIF: Trouver les VRAIS concurrents qui vendent le MÊME type de produit
-   - RÈGLES STRICTES pour la requête:
-     * Commence par le TYPE DE PRODUIT exact (watch, necklace, mug, print, etc.)
-     * Ajoute le MATÉRIAU visible (leather, silver, ceramic, wood, etc.)
-     * Inclus le STYLE (minimalist, vintage, boho, modern, etc.)
-     * Ajoute la COULEUR principale si distinctive (black, gold, rose gold, etc.)
-     * Termine par l'USAGE ou l'OCCASION si pertinent (gift, wedding, home decor, etc.)
-   - FORMULE: "[type] [matériau] [style] [couleur] [usage/occasion]"
+   
+   ⚠️ ORDRE DE PRIORITÉ STRICT (du plus important au moins important):
+     1. TYPE DE PRODUIT exact (watch, necklace, mug, lamp, etc.)
+     2. CARACTÉRISTIQUES DISTINCTIVES VISUELLES (arabic numerals, skeleton dial, led, engraved, etc.)
+     3. MATÉRIAU visible (leather, silver, silicone, wood, ceramic, etc.)
+     4. STYLE/DESIGN (minimalist, vintage, boho, modern, industrial, etc.)
+     5. COULEUR principale (black, gold, rose gold, white, etc.)
+     6. GENRE si applicable (men, women, unisex)
+     7. EN DERNIER: usage/occasion (gift, wedding, home decor) - SEULEMENT s'il reste de la place
+   
+   - FORMULE: "[type] [caractéristique distinctive] [matériau] [style] [couleur] [genre]"
+   
+   - RÈGLE CRITIQUE: Les caractéristiques qui DIFFÉRENCIENT le produit doivent TOUJOURS apparaître
+     * Si une montre a des chiffres arabes → "arabic numerals" DOIT être dans la requête
+     * Si un bijou est gravé → "engraved" DOIT être dans la requête
+     * Si une lampe est LED → "led" DOIT être dans la requête
+     * Si un objet a une forme particulière → l'inclure (moon, heart, geometric, etc.)
+   
    - Exemples de BONNES requêtes:
-     * "minimalist black leather watch men" (pas juste "watch")
-     * "personalized gold name necklace gift" (pas juste "necklace")
-     * "ceramic coffee mug handmade pottery" (pas juste "mug")
-     * "boho macrame wall hanging large" (pas juste "wall art")
-   - Exemples de MAUVAISES requêtes (trop génériques):
-     * "watch" → trop vague, des millions de résultats
-     * "black watch" → encore trop vague
-     * "minimalist watch" → mieux mais pas assez précis
-   - La requête doit retourner des produits à +/- 80% similaires au produit analysé
+     * "watch arabic numerals black silicone minimalist men" (caractéristique "arabic" incluse)
+     * "necklace personalized name engraved gold women" (caractéristique "engraved" incluse)
+     * "lamp moon 3d led floating magnetic" (caractéristiques "moon 3d led floating" incluses)
+     * "ring skeleton mechanical steampunk silver" (caractéristique "skeleton" incluse)
+   
+   - Exemples de MAUVAISES requêtes:
+     * "black silicone watch men gift" → MANQUE "arabic numerals" qui est distinctif!
+     * "gold necklace gift women" → MANQUE "personalized/engraved" si le produit l'est!
+   
+   - NE JAMAIS omettre une caractéristique visuelle distinctive au profit de "gift" ou "present"
 
 4. ANALYSE APPROFONDIE DE LA CONCURRENCE:
    - Estime le nombre de BOUTIQUES Etsy (pas de listings individuels) vendant des produits similaires
