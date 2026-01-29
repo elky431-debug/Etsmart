@@ -11,37 +11,37 @@ import { PLAN_QUOTAS, PLAN_PRICES, PLANS } from '@/types/subscription';
 export async function getUserSubscription(userId: string): Promise<Subscription | null> {
   console.log('[getUserSubscription] Checking subscription for user:', userId);
   
-  // First, check users table (most reliable source after Stripe sync)
+  // First, check users table (snake_case columns!)
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, stripeSubscriptionId, stripeCustomerId')
+    .select('subscription_plan, subscription_status, analysis_used_this_month, analysis_quota, current_period_start, current_period_end, stripe_subscription_id, stripe_customer_id')
     .eq('id', userId)
     .single();
   
   console.log('[getUserSubscription] User data:', userData, 'Error:', userError);
   
-  if (!userError && userData && userData.subscriptionStatus === 'active') {
+  if (!userError && userData && userData.subscription_status === 'active') {
     // Normalize plan ID to uppercase
-    const planId = (userData.subscriptionPlan || 'FREE').toUpperCase() as PlanId;
+    const planId = (userData.subscription_plan || 'FREE').toUpperCase() as PlanId;
     const plan = PLANS.find(p => p.id === planId);
     
     console.log('[getUserSubscription] Found active subscription:', planId);
     
     return {
-      id: userData.stripeSubscriptionId || `sub_${userId}`,
+      id: userData.stripe_subscription_id || `sub_${userId}`,
       user_id: userId,
       plan_id: planId,
       plan_name: plan?.name || planId,
       price: PLAN_PRICES[planId] || 0,
       currency: 'USD',
-      status: userData.subscriptionStatus as SubscriptionStatus,
-      analyses_used_current_month: userData.analysisUsedThisMonth || 0,
-      current_period_start: userData.currentPeriodStart || new Date().toISOString(),
-      current_period_end: userData.currentPeriodEnd || new Date().toISOString(),
-      month_reset_date: userData.currentPeriodEnd || new Date().toISOString(),
+      status: userData.subscription_status as SubscriptionStatus,
+      analyses_used_current_month: userData.analysis_used_this_month || 0,
+      current_period_start: userData.current_period_start || new Date().toISOString(),
+      current_period_end: userData.current_period_end || new Date().toISOString(),
+      month_reset_date: userData.current_period_end || new Date().toISOString(),
       cancel_at_period_end: false,
-      stripe_subscription_id: userData.stripeSubscriptionId,
-      stripe_customer_id: userData.stripeCustomerId,
+      stripe_subscription_id: userData.stripe_subscription_id,
+      stripe_customer_id: userData.stripe_customer_id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as Subscription;
@@ -137,19 +137,19 @@ export async function getUsageStats(userId: string): Promise<{
   const subscription = await getUserSubscription(userId);
   
   if (!subscription) {
-    // Also check users table directly
+    // Also check users table directly (snake_case columns!)
     const { data: userData } = await supabase
       .from('users')
-      .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodEnd')
+      .select('subscription_plan, subscription_status, analysis_used_this_month, analysis_quota, current_period_end')
       .eq('id', userId)
       .single();
     
-    if (userData && userData.subscriptionStatus === 'active') {
-      const limit = userData.analysisQuota || PLAN_QUOTAS[userData.subscriptionPlan as PlanId] || 0;
-      const used = userData.analysisUsedThisMonth || 0;
+    if (userData && userData.subscription_status === 'active') {
+      const limit = userData.analysis_quota || PLAN_QUOTAS[userData.subscription_plan as PlanId] || 0;
+      const used = userData.analysis_used_this_month || 0;
       const remaining = Math.max(0, limit - used);
       const percentage = limit > 0 ? (used / limit) * 100 : 0;
-      const resetDate = userData.currentPeriodEnd ? new Date(userData.currentPeriodEnd) : null;
+      const resetDate = userData.current_period_end ? new Date(userData.current_period_end) : null;
       
       return { used, limit, remaining, percentage, resetDate };
     }

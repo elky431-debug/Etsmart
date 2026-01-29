@@ -111,18 +111,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync Session] Activating ${plan} subscription for user ${user.id}`);
 
-    // Update user in database
+    // Update user in database (snake_case columns!)
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        subscriptionPlan: plan,
-        subscriptionStatus: 'active',
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscription.id,
-        analysisQuota: quota,
-        analysisUsedThisMonth: 0,
-        currentPeriodStart: periodStart.toISOString(),
-        currentPeriodEnd: periodEnd.toISOString(),
+        subscription_plan: plan,
+        subscription_status: 'active',
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscription.id,
+        analysis_quota: quota,
+        analysis_used_this_month: 0,
+        current_period_start: periodStart.toISOString(),
+        current_period_end: periodEnd.toISOString(),
       })
       .eq('id', user.id);
 

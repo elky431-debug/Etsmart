@@ -106,33 +106,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Force Sync] Found: ${plan}, quota: ${quota}`);
 
-    // First, check if user exists and get current usage
+    // First, check if user exists and get current usage (snake_case columns!)
     let currentUsed = 0;
     const { data: existingUser } = await supabase
       .from('users')
-      .select('analysisUsedThisMonth')
+      .select('analysis_used_this_month')
       .eq('id', user.id)
       .single();
     
-    if (existingUser && typeof existingUser.analysisUsedThisMonth === 'number') {
-      currentUsed = existingUser.analysisUsedThisMonth;
+    if (existingUser && typeof existingUser.analysis_used_this_month === 'number') {
+      currentUsed = existingUser.analysis_used_this_month;
       console.log(`[Force Sync] Preserving current usage: ${currentUsed}`);
     }
 
-    // UPSERT into database - preserve existing usage count!
+    // UPSERT into database - preserve existing usage count! (snake_case columns!)
     const { error: upsertError } = await supabase
       .from('users')
       .upsert({
         id: user.id,
         email: user.email,
-        subscriptionPlan: plan,
-        subscriptionStatus: 'active',
-        analysisQuota: quota,
-        analysisUsedThisMonth: currentUsed, // Preserve existing usage!
-        stripeCustomerId: customer.id,
-        stripeSubscriptionId: subscription.id,
-        currentPeriodStart: periodStart.toISOString(),
-        currentPeriodEnd: periodEnd.toISOString(),
+        subscription_plan: plan,
+        subscription_status: 'active',
+        analysis_quota: quota,
+        analysis_used_this_month: currentUsed, // Preserve existing usage!
+        stripe_customer_id: customer.id,
+        stripe_subscription_id: subscription.id,
+        current_period_start: periodStart.toISOString(),
+        current_period_end: periodEnd.toISOString(),
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'id',

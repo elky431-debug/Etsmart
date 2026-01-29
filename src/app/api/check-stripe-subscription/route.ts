@@ -131,21 +131,21 @@ export async function GET(request: NextRequest) {
       console.warn('[Check Stripe] Could not fetch current usage:', fetchError);
     }
 
-    // Update database with subscription info (but DON'T reset the usage count!)
+    // Update database with subscription info (using snake_case column names!)
     try {
       await supabase
         .from('users')
         .upsert({
           id: user.id,
           email: user.email,
-          subscriptionPlan: plan,
-          subscriptionStatus: 'active',
-          stripeCustomerId: customer.id,
-          stripeSubscriptionId: subscription.id,
-          analysisQuota: quota,
-          // DON'T touch analysisUsedThisMonth - keep existing value!
-          currentPeriodStart: periodStart.toISOString(),
-          currentPeriodEnd: periodEnd.toISOString(),
+          subscription_plan: plan,
+          subscription_status: 'active',
+          stripe_customer_id: customer.id,
+          stripe_subscription_id: subscription.id,
+          analysis_quota: quota,
+          // DON'T touch analysis_used_this_month - keep existing value!
+          current_period_start: periodStart.toISOString(),
+          current_period_end: periodEnd.toISOString(),
         }, {
           onConflict: 'id',
           ignoreDuplicates: false,

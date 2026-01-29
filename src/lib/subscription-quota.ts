@@ -48,12 +48,12 @@ export async function incrementAnalysisCount(userId: string): Promise<{
       };
     }
     
-    // Handle both camelCase and snake_case column names
-    const subscriptionStatus = user.subscriptionStatus || user.subscription_status;
-    const subscriptionPlan = user.subscriptionPlan || user.subscription_plan;
-    const analysisUsed = user.analysisUsedThisMonth ?? user.analysis_used_this_month ?? 0;
-    const analysisQuota = user.analysisQuota ?? user.analysis_quota;
-    const periodEnd = user.currentPeriodEnd || user.current_period_end;
+    // Use snake_case column names (database standard)
+    const subscriptionStatus = user.subscription_status;
+    const subscriptionPlan = user.subscription_plan;
+    const analysisUsed = user.analysis_used_this_month ?? 0;
+    const analysisQuota = user.analysis_quota;
+    const periodEnd = user.current_period_end;
     
     console.log(`[incrementAnalysisCount] Parsed values:`, {
       subscriptionStatus,
@@ -83,7 +83,7 @@ export async function incrementAnalysisCount(userId: string): Promise<{
     
     if (periodEndDate && periodEndDate < now) {
       console.log(`[incrementAnalysisCount] Period expired, resetting quota`);
-      // Reset monthly quota
+      // Reset monthly quota (snake_case columns!)
       const newPeriodStart = new Date();
       const newPeriodEnd = new Date();
       newPeriodEnd.setDate(newPeriodEnd.getDate() + 30);
@@ -91,9 +91,9 @@ export async function incrementAnalysisCount(userId: string): Promise<{
       const { error: resetError } = await supabase
         .from('users')
         .update({
-          analysisUsedThisMonth: 0,
-          currentPeriodStart: newPeriodStart.toISOString(),
-          currentPeriodEnd: newPeriodEnd.toISOString(),
+          analysis_used_this_month: 0,
+          current_period_start: newPeriodStart.toISOString(),
+          current_period_end: newPeriodEnd.toISOString(),
         })
         .eq('id', userId);
       
@@ -120,14 +120,14 @@ export async function incrementAnalysisCount(userId: string): Promise<{
       };
     }
     
-    // Increment count
+    // Increment count (snake_case column!)
     const newUsed = currentUsed + 1;
     console.log(`[incrementAnalysisCount] Incrementing from ${currentUsed} to ${newUsed}`);
     
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        analysisUsedThisMonth: newUsed,
+        analysis_used_this_month: newUsed,
       })
       .eq('id', userId);
     
@@ -266,20 +266,20 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
 
     console.log(`[syncSubscriptionFromStripe] ✅ ACTIVE subscription found: ${plan}, quota: ${quota}`);
 
-    // Try to update database (but don't fail if it doesn't work)
+    // Try to update database (snake_case columns!)
     try {
       const supabase = createSupabaseAdminClient();
       
       await supabase
         .from('users')
         .update({
-          subscriptionPlan: plan,
-          subscriptionStatus: 'active',
-          analysisQuota: quota,
-          currentPeriodStart: periodStartDate.toISOString(),
-          currentPeriodEnd: periodEndDate.toISOString(),
-          stripeCustomerId: customer.id,
-          stripeSubscriptionId: subscriptionId,
+          subscription_plan: plan,
+          subscription_status: 'active',
+          analysis_quota: quota,
+          current_period_start: periodStartDate.toISOString(),
+          current_period_end: periodEndDate.toISOString(),
+          stripe_customer_id: customer.id,
+          stripe_subscription_id: subscriptionId,
         })
         .eq('id', userId);
 
@@ -345,33 +345,33 @@ export async function getUserQuotaInfo(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
-    // STEP 1: Check database first (FAST - no external API call)
+    // STEP 1: Check database first (FAST - snake_case columns!)
     const { data: user } = await supabase
       .from('users')
-      .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd, email')
+      .select('subscription_plan, subscription_status, analysis_used_this_month, analysis_quota, current_period_start, current_period_end, email')
       .eq('id', userId)
       .single();
     
     // If database says user has ACTIVE subscription, use it immediately (FAST PATH)
-    if (user && user.subscriptionStatus === 'active') {
-      console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscriptionPlan}`);
-      const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 100;
-      const used = user.analysisUsedThisMonth || 0;
+    if (user && user.subscription_status === 'active') {
+      console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscription_plan}`);
+      const quota = user.analysis_quota || PLAN_QUOTAS[user.subscription_plan as PlanId] || 100;
+      const used = user.analysis_used_this_month || 0;
       const remaining = Math.max(0, quota - used);
       
       let requiresUpgrade: PlanId | undefined;
       if (used >= quota) {
-        requiresUpgrade = getUpgradeSuggestion(user.subscriptionPlan as PlanId) || undefined;
+        requiresUpgrade = getUpgradeSuggestion(user.subscription_plan as PlanId) || undefined;
       }
       
       return {
-        plan: user.subscriptionPlan as PlanId,
+        plan: user.subscription_plan as PlanId,
         status: 'active',
         used,
         quota,
         remaining,
-        periodStart: user.currentPeriodStart ? new Date(user.currentPeriodStart) : null,
-        periodEnd: user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null,
+        periodStart: user.current_period_start ? new Date(user.current_period_start) : null,
+        periodEnd: user.current_period_end ? new Date(user.current_period_end) : null,
         requiresUpgrade,
       };
     }
@@ -398,7 +398,7 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       
       if (stripeData && stripeData.status === 'active' && stripeData.plan) {
         console.log(`[getUserQuotaInfo] ✅ Stripe says ACTIVE: ${stripeData.plan}, quota: ${stripeData.quota}`);
-        const used = user?.analysisUsedThisMonth || 0;
+        const used = user?.analysis_used_this_month || 0;
         const quota = stripeData.quota;
         
         return {

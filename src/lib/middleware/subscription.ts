@@ -28,10 +28,10 @@ export interface SubscriptionCheckResult {
 async function getUserSubscriptionData(userId: string): Promise<SubscriptionCheckResult['subscription'] | null> {
   const supabase = createSupabaseAdminClient();
   
-  // Get user subscription from users table (assuming we add these fields)
+  // Get user subscription from users table (snake_case columns!)
   const { data: user, error } = await supabase
     .from('users')
-    .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
+    .select('subscription_plan, subscription_status, analysis_used_this_month, analysis_quota, current_period_start, current_period_end')
     .eq('id', userId)
     .single();
   
@@ -39,12 +39,12 @@ async function getUserSubscriptionData(userId: string): Promise<SubscriptionChec
     return null;
   }
   
-  const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
-  const used = user.analysisUsedThisMonth || 0;
+  const quota = user.analysis_quota || PLAN_QUOTAS[user.subscription_plan as PlanId] || 0;
+  const used = user.analysis_used_this_month || 0;
   
   return {
-    plan: user.subscriptionPlan as PlanId,
-    status: user.subscriptionStatus,
+    plan: user.subscription_plan as PlanId,
+    status: user.subscription_status,
     used,
     quota,
     remaining: Math.max(0, quota - used),

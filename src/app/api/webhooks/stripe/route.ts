@@ -118,19 +118,19 @@ export async function POST(request: NextRequest) {
         const periodEnd = new Date(now);
         periodEnd.setDate(periodEnd.getDate() + 30);
 
-        // Check if user exists and get current usage (for upgrades/downgrades)
+        // Check if user exists and get current usage (snake_case columns!)
         let currentUsed = 0;
         const { data: existingUser } = await supabase
           .from('users')
-          .select('analysisUsedThisMonth, currentPeriodEnd')
+          .select('analysis_used_this_month, current_period_end')
           .eq('id', userId)
           .single();
         
         if (existingUser) {
           // If within same billing period, preserve usage
-          const existingPeriodEnd = existingUser.currentPeriodEnd ? new Date(existingUser.currentPeriodEnd) : null;
+          const existingPeriodEnd = existingUser.current_period_end ? new Date(existingUser.current_period_end) : null;
           if (existingPeriodEnd && existingPeriodEnd > now) {
-            currentUsed = existingUser.analysisUsedThisMonth || 0;
+            currentUsed = existingUser.analysis_used_this_month || 0;
             console.log(`[Webhook] Preserving usage: ${currentUsed} (same billing period)`);
           } else {
             // New billing period, reset to 0
@@ -139,20 +139,20 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Use upsert to create or update the user
+        // Use upsert to create or update the user (snake_case columns!)
         const { error: updateError } = await supabase
           .from('users')
           .upsert({
             id: userId,
             email: customerEmail,
-            subscriptionPlan: planId,
-            subscriptionStatus: 'active',
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId,
-            analysisQuota: quota,
-            analysisUsedThisMonth: currentUsed,
-            currentPeriodStart: now.toISOString(),
-            currentPeriodEnd: periodEnd.toISOString(),
+            subscription_plan: planId,
+            subscription_status: 'active',
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            analysis_quota: quota,
+            analysis_used_this_month: currentUsed,
+            current_period_start: now.toISOString(),
+            current_period_end: periodEnd.toISOString(),
           }, {
             onConflict: 'id',
           });
@@ -230,13 +230,13 @@ export async function POST(request: NextRequest) {
           .upsert({
             id: user.id,
             email: customerEmail,
-            subscriptionPlan: planId,
-            subscriptionStatus: status,
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscription.id,
-            analysisQuota: quota,
-            currentPeriodStart: periodStart.toISOString(),
-            currentPeriodEnd: periodEnd.toISOString(),
+            subscription_plan: planId,
+            subscription_status: status,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            analysis_quota: quota,
+            current_period_start: periodStart.toISOString(),
+            current_period_end: periodEnd.toISOString(),
           }, {
             onConflict: 'id',
           });
@@ -259,11 +259,11 @@ export async function POST(request: NextRequest) {
 
         if (!customerId) break;
 
-        // Find user by stripeCustomerId
+        // Find user by stripe_customer_id (snake_case!)
         const { data: user } = await supabase
           .from('users')
           .select('id')
-          .eq('stripeCustomerId', customerId)
+          .eq('stripe_customer_id', customerId)
           .single();
 
         if (!user) {
@@ -274,9 +274,9 @@ export async function POST(request: NextRequest) {
         await supabase
           .from('users')
           .update({
-            subscriptionStatus: 'canceled',
-            subscriptionPlan: 'FREE',
-            analysisQuota: 0,
+            subscription_status: 'canceled',
+            subscription_plan: 'FREE',
+            analysis_quota: 0,
           })
           .eq('id', user.id);
 
@@ -296,18 +296,18 @@ export async function POST(request: NextRequest) {
 
         const { data: user } = await supabase
           .from('users')
-          .select('id, subscriptionPlan')
-          .eq('stripeCustomerId', customerId)
+          .select('id, subscription_plan')
+          .eq('stripe_customer_id', customerId)
           .single();
 
         if (user) {
-          const quota = PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 100;
+          const quota = PLAN_QUOTAS[user.subscription_plan as PlanId] || 100;
           await supabase
             .from('users')
             .update({
-              analysisUsedThisMonth: 0,
-              subscriptionStatus: 'active',
-              analysisQuota: quota,
+              analysis_used_this_month: 0,
+              subscription_status: 'active',
+              analysis_quota: quota,
             })
             .eq('id', user.id);
           

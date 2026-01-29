@@ -56,16 +56,16 @@ export async function POST(request: NextRequest) {
       console.log(`[Cancel] Found subscription in DB: ${stripeSubscriptionId}`);
     }
 
-    // Method 2: Try to get from users table
+    // Method 2: Try to get from users table (snake_case columns!)
     if (!stripeSubscriptionId) {
       const { data: userData } = await supabase
         .from('users')
-        .select('stripeSubscriptionId')
+        .select('stripe_subscription_id')
         .eq('id', user.id)
         .single();
 
-      if (userData?.stripeSubscriptionId) {
-        stripeSubscriptionId = userData.stripeSubscriptionId;
+      if (userData?.stripe_subscription_id) {
+        stripeSubscriptionId = userData.stripe_subscription_id;
         console.log(`[Cancel] Found subscription in users table: ${stripeSubscriptionId}`);
       }
     }
@@ -120,11 +120,11 @@ export async function POST(request: NextRequest) {
       })
       .eq('user_id', user.id);
 
-    // Update users table
+    // Update users table (snake_case column!)
     await supabase
       .from('users')
       .update({
-        subscriptionStatus: 'canceling',
+        subscription_status: 'canceling',
       })
       .eq('id', user.id);
 
