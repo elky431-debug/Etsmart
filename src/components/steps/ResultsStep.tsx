@@ -214,7 +214,7 @@ function CreativePromptGenerator({
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
-            <span>Open an AI image generator (Midjourney, DALL-E, etc.)</span>
+            <span>Open ChatGPT, Midjourney or other image AI</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
