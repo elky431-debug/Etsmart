@@ -80,54 +80,119 @@ export function AnalysisStep() {
   // ═══════════════════════════════════════════════════════════════════════════
   // FONCTION HELPER: Sauvegarde fiable de l'analyse dans la DB
   // ═══════════════════════════════════════════════════════════════════════════
-  const saveAnalysisToDatabase = async (analysis: any) => {
+  const saveAnalysisToDatabase = async (analysis: any): Promise<boolean> => {
+    console.log('💾 [SAVE] Starting analysis save to database...');
+    
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
-        console.log('ℹ️ User not authenticated, analysis will be saved in localStorage only');
-        return; // Pas connecté, on skip (mais l'analyse est dans le store)
+        console.log('ℹ️ [SAVE] User not authenticated, skipping DB save');
+        return false;
       }
       
-      try {
-        // First, save the product to database
-        let savedProduct = analysis.product;
-        try {
-          const { data: existingProducts } = await supabase
-            .from('products')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('url', analysis.product.url)
-            .limit(1);
-          
-          if (existingProducts && existingProducts.length > 0) {
-            savedProduct = {
-              ...analysis.product,
-              id: existingProducts[0].id,
-            };
-          } else {
-            savedProduct = await productDb.createProduct(user.id, analysis.product);
-          }
-        } catch (productError: any) {
-          console.error('❌ Error saving product to database:', productError?.message);
-          // Continue anyway - on utilisera le produit original
+      console.log('👤 [SAVE] User authenticated:', user.id);
+      
+      // STEP 1: Create or find product in database
+      let productId: string | null = null;
+      const productUrl = analysis.product.url || `local-${Date.now()}`;
+      
+      // Try to find existing product by URL
+      const { data: existingProducts, error: findError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('url', productUrl)
+        .limit(1);
+      
+      if (findError) {
+        console.error('❌ [SAVE] Error finding product:', findError.message);
+      }
+      
+      if (existingProducts && existingProducts.length > 0) {
+        productId = existingProducts[0].id;
+        console.log('✅ [SAVE] Found existing product:', productId);
+      } else {
+        // Create new product
+        const { data: newProduct, error: createError } = await supabase
+          .from('products')
+          .insert({
+            user_id: user.id,
+            url: productUrl,
+            source: analysis.product.source || 'aliexpress',
+            title: analysis.product.title || 'Untitled Product',
+            description: analysis.product.description || '',
+            images: analysis.product.images || [],
+            price: analysis.product.price || 0,
+            currency: analysis.product.currency || 'USD',
+            category: analysis.niche || 'custom',
+            niche: analysis.niche || 'custom',
+            shipping_time: analysis.product.shippingTime || '',
+            min_order_quantity: analysis.product.minOrderQuantity || 1,
+            supplier_rating: analysis.product.supplierRating || 0,
+          })
+          .select('id')
+          .single();
+        
+        if (createError) {
+          console.error('❌ [SAVE] Error creating product:', {
+            message: createError.message,
+            details: createError.details,
+            code: createError.code,
+          });
+          return false;
         }
         
-        // Then save the analysis
-        const analysisWithSavedProduct = {
-          ...analysis,
-          product: savedProduct,
-        };
-        
-        await analysisDb.saveAnalysis(user.id, analysisWithSavedProduct);
-        console.log('✅ Analysis saved to database successfully');
-      } catch (saveError: any) {
-        console.error('❌ Error saving analysis to database:', saveError?.message);
-        // Non-critique, on continue - l'analyse est dans le store local
+        if (newProduct) {
+          productId = newProduct.id;
+          console.log('✅ [SAVE] Created new product:', productId);
+        }
       }
+      
+      if (!productId) {
+        console.error('❌ [SAVE] No product ID available');
+        return false;
+      }
+      
+      // STEP 2: Save analysis with product_id
+      const { error: analysisError } = await supabase
+        .from('product_analyses')
+        .upsert({
+          product_id: productId,
+          user_id: user.id,
+          verdict: analysis.verdict?.verdict || 'test',
+          confidence_score: analysis.verdict?.confidenceScore || 50,
+          summary: analysis.verdict?.summary || '',
+          ai_comment: analysis.verdict?.aiComment || '',
+          total_competitors: analysis.competitors?.totalCompetitors || 0,
+          average_market_price: analysis.competitors?.averageMarketPrice || 0,
+          recommended_price: analysis.pricing?.recommendedPrice || 0,
+          saturation_phase: analysis.saturation?.phase || 'launch',
+          saturation_probability: analysis.saturation?.saturationProbability || 0,
+          viral_title_en: analysis.verdict?.viralTitleEN || '',
+          seo_tags: analysis.verdict?.seoTags || [],
+          etsy_search_query: analysis.verdict?.etsySearchQuery || '',
+          launch_simulation: analysis.launchSimulation || null,
+          full_analysis_data: analysis,
+        }, {
+          onConflict: 'product_id,user_id',
+        });
+      
+      if (analysisError) {
+        console.error('❌ [SAVE] Error saving analysis:', {
+          message: analysisError.message,
+          details: analysisError.details,
+          code: analysisError.code,
+        });
+        return false;
+      }
+      
+      console.log('✅ [SAVE] Analysis saved successfully to database!');
+      return true;
+      
     } catch (error: any) {
-      console.error('❌ Error in saveAnalysisToDatabase:', error?.message);
-      // Silently fail - not critical, analysis is in local store
+      console.error('❌ [SAVE] Exception during save:', error?.message || error);
+      return false;
     }
   };
 
@@ -190,10 +255,16 @@ export function AnalysisStep() {
         // Ajouter l'analyse au store temporairement (pour l'affichage)
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
-          
-          // Sauvegarde DB en arrière-plan (non-bloquante) - TOUJOURS sauvegarder
-          saveAnalysisToDatabase(analysis);
-        } catch (error: any) {
+        
+        // Sauvegarde DB - IMPORTANT pour l'historique
+        saveAnalysisToDatabase(analysis).then(success => {
+          if (success) {
+            console.log('✅ [HISTORY] Analysis saved for product:', product.title?.substring(0, 30));
+          } else {
+            console.warn('⚠️ [HISTORY] Failed to save analysis, will retry in ResultsStep');
+          }
+        });
+      } catch (error: any) {
           console.error(`❌ Error analyzing product:`, error);
           
           // Même si ça échoue, on continue - le fallback dans analyzeProduct devrait gérer ça
@@ -321,7 +392,11 @@ export function AnalysisStep() {
           setAnalysisComplete(true);
           
           // Sauvegarder aussi le fallback analysis dans la DB
-          saveAnalysisToDatabase(fallbackAnalysis);
+          saveAnalysisToDatabase(fallbackAnalysis).then(success => {
+            if (!success) {
+              console.warn('⚠️ [HISTORY] Failed to save fallback analysis');
+            }
+          });
         }
       
       console.log('✅ All analyses completed');
