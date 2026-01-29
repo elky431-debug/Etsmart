@@ -55,7 +55,7 @@ export default function LegalPage() {
                 <p className="text-slate-700"><strong>Company Name:</strong> Etsmart</p>
                 <p className="text-slate-700"><strong>Legal Form:</strong> SAS (Société par Actions Simplifiée)</p>
                 <p className="text-slate-700"><strong>Headquarters:</strong> Paris, France</p>
-                <p className="text-slate-700"><strong>Email:</strong> contact@etsmart.app</p>
+                <p className="text-slate-700"><strong>Email:</strong> elky431@gmail.com</p>
                 <p className="text-slate-700"><strong>Website:</strong> https://etsmart.app</p>
               </div>
             </section>

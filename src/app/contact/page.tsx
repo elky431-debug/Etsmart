@@ -83,10 +83,10 @@ export default function ContactPage() {
                 <h3 className="text-lg font-bold text-slate-900 mb-2">Email</h3>
                 <p className="text-slate-600 mb-3">Send us an email anytime</p>
                 <a 
-                  href="mailto:contact@etsmart.app" 
+                  href="mailto:elky431@gmail.com" 
                   className="text-cyan-600 font-medium hover:underline"
                 >
-                  contact@etsmart.app
+                  elky431@gmail.com
                 </a>
               </motion.div>
 
