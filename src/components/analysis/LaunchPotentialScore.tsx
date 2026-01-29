@@ -77,10 +77,28 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className={`text-lg font-bold ${colors.text} mb-2`}
+            className={`text-lg font-bold ${colors.text} mb-3`}
           >
             {score.verdict}
           </motion.p>
+          
+          {/* Score Justification - AI Explanation */}
+          {score.scoreJustification && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+              className="p-4 rounded-xl bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20 mb-4"
+            >
+              <div className="flex items-start gap-2">
+                <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {score.scoreJustification}
+                </p>
+              </div>
+            </motion.div>
+          )}
+          
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

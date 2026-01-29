@@ -73,6 +73,7 @@ export interface LaunchPotentialScore {
   tier: 'saturated' | 'competitive' | 'favorable'; // Tranche : 0-3 / 4-7 / 8-10
   verdict: string; // Verdict texte court
   explanation: string; // Explication détaillée
+  scoreJustification: string; // Justification détaillée du score en 3-4 lignes
   badge: '🔴' | '🟡' | '🟢'; // Badge visuel
   factors: {
     competitionDensity: 'low' | 'medium' | 'high';

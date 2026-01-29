@@ -16,6 +16,7 @@ interface AIAnalysisRequest {
 interface AIAnalysisResponse {
   decision: string;
   confidenceScore: number;
+  scoreJustification?: string; // Justification du score en 2-3 phrases
   
   // Saturation & Concurrence
   estimatedCompetitors: number;
@@ -368,7 +369,7 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE:
+10. SCORE DE CONFIANCE ET JUSTIFICATION:
     - Attribue un score de confiance entre 30 et 95
     - Le score doit refléter la fiabilité de ton analyse
     - Facteurs à considérer:
@@ -376,6 +377,10 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
       * Spécificité de la niche
       * Qualité de tes estimations
       * Cohérence de tes données
+    - OBLIGATOIRE: Fournis une justification du score en 2-3 phrases (scoreJustification)
+      * Explique pourquoi tu as attribué ce score précis
+      * Mentionne les points forts ET les points faibles identifiés
+      * Sois concis mais informatif
 
 ═══════════════════════════════════════════════════════════════════════════════
 FORMAT DE RÉPONSE STRICT (JSON UNIQUEMENT)
@@ -392,6 +397,7 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
   "supplierPriceReasoning": "justification courte de l'estimation",
   "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
   "confidenceScore": nombre entre 30 et 95,
+  "scoreJustification": "2-3 phrases expliquant pourquoi ce score, points forts et faibles",
   "estimatedCompetitors": nombre,
   "competitorEstimationReasoning": "justification courte de l'estimation",
   "competitorEstimationReliable": bool,

@@ -21,6 +21,7 @@ export interface LaunchPotentialResult {
   tier: 'saturated' | 'competitive' | 'favorable'; // Tranche : 0-3 / 4-7 / 8-10
   verdict: string; // Verdict texte court
   explanation: string; // Explication détaillée
+  scoreJustification: string; // Justification détaillée du score en 3-4 lignes
   badge: '🔴' | '🟡' | '🟢'; // Badge visuel
   factors: {
     competitionDensity: 'low' | 'medium' | 'high';
@@ -371,6 +372,64 @@ function generateExplanation(
 }
 
 /**
+ * Génère une justification détaillée du score en 3-4 lignes
+ */
+function generateScoreJustification(
+  score: number,
+  tier: 'saturated' | 'competitive' | 'favorable',
+  factors: LaunchPotentialResult['factors'],
+  isGenericJewelry: boolean
+): string {
+  const lines: string[] = [];
+  
+  // Ligne 1: Résumé du score
+  if (score >= 8) {
+    lines.push(`Excellent score of ${score}/10 indicating a strong market opportunity.`);
+  } else if (score >= 6) {
+    lines.push(`Good score of ${score}/10 suggesting a viable launch with proper strategy.`);
+  } else if (score >= 4) {
+    lines.push(`Moderate score of ${score}/10 indicating a competitive market requiring differentiation.`);
+  } else {
+    lines.push(`Low score of ${score}/10 due to challenging market conditions.`);
+  }
+  
+  // Ligne 2: Points forts
+  const strengths: string[] = [];
+  if (factors.competitionDensity === 'low') strengths.push('low competition density');
+  if (factors.nicheSaturation === 'low') strengths.push('underserved niche');
+  if (factors.productSpecificity === 'high') strengths.push('highly differentiated product');
+  if (factors.productSpecificity === 'medium' && factors.nicheSaturation !== 'high') strengths.push('reasonable product positioning');
+  
+  if (strengths.length > 0) {
+    lines.push(`Strengths: ${strengths.join(', ')}.`);
+  }
+  
+  // Ligne 3: Points faibles ou défis
+  const challenges: string[] = [];
+  if (factors.competitionDensity === 'high') challenges.push('intense competition');
+  if (factors.nicheSaturation === 'high') challenges.push('saturated market segment');
+  if (factors.productSpecificity === 'low') challenges.push('product lacks unique differentiation');
+  if (isGenericJewelry) challenges.push('generic jewelry faces extreme saturation on Etsy');
+  
+  if (challenges.length > 0) {
+    lines.push(`Challenges: ${challenges.join(', ')}.`);
+  } else if (tier === 'favorable') {
+    lines.push('No major obstacles identified for market entry.');
+  }
+  
+  // Ligne 4: Recommandation
+  if (tier === 'favorable') {
+    lines.push('Recommended to proceed with launch while maintaining quality standards.');
+  } else if (tier === 'competitive') {
+    lines.push('Consider investing in SEO optimization and unique branding to stand out.');
+  } else {
+    lines.push('Strongly recommend finding a more specific angle or targeting a different niche.');
+  }
+  
+  return lines.join(' ');
+}
+
+/**
  * Fonction principale: Calcule le Launch Potential Score
  */
 export function calculateLaunchPotentialScore(
@@ -416,11 +475,20 @@ export function calculateLaunchPotentialScore(
     explanation = 'Generic jewelry products without unique specificity (such as medieval style, personalization, or niche themes) face extremely high market saturation on Etsy. ' + explanation;
   }
   
+  // Générer la justification détaillée du score
+  const scoreJustification = generateScoreJustification(
+    score,
+    tier,
+    { competitionDensity, nicheSaturation, productSpecificity },
+    isGenericJewelryProduct
+  );
+  
   return {
     score,
     tier,
     verdict,
     explanation,
+    scoreJustification,
     badge,
     factors: {
       competitionDensity,
