@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
@@ -50,6 +51,10 @@ export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const isMobile = useIsMobile();
+  
+  // 🔒 Protect this page - redirect to /pricing if no active subscription
+  const { isActive: hasActiveSubscription, isLoading: subscriptionLoading } = useSubscriptionProtection();
+  
   const [activeSection, setActiveSection] = useState<DashboardSection>('history');
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
@@ -235,7 +240,7 @@ export default function DashboardPage() {
     router.push('/');
   };
 
-  if (loading || isLoading) {
+  if (loading || isLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
           <div className="text-center">

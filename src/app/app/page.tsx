@@ -59,11 +59,15 @@ const ResultsStep = dynamic(() => import('@/components/steps/ResultsStep').then(
 });
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 
 export default function AppPage() {
   const { currentStep } = useStore();
   const { user, loading } = useAuth();
   const router = useRouter();
+  
+  // 🔒 Protect this page - redirect to /pricing if no active subscription
+  const { isActive: hasActiveSubscription, isLoading: subscriptionLoading } = useSubscriptionProtection();
 
   useEffect(() => {
     // Protection contre les erreurs SSR/mobile
@@ -74,7 +78,7 @@ export default function AppPage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  if (loading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center px-4">
@@ -85,7 +89,7 @@ export default function AppPage() {
     );
   }
 
-  if (!user) {
+  if (!user || !hasActiveSubscription) {
     return null; // Will redirect
   }
 
