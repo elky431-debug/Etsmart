@@ -106,7 +106,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Force Sync] Found: ${plan}, quota: ${quota}`);
 
-    // UPSERT into database with minimal fields
+    // First, check if user exists and get current usage
+    let currentUsed = 0;
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('analysisUsedThisMonth')
+      .eq('id', user.id)
+      .single();
+    
+    if (existingUser && typeof existingUser.analysisUsedThisMonth === 'number') {
+      currentUsed = existingUser.analysisUsedThisMonth;
+      console.log(`[Force Sync] Preserving current usage: ${currentUsed}`);
+    }
+
+    // UPSERT into database - preserve existing usage count!
     const { error: upsertError } = await supabase
       .from('users')
       .upsert({
@@ -115,7 +128,7 @@ export async function POST(request: NextRequest) {
         subscriptionPlan: plan,
         subscriptionStatus: 'active',
         analysisQuota: quota,
-        analysisUsedThisMonth: 0,
+        analysisUsedThisMonth: currentUsed, // Preserve existing usage!
         stripeCustomerId: customer.id,
         stripeSubscriptionId: subscription.id,
         currentPeriodStart: periodStart.toISOString(),
@@ -153,8 +166,8 @@ export async function POST(request: NextRequest) {
         plan,
         status: 'active',
         quota,
-        used: 0,
-        remaining: quota,
+        used: currentUsed,
+        remaining: Math.max(0, quota - currentUsed),
         customerId: customer.id,
         subscriptionId: subscription.id,
         periodStart: periodStart.toISOString(),

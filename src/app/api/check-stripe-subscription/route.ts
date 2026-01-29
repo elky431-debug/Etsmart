@@ -110,7 +110,24 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, cancelAtPeriodEnd: ${cancelAtPeriodEnd}`);
 
-    // Try to update database (but don't fail if it doesn't work)
+    // Fetch current usage from database FIRST
+    let currentUsed = 0;
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('analysisUsedThisMonth')
+        .eq('id', user.id)
+        .single();
+      
+      if (userData && typeof userData.analysisUsedThisMonth === 'number') {
+        currentUsed = userData.analysisUsedThisMonth;
+        console.log(`[Check Stripe] Current usage from DB: ${currentUsed}`);
+      }
+    } catch (fetchError) {
+      console.warn('[Check Stripe] Could not fetch current usage:', fetchError);
+    }
+
+    // Update database with subscription info (but DON'T reset the usage count!)
     try {
       await supabase
         .from('users')
@@ -122,25 +139,28 @@ export async function GET(request: NextRequest) {
           stripeCustomerId: customer.id,
           stripeSubscriptionId: subscription.id,
           analysisQuota: quota,
-          analysisUsedThisMonth: 0,
+          // DON'T touch analysisUsedThisMonth - keep existing value!
           currentPeriodStart: periodStart.toISOString(),
           currentPeriodEnd: periodEnd.toISOString(),
         }, {
           onConflict: 'id',
+          ignoreDuplicates: false,
         });
       console.log(`[Check Stripe] Database updated for user ${user.id}`);
     } catch (dbError) {
       console.error('[Check Stripe] Database update failed (non-critical):', dbError);
     }
 
+    const remaining = Math.max(0, quota - currentUsed);
+    
     return NextResponse.json({
       hasSubscription: true,
       plan,
       status: cancelAtPeriodEnd ? 'canceling' : 'active',
       cancelAtPeriodEnd,
       quota,
-      used: 0,
-      remaining: quota,
+      used: currentUsed,
+      remaining: remaining,
       customerId: customer.id,
       subscriptionId: subscription.id,
       priceId,

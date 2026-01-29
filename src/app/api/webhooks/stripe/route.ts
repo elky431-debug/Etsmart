@@ -118,6 +118,27 @@ export async function POST(request: NextRequest) {
         const periodEnd = new Date(now);
         periodEnd.setDate(periodEnd.getDate() + 30);
 
+        // Check if user exists and get current usage (for upgrades/downgrades)
+        let currentUsed = 0;
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('analysisUsedThisMonth, currentPeriodEnd')
+          .eq('id', userId)
+          .single();
+        
+        if (existingUser) {
+          // If within same billing period, preserve usage
+          const existingPeriodEnd = existingUser.currentPeriodEnd ? new Date(existingUser.currentPeriodEnd) : null;
+          if (existingPeriodEnd && existingPeriodEnd > now) {
+            currentUsed = existingUser.analysisUsedThisMonth || 0;
+            console.log(`[Webhook] Preserving usage: ${currentUsed} (same billing period)`);
+          } else {
+            // New billing period, reset to 0
+            currentUsed = 0;
+            console.log(`[Webhook] New billing period - reset usage to 0`);
+          }
+        }
+
         // Use upsert to create or update the user
         const { error: updateError } = await supabase
           .from('users')
@@ -129,7 +150,7 @@ export async function POST(request: NextRequest) {
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
             analysisQuota: quota,
-            analysisUsedThisMonth: 0,
+            analysisUsedThisMonth: currentUsed,
             currentPeriodStart: now.toISOString(),
             currentPeriodEnd: periodEnd.toISOString(),
           }, {
