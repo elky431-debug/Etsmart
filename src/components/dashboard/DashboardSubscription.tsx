@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, XCircle, Sparkles, Star, Rocket } from 'lucide-react';
+import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, XCircle, Sparkles, Star, Rocket, AlertTriangle } from 'lucide-react';
 import { PLANS, type Plan, type Subscription, type PlanId } from '@/types/subscription';
 import { getUserSubscription, getUsageStats } from '@/lib/subscriptions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,12 +107,12 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                   plan_name: plan.name,
                   price: plan.price,
                   currency: 'USD',
-                  status: 'active',
+                  status: stripeData.status || 'active',
                   analyses_used_current_month: stripeData.used || 0,
                   current_period_start: stripeData.periodStart || new Date().toISOString(),
                   current_period_end: stripeData.periodEnd || new Date().toISOString(),
                   month_reset_date: stripeData.periodEnd || new Date().toISOString(),
-                  cancel_at_period_end: false,
+                  cancel_at_period_end: stripeData.cancelAtPeriodEnd || false,
                   stripe_subscription_id: stripeData.subscriptionId,
                   stripe_customer_id: stripeData.customerId,
                   created_at: new Date().toISOString(),
@@ -454,6 +454,52 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             </button>
           </div>
 
+          {/* Subscription Ending Warning */}
+          {subscription.cancel_at_period_end && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-amber-500/10 border-2 border-amber-200 mb-6"
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">Subscription Ending</h2>
+                </div>
+
+                <div className="bg-amber-50/80 rounded-xl p-4 mb-5 border border-amber-200">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-800 font-medium mb-1">
+                        Your subscription has been canceled
+                      </p>
+                      <p className="text-sm text-amber-700">
+                        You will retain access until the end of your billing period
+                        {subscription.current_period_end && (
+                          <span className="font-semibold">
+                            {' '}({new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})
+                          </span>
+                        )}.
+                        After that, you will be switched to the free plan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                >
+                  <CreditCard size={18} />
+                  <span>Subscribe again</span>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
           {/* Current Plan Card */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -479,8 +525,12 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                       <h2 className="text-2xl font-bold text-slate-900">
                         {currentPlan.name}
                       </h2>
-                      <span className="px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-500 text-white text-xs font-bold rounded-full shadow-sm">
-                        Active
+                      <span className={`px-3 py-1 text-white text-xs font-bold rounded-full shadow-sm ${
+                        subscription.cancel_at_period_end
+                          ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                          : 'bg-gradient-to-r from-emerald-400 to-green-500'
+                      }`}>
+                        {subscription.cancel_at_period_end ? 'Ending' : 'Active'}
                       </span>
                     </div>
                     <p className="text-slate-500 mt-1">Your current subscription plan</p>
@@ -558,16 +608,26 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 </div>
               </div>
 
-              {/* Cancel Button */}
+              {/* Cancel/Resubscribe Button */}
               <div className="pt-6 border-t border-slate-200">
-                <button
-                  onClick={handleCancelSubscription}
-                  disabled={canceling}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-600 hover:text-white hover:bg-red-500 rounded-xl border border-red-200 hover:border-red-500 transition-all disabled:opacity-50"
-                >
-                  <XCircle className="w-4 h-4" />
-                  {canceling ? 'Canceling...' : 'Cancel Subscription'}
-                </button>
+                {subscription.cancel_at_period_end ? (
+                  <Link
+                    href="/pricing"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Subscribe again
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={canceling}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-600 hover:text-white hover:bg-red-500 rounded-xl border border-red-200 hover:border-red-500 transition-all disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    {canceling ? 'Canceling...' : 'Cancel Subscription'}
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

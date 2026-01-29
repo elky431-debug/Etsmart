@@ -657,46 +657,6 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
               </>
             )}
 
-            {/* Subscription is canceling - show resubscribe option */}
-            {subscriptionInfo.status === 'canceling' && (
-              <>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900">Subscription Ending</h2>
-                </div>
-
-                <div className="bg-amber-50/50 rounded-xl p-4 mb-5 border border-amber-100">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-amber-800 font-medium mb-1">
-                        Your subscription has been canceled
-                      </p>
-                      <p className="text-sm text-amber-700">
-                        You will retain access until the end of your billing period
-                        {subscriptionInfo.cancelAt && (
-                          <span className="font-semibold">
-                            {' '}({new Date(subscriptionInfo.cancelAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})
-                          </span>
-                        )}.
-                        After that, you will be switched to the free plan.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <a
-                  href="/pricing"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
-                >
-                  <CreditCard size={18} />
-                  <span>Subscribe again</span>
-                </a>
-              </>
-            )}
-
             {/* No subscription - show subscribe option */}
             {subscriptionInfo.status === 'none' && (
               <>
