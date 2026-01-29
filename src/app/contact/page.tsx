@@ -20,12 +20,29 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    setFormData({ name: '', email: '', subject: '', message: '' });
+    try {
+      // Submit to Netlify Forms
+      const response = await fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          'form-name': 'contact',
+          ...formData,
+        }).toString(),
+      });
+      
+      if (response.ok) {
+        setIsSubmitted(true);
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        alert('Error sending message. Please try again or email us directly.');
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      alert('Error sending message. Please try again or email us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -153,7 +170,17 @@ export default function ContactPage() {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form 
+                    onSubmit={handleSubmit} 
+                    className="space-y-6"
+                    name="contact"
+                    data-netlify="true"
+                    netlify-honeypot="bot-field"
+                  >
+                  {/* Hidden fields for Netlify Forms */}
+                  <input type="hidden" name="form-name" value="contact" />
+                  <input type="hidden" name="bot-field" />
+                  
                   <h2 className="text-2xl font-bold text-slate-900 mb-6">Send us a message</h2>
                   
                   <div className="grid md:grid-cols-2 gap-6">
@@ -163,6 +190,7 @@ export default function ContactPage() {
                       </label>
                       <input
                         type="text"
+                        name="name"
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -176,6 +204,7 @@ export default function ContactPage() {
                       </label>
                       <input
                         type="email"
+                        name="email"
                         required
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -190,6 +219,7 @@ export default function ContactPage() {
                       Subject
                     </label>
                     <select
+                      name="subject"
                       required
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
@@ -210,6 +240,7 @@ export default function ContactPage() {
                       Message
                     </label>
                     <textarea
+                      name="message"
                       required
                       rows={6}
                       value={formData.message}
