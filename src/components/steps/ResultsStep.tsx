@@ -1016,49 +1016,102 @@ export function ResultsStep() {
         const { productDb } = await import('@/lib/db/products');
         
         // ═══════════════════════════════════════════════════════════════════════════
-        // SAUVEGARDE DE SECOURS: S'assurer que l'analyse actuelle est sauvegardée
-        // Cette sauvegarde se déclenche à chaque fois que ResultsStep est monté
-        // pour garantir que l'analyse apparaîtra dans l'historique
+        // SAUVEGARDE GARANTIE: Chaque analyse DOIT être sauvegardée dans l'historique
+        // Cette fonction est appelée à chaque montage de ResultsStep
         // ═══════════════════════════════════════════════════════════════════════════
         if (storeAnalyses.length > 0) {
           for (const analysis of storeAnalyses) {
             try {
-              console.log('🔄 Backup save: Ensuring analysis is in database...', analysis.product.title?.substring(0, 30));
+              console.log('💾 [HISTORY SAVE] Starting save for:', analysis.product.title?.substring(0, 40));
               
-              // D'abord s'assurer que le produit existe dans la DB
-              let productId = analysis.product.id;
-              try {
-                const { data: existingProducts } = await supabase
-                  .from('products')
-                  .select('id')
-                  .eq('user_id', user.id)
-                  .eq('url', analysis.product.url)
-                  .limit(1);
-                
-                if (existingProducts && existingProducts.length > 0) {
-                  productId = existingProducts[0].id;
-                } else {
-                  // Créer le produit s'il n'existe pas
-                  const savedProduct = await productDb.createProduct(user.id, analysis.product);
-                  productId = savedProduct.id;
-                  console.log('✅ Product created in database:', productId);
+              // ÉTAPE 1: Créer ou trouver le produit dans la base de données
+              let dbProductId: string | null = null;
+              
+              // Chercher d'abord par URL (identifiant unique du produit)
+              const { data: existingByUrl } = await supabase
+                .from('products')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('url', analysis.product.url)
+                .limit(1);
+              
+              if (existingByUrl && existingByUrl.length > 0) {
+                dbProductId = existingByUrl[0].id;
+                console.log('✅ [HISTORY] Found existing product by URL:', dbProductId);
+              } else {
+                // Créer un nouveau produit dans la base de données
+                try {
+                  const { data: newProduct, error: createError } = await supabase
+                    .from('products')
+                    .insert({
+                      user_id: user.id,
+                      url: analysis.product.url || `local-${Date.now()}`,
+                      source: analysis.product.source || 'aliexpress',
+                      title: analysis.product.title || 'Product',
+                      description: analysis.product.description || '',
+                      images: analysis.product.images || [],
+                      price: analysis.product.price || 0,
+                      currency: analysis.product.currency || 'USD',
+                      category: analysis.niche || 'custom',
+                      shipping_time: analysis.product.shippingTime || '',
+                      min_order_quantity: analysis.product.minOrderQuantity || 1,
+                      supplier_rating: analysis.product.supplierRating || 0,
+                      niche: analysis.niche || 'custom',
+                    })
+                    .select('id')
+                    .single();
+                  
+                  if (createError) {
+                    console.error('❌ [HISTORY] Product creation error:', createError.message);
+                  } else if (newProduct) {
+                    dbProductId = newProduct.id;
+                    console.log('✅ [HISTORY] New product created:', dbProductId);
+                  }
+                } catch (insertError: any) {
+                  console.error('❌ [HISTORY] Product insert exception:', insertError?.message);
                 }
-              } catch (productError) {
-                console.warn('⚠️ Product save issue:', productError);
-                // Continuer avec l'ID existant
               }
               
-              // Sauvegarder l'analyse avec le bon product_id
-              const analysisToSave = {
-                ...analysis,
-                product: { ...analysis.product, id: productId }
-              };
-              
-              await analysisDb.saveAnalysis(user.id, analysisToSave);
-              console.log('✅ Analysis backup saved successfully:', analysis.product.title?.substring(0, 30));
-            } catch (saveError) {
-              console.error('❌ Backup save failed for analysis:', saveError);
-              // Continuer avec les autres analyses
+              // ÉTAPE 2: Sauvegarder l'analyse avec le product_id correct
+              if (dbProductId) {
+                const analysisToSave = {
+                  ...analysis,
+                  product: { ...analysis.product, id: dbProductId }
+                };
+                
+                try {
+                  await analysisDb.saveAnalysis(user.id, analysisToSave);
+                  console.log('✅ [HISTORY] Analysis saved successfully!', analysis.product.title?.substring(0, 30));
+                } catch (analysisError: any) {
+                  console.error('❌ [HISTORY] Analysis save error:', analysisError?.message);
+                  
+                  // Tentative de sauvegarde directe si l'upsert échoue
+                  try {
+                    const { error: directError } = await supabase
+                      .from('product_analyses')
+                      .insert({
+                        product_id: dbProductId,
+                        user_id: user.id,
+                        verdict: analysis.verdict?.verdict || 'test',
+                        confidence_score: analysis.verdict?.confidenceScore || 50,
+                        summary: analysis.verdict?.summary || '',
+                        full_analysis_data: analysis,
+                      });
+                    
+                    if (directError) {
+                      console.error('❌ [HISTORY] Direct insert also failed:', directError.message);
+                    } else {
+                      console.log('✅ [HISTORY] Analysis saved via direct insert!');
+                    }
+                  } catch (directException: any) {
+                    console.error('❌ [HISTORY] Direct insert exception:', directException?.message);
+                  }
+                }
+              } else {
+                console.error('❌ [HISTORY] No product ID available, cannot save analysis');
+              }
+            } catch (saveError: any) {
+              console.error('❌ [HISTORY] Global save error:', saveError?.message || saveError);
             }
           }
         }
