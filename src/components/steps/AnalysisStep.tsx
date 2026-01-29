@@ -24,12 +24,15 @@ import { productDb } from '@/lib/db/products';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Paywall } from '@/components/paywall/Paywall';
+import { QuotaExceeded } from '@/components/paywall/QuotaExceeded';
+import type { PlanId } from '@/types/subscription';
 
 export function AnalysisStep() {
   const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
   const { user } = useAuth();
-  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota } = useSubscription();
+  const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, refreshSubscription } = useSubscription();
   const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
+  const [showQuotaExceeded, setShowQuotaExceeded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -51,7 +54,15 @@ export function AnalysisStep() {
     }
     
     if (!canAnalyze) {
-      // No active subscription or quota exceeded - show paywall
+      // Check if it's a quota issue (has subscription but no quota)
+      if (hasActiveSubscription && !hasQuota) {
+        // Show the beautiful QuotaExceeded modal
+        setShowQuotaExceeded(true);
+        setIsAnalyzing(false);
+        setGlobalIsAnalyzing(false);
+        return;
+      }
+      // No active subscription - show paywall
       setShowPaywall(true);
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
@@ -60,11 +71,11 @@ export function AnalysisStep() {
     
     // User has active subscription and quota - proceed with analysis
     // Only start analysis if not already analyzing and not complete
-    if (!globalIsAnalyzing && !analysisComplete && !showPaywall && canAnalyze) {
+    if (!globalIsAnalyzing && !analysisComplete && !showPaywall && !showQuotaExceeded && canAnalyze) {
       runAnalysis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscriptionLoading, canAnalyze, user, showPaywall]);
+  }, [subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, user, showPaywall, showQuotaExceeded]);
   
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -371,7 +382,28 @@ export function AnalysisStep() {
 
   const currentProduct = products[currentIndex];
 
-  // Show paywall if subscription check failed
+  // Handle upgrade - redirect to pricing
+  const handleUpgrade = (plan: PlanId) => {
+    window.location.href = `/pricing?upgrade=${plan}`;
+  };
+
+  // Show QuotaExceeded modal if user has subscription but no quota
+  if (showQuotaExceeded && subscription) {
+    return (
+      <div className="min-h-screen w-full relative overflow-hidden bg-slate-50">
+        <QuotaExceeded
+          currentPlan={subscription.plan}
+          used={subscription.used}
+          quota={subscription.quota}
+          resetDate={subscription.periodEnd}
+          onUpgrade={handleUpgrade}
+          onClose={() => setStep(2)}
+        />
+      </div>
+    );
+  }
+
+  // Show paywall if no subscription
   if (showPaywall) {
     return (
       <div className="min-h-screen w-full relative overflow-hidden">
