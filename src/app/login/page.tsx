@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,14 +29,6 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(err.message || 'Incorrect email or password');
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      setError(err.message || 'An error occurred with Google sign-in');
     }
   };
 
@@ -165,25 +157,6 @@ export default function LoginPage() {
               </motion.button>
             </Link>
           </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-slate-400 font-medium">ou</span>
-            </div>
-          </div>
-
-          <motion.button 
-            type="button"
-            onClick={handleGoogleSignIn}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full py-3.5 bg-white text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
-          >
-            Continue with Google
-          </motion.button>
 
           <p className="text-center text-slate-600 mt-8">
             Don't have an account?{' '}
