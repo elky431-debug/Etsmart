@@ -112,7 +112,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-baseline gap-2 mb-4">
                   <span className="text-5xl font-bold text-slate-900">
-                    ${plan.price}
+                    €{plan.price}
                   </span>
                   <span className="text-slate-600">/month</span>
                 </div>
