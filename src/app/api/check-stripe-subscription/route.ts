@@ -110,17 +110,21 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, cancelAtPeriodEnd: ${cancelAtPeriodEnd}`);
 
-    // Fetch current usage from database FIRST
+    // Fetch current usage from database FIRST - select ALL columns to handle naming
     let currentUsed = 0;
     try {
-      const { data: userData } = await supabase
+      const { data: userData, error: fetchError } = await supabase
         .from('users')
-        .select('analysisUsedThisMonth')
+        .select('*')
         .eq('id', user.id)
         .single();
       
-      if (userData && typeof userData.analysisUsedThisMonth === 'number') {
-        currentUsed = userData.analysisUsedThisMonth;
+      console.log(`[Check Stripe] DB user data:`, JSON.stringify(userData, null, 2));
+      console.log(`[Check Stripe] DB fetch error:`, fetchError);
+      
+      if (userData) {
+        // Handle both camelCase and snake_case column names
+        currentUsed = userData.analysisUsedThisMonth ?? userData.analysis_used_this_month ?? 0;
         console.log(`[Check Stripe] Current usage from DB: ${currentUsed}`);
       }
     } catch (fetchError) {

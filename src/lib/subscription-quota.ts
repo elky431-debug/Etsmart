@@ -25,39 +25,64 @@ export async function incrementAnalysisCount(userId: string): Promise<{
   const supabase = createSupabaseAdminClient();
   
   try {
-    // Get current user data
+    console.log(`[incrementAnalysisCount] Starting for user: ${userId}`);
+    
+    // Get current user data - select ALL columns to debug
     const { data: user, error: fetchError } = await supabase
       .from('users')
-      .select('subscriptionPlan, subscriptionStatus, analysisUsedThisMonth, analysisQuota, currentPeriodStart, currentPeriodEnd')
+      .select('*')
       .eq('id', userId)
       .single();
     
+    console.log(`[incrementAnalysisCount] User data:`, JSON.stringify(user, null, 2));
+    console.log(`[incrementAnalysisCount] Fetch error:`, fetchError);
+    
     if (fetchError || !user) {
+      console.error(`[incrementAnalysisCount] User not found: ${fetchError?.message}`);
       return {
         success: false,
         used: 0,
         quota: 0,
         remaining: 0,
-        error: 'User not found',
+        error: `User not found: ${fetchError?.message || 'No user data'}`,
       };
     }
     
+    // Handle both camelCase and snake_case column names
+    const subscriptionStatus = user.subscriptionStatus || user.subscription_status;
+    const subscriptionPlan = user.subscriptionPlan || user.subscription_plan;
+    const analysisUsed = user.analysisUsedThisMonth ?? user.analysis_used_this_month ?? 0;
+    const analysisQuota = user.analysisQuota ?? user.analysis_quota;
+    const periodEnd = user.currentPeriodEnd || user.current_period_end;
+    
+    console.log(`[incrementAnalysisCount] Parsed values:`, {
+      subscriptionStatus,
+      subscriptionPlan,
+      analysisUsed,
+      analysisQuota,
+      periodEnd,
+    });
+    
     // Check if subscription is active
-    if (user.subscriptionStatus !== 'active') {
+    if (subscriptionStatus !== 'active') {
+      console.log(`[incrementAnalysisCount] Subscription not active: ${subscriptionStatus}`);
       return {
         success: false,
-        used: user.analysisUsedThisMonth || 0,
-        quota: user.analysisQuota || 0,
+        used: analysisUsed,
+        quota: analysisQuota || 0,
         remaining: 0,
-        error: 'Subscription is not active',
+        error: `Subscription is not active (status: ${subscriptionStatus})`,
       };
     }
     
     // Check if period has expired (reset needed)
     const now = new Date();
-    const periodEnd = user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null;
+    const periodEndDate = periodEnd ? new Date(periodEnd) : null;
     
-    if (periodEnd && periodEnd < now) {
+    let currentUsed = analysisUsed;
+    
+    if (periodEndDate && periodEndDate < now) {
+      console.log(`[incrementAnalysisCount] Period expired, resetting quota`);
       // Reset monthly quota
       const newPeriodStart = new Date();
       const newPeriodEnd = new Date();
@@ -73,21 +98,22 @@ export async function incrementAnalysisCount(userId: string): Promise<{
         .eq('id', userId);
       
       if (resetError) {
-        console.error('Error resetting quota:', resetError);
+        console.error('[incrementAnalysisCount] Error resetting quota:', resetError);
       }
       
       // After reset, used is 0
-      user.analysisUsedThisMonth = 0;
+      currentUsed = 0;
     }
     
     // Check current quota
-    const quota = user.analysisQuota || PLAN_QUOTAS[user.subscriptionPlan as PlanId] || 0;
-    const used = user.analysisUsedThisMonth || 0;
+    const quota = analysisQuota || PLAN_QUOTAS[subscriptionPlan as PlanId] || 100;
     
-    if (used >= quota) {
+    console.log(`[incrementAnalysisCount] Quota check: used=${currentUsed}, quota=${quota}`);
+    
+    if (currentUsed >= quota) {
       return {
         success: false,
-        used,
+        used: currentUsed,
         quota,
         remaining: 0,
         error: 'Quota exceeded',
@@ -95,31 +121,37 @@ export async function incrementAnalysisCount(userId: string): Promise<{
     }
     
     // Increment count
+    const newUsed = currentUsed + 1;
+    console.log(`[incrementAnalysisCount] Incrementing from ${currentUsed} to ${newUsed}`);
+    
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        analysisUsedThisMonth: used + 1,
+        analysisUsedThisMonth: newUsed,
       })
       .eq('id', userId);
     
     if (updateError) {
+      console.error(`[incrementAnalysisCount] Update error:`, updateError);
       return {
         success: false,
-        used,
+        used: currentUsed,
         quota,
-        remaining: quota - used,
+        remaining: quota - currentUsed,
         error: updateError.message,
       };
     }
     
+    console.log(`[incrementAnalysisCount] ✅ Successfully incremented to ${newUsed}`);
+    
     return {
       success: true,
-      used: used + 1,
+      used: newUsed,
       quota,
-      remaining: quota - (used + 1),
+      remaining: quota - newUsed,
     };
   } catch (error: any) {
-    console.error('Error incrementing analysis count:', error);
+    console.error('[incrementAnalysisCount] Exception:', error);
     return {
       success: false,
       used: 0,
