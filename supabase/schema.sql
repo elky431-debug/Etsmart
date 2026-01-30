@@ -162,35 +162,79 @@ ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.boutique_analyses ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================================
 -- RLS Policies: Users can only access their own data
--- Drop existing policies if they exist, then create them
+-- SECURITY: Each policy uses auth.uid() to ensure users only access their data
+-- ============================================================================
+
+-- USERS TABLE POLICIES
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
-CREATE POLICY "Users can view own profile" ON public.users
-  FOR SELECT USING (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
-CREATE POLICY "Users can update own profile" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
+DROP POLICY IF EXISTS "users_select_own" ON public.users;
+DROP POLICY IF EXISTS "users_insert_own" ON public.users;
+DROP POLICY IF EXISTS "users_update_own" ON public.users;
 
+CREATE POLICY "users_select_own" ON public.users
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = id);
+
+CREATE POLICY "users_insert_own" ON public.users
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "users_update_own" ON public.users
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+-- No DELETE policy - users cannot delete their own profile via RLS
+
+-- PRODUCTS TABLE POLICIES
 DROP POLICY IF EXISTS "Users can insert own products" ON public.products;
-CREATE POLICY "Users can insert own products" ON public.products
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can view own products" ON public.products;
-CREATE POLICY "Users can view own products" ON public.products
-  FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can update own products" ON public.products;
-CREATE POLICY "Users can update own products" ON public.products
-  FOR UPDATE USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can delete own products" ON public.products;
-CREATE POLICY "Users can delete own products" ON public.products
-  FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "products_select_own" ON public.products;
+DROP POLICY IF EXISTS "products_insert_own" ON public.products;
+DROP POLICY IF EXISTS "products_update_own" ON public.products;
+DROP POLICY IF EXISTS "products_delete_own" ON public.products;
 
+CREATE POLICY "products_select_own" ON public.products
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "products_insert_own" ON public.products
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "products_update_own" ON public.products
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "products_delete_own" ON public.products
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- PRODUCT_VARIANTS TABLE POLICIES
 DROP POLICY IF EXISTS "Users can manage own product variants" ON public.product_variants;
-CREATE POLICY "Users can manage own product variants" ON public.product_variants
-  FOR ALL USING (
+DROP POLICY IF EXISTS "product_variants_select_own" ON public.product_variants;
+DROP POLICY IF EXISTS "product_variants_insert_own" ON public.product_variants;
+DROP POLICY IF EXISTS "product_variants_update_own" ON public.product_variants;
+DROP POLICY IF EXISTS "product_variants_delete_own" ON public.product_variants;
+
+CREATE POLICY "product_variants_select_own" ON public.product_variants
+  FOR SELECT
+  TO authenticated
+  USING (
     EXISTS (
       SELECT 1 FROM public.products
       WHERE products.id = product_variants.product_id
@@ -198,13 +242,101 @@ CREATE POLICY "Users can manage own product variants" ON public.product_variants
     )
   );
 
-DROP POLICY IF EXISTS "Users can manage own product analyses" ON public.product_analyses;
-CREATE POLICY "Users can manage own product analyses" ON public.product_analyses
-  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "product_variants_insert_own" ON public.product_variants
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.products
+      WHERE products.id = product_variants.product_id
+      AND products.user_id = auth.uid()
+    )
+  );
 
+CREATE POLICY "product_variants_update_own" ON public.product_variants
+  FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.products
+      WHERE products.id = product_variants.product_id
+      AND products.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.products
+      WHERE products.id = product_variants.product_id
+      AND products.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "product_variants_delete_own" ON public.product_variants
+  FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.products
+      WHERE products.id = product_variants.product_id
+      AND products.user_id = auth.uid()
+    )
+  );
+
+-- PRODUCT_ANALYSES TABLE POLICIES
+DROP POLICY IF EXISTS "Users can manage own product analyses" ON public.product_analyses;
+DROP POLICY IF EXISTS "product_analyses_select_own" ON public.product_analyses;
+DROP POLICY IF EXISTS "product_analyses_insert_own" ON public.product_analyses;
+DROP POLICY IF EXISTS "product_analyses_update_own" ON public.product_analyses;
+DROP POLICY IF EXISTS "product_analyses_delete_own" ON public.product_analyses;
+
+CREATE POLICY "product_analyses_select_own" ON public.product_analyses
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "product_analyses_insert_own" ON public.product_analyses
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "product_analyses_update_own" ON public.product_analyses
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "product_analyses_delete_own" ON public.product_analyses
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- BOUTIQUE_ANALYSES TABLE POLICIES
 DROP POLICY IF EXISTS "Users can manage own boutique analyses" ON public.boutique_analyses;
-CREATE POLICY "Users can manage own boutique analyses" ON public.boutique_analyses
-  FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "boutique_analyses_select_own" ON public.boutique_analyses;
+DROP POLICY IF EXISTS "boutique_analyses_insert_own" ON public.boutique_analyses;
+DROP POLICY IF EXISTS "boutique_analyses_update_own" ON public.boutique_analyses;
+DROP POLICY IF EXISTS "boutique_analyses_delete_own" ON public.boutique_analyses;
+
+CREATE POLICY "boutique_analyses_select_own" ON public.boutique_analyses
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "boutique_analyses_insert_own" ON public.boutique_analyses
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "boutique_analyses_update_own" ON public.boutique_analyses
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "boutique_analyses_delete_own" ON public.boutique_analyses
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
 
 -- Function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -273,14 +405,31 @@ CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_sett
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view own settings" ON public.user_settings;
-CREATE POLICY "Users can view own settings" ON public.user_settings
-  FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can update own settings" ON public.user_settings;
-CREATE POLICY "Users can update own settings" ON public.user_settings
-  FOR UPDATE USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can insert own settings" ON public.user_settings;
-CREATE POLICY "Users can insert own settings" ON public.user_settings
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "user_settings_select_own" ON public.user_settings;
+DROP POLICY IF EXISTS "user_settings_insert_own" ON public.user_settings;
+DROP POLICY IF EXISTS "user_settings_update_own" ON public.user_settings;
+DROP POLICY IF EXISTS "user_settings_delete_own" ON public.user_settings;
+
+CREATE POLICY "user_settings_select_own" ON public.user_settings
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "user_settings_insert_own" ON public.user_settings
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "user_settings_update_own" ON public.user_settings
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "user_settings_delete_own" ON public.user_settings
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
 
