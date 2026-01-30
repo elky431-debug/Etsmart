@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // API PARSING PRODUIT DEPUIS SCREENSHOT - OPENAI VISION
@@ -18,6 +19,27 @@ interface ProductImageData {
 
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 SECURITY: Require authentication
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     // Vérifier le Content-Type pour gérer FormData ou JSON
     const contentType = request.headers.get('content-type') || '';
     

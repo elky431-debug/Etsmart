@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripePriceId, type PlanId } from '@/types/subscription';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error('STRIPE_SECRET_KEY environment variable is not set');
@@ -19,7 +20,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🔒 SECURITY: Verify user authentication
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    
+    let authenticatedUser = null;
+    if (token) {
+      try {
+        const supabase = createSupabaseAdminClient();
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (!error && user) {
+          authenticatedUser = user;
+        }
+      } catch (e) {
+        console.warn('[Checkout] Auth verification failed:', e);
+      }
+    }
+
     const { planId, userId, userEmail } = await request.json();
+    
+    // 🔒 SECURITY: If user is authenticated, enforce that they can only create sessions for themselves
+    if (authenticatedUser) {
+      if (userId && userId !== authenticatedUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized: Cannot create checkout session for another user' },
+          { status: 403 }
+        );
+      }
+      if (userEmail && userEmail !== authenticatedUser.email) {
+        return NextResponse.json(
+          { error: 'Unauthorized: Email mismatch' },
+          { status: 403 }
+        );
+      }
+    }
+    
+    // Use authenticated user data if available
+    const finalUserId = authenticatedUser?.id || userId;
+    const finalUserEmail = authenticatedUser?.email || userEmail;
 
     if (!planId) {
       return NextResponse.json(
@@ -65,10 +103,10 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      customer_email: userEmail || undefined,
+      customer_email: finalUserEmail || undefined,
       metadata: {
         plan_id: normalizedPlanId,
-        user_id: userId || '',
+        user_id: finalUserId || '',
       },
       success_url: `${baseUrl}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=true`,

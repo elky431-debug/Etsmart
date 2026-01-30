@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 interface EtsyListing {
   id: string;
@@ -333,6 +334,27 @@ async function enrichListingData(listing: EtsyListing): Promise<EtsyListing> {
 
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 SECURITY: Require authentication
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { productTitle, niche } = body;
 

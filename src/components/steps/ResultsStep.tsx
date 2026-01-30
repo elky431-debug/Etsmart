@@ -333,10 +333,19 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
     
     setIsGeneratingDescription(true);
     try {
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
       const response = await fetch('/api/generate-etsy-description', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           productVisualDescription: analysis.verdict.productVisualDescription || analysis.product.title,

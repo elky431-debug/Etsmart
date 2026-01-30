@@ -27,6 +27,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Paywall } from '@/components/paywall/Paywall';
+import { supabase } from '@/lib/supabase';
 
 export function ProductImport() {
   const { selectedNiche, products, addProduct, removeProduct, setStep } = useStore();
@@ -206,8 +207,20 @@ export function ProductImport() {
       const formData = new FormData();
       formData.append('image', compressedFile);
 
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        setError('Authentication required. Please login again.');
+        return;
+      }
+
       const response = await fetch('/api/parse-product-image', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
