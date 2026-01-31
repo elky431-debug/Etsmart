@@ -182,8 +182,8 @@ export default function HomePage() {
       <header 
         className="fixed top-0 left-0 right-0 z-50"
       >
-        <div className={`${isMobile ? 'mx-0 mt-0' : 'mx-2 sm:mx-4 mt-2 sm:mt-4'}`}>
-          <div className={`max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 ${isMobile ? 'bg-transparent' : 'bg-transparent'}`}>
+        <div className={`${isMobile ? 'mx-0 mt-0' : 'mx-4 sm:mx-6 lg:mx-auto lg:max-w-5xl mt-3 sm:mt-4'}`}>
+          <div className={`mx-auto px-4 sm:px-6 py-2.5 sm:py-3 ${isMobile ? 'bg-slate-900/80 backdrop-blur-xl border-b border-white/10' : 'bg-slate-900/70 backdrop-blur-xl border border-white/10 rounded-full shadow-lg shadow-black/20'}`}>
             <div className="flex items-center justify-between">
               {/* Logo */}
               <Link href="/" className="group" onClick={() => setMobileMenuOpen(false)}>
@@ -191,41 +191,40 @@ export default function HomePage() {
               </Link>
 
               {/* Navigation Desktop */}
-              <nav className="hidden md:flex items-center gap-8">
-                <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
+              <nav className="hidden md:flex items-center gap-6">
+                <a href="#features" className="text-sm text-white/80 hover:text-white transition-colors">
                   Fonctionnalités
                 </a>
-                <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <a href="#pricing" className="text-sm text-white/80 hover:text-white transition-colors">
                   Tarifs
                 </a>
-                <a href="#testimonials" className="hidden md:block text-slate-600 hover:text-slate-900 transition-colors">
+                <a href="#testimonials" className="hidden md:block text-sm text-white/80 hover:text-white transition-colors">
                   Témoignages
                 </a>
-                <Link href="/about" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link href="/about" className="text-sm text-white/80 hover:text-white transition-colors">
                   À propos
                 </Link>
               </nav>
 
               {/* CTA Desktop */}
-              <div className="hidden md:flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
                   // Utilisateur connecté - afficher seulement Dashboard
                   <Link href="/dashboard?section=analyze">
-                    <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                      <span className="text-white">Tableau de bord</span>
-                      <ArrowRight size={16} className="text-white" />
+                    <button className="px-4 py-2 bg-white hover:bg-white/90 text-slate-900 text-sm font-semibold rounded-full flex items-center gap-2 transition-all">
+                      Tableau de bord
+                      <ArrowRight size={14} />
                     </button>
                   </Link>
                 ) : (
                   // Utilisateur non connecté - afficher Connexion et Créer un compte
                   <>
-                    <Link href="/login" className="text-slate-600 hover:text-slate-900 transition-colors">
+                    <Link href="/login" className="text-sm text-white/80 hover:text-white transition-colors px-3 py-2">
                       Connexion
                     </Link>
                     <Link href="/register">
-                      <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                        <span className="text-white">Créer un compte</span>
-                        <ArrowRight size={16} className="text-white" />
+                      <button className="px-4 py-2 bg-white hover:bg-white/90 text-slate-900 text-sm font-semibold rounded-full transition-all">
+                        Inscription
                       </button>
                     </Link>
                   </>
@@ -239,7 +238,7 @@ export default function HomePage() {
                   e.stopPropagation();
                   setMobileMenuOpen(prev => !prev);
                 }}
-                className="md:hidden w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30 active:scale-95 transition-transform duration-100 touch-manipulation"
+                className="md:hidden w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center active:scale-95 transition-all duration-100 touch-manipulation"
                 aria-label="Toggle menu"
                 type="button"
               >
