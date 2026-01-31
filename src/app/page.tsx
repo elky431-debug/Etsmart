@@ -183,7 +183,7 @@ export default function HomePage() {
         className="fixed top-0 left-0 right-0 z-50"
       >
         <div className={`${isMobile ? 'mx-0 mt-0' : 'mx-4 sm:mx-6 lg:mx-auto lg:max-w-5xl mt-3 sm:mt-4'}`}>
-          <div className={`mx-auto px-4 sm:px-6 py-2.5 sm:py-3 ${isMobile ? 'bg-slate-900/80 backdrop-blur-xl border-b border-white/10' : 'bg-slate-900/70 backdrop-blur-xl border border-white/10 rounded-full shadow-lg shadow-black/20'}`}>
+          <div className={`mx-auto px-4 sm:px-6 py-2.5 sm:py-3 ${isMobile ? 'bg-white/60 backdrop-blur-xl border-b border-slate-200/50' : 'bg-white/60 backdrop-blur-xl border border-slate-200/50 rounded-full shadow-lg shadow-slate-900/5'}`}>
             <div className="flex items-center justify-between">
               {/* Logo */}
               <Link href="/" className="group" onClick={() => setMobileMenuOpen(false)}>
@@ -192,16 +192,16 @@ export default function HomePage() {
 
               {/* Navigation Desktop */}
               <nav className="hidden md:flex items-center gap-6">
-                <a href="#features" className="text-sm text-white/80 hover:text-white transition-colors">
+                <a href="#features" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
                   Fonctionnalités
                 </a>
-                <a href="#pricing" className="text-sm text-white/80 hover:text-white transition-colors">
+                <a href="#pricing" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
                   Tarifs
                 </a>
-                <a href="#testimonials" className="hidden md:block text-sm text-white/80 hover:text-white transition-colors">
+                <a href="#testimonials" className="hidden md:block text-sm text-slate-600 hover:text-slate-900 transition-colors">
                   Témoignages
                 </a>
-                <Link href="/about" className="text-sm text-white/80 hover:text-white transition-colors">
+                <Link href="/about" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
                   À propos
                 </Link>
               </nav>
@@ -211,7 +211,7 @@ export default function HomePage() {
                 {!loading && user ? (
                   // Utilisateur connecté - afficher seulement Dashboard
                   <Link href="/dashboard?section=analyze">
-                    <button className="px-4 py-2 bg-white hover:bg-white/90 text-slate-900 text-sm font-semibold rounded-full flex items-center gap-2 transition-all">
+                    <button className="px-4 py-2 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white text-sm font-semibold rounded-full flex items-center gap-2 transition-all shadow-md shadow-[#00d4ff]/20">
                       Tableau de bord
                       <ArrowRight size={14} />
                     </button>
@@ -219,11 +219,11 @@ export default function HomePage() {
                 ) : (
                   // Utilisateur non connecté - afficher Connexion et Créer un compte
                   <>
-                    <Link href="/login" className="text-sm text-white/80 hover:text-white transition-colors px-3 py-2">
+                    <Link href="/login" className="text-sm text-slate-600 hover:text-slate-900 transition-colors px-3 py-2">
                       Connexion
                     </Link>
                     <Link href="/register">
-                      <button className="px-4 py-2 bg-white hover:bg-white/90 text-slate-900 text-sm font-semibold rounded-full transition-all">
+                      <button className="px-4 py-2 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white text-sm font-semibold rounded-full transition-all shadow-md shadow-[#00d4ff]/20">
                         Inscription
                       </button>
                     </Link>
@@ -238,7 +238,7 @@ export default function HomePage() {
                   e.stopPropagation();
                   setMobileMenuOpen(prev => !prev);
                 }}
-                className="md:hidden w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center active:scale-95 transition-all duration-100 touch-manipulation"
+                className="md:hidden w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center active:scale-95 transition-all duration-100 touch-manipulation"
                 aria-label="Toggle menu"
                 type="button"
               >
