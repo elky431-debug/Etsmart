@@ -183,7 +183,7 @@ export default function HomePage() {
         className="fixed top-0 left-0 right-0 z-50"
       >
         <div className={`${isMobile ? 'mx-0 mt-0' : 'mx-4 sm:mx-6 lg:mx-auto lg:max-w-5xl mt-3 sm:mt-4'}`}>
-          <div className={`mx-auto px-4 sm:px-6 py-2.5 sm:py-3 ${isMobile ? 'bg-white/60 backdrop-blur-xl border-b border-slate-200/50' : 'bg-white/60 backdrop-blur-xl border border-slate-200/50 rounded-full shadow-lg shadow-slate-900/5'}`}>
+          <div className={`mx-auto px-4 sm:px-6 py-2.5 sm:py-3 ${isMobile ? 'backdrop-blur-md' : 'backdrop-blur-md rounded-full'}`}>
             <div className="flex items-center justify-between">
               {/* Logo */}
               <Link href="/" className="group" onClick={() => setMobileMenuOpen(false)}>
