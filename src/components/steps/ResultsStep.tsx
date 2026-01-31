@@ -169,8 +169,8 @@ function CreativePromptGenerator({
             <Logo size="sm" showText={false} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">AI Image Prompt</h2>
-            <p className="text-slate-500 text-xs">Use this prompt with your product photo in an AI image generation tool to create realistic, high-quality Etsy-style product images.</p>
+            <h2 className="text-base font-bold text-slate-900">Prompt IA pour images</h2>
+            <p className="text-slate-500 text-xs">Utilisez ce prompt avec votre photo de produit dans un outil de génération d'images IA pour créer des images produit réalistes et de haute qualité.</p>
           </div>
         </div>
       </div>
@@ -178,7 +178,7 @@ function CreativePromptGenerator({
       {/* Prompt principal */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Universal AI Image Prompt</span>
+          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Prompt IA universel</span>
           <button
             onClick={copyToClipboard}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -188,7 +188,7 @@ function CreativePromptGenerator({
             }`}
           >
             {copiedMain ? <Check size={12} /> : <Copy size={12} />}
-            {copiedMain ? 'Copied!' : 'Copy'}
+            {copiedMain ? 'Copié !' : 'Copier'}
           </button>
         </div>
         <div className="p-4 bg-white rounded-lg border border-violet-200 max-h-64 overflow-y-auto">
@@ -197,7 +197,7 @@ function CreativePromptGenerator({
           </pre>
         </div>
         <p className="mt-2 text-[10px] text-slate-500 italic">
-          ⚠️ This is a universal, fixed prompt that works for all products. Use it with your product photo in any AI image generation tool.
+          ⚠️ Ce prompt universel et fixe fonctionne pour tous les produits. Utilisez-le avec votre photo de produit dans n'importe quel outil de génération d'images IA.
         </p>
       </div>
 
@@ -205,30 +205,30 @@ function CreativePromptGenerator({
       <div className="p-4 bg-white rounded-lg border border-violet-200">
         <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
           <Info size={14} className="text-violet-500" />
-          How to use this prompt?
+          Comment utiliser ce prompt ?
         </h4>
         <ol className="space-y-2 text-xs text-slate-600">
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">1</span>
-            <span>Copy the prompt above</span>
+            <span>Copiez le prompt ci-dessus</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
-            <span>Open ChatGPT, Midjourney or other image AI</span>
+            <span>Ouvrez ChatGPT, Midjourney ou autre IA d'images</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
-            <span>Import your product photo</span>
+            <span>Importez votre photo de produit</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">4</span>
-            <span>Paste the prompt and generate the image</span>
+            <span>Collez le prompt et générez l'image</span>
           </li>
         </ol>
         <p className="mt-3 text-[10px] text-slate-500 italic">
-          This universal prompt is designed to produce realistic, high-quality Etsy-style product images. 
-          The prompt is fixed and immutable - it works for all products without modification. 
-          No text or logos will be added to the generated image.
+          Ce prompt universel est conçu pour produire des images produit réalistes et de haute qualité style Etsy. 
+          Le prompt est fixe et immuable - il fonctionne pour tous les produits sans modification. 
+          Aucun texte ou logo ne sera ajouté à l'image générée.
         </p>
       </div>
     </div>
@@ -236,8 +236,8 @@ function CreativePromptGenerator({
 }
 
 const mainTabs = [
-  { id: 'analyse' as MainTab, label: 'Analysis', icon: Activity },
-  { id: 'conception' as MainTab, label: 'Product Sheet', icon: FileText },
+  { id: 'analyse' as MainTab, label: 'Analyse', icon: Activity },
+  { id: 'conception' as MainTab, label: 'Fiche Produit', icon: FileText },
   { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
 ];
 
@@ -382,7 +382,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
           transition={{ duration: 0.6 }}
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-            Results
+            Résultats
           </span>
         </motion.h1>
       </div>
@@ -463,7 +463,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         </p>
                         {analysis.dataSource === 'estimated' && (
                           <p className="text-xs text-amber-700 mt-2 italic">
-                            Source des données: Estimations par défaut (API non disponible)
+                            Source des données : Estimations par défaut (API non disponible)
                           </p>
                         )}
                       </div>
@@ -474,9 +474,9 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 {/* KPIs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                   {[
-                    { icon: CircleDollarSign, label: 'Average market price', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Range', highlight: false },
-                    { icon: TrendingUp, label: 'Recommended price', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'For your shop', highlight: true },
-                    { icon: Star, label: 'Market phase', value: getPhaseLabel(analysis.saturation.phase), sub: 'Trend', highlight: false },
+                    { icon: CircleDollarSign, label: 'Prix moyen du marché', value: formatCurrency(analysis.competitors.averageMarketPrice || analysis.pricing.recommendedPrice), sub: analysis.competitors.marketPriceRange ? `${formatCurrency(analysis.competitors.marketPriceRange.min)} - ${formatCurrency(analysis.competitors.marketPriceRange.max)}` : 'Plage', highlight: false },
+                    { icon: TrendingUp, label: 'Prix recommandé', value: formatCurrency(analysis.pricing.recommendedPrice), sub: 'Pour votre boutique', highlight: true },
+                    { icon: Star, label: 'Phase du marché', value: getPhaseLabel(analysis.saturation.phase), sub: 'Tendance', highlight: false },
                   ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (
@@ -517,7 +517,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <Info size={14} className="text-slate-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-xs font-medium text-slate-700 mb-1">Estimation methodology</p>
+                        <p className="text-xs font-medium text-slate-700 mb-1">Méthodologie d'estimation</p>
                         <p className="text-xs text-slate-600 leading-relaxed">{analysis.competitors.competitorEstimationReasoning}</p>
                         {analysis.competitors.marketPriceReasoning && (
                           <p className="text-xs text-slate-500 mt-2 italic">{analysis.competitors.marketPriceReasoning}</p>
@@ -536,8 +536,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           <Eye size={20} className="text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">AI Vision</h3>
-                          <p className="text-xs text-slate-500">Optimized search for Etsy</p>
+                          <h3 className="text-base font-bold text-slate-900">Vision IA</h3>
+                          <p className="text-xs text-slate-500">Recherche optimisée pour Etsy</p>
                         </div>
                       </div>
                       <a
@@ -547,7 +547,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors"
                       >
                         <Search size={14} />
-                        View on Etsy
+                        Voir sur Etsy
                       </a>
                     </div>
                     {analysis.verdict.productVisualDescription && (
@@ -580,7 +580,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center">
                           <PenTool size={20} className="text-white" />
                         </div>
-                        <h2 className="text-base font-bold text-slate-900">Optimized SEO Title</h2>
+                        <h2 className="text-base font-bold text-slate-900">Titre SEO optimisé</h2>
                       </div>
                       <button
                         onClick={() => copyToClipboard(analysis.verdict.viralTitleEN!, 'title')}
@@ -591,13 +591,13 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         }`}
                       >
                         {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
-                        {copiedTitle ? 'Copied' : 'Copy'}
+                        {copiedTitle ? 'Copié' : 'Copier'}
                       </button>
                     </div>
                     <div className="space-y-3">
                       <div className="p-4 rounded-lg bg-cyan-50 border border-cyan-200">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600">English</span>
+                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600">Anglais</span>
                           <span className="text-xs text-slate-500">{analysis.verdict.viralTitleEN.length}/140</span>
                         </div>
                         <p className="text-sm font-medium text-slate-900">{analysis.verdict.viralTitleEN}</p>
@@ -615,8 +615,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           <FileText size={20} className="text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">Etsy Description</h3>
-                          <p className="text-xs text-slate-500">Optimized description for Etsy (in English)</p>
+                          <h3 className="text-base font-bold text-slate-900">Description Etsy</h3>
+                          <p className="text-xs text-slate-500">Description optimisée pour Etsy (en anglais)</p>
                         </div>
                       </div>
                       {etsyDescription && (
@@ -629,7 +629,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           }`}
                         >
                           {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedDescription ? 'Copied' : 'Copy'}
+                          {copiedDescription ? 'Copié' : 'Copier'}
                         </button>
                       )}
                     </div>
@@ -653,7 +653,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                               Génération en cours...
                             </span>
                           ) : (
-                            'Generate description'
+                            'Générer la description'
                           )}
                         </button>
                       </div>
@@ -661,7 +661,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <div className="space-y-4">
                         <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
                           <p className="text-sm text-slate-600 mb-2">
-                            You can copy and use it directly in your product listing.
+                            Vous pouvez copier et utiliser directement dans votre fiche produit.
                           </p>
                           <div className="p-4 bg-white rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
                             <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
@@ -690,7 +690,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         }`}
                       >
                         {copiedTags ? <Check size={12} /> : <Copy size={12} />}
-                        {copiedTags ? 'Copied' : 'Copy'}
+                        {copiedTags ? 'Copié' : 'Copier'}
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -709,12 +709,12 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-white border border-slate-200">
                   <div className="flex items-center gap-3 mb-5">
                     <CircleDollarSign size={20} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Pricing Strategy</h3>
+                    <h3 className="text-base font-bold text-slate-900">Stratégie de prix</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Optimal', sublabel: 'Recommended', price: analysis.pricing.recommendedPrice, active: true },
-                      { label: 'Premium', sublabel: 'Max margin', price: analysis.pricing.premiumPrice, active: false },
+                      { label: 'Optimal', sublabel: 'Recommandé', price: analysis.pricing.recommendedPrice, active: true },
+                      { label: 'Premium', sublabel: 'Marge max', price: analysis.pricing.premiumPrice, active: false },
                     ].map((p, i) => (
                       <div 
                         key={i} 
@@ -752,8 +752,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <Calculator size={20} className="text-white" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-slate-900">Profit calculator</h2>
-                      <p className="text-slate-500 text-xs">Adjust values to see projections</p>
+                      <h2 className="text-base font-bold text-slate-900">Calculateur de profit</h2>
+                      <p className="text-slate-500 text-xs">Ajustez les valeurs pour voir les projections</p>
                     </div>
                   </div>
                   
@@ -767,15 +767,15 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
                     {[
                       { 
-                        label: 'Supplier price', 
+                        label: 'Prix fournisseur', 
                         value: supplierPrice, 
                         setValue: setSupplierPrice, 
                         hint: analysis.product.price > 0 
-                          ? `Price entered: ${formatCurrency(analysis.product.price)}` 
-                          : `Est IA: ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
+                          ? `Prix entré : ${formatCurrency(analysis.product.price)}` 
+                          : `Est. IA : ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
                       },
-                      { label: 'Shipping cost', value: shippingCost, setValue: setShippingCost, hint: `Est: ${formatCurrency(aiEstimatedShippingCost)}` },
-                      { label: 'Selling price', value: sellingPrice, setValue: setSellingPrice, hint: `Rec: ${formatCurrency(analysis.pricing.recommendedPrice)}`, highlight: true },
+                      { label: 'Frais de livraison', value: shippingCost, setValue: setShippingCost, hint: `Est. : ${formatCurrency(aiEstimatedShippingCost)}` },
+                      { label: 'Prix de vente', value: sellingPrice, setValue: setSellingPrice, hint: `Rec. : ${formatCurrency(analysis.pricing.recommendedPrice)}`, highlight: true },
                     ].map((field, i) => (
                       <div key={i}>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
@@ -803,20 +803,20 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   
                   <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
                     <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Unit cost</p>
+                      <p className="text-xs text-slate-500 mb-1">Coût unitaire</p>
                       <p className="text-xl font-bold text-slate-900">{formatCurrency(simulationData.costPerUnit)}</p>
                       {useEtsyAds && simulationData.etsyAdsCost > 0 && (
-                        <p className="text-xs text-slate-400 mt-1">+ Ads: {formatCurrency(simulationData.etsyAdsCost)}</p>
+                        <p className="text-xs text-slate-400 mt-1">+ Pub : {formatCurrency(simulationData.etsyAdsCost)}</p>
                       )}
                     </div>
                     <div className="text-center border-x border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Unit profit</p>
+                      <p className="text-xs text-slate-500 mb-1">Profit unitaire</p>
                       <p className={`text-xl font-bold ${simulationData.profitPerUnit > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {formatCurrency(simulationData.profitPerUnit)}
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Margin</p>
+                      <p className="text-xs text-slate-500 mb-1">Marge</p>
                       <p className={`text-xl font-bold ${simulationData.marginPercent > 30 ? 'text-emerald-600' : 'text-slate-900'}`}>
                         {simulationData.marginPercent.toFixed(1)}%
                       </p>
@@ -834,9 +834,9 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-base font-bold text-slate-900 mb-1">Enable Etsy Ads</h4>
+                        <h4 className="text-base font-bold text-slate-900 mb-1">Activer Etsy Ads</h4>
                         <p className="text-sm text-slate-500">
-                          Activate advertising to accelerate growth and increase sales
+                          Activez la publicité pour accélérer la croissance et augmenter les ventes
                         </p>
                       </div>
                       {/* Toggle Switch */}
@@ -862,7 +862,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-white border border-slate-200">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
                     <Clock size={18} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Estimated time to first sale</h3>
+                    <h3 className="text-base font-bold text-slate-900">Temps estimé avant la première vente</h3>
                   </div>
                   
                   <div className="space-y-4">
@@ -879,10 +879,10 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         )}
                         <div>
                           <h4 className={`text-base font-bold ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
-                            {useEtsyAds ? 'With Etsy Ads' : 'Without Etsy Ads'}
+                            {useEtsyAds ? 'Avec Etsy Ads' : 'Sans Etsy Ads'}
                           </h4>
                           <p className={`text-xs ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
-                            {useEtsyAds ? 'Accelerated growth' : 'Organic growth'}
+                            {useEtsyAds ? 'Croissance accélérée' : 'Croissance organique'}
                           </p>
                         </div>
                       </div>
@@ -891,17 +891,17 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           ? analysis.launchSimulation.timeToFirstSale.withAds.expected
                           : analysis.launchSimulation.timeToFirstSale.withoutAds.expected
                         }
-                        <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>days</span>
+                        <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>jours</span>
                       </p>
                       <p className={`text-sm mb-3 ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
-                        Between {
+                        Entre {
                           useEtsyAds
-                            ? `${analysis.launchSimulation.timeToFirstSale.withAds.min} and ${analysis.launchSimulation.timeToFirstSale.withAds.max}`
-                            : `${analysis.launchSimulation.timeToFirstSale.withoutAds.min} and ${analysis.launchSimulation.timeToFirstSale.withoutAds.max}`
-                        } days
+                            ? `${analysis.launchSimulation.timeToFirstSale.withAds.min} et ${analysis.launchSimulation.timeToFirstSale.withAds.max}`
+                            : `${analysis.launchSimulation.timeToFirstSale.withoutAds.min} et ${analysis.launchSimulation.timeToFirstSale.withoutAds.max}`
+                        } jours
                       </p>
                       <p className={`text-xs ${useEtsyAds ? 'text-white/60' : 'text-slate-400'}`}>
-                        This estimate is based on the product&apos;s launch potential score and reflects typical Etsy market behavior without paid advertising.
+                        Cette estimation est basée sur le score de potentiel de lancement du produit et reflète le comportement typique du marché Etsy.
                       </p>
                     </div>
                     
@@ -910,7 +910,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       <div className="flex items-start gap-2">
                         <Info size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-slate-600 leading-relaxed">
-                          <strong>Important:</strong> All timelines are estimates based on market conditions and product positioning. Actual results may vary.
+                          <strong>Important :</strong> Tous les délais sont des estimations basées sur les conditions du marché et le positionnement du produit. Les résultats réels peuvent varier.
                         </p>
                       </div>
                     </div>
@@ -921,18 +921,18 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
                       <TrendingUp size={20} className="text-[#00d4ff]" />
-                      <h3 className="text-base font-bold text-slate-900">3 Month Projection</h3>
+                      <h3 className="text-base font-bold text-slate-900">Projection 3 mois</h3>
                     </div>
                     <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                      {formatPercentage(analysis.launchSimulation.successProbability)} success rate
+                      {formatPercentage(analysis.launchSimulation.successProbability)} taux de réussite
                     </span>
                   </div>
 
                   <div className="space-y-3">
                     {[
-                      { key: 'prudent', label: 'Conservative', sublabel: 'Pessimistic', data: simulationData.prudent, highlight: false },
-                      { key: 'realiste', label: 'Realistic', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
-                      { key: 'optimise', label: 'Optimistic', sublabel: 'Best', data: simulationData.optimise, highlight: false },
+                      { key: 'prudent', label: 'Prudent', sublabel: 'Pessimiste', data: simulationData.prudent, highlight: false },
+                      { key: 'realiste', label: 'Réaliste', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
+                      { key: 'optimise', label: 'Optimiste', sublabel: 'Meilleur', data: simulationData.optimise, highlight: false },
                     ].map((scenario) => (
                       <div 
                         key={scenario.key}
@@ -951,17 +951,17 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           </div>
                           {scenario.highlight && (
                             <span className="px-2 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
-                              Recommended
+                              Recommandé
                             </span>
                           )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
                           {[
-                            { label: 'Sales', value: scenario.data.sales },
-                            { label: 'Revenue', value: formatCurrency(scenario.data.revenue) },
-                            { label: 'Costs', value: formatCurrency(scenario.data.costs) },
+                            { label: 'Ventes', value: scenario.data.sales },
+                            { label: 'Revenus', value: formatCurrency(scenario.data.revenue) },
+                            { label: 'Coûts', value: formatCurrency(scenario.data.costs) },
                             { label: 'Profit', value: formatCurrency(scenario.data.profit), profit: true },
-                            { label: 'Margin', value: `${scenario.data.margin.toFixed(0)}%` },
+                            { label: 'Marge', value: `${scenario.data.margin.toFixed(0)}%` },
                           ].map((metric, i) => (
                             <div key={i} className="text-center">
                               <p className={`text-lg font-bold ${
@@ -985,7 +985,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
                   <div className="flex items-center gap-3 mb-4">
                     <Award size={20} className="text-amber-500" />
-                    <h3 className="text-base font-bold text-slate-900">Key Success Factors</h3>
+                    <h3 className="text-base font-bold text-slate-900">Facteurs clés de succès</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {analysis.launchSimulation.keyFactors.map((factor, i) => (
@@ -1040,16 +1040,16 @@ export function ResultsStep() {
               
               // Chercher d'abord par URL (identifiant unique du produit)
               const { data: existingByUrl } = await supabase
-                .from('products')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('url', analysis.product.url)
-                .limit(1);
-              
+                  .from('products')
+                  .select('id')
+                  .eq('user_id', user.id)
+                  .eq('url', analysis.product.url)
+                  .limit(1);
+                
               if (existingByUrl && existingByUrl.length > 0) {
                 dbProductId = existingByUrl[0].id;
                 console.log('✅ [HISTORY] Found existing product by URL:', dbProductId);
-              } else {
+                } else {
                 // Créer un nouveau produit dans la base de données
                 try {
                   const { data: newProduct, error: createError } = await supabase
@@ -1085,13 +1085,13 @@ export function ResultsStep() {
               
               // ÉTAPE 2: Sauvegarder l'analyse avec le product_id correct
               if (dbProductId) {
-                const analysisToSave = {
-                  ...analysis,
+              const analysisToSave = {
+                ...analysis,
                   product: { ...analysis.product, id: dbProductId }
-                };
-                
+              };
+              
                 try {
-                  await analysisDb.saveAnalysis(user.id, analysisToSave);
+              await analysisDb.saveAnalysis(user.id, analysisToSave);
                   console.log('✅ [HISTORY] Analysis saved successfully!', analysis.product.title?.substring(0, 30));
                 } catch (analysisError: any) {
                   console.error('❌ [HISTORY] Analysis save error:', analysisError?.message);
@@ -1150,24 +1150,37 @@ export function ResultsStep() {
   
   // VERROUILLAGE TOTAL: Trouver l'analyse du produit actuel UNE FOIS et ne JAMAIS changer
   const findAndLockAnalysis = useCallback(() => {
-    if (!currentProductId) return null;
-    
-    // PRIORITÉ ABSOLUE: Chercher l'analyse du produit actuel dans le store
-    if (storeAnalyses.length > 0) {
-      const storeAnalysis = storeAnalyses.find(a => a.product.id === currentProductId);
-      if (storeAnalysis) {
-        console.log('🔒🔒🔒 LOCKED: Store analysis for current product:', currentProductId);
-        return storeAnalysis;
+    // PRIORITÉ 1: Si on a un currentProductId, chercher cette analyse spécifique
+    if (currentProductId) {
+      // Chercher dans le store
+      if (storeAnalyses.length > 0) {
+        const storeAnalysis = storeAnalyses.find(a => a.product.id === currentProductId);
+        if (storeAnalysis) {
+          console.log('🔒🔒🔒 LOCKED: Store analysis for current product:', currentProductId);
+          return storeAnalysis;
+        }
+      }
+      
+      // Chercher dans la DB
+      if (dbAnalyses.length > 0) {
+        const dbAnalysis = dbAnalyses.find(a => a.product.id === currentProductId);
+        if (dbAnalysis) {
+          console.log('🔒🔒🔒 LOCKED: DB analysis for current product:', currentProductId);
+          return dbAnalysis;
+        }
       }
     }
     
-    // PRIORITÉ 2: Chercher l'analyse du produit actuel dans la DB
+    // PRIORITÉ 2: Pas de currentProductId, prendre la première analyse disponible
+    if (storeAnalyses.length > 0) {
+      console.log('🔒 FALLBACK: First store analysis');
+      return storeAnalyses[0];
+    }
+    
+    // PRIORITÉ 3: Prendre la première analyse de la DB (la plus récente)
     if (dbAnalyses.length > 0) {
-      const dbAnalysis = dbAnalyses.find(a => a.product.id === currentProductId);
-      if (dbAnalysis) {
-        console.log('🔒🔒🔒 LOCKED: DB analysis for current product:', currentProductId);
-        return dbAnalysis;
-      }
+      console.log('🔒 FALLBACK: First DB analysis (most recent)');
+      return dbAnalyses[0];
     }
     
     return null;
@@ -1175,56 +1188,33 @@ export function ResultsStep() {
   
   // Initialiser UNE SEULE FOIS avec l'analyse du produit actuel - NE JAMAIS CHANGER
   const lockedAnalysisRef = useRef<ProductAnalysis | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(() => {
-    // Chercher l'analyse du produit actuel
-    const analysis = findAndLockAnalysis();
-    if (analysis) {
-      lockedAnalysisRef.current = analysis;
-      console.log('🔒 INITIAL LOCK:', analysis.product.id, 'for product:', currentProductId);
-      return analysis.product.id;
-    }
-    // Fallback: prendre la plus récente du store
-    if (storeAnalyses.length > 0) {
-      lockedAnalysisRef.current = storeAnalyses[0];
-      console.log('🔒 INITIAL LOCK (fallback):', storeAnalyses[0].product.id);
-      return storeAnalyses[0].product.id;
-    }
-    return null;
-  });
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  // Si on a déjà verrouillé une analyse, NE JAMAIS CHANGER
-  // Seulement mettre à jour si on n'avait pas encore d'analyse verrouillée
+  // Effect pour trouver et verrouiller l'analyse
   useEffect(() => {
-    // Si on a déjà une analyse verrouillée, NE RIEN FAIRE
+    // Si on a déjà une analyse verrouillée qui existe toujours, NE RIEN FAIRE
     if (lockedAnalysisRef.current) {
-      console.log('🔒 KEEPING LOCKED ANALYSIS:', lockedAnalysisRef.current.product.id);
-      return;
+      const stillExists = allAnalyses.some(a => a.product.id === lockedAnalysisRef.current?.product.id);
+      if (stillExists) {
+        console.log('🔒 KEEPING LOCKED ANALYSIS:', lockedAnalysisRef.current.product.id);
+        return;
+      }
     }
     
-    // Sinon, chercher et verrouiller l'analyse du produit actuel
+    // Sinon, chercher et verrouiller une analyse
     const analysis = findAndLockAnalysis();
-    if (analysis && analysis.product.id !== selectedProductId) {
+    if (analysis) {
       lockedAnalysisRef.current = analysis;
       console.log('🔒 LOCKING ANALYSIS:', analysis.product.id);
       setSelectedProductId(analysis.product.id);
     }
-  }, [findAndLockAnalysis, selectedProductId]);
+  }, [findAndLockAnalysis, allAnalyses]);
   
   // Trouver l'analyse sélectionnée - utiliser celle verrouillée si disponible
-  const selectedAnalysis = lockedAnalysisRef.current || allAnalyses.find((a) => a.product.id === selectedProductId);
+  const selectedAnalysis = lockedAnalysisRef.current || allAnalyses.find((a) => a.product.id === selectedProductId) || (allAnalyses.length > 0 ? allAnalyses[0] : null);
   
-  // Nettoyer le store après avoir chargé depuis la DB (seulement si on a des analyses en DB)
-  const { setAnalyses: setAnalysesStore } = useStore();
-  useEffect(() => {
-    // Attendre que la DB soit chargée et qu'on ait des analyses
-    if (!isLoading && dbAnalyses.length > 0 && storeAnalyses.length > 0) {
-      // Retirer les analyses du store car elles sont maintenant en DB
-      // Mais seulement après un petit délai pour s'assurer que l'affichage est fait
-      setTimeout(() => {
-        setAnalysesStore([]);
-      }, 1000);
-    }
-  }, [isLoading, dbAnalyses.length, storeAnalyses.length, setAnalysesStore]);
+  // ⚠️ NE PAS nettoyer le store - garder les analyses en mémoire pour la persistance
+  // Les analyses restent dans le store pour permettre de revenir sur la page
 
   // ⚠️ Attendre le chargement avant de vérifier
   if (isLoading) {
@@ -1232,28 +1222,45 @@ export function ResultsStep() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
-          <p className="text-xl text-slate-900 mb-4">Loading analysis...</p>
+          <p className="text-xl text-slate-900 mb-4">Chargement de l'analyse...</p>
         </div>
       </div>
     );
   }
 
-  // ⚠️ Si pas d'analyses après chargement, ne pas rediriger - afficher un message
-  if (!selectedAnalysis || allAnalyses.length === 0) {
+  // ⚠️ Si pas d'analyses après chargement, afficher un message
+  // On vérifie si on a une analyse sélectionnée OU s'il y a des analyses disponibles
+  const hasAnyAnalysis = selectedAnalysis || allAnalyses.length > 0;
+  
+  if (!hasAnyAnalysis) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <Package className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">No analysis found</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Aucune analyse trouvée</h2>
           <p className="text-slate-600 mb-6">
-            No analysis results are available. Please start a new analysis.
+            Aucun résultat d'analyse n'est disponible. Veuillez lancer une nouvelle analyse.
           </p>
           <button
             onClick={() => setStep(1)}
             className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:opacity-90 transition-all"
           >
-            Start new analysis
+            Nouvelle analyse
           </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Si on a des analyses mais pas encore de sélection, prendre la première
+  const analysisToShow = selectedAnalysis || allAnalyses[0];
+  
+  if (!analysisToShow) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
+          <p className="text-xl text-slate-900 mb-4">Chargement de l'analyse...</p>
         </div>
       </div>
     );
@@ -1343,9 +1350,9 @@ export function ResultsStep() {
         <div className="w-full">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200">
-              {selectedAnalysis.product.images[0] ? (
+              {analysisToShow.product.images[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={selectedAnalysis.product.images[0]} alt="" className="w-full h-full object-cover" />
+                <img src={analysisToShow.product.images[0]} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Package className="w-7 h-7 text-slate-400" />
@@ -1354,19 +1361,19 @@ export function ResultsStep() {
             </div>
             
             <div className="flex-1 min-w-0">
-              <h1 className="text-base font-bold text-slate-900 truncate mb-1">{selectedAnalysis.product.title}</h1>
+              <h1 className="text-base font-bold text-slate-900 truncate mb-1">{analysisToShow.product.title}</h1>
               <div className="flex items-center gap-3">
                 <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium">
-                  {selectedAnalysis.product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
+                  {analysisToShow.product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                 </span>
-                <span className="text-[#00d4ff] font-bold text-sm">{formatCurrency(selectedAnalysis.product.price)}</span>
+                <span className="text-[#00d4ff] font-bold text-sm">{formatCurrency(analysisToShow.product.price)}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               {/* Navigation supprimée - un seul produit à la fois */}
               <a
-                href={selectedAnalysis.product.url}
+                href={analysisToShow.product.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
@@ -1384,13 +1391,13 @@ export function ResultsStep() {
           <div className="flex items-start gap-3">
             <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-blue-800 font-medium">
-              <strong>Important:</strong> All analyses are based on the provided screenshot and public market data. Results are estimates and not guaranteed.
+              <strong>Important :</strong> Toutes les analyses sont basées sur la capture d'écran fournie et les données publiques du marché. Les résultats sont des estimations et ne sont pas garantis.
             </p>
           </div>
         </div>
       </div>
 
-      <ProductAnalysisView analysis={selectedAnalysis} />
+      <ProductAnalysisView analysis={analysisToShow} />
     </div>
   );
 }

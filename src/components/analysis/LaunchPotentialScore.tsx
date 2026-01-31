@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import type { LaunchPotentialScore as LaunchPotentialScoreType } from '@/types';
 
@@ -8,7 +9,44 @@ interface LaunchPotentialScoreProps {
   score: LaunchPotentialScoreType;
 }
 
+// Fonction pour obtenir le verdict en français basé sur le score
+function getVerdictFR(scoreValue: number): string {
+  if (scoreValue <= 3) return 'Lancement non recommandé';
+  if (scoreValue <= 7) return 'Possible avec stratégie';
+  return 'Bonne opportunité de lancement';
+}
+
+// Fonction pour obtenir l'explication en français basée sur le score
+function getExplanationFR(scoreValue: number): string {
+  if (scoreValue <= 3) {
+    return 'Forte saturation du marché avec une concurrence significative. Le lancement nécessite une réflexion approfondie et une forte différenciation.';
+  }
+  if (scoreValue <= 7) {
+    return 'Concurrence modérée dans cette niche. Le lancement est possible avec une stratégie de différenciation et marketing adaptée.';
+  }
+  return 'Niche peu saturée avec une concurrence directe limitée. Bonne opportunité de lancement.';
+}
+
+// Fonction pour obtenir la justification en français basée sur le score
+function getJustificationFR(scoreValue: number): string {
+  if (scoreValue >= 8) {
+    return `Excellent score de ${scoreValue.toFixed(1)}/10 indiquant une forte opportunité de marché. Points forts : faible densité concurrentielle, produit fortement différencié. Aucun obstacle majeur identifié pour l'entrée sur le marché. Recommandé de procéder au lancement tout en maintenant les standards de qualité.`;
+  }
+  if (scoreValue >= 6) {
+    return `Bon score de ${scoreValue.toFixed(1)}/10 suggérant un lancement viable avec une stratégie adaptée. Points forts : positionnement produit raisonnable. Envisagez d'investir dans l'optimisation SEO et un branding unique pour vous démarquer.`;
+  }
+  if (scoreValue >= 4) {
+    return `Score modéré de ${scoreValue.toFixed(1)}/10 indiquant un marché concurrentiel nécessitant une différenciation. Défis : concurrence modérée, segment partiellement saturé. Envisagez d'investir dans l'optimisation SEO et un branding unique pour vous démarquer.`;
+  }
+  return `Score faible de ${scoreValue.toFixed(1)}/10 en raison de conditions de marché difficiles. Défis : concurrence intense, segment de marché saturé. Fortement recommandé de trouver un angle plus spécifique ou de cibler une niche différente.`;
+}
+
 export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
+  // Traduire les textes en français (remplace les valeurs stockées en anglais)
+  const verdictFR = useMemo(() => getVerdictFR(score.score), [score.score]);
+  const explanationFR = useMemo(() => getExplanationFR(score.score), [score.score]);
+  const justificationFR = useMemo(() => getJustificationFR(score.score), [score.score]);
+
   // Couleurs dynamiques basées sur le score
   // 0-3: Rouge, 4-6: Orange, 7-10: Vert
   const getScoreColors = () => {
@@ -108,25 +146,23 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             transition={{ delay: 0.5 }}
             className={`text-lg font-bold ${colors.text} mb-3`}
           >
-            {score.verdict}
+            {verdictFR}
           </motion.p>
           
           {/* Score Justification - AI Explanation */}
-          {score.scoreJustification && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55 }}
-              className="p-4 rounded-xl bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20 mb-4"
-            >
-              <div className="flex items-start gap-2">
-                <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  {score.scoreJustification}
-                </p>
-              </div>
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+            className="p-4 rounded-xl bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20 mb-4"
+          >
+            <div className="flex items-start gap-2">
+              <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-700 leading-relaxed">
+                {justificationFR}
+              </p>
+            </div>
+          </motion.div>
           
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -134,7 +170,7 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             transition={{ delay: 0.6 }}
             className="text-sm text-slate-600 leading-relaxed"
           >
-            {score.explanation}
+            {explanationFR}
           </motion.p>
         </div>
 

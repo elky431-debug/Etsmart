@@ -82,6 +82,7 @@ export const useStore = create<AppState & AppActions>()(
     {
       name: 'etsmart-storage',
       partialize: (state) => ({
+        currentStep: state.currentStep,
         selectedNiche: state.selectedNiche,
         customNiche: state.customNiche,
         products: state.products,
