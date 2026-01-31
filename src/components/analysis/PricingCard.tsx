@@ -14,12 +14,12 @@ interface PricingCardProps {
 export function PricingCard({ pricing, supplierPrice }: PricingCardProps) {
   const priceOptions = [
     {
-      label: 'Launch',
+      label: 'Lancement',
       price: pricing.aggressivePrice,
       margin: pricing.marginAnalysis.atAggressivePrice,
       color: 'amber',
       icon: TrendingDown,
-      description: 'Entry price for first sales',
+      description: 'Prix d\'entrée pour les premières ventes',
     },
     {
       label: 'Optimal',
@@ -28,7 +28,7 @@ export function PricingCard({ pricing, supplierPrice }: PricingCardProps) {
       color: 'violet',
       icon: Zap,
       highlighted: true,
-      description: 'Recommended balance between sales and margin',
+      description: 'Équilibre recommandé entre ventes et marge',
     },
     {
       label: 'Premium',
@@ -36,7 +36,7 @@ export function PricingCard({ pricing, supplierPrice }: PricingCardProps) {
       margin: pricing.marginAnalysis.atPremiumPrice,
       color: 'emerald',
       icon: TrendingUp,
-      description: 'After establishing your reputation',
+      description: 'Après avoir établi votre réputation',
     },
   ];
 

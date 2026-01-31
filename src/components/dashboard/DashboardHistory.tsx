@@ -20,7 +20,7 @@ import { Logo } from '@/components/ui/Logo';
 import type { ProductAnalysis, Verdict, Niche } from '@/types';
 import { getNicheById } from '@/lib/niches';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { fr } from 'date-fns/locale';
 
 interface DashboardHistoryProps {
   analyses: ProductAnalysis[];
@@ -291,16 +291,16 @@ export function DashboardHistory({
               <Eye className="w-10 h-10 text-slate-400" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              No analysis yet
+              Aucune analyse pour le moment
             </h2>
             <p className="text-slate-600 mb-6">
-              Start by analyzing a product to see your history here.
+              Commencez par analyser un produit pour voir votre historique ici.
             </p>
             <a
               href="/app"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
             >
-              Analyze a product
+              Analyser un produit
             </a>
           </div>
         </div>
@@ -313,9 +313,9 @@ export function DashboardHistory({
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Analysis History</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Historique des analyses</h1>
           <p className="text-slate-600">
-            {analyses.length} {analyses.length === 1 ? 'product analyzed' : 'products analyzed'}
+            {analyses.length} {analyses.length === 1 ? 'produit analysé' : 'produits analysés'}
           </p>
         </div>
 
@@ -328,7 +328,7 @@ export function DashboardHistory({
             </div>
             <input
               type="text"
-              placeholder="Search for a product..."
+              placeholder="Rechercher un produit..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-14 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
@@ -344,7 +344,7 @@ export function DashboardHistory({
                 value={verdictFilter}
                 onChange={(value) => setVerdictFilter(value as Verdict | 'all')}
                 options={[
-                  { value: 'all' as const, label: 'All verdicts', icon: Filter },
+                  { value: 'all' as const, label: 'Tous les verdicts', icon: Filter },
                   { value: 'launch' as const, label: 'Lancer', icon: CheckCircle2 },
                   { value: 'test' as const, label: 'Tester', icon: AlertTriangle },
                   { value: 'avoid' as const, label: 'Éviter', icon: XCircle },
@@ -358,7 +358,7 @@ export function DashboardHistory({
               value={nicheFilter}
               onChange={(value) => setNicheFilter(value as Niche | 'all')}
               options={[
-                { value: 'all' as const, label: 'All niches', icon: Tag },
+                { value: 'all' as const, label: 'Toutes les niches', icon: Tag },
                 ...Array.from(new Set(analyses.map(a => a.niche))).map(niche => {
                   const nicheInfo = getNicheById(niche);
                   return {
@@ -376,7 +376,7 @@ export function DashboardHistory({
         {/* Results count */}
         {filteredAnalyses.length !== analyses.length && (
           <div className="mb-4 text-sm text-slate-600">
-            {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'result' : 'results'}
+            {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'résultat' : 'résultats'}
           </div>
         )}
 
@@ -426,7 +426,7 @@ export function DashboardHistory({
                           {analysis.product.title}
                         </h3>
                         <p className="text-sm text-slate-600 mb-3 line-clamp-2">
-                          {analysis.verdict.summary || 'Complete analysis available'}
+                          {analysis.verdict.summary || 'Analyse complète disponible'}
                         </p>
 
                         {/* Meta info */}
@@ -438,11 +438,11 @@ export function DashboardHistory({
                           <div className="flex items-center gap-1.5">
                             <Calendar size={14} />
                             <span>
-                              {format(new Date(analysis.analyzedAt), 'MMM d, yyyy', { locale: enUS })}
+                              {format(new Date(analysis.analyzedAt), 'd MMM yyyy', { locale: fr })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span>{analysis.competitors.totalCompetitors} competitors</span>
+                            <span>{analysis.competitors.totalCompetitors} concurrents</span>
                           </div>
                         </div>
                       </div>
@@ -495,7 +495,7 @@ export function DashboardHistory({
 
         {filteredAnalyses.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-slate-600">Aucun résultat trouvé avec ces filtres.</p>
+            <p className="text-slate-600">Aucun résultat trouvé pour ces filtres.</p>
           </div>
         )}
       </div>

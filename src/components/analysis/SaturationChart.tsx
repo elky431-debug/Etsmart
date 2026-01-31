@@ -105,7 +105,7 @@ export function SaturationChart({ saturation }: SaturationChartProps) {
         >
           <TrendingUp size={18} className="text-slate-500 mx-auto mb-2" />
           <p className="text-xl font-bold text-white">+{saturation.listingGrowthRate}%</p>
-          <p className="text-[10px] text-slate-500 mt-1">growth</p>
+          <p className="text-[10px] text-slate-500 mt-1">croissance</p>
         </motion.div>
 
         <motion.div

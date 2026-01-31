@@ -139,7 +139,7 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
             <span className={`text-sm font-bold ${
               isSelected ? 'text-white' : 'text-slate-700'
             }`}>
-              {niche.avgCompetition === 'low' ? 'Low' : niche.avgCompetition === 'medium' ? 'Medium' : 'High'}
+              {niche.avgCompetition === 'low' ? 'Faible' : niche.avgCompetition === 'medium' ? 'Moyen' : 'Élevé'}
             </span>
           </div>
           <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
@@ -151,7 +151,7 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
             <span className={`text-sm font-bold ${
               isSelected ? 'text-white' : 'text-slate-700'
             }`}>
-              {niche.avgDemand === 'low' ? 'Low' : niche.avgDemand === 'medium' ? 'Medium' : 'High'}
+              {niche.avgDemand === 'low' ? 'Faible' : niche.avgDemand === 'medium' ? 'Moyenne' : 'Élevée'}
             </span>
           </div>
         </div>
@@ -218,7 +218,7 @@ export function NicheSelection() {
             className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">STEP 1 OF 3</span>
+            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 1 SUR 3</span>
             <Zap size={16} className="text-[#00c9b7]" />
           </motion.div>
           
@@ -228,10 +228,10 @@ export function NicheSelection() {
             animate={isMobile ? undefined : { opacity: 1, y: 0 }}
             transition={isMobile ? undefined : { delay: 0.3 }}
           >
-            <span className="text-slate-900">Choose</span>
+            <span className="text-slate-900">Choisissez</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-              your niche
+              votre niche
             </span>
           </motion.h1>
           
@@ -241,7 +241,7 @@ export function NicheSelection() {
             animate={isMobile ? undefined : { opacity: 1 }}
             transition={isMobile ? undefined : { delay: 0.4 }}
           >
-            Find the perfect category to launch your Etsy shop
+            Trouvez la catégorie parfaite pour lancer votre boutique Etsy
           </motion.p>
         </motion.div>
 
@@ -261,7 +261,7 @@ export function NicheSelection() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search for a niche..."
+                  placeholder="Rechercher une niche..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none"
@@ -378,7 +378,7 @@ export function NicheSelection() {
               />
             )}
             <span className="relative z-10 flex items-center gap-2 sm:gap-3">
-              Continue
+              Continuer
               <ChevronRight size={isMobile ? 18 : 24} className="group-hover:translate-x-1 transition-transform" />
             </span>
           </motion.button>

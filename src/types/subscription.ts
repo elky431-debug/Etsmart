@@ -85,17 +85,17 @@ export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
 
 // All plans have access to all features - only difference is number of analyses per month
 const ALL_FEATURES: PlanFeature[] = [
-  { id: 'competition_analysis', name: 'Competition & saturation analysis', available: true },
-  { id: 'basic_simulation', name: 'Simplified launch simulation', available: true },
-  { id: 'full_simulation', name: 'Complete launch simulation', available: true },
-  { id: 'advanced_simulation', name: 'Advanced simulation (risk/effort)', available: true },
-  { id: 'full_product_sheet', name: 'Complete product sheet', available: true },
-  { id: 'advanced_marketing', name: 'Advanced marketing', available: true },
-  { id: 'tiktok_ideas', name: 'TikTok ideas & ad channel', available: true },
-  { id: 'ad_prompt', name: 'AI ad image prompt', available: true },
-  { id: 'extended_market', name: 'Extended market analysis', available: true },
-  { id: 'advanced_history', name: 'Advanced history organization', available: true },
-  { id: 'beta_features', name: 'Early access to new features (beta)', available: true },
+  { id: 'competition_analysis', name: 'Analyse concurrence & saturation', available: true },
+  { id: 'basic_simulation', name: 'Simulation de lancement simplifiée', available: true },
+  { id: 'full_simulation', name: 'Simulation de lancement complète', available: true },
+  { id: 'advanced_simulation', name: 'Simulation avancée (risque/effort)', available: true },
+  { id: 'full_product_sheet', name: 'Fiche produit complète', available: true },
+  { id: 'advanced_marketing', name: 'Marketing avancé', available: true },
+  { id: 'tiktok_ideas', name: 'Idées TikTok & canal publicitaire', available: true },
+  { id: 'ad_prompt', name: 'Prompt IA pour image publicitaire', available: true },
+  { id: 'extended_market', name: 'Analyse de marché étendue', available: true },
+  { id: 'advanced_history', name: 'Organisation avancée de l\'historique', available: true },
+  { id: 'beta_features', name: 'Accès anticipé aux nouvelles fonctionnalités (bêta)', available: true },
 ];
 
 // Plan features configuration - all plans have the same features
@@ -111,7 +111,7 @@ export const PLANS: Plan[] = [
   {
     id: 'SMART',
     name: 'Etsmart Smart',
-    description: 'Perfect for sellers who want to test products seriously. All features included.',
+    description: 'Parfait pour les vendeurs qui veulent tester des produits sérieusement. Toutes les fonctionnalités incluses.',
     price: 19.99,
     currency: 'EUR',
     analysesPerMonth: 30,
@@ -121,7 +121,7 @@ export const PLANS: Plan[] = [
   {
     id: 'PRO',
     name: 'Etsmart Pro',
-    description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
+    description: 'Idéal pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalités incluses.',
     price: 29.99,
     currency: 'EUR',
     analysesPerMonth: 60,
@@ -132,7 +132,7 @@ export const PLANS: Plan[] = [
   {
     id: 'SCALE',
     name: 'Etsmart Scale',
-    description: 'For high-volume shops testing many products strategically. All features included.',
+    description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
     price: 49.99,
     currency: 'EUR',
     analysesPerMonth: 100,

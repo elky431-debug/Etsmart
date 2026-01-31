@@ -116,7 +116,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <TrendingUp size={12} />
-                    <span className="text-[10px]">Sales</span>
+                    <span className="text-[10px]">Ventes</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {formatNumber(scenario.data.estimatedSales)}
@@ -125,7 +125,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <DollarSign size={12} />
-                    <span className="text-[10px]">Revenue</span>
+                    <span className="text-[10px]">CA</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {formatCurrency(scenario.data.estimatedRevenue)}
@@ -143,7 +143,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
                 <div>
                   <div className="flex items-center gap-1 text-slate-500 mb-1">
                     <Percent size={12} />
-                    <span className="text-[10px]">Margin</span>
+                    <span className="text-[10px]">Marge</span>
                   </div>
                   <p className="text-lg font-bold text-white">
                     {scenario.data.marginPercentage}%
@@ -162,7 +162,7 @@ export function LaunchSimulation({ simulation }: LaunchSimulationProps) {
         transition={{ delay: 0.3 }}
         className="p-5 rounded-xl bg-slate-900/30 border border-white/5"
       >
-        <h4 className="text-sm font-medium text-white mb-4">Key Success Factors</h4>
+        <h4 className="text-sm font-medium text-white mb-4">Facteurs clés de succès</h4>
         <div className="grid sm:grid-cols-2 gap-2">
           {simulation.keyFactors.map((factor, index) => (
             <motion.div

@@ -189,7 +189,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   const otherPlans = PLANS.filter(p => p.id !== normalizedPlanId);
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your billing period.')) {
+    if (!confirm('Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès à toutes les fonctionnalités premium à la fin de votre période de facturation.')) {
       return;
     }
 
@@ -217,7 +217,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
         throw new Error(data.error || 'Failed to cancel subscription');
       }
 
-      alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
+      alert('Abonnement annulé avec succès. Vous conserverez l\'accès jusqu\'à la fin de votre période de facturation.');
       loadSubscription();
     } catch (error: any) {
       console.error('Error canceling subscription:', error);
@@ -291,9 +291,9 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                    Subscription
+                    Abonnement
                   </h1>
-                  <p className="text-slate-500 mt-1">Manage your plan and billing</p>
+                  <p className="text-slate-500 mt-1">Gérez votre plan et votre facturation</p>
                 </div>
               </div>
               <button
@@ -302,7 +302,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-cyan-600 bg-white hover:bg-cyan-50 rounded-xl border border-slate-200 hover:border-cyan-200 transition-all shadow-sm disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                Actualiser
               </button>
             </div>
 
@@ -321,17 +321,17 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    No Active Subscription
+                    Aucun abonnement actif
                   </h2>
                   <p className="text-slate-600 mb-6 text-lg">
-                    Subscribe to unlock powerful Etsy product analysis and boost your sales.
+                    Abonnez-vous pour débloquer l'analyse de produits Etsy et booster vos ventes.
                   </p>
                   <Link
                     href="/pricing"
                     className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-2xl hover:shadow-xl hover:shadow-cyan-500/30 transition-all hover:-translate-y-0.5 text-lg"
                   >
                     <Sparkles className="w-5 h-5" />
-                    View Plans
+                    Voir les plans
                   </Link>
                 </div>
               </div>
@@ -341,7 +341,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             <div>
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
                 <Star className="w-6 h-6 text-cyan-500" />
-                Available Plans
+                Plans disponibles
               </h2>
               <div className="grid md:grid-cols-3 gap-5">
                 {PLANS.map((plan, index) => (
@@ -410,7 +410,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         }
                       `}
                     >
-                      Choose Plan
+                      Choisir ce plan
                     </Link>
                   </motion.div>
                 ))}
@@ -466,7 +466,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">Subscription Ending</h2>
+                  <h2 className="text-xl font-bold text-slate-900">Abonnement en fin de période</h2>
                 </div>
 
                 <div className="bg-amber-50/80 rounded-xl p-4 mb-5 border border-amber-200">
@@ -474,16 +474,16 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm text-amber-800 font-medium mb-1">
-                        Your subscription has been canceled
+                        Votre abonnement a été annulé
                       </p>
                       <p className="text-sm text-amber-700">
-                        You will retain access until the end of your billing period
+                        Vous conserverez l'accès jusqu'à la fin de votre période de facturation
                         {subscription.current_period_end && (
                           <span className="font-semibold">
                             {' '}({new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})
                           </span>
                         )}.
-                        After that, you will be switched to the free plan.
+                        Après cela, vous passerez au plan gratuit.
                       </p>
                     </div>
                   </div>
@@ -494,7 +494,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                   className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                 >
                   <CreditCard size={18} />
-                  <span>Subscribe again</span>
+                  <span>Se réabonner</span>
                 </Link>
               </div>
             </motion.div>
@@ -533,7 +533,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         {subscription.cancel_at_period_end ? 'Ending' : 'Active'}
                       </span>
                     </div>
-                    <p className="text-slate-500 mt-1">Your current subscription plan</p>
+                    <p className="text-slate-500 mt-1">Votre plan d'abonnement actuel</p>
                   </div>
                 </div>
                 
@@ -550,7 +550,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <TrendingUp className="w-5 h-5 text-cyan-600" />
-                    <span className="font-semibold text-slate-800">Monthly Usage</span>
+                    <span className="font-semibold text-slate-800">Utilisation mensuelle</span>
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-black text-cyan-700">{usageStats.used}</span>
@@ -586,7 +586,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-cyan-500" />
-                  Included Features
+                  Fonctionnalités incluses
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {currentPlan.features
@@ -625,7 +625,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-600 hover:text-white hover:bg-red-500 rounded-xl border border-red-200 hover:border-red-500 transition-all disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" />
-                    {canceling ? 'Canceling...' : 'Cancel Subscription'}
+                    {canceling ? 'Annulation...' : 'Annuler l\'abonnement'}
                   </button>
                 )}
               </div>
@@ -637,7 +637,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             <div>
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
                 <Star className="w-6 h-6 text-cyan-500" />
-                Other Plans
+                Autres plans
               </h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {otherPlans.map((plan, index) => (
@@ -710,7 +710,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         }
                       `}
                     >
-                      {plan.price > currentPlan.price ? 'Upgrade' : 'Switch Plan'}
+                      {plan.price > currentPlan.price ? 'Passer au supérieur' : 'Changer de plan'}
                     </Link>
                   </motion.div>
                 ))}
@@ -731,10 +731,10 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
               </div>
               <div>
                 <p className="font-semibold text-slate-900 mb-1">
-                  Need help?
+                  Besoin d'aide ?
                 </p>
                 <p className="text-slate-600">
-                  Contact our team for questions about your subscription or for a custom enterprise plan.
+                  Contactez notre équipe pour toute question sur votre abonnement ou pour un plan entreprise personnalisé.
                 </p>
               </div>
             </div>

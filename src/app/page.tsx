@@ -98,62 +98,62 @@ export default function HomePage() {
   const features = [
     {
       icon: Cpu,
-      title: 'Advanced AI Analysis',
-      description: 'Our AI deeply analyzes the Etsy market and predicts your products\' potential.',
+      title: 'Analyse IA avancée',
+      description: 'Notre IA analyse en profondeur le marché Etsy et prédit le potentiel de vos produits.',
     },
     {
       icon: LineChart,
-      title: 'Realistic Simulation',
-      description: 'Simulate your sales with conservative, realistic, and optimistic projections.',
+      title: 'Simulation réaliste',
+      description: 'Simulez vos ventes avec des projections conservatrices, réalistes et optimistes.',
     },
     {
       icon: Target,
-      title: 'Optimal Pricing',
-      description: 'Receive pricing recommendations based on competition and your margins.',
+      title: 'Pricing optimal',
+      description: 'Recevez des recommandations de prix basées sur la concurrence et vos marges.',
     },
     {
       icon: Shield,
-      title: 'Risk Detection',
-      description: 'Identify saturated markets and avoid costly mistakes before launching.',
+      title: 'Détection des risques',
+      description: 'Identifiez les marchés saturés et évitez les erreurs coûteuses avant de lancer.',
     },
     {
       icon: ShoppingBag,
-      title: 'Competitor Analysis',
-      description: 'Discover who dominates your niche and how to differentiate effectively.',
+      title: 'Analyse concurrentielle',
+      description: 'Découvrez qui domine votre niche et comment vous différencier efficacement.',
     },
     {
       icon: Sparkles,
-      title: 'Intelligent Verdict',
-      description: 'A clear and actionable verdict: Launch, Competitive Market, or Avoid.',
+      title: 'Verdict intelligent',
+      description: 'Un verdict clair et actionnable : Lancer, Marché compétitif, ou Éviter.',
     },
   ];
 
   const stats = [
-    { value: '10K+', label: 'Products analyzed' },
-    { value: '2.5K+', label: 'Active sellers' },
-    { value: '95%', label: 'AI accuracy' },
-    { value: '24/7', label: 'Availability' },
+    { value: '10K+', label: 'Produits analysés' },
+    { value: '2.5K+', label: 'Vendeurs actifs' },
+    { value: '95%', label: 'Précision IA' },
+    { value: '24/7', label: 'Disponibilité' },
   ];
 
   const testimonials = [
     {
       name: 'Thomas Brikia',
-      role: 'Etsy Pro Seller',
-      content: 'Etsmart saved me from launching 3 products that would have been failures. The AI analysis is impressively accurate.',
+      role: 'Vendeur Pro Etsy',
+      content: 'Etsmart m\'a évité de lancer 3 produits qui auraient été des échecs. L\'analyse IA est d\'une précision impressionnante.',
       avatar: 'T',
       rating: 5,
     },
     {
       name: 'Samy Limam',
       role: 'Dropshipper',
-      content: 'The Launch/Avoid verdict saves me hours of research. Essential for any serious seller.',
+      content: 'Le verdict Lancer/Éviter me fait gagner des heures de recherche. Indispensable pour tout vendeur sérieux.',
       avatar: 'S',
       rating: 5,
     },
     {
       name: 'Yosri Aulombard',
-      role: 'POD Creator',
-      content: 'The pricing recommendations are spot-on. I increased my margins by 40% thanks to Etsmart.',
+      role: 'Créateur POD',
+      content: 'Les recommandations de prix sont très justes. J\'ai augmenté mes marges de 40% grâce à Etsmart.',
       avatar: 'Y',
       rating: 5,
     },
@@ -193,16 +193,16 @@ export default function HomePage() {
               {/* Navigation Desktop */}
               <nav className="hidden md:flex items-center gap-8">
                 <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Features
+                  Fonctionnalités
                 </a>
                 <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Pricing
+                  Tarifs
                 </a>
                 <a href="#testimonials" className="hidden md:block text-slate-600 hover:text-slate-900 transition-colors">
-                  Testimonials
+                  Témoignages
                 </a>
                 <Link href="/about" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  About
+                  À propos
                 </Link>
               </nav>
 
@@ -212,19 +212,19 @@ export default function HomePage() {
                   // Utilisateur connecté - afficher seulement Dashboard
                   <Link href="/dashboard?section=analyze">
                     <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                      <span className="text-white">Dashboard</span>
+                      <span className="text-white">Tableau de bord</span>
                       <ArrowRight size={16} className="text-white" />
                     </button>
                   </Link>
                 ) : (
-                  // User not logged in - show Login and Create account
+                  // Utilisateur non connecté - afficher Connexion et Créer un compte
                   <>
                     <Link href="/login" className="text-slate-600 hover:text-slate-900 transition-colors">
-                      Login
+                      Connexion
                     </Link>
                     <Link href="/register">
                       <button className="px-5 py-2.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full flex items-center gap-2 shadow-lg shadow-[#00d4ff]/20 transition-all">
-                        <span className="text-white">Create account</span>
+                        <span className="text-white">Créer un compte</span>
                         <ArrowRight size={16} className="text-white" />
                       </button>
                     </Link>
@@ -302,7 +302,7 @@ export default function HomePage() {
                       <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                         <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
                       </div>
-                      <span className="font-semibold">Features</span>
+                      <span className="font-semibold">Fonctionnalités</span>
                     </a>
                     
                     <Link
@@ -313,7 +313,7 @@ export default function HomePage() {
                       <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
                         <Info className="w-5 h-5 text-[#00d4ff]" />
                       </div>
-                      <span className="font-semibold">About</span>
+                      <span className="font-semibold">À propos</span>
                     </Link>
                   </nav>
 
@@ -326,7 +326,7 @@ export default function HomePage() {
                       <Link href="/dashboard?section=analyze" onClick={() => setMobileMenuOpen(false)}>
                         <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:opacity-90 touch-manipulation">
                           <LayoutDashboard size={20} />
-                          <span>Dashboard</span>
+                          <span>Tableau de bord</span>
                           <ArrowRight size={18} />
                         </button>
                       </Link>
@@ -334,12 +334,12 @@ export default function HomePage() {
                       <>
                         <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                           <button className="w-full px-4 py-3 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl active:bg-slate-50 touch-manipulation">
-                            Login
+                            Connexion
                           </button>
                         </Link>
                         <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
                           <button className="w-full px-4 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00d4ff]/30 active:opacity-90 touch-manipulation">
-                            <span>Create account</span>
+                            <span>Créer un compte</span>
                             <ArrowRight size={18} />
                           </button>
                         </Link>
@@ -350,12 +350,12 @@ export default function HomePage() {
                   {/* Quick Actions */}
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">
-                      Quick Actions
+                      Actions rapides
                     </p>
                     <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
                       <button className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl flex items-center justify-center gap-2 active:bg-slate-100 touch-manipulation">
                         <Play size={18} className="text-[#00d4ff]" />
-                        <span>Analyze my product</span>
+                        <span>Analyser mon produit</span>
                       </button>
                     </Link>
                   </div>
@@ -377,23 +377,23 @@ export default function HomePage() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6 sm:mb-8">
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Powered by AI</span>
+              <span className="text-sm text-slate-700">Propulsé par l'IA</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </div>
 
             {/* Main headline */}
             <h1 className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-8 px-4 sm:px-0">
-              <span className="text-slate-900">Launch profitable products</span>
+              <span className="text-slate-900">Lancez des produits rentables</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">on Etsy</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">sur Etsy</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed px-4 sm:px-0">
-              Our AI analyzes your AliExpress products and reveals{' '}
-              <span className="text-slate-900 font-medium">their real potential</span> on Etsy.
+              Notre IA analyse vos produits AliExpress et révèle{' '}
+              <span className="text-slate-900 font-medium">leur vrai potentiel</span> sur Etsy.
               <br className="hidden sm:block" />
-              No more costly failures, launch with confidence.
+              Fini les échecs coûteux, lancez en toute confiance.
             </p>
 
             {/* CTA Buttons */}
@@ -401,13 +401,13 @@ export default function HomePage() {
               <Link href="/app" className="w-full sm:w-auto">
                 <button className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-xl shadow-[#00d4ff]/20 hover:shadow-[#00d4ff]/30 transition-all btn-mobile">
                   <Play size={16} className="fill-white sm:w-[18px] sm:h-[18px]" />
-                  <span className="text-sm sm:text-base">Analyze my product</span>
+                  <span className="text-sm sm:text-base">Analyser mon produit</span>
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform sm:w-[18px] sm:h-[18px]" />
                 </button>
               </Link>
               <a href="#features" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 sm:py-4 bg-white border border-slate-200 text-slate-800 font-medium rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all btn-mobile">
-                  <span className="text-sm sm:text-base">Discover features</span>
+                  <span className="text-sm sm:text-base">Découvrir les fonctionnalités</span>
                   <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </a>
@@ -446,15 +446,15 @@ export default function HomePage() {
       <section id="features" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-20">
-            <span className="text-[#00d4ff] font-medium mb-3 sm:mb-4 block uppercase tracking-wider text-xs sm:text-sm">Features</span>
+            <span className="text-[#00d4ff] font-medium mb-3 sm:mb-4 block uppercase tracking-wider text-xs sm:text-sm">Fonctionnalités</span>
             <h2 className="text-2xl sm:text-4xl sm:text-5xl font-bold mb-4 sm:mb-6">
-              <span className="text-slate-900">Everything you need to</span>
+              <span className="text-slate-900">Tout ce qu'il vous faut pour</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominate on Etsy</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">dominer sur Etsy</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-lg px-4 sm:px-0">
-              A complete suite of AI tools to analyze, simulate and optimize 
-              your product launches.
+              Une suite complète d'outils IA pour analyser, simuler et optimiser 
+              vos lancements de produits.
             </p>
           </div>
 
@@ -481,10 +481,10 @@ export default function HomePage() {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">How it works</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Comment ça marche</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Analyze in</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 steps</span>
+              <span className="text-slate-900">Analysez en</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">3 étapes</span>
             </h2>
           </div>
 
@@ -493,20 +493,20 @@ export default function HomePage() {
               {
                 step: '01',
                 icon: ShoppingBag,
-                title: 'Choose your niche',
-                description: 'Select from our popular niches or enter your own.',
+                title: 'Choisissez votre niche',
+                description: 'Sélectionnez parmi nos niches populaires ou entrez la vôtre.',
               },
               {
                 step: '02',
                 icon: Globe,
-                title: 'Add your products',
-                description: 'Paste the AliExpress link or enter your product details.',
+                title: 'Ajoutez vos produits',
+                description: 'Collez le lien AliExpress ou entrez les détails de votre produit.',
               },
               {
                 step: '03',
                 icon: Sparkles,
-                title: 'Get your verdict',
-                description: 'Our AI analyzes and gives you a clear and actionable verdict.',
+                title: 'Obtenez votre verdict',
+                description: 'Notre IA analyse et vous donne un verdict clair et actionnable.',
               },
             ].map((item, index) => (
               <div
@@ -540,7 +540,7 @@ export default function HomePage() {
           <div className="text-center mt-16">
             <Link href="/app">
               <button className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all">
-                Get started now
+                Commencer maintenant
                 <ArrowRight size={18} />
               </button>
             </Link>
@@ -552,13 +552,13 @@ export default function HomePage() {
       <section id="pricing" className="py-16 sm:py-32 relative bg-slate-50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Pricing</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Tarifs</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">Transparent</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">pricing</span>
+              <span className="text-slate-900">Des tarifs</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">transparents</span>
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-              Start for free, upgrade when you're ready.
+              Commencez gratuitement, passez à la vitesse supérieure quand vous êtes prêt.
             </p>
           </div>
 
@@ -568,28 +568,28 @@ export default function HomePage() {
               {
                 name: 'Smart',
                 price: '€19.99',
-                period: '/month',
-                description: 'Perfect for sellers who want to test products seriously. All features included.',
-                features: ['30 analyses / month', 'All features included'],
-                cta: 'Get started',
+                period: '/mois',
+                description: 'Parfait pour les vendeurs qui veulent tester des produits sérieusement. Toutes les fonctionnalités incluses.',
+                features: ['30 analyses / mois', 'Toutes les fonctionnalités incluses'],
+                cta: 'Commencer',
                 popular: false,
               },
               {
                 name: 'Pro',
                 price: '€29.99',
-                period: '/month',
-                description: 'Ideal for active sellers who analyze multiple products monthly. All features included.',
-                features: ['60 analyses / month', 'All features included'],
-                cta: 'Choose plan',
+                period: '/mois',
+                description: 'Idéal pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalités incluses.',
+                features: ['60 analyses / mois', 'Toutes les fonctionnalités incluses'],
+                cta: 'Choisir ce plan',
                 popular: true,
               },
               {
                 name: 'Scale',
                 price: '€49.99',
-                period: '/month',
-                description: 'For high-volume shops testing many products strategically. All features included.',
-                features: ['100 analyses / month', 'All features included'],
-                cta: 'Choose plan',
+                period: '/mois',
+                description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
+                features: ['100 analyses / mois', 'Toutes les fonctionnalités incluses'],
+                cta: 'Choisir ce plan',
                 popular: false,
               },
             ].map((plan) => (
@@ -604,7 +604,7 @@ export default function HomePage() {
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="px-4 py-1.5 bg-[#00d4ff] text-white text-sm font-semibold rounded-full shadow-lg">
-                      Most popular
+                      Le plus populaire
                     </span>
                   </div>
                 )}
@@ -649,22 +649,22 @@ export default function HomePage() {
               {
                 name: 'Smart',
                 price: '€19.99',
-                period: '/month',
-                analysesCount: '30 analyses / month',
+                period: '/mois',
+                analysesCount: '30 analyses / mois',
                 popular: false,
               },
               {
                 name: 'Pro',
                 price: '€29.99',
-                period: '/month',
-                analysesCount: '60 analyses / month',
+                period: '/mois',
+                analysesCount: '60 analyses / mois',
                 popular: true,
               },
               {
                 name: 'Scale',
                 price: '€49.99',
-                period: '/month',
-                analysesCount: '100 analyses / month',
+                period: '/mois',
+                analysesCount: '100 analyses / mois',
                 popular: false,
               },
             ].map((plan) => (
@@ -679,7 +679,7 @@ export default function HomePage() {
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span className="px-3 py-1 bg-[#00d4ff] text-white text-xs font-semibold rounded-full">
-                      Popular
+                      Populaire
                     </span>
                   </div>
                 )}
@@ -706,7 +706,7 @@ export default function HomePage() {
                         : 'bg-slate-100 border border-slate-200 text-slate-800'
                     }`}
                   >
-                    Choose plan
+                    Choisir ce plan
                   </button>
                 </Link>
               </div>
@@ -719,10 +719,10 @@ export default function HomePage() {
       <section id="testimonials" className="hidden md:block py-16 sm:py-32 relative bg-white">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Testimonials</span>
+            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Témoignages</span>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">They trust</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">us</span>
+              <span className="text-slate-900">Ils nous font</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">confiance</span>
             </h2>
           </div>
 
@@ -761,23 +761,23 @@ export default function HomePage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 text-white">
-              Ready to launch your
+              Prêt à lancer votre
               <br />
-              next success?
+              prochain succès ?
             </h2>
             <p className="text-white/80 text-lg mb-12 max-w-2xl mx-auto">
-              Join thousands of sellers using Etsmart to 
-              make better decisions and maximize their profits.
+              Rejoignez des milliers de vendeurs qui utilisent Etsmart pour 
+              prendre de meilleures décisions et maximiser leurs profits.
             </p>
             <Link href="/app">
               <button className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all">
-                Start for free
+                Commencer gratuitement
                 <ArrowUpRight size={20} className="text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
             </Link>
             <p className="mt-6 text-white/60 text-sm flex items-center justify-center gap-2">
               <Lock size={14} />
-              No credit card required
+              Aucune carte de crédit requise
             </p>
           </div>
         </div>
@@ -797,13 +797,13 @@ export default function HomePage() {
             </Link>
             
             <div className="flex items-center gap-8 text-sm text-slate-500">
-              <Link href="/legal" className="hover:text-slate-900 transition-colors">Legal</Link>
-              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
+              <Link href="/legal" className="hover:text-slate-900 transition-colors">Mentions légales</Link>
+              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Confidentialité</Link>
               <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             </div>
             
             <p className="text-sm text-slate-400">
-              © 2026 Etsmart. All rights reserved.
+              © 2026 Etsmart. Tous droits réservés.
             </p>
           </div>
         </div>

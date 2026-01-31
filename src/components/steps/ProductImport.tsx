@@ -54,7 +54,7 @@ export function ProductImport() {
     // Check if user is authenticated
     if (!user) {
       // Redirect to login or show auth required message
-      setError('Please sign in to analyze products');
+      setError('Veuillez vous connecter pour analyser des produits');
       return;
     }
 
@@ -175,13 +175,13 @@ export function ProductImport() {
 
     // Vérifier que c'est une image
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image (PNG, JPG, etc.)');
+      setError('Veuillez sélectionner une image (PNG, JPG, etc.)');
       return;
     }
 
     // Limiter la taille (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setError('Image is too large (max 10MB)');
+      setError('L\'image est trop grande (max 10 Mo)');
       return;
     }
 
@@ -212,7 +212,7 @@ export function ProductImport() {
       const token = session?.access_token;
       
       if (!token) {
-        setError('Authentication required. Please login again.');
+        setError('Authentification requise. Veuillez vous reconnecter.');
         return;
       }
 
@@ -251,12 +251,12 @@ export function ProductImport() {
         e.target.value = '';
       } else {
         // Extraire le message d'erreur
-        const errorMessage = data.message || data.error || 'Unable to extract information from the screenshot. Try taking a clearer photo of the product page.';
+        const errorMessage = data.message || data.error || 'Impossible d\'extraire les informations de la capture d\'écran. Essayez de prendre une photo plus claire de la page produit.';
         setError(errorMessage);
       }
     } catch (error: any) {
       console.error('Image upload error:', error);
-      setError('Error uploading image. Please try again.');
+      setError('Erreur lors du téléchargement de l\'image. Veuillez réessayer.');
     } finally {
       setIsLoadingImage(false);
     }
@@ -292,7 +292,7 @@ export function ProductImport() {
             className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-3 sm:mb-5 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">STEP 2 OF 3</span>
+            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 2 SUR 3</span>
             {currentNiche && (
               <>
                 <span className="text-slate-300">•</span>
@@ -321,7 +321,7 @@ export function ProductImport() {
                     ? 'bg-amber-100 text-amber-700'
                     : 'bg-red-100 text-red-700'
               }`}>
-                {subscription.remaining} left
+                {subscription.remaining} restantes
               </span>
             </motion.div>
           )}
@@ -332,10 +332,10 @@ export function ProductImport() {
             animate={isMobile ? undefined : { opacity: 1, y: 0 }}
             transition={isMobile ? undefined : { delay: 0.3 }}
           >
-            <span className="text-slate-900">Import</span>
+            <span className="text-slate-900">Importez</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-              your products
+              vos produits
             </span>
           </motion.h1>
           
@@ -345,7 +345,7 @@ export function ProductImport() {
             animate={isMobile ? undefined : { opacity: 1 }}
             transition={isMobile ? undefined : { delay: 0.4 }}
           >
-            Take a screenshot of the AliExpress/Alibaba product page and we will automatically extract all information
+            Prenez une capture d'écran de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
           </motion.p>
         </motion.div>
 
@@ -368,10 +368,10 @@ export function ProductImport() {
                   <ImageIcon className="w-8 h-8 text-[#00c9b7]" />
                 </motion.div>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                  Take a screenshot
+                  Prenez une capture d'écran
                 </h3>
                 <p className="text-sm text-slate-600 mb-4 sm:mb-5 px-2 sm:px-0">
-                  Take a photo of the AliExpress/Alibaba product page and we will automatically extract all information
+                  Prenez une photo de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
                 </p>
                 
                 <input
@@ -398,12 +398,12 @@ export function ProductImport() {
                   {isLoadingImage ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Analyzing...
+                      Analyse en cours...
                     </>
                   ) : (
                     <>
                       <Upload size={20} />
-                      Choose an image
+                      Choisir une image
                     </>
                   )}
                 </motion.label>
@@ -415,7 +415,7 @@ export function ProductImport() {
                     className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
                   >
                     <Eye size={16} />
-                    {showExample ? 'Hide example' : 'Show example of valid screenshot'}
+                    {showExample ? 'Masquer l\'exemple' : 'Voir un exemple de capture d\'écran valide'}
                   </button>
                   
                   {showExample && (
@@ -427,19 +427,19 @@ export function ProductImport() {
                       <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-slate-900 mb-2">
-                            Example of valid screenshot
+                            Exemple de capture d'écran valide
                           </h4>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Take a screenshot of the AliExpress or Alibaba product page showing the product image, title, and price.
+                            Prenez une capture d'écran de la page produit AliExpress ou Alibaba montrant l'image du produit, le titre et le prix.
                             <br />
-                            <span className="text-slate-500 italic">This example is for illustrative purposes only.</span>
+                            <span className="text-slate-500 italic">Cet exemple est donné à titre indicatif uniquement.</span>
                           </p>
                         </div>
                         <div className="relative rounded-xl overflow-hidden border-2 border-slate-300 shadow-lg bg-white">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src="/examples/screenshot-example.png"
-                            alt="Example screenshot of AliExpress product page"
+                            alt="Exemple de capture d'écran d'une page produit AliExpress"
                             className="w-full h-auto"
                             onError={(e) => {
                               // Fallback si l'image n'existe pas encore
@@ -449,8 +449,8 @@ export function ProductImport() {
                               if (parent) {
                                 parent.innerHTML = `
                                   <div class="p-12 text-center text-slate-400">
-                                    <p class="text-sm mb-2">Example image to add</p>
-                                    <p class="text-xs">Place your screenshot in /public/examples/screenshot-example.png</p>
+                                    <p class="text-sm mb-2">Image d'exemple à ajouter</p>
+                                    <p class="text-xs">Placez votre capture d'écran dans /public/examples/screenshot-example.png</p>
                                   </div>
                                 `;
                               }
@@ -458,7 +458,7 @@ export function ProductImport() {
                           />
                         </div>
                         <p className="mt-4 text-xs text-slate-500 text-center">
-                          📸 Screenshot of an AliExpress product page with the product "Etsmart Cup"
+                          📸 Capture d'écran d'une page produit AliExpress avec le produit "Etsmart Cup"
                         </p>
                       </div>
                     </motion.div>
@@ -511,7 +511,7 @@ export function ProductImport() {
         >
           <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Products to analyze
+              Produits à analyser
             </h2>
           </div>
 
@@ -524,8 +524,8 @@ export function ProductImport() {
               >
                 <Package className="w-12 h-12 text-[#00d4ff]" />
               </motion.div>
-              <p className="text-lg font-bold text-slate-700 mb-2">No products added</p>
-              <p className="text-sm text-slate-500">Take a screenshot of the AliExpress/Alibaba product page above to get started</p>
+              <p className="text-lg font-bold text-slate-700 mb-2">Aucun produit ajouté</p>
+              <p className="text-sm text-slate-500">Prenez une capture d'écran de la page produit AliExpress/Alibaba ci-dessus pour commencer</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -576,20 +576,20 @@ export function ProductImport() {
                             <div className="flex flex-col gap-2 w-full sm:w-auto">
                               <button
                                 onClick={() => {
-                                  const newPrice = prompt('Enter the product price (USD):', '');
+                                  const newPrice = prompt('Entrez le prix du produit (USD) :', '');
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
                                     const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
-                                    alert('Please enter a valid price greater than 0');
+                                    alert('Veuillez entrer un prix valide supérieur à 0');
                                   }
                                 }}
                                 className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors font-semibold text-xs sm:text-sm"
                               >
                                 <AlertCircle size={14} className="sm:w-4 sm:h-4" />
-                                <span className="whitespace-nowrap">Price required - Click to add</span>
+                                <span className="whitespace-nowrap">Prix requis - Cliquez pour ajouter</span>
                               </button>
-                              <p className="text-xs text-amber-600">Price is required to continue</p>
+                              <p className="text-xs text-amber-600">Le prix est requis pour continuer</p>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -598,12 +598,12 @@ export function ProductImport() {
                               </span>
                               <button
                                 onClick={() => {
-                                  const newPrice = prompt('Edit product price (USD):', products[0].price.toString());
+                                  const newPrice = prompt('Modifier le prix du produit (USD) :', products[0].price.toString());
                                   if (newPrice && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0) {
                                     const updatedProduct = { ...products[0], price: parseFloat(newPrice) };
                                     addProduct(updatedProduct);
                                   } else if (newPrice) {
-                                    alert('Please enter a valid price greater than 0');
+                                    alert('Veuillez entrer un prix valide supérieur à 0');
                                   }
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-lg transition-all"
@@ -657,7 +657,7 @@ export function ProductImport() {
             className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
           >
             <ArrowLeft size={20} />
-            Back
+            Retour
           </motion.button>
 
           <div className="flex flex-col items-end gap-3">
@@ -668,7 +668,7 @@ export function ProductImport() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium"
               >
                 <AlertCircle size={16} />
-                All products must have a price entered
+                Tous les produits doivent avoir un prix renseigné
               </motion.div>
             )}
             <motion.button
@@ -693,11 +693,11 @@ export function ProductImport() {
                 {subscriptionLoading ? (
                   <>
                     <Loader2 size={20} className="animate-spin" />
-                    Loading...
+                    Chargement...
                   </>
                 ) : (
                   <>
-                    Analyze
+                    Analyser
                     <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -720,7 +720,7 @@ export function ProductImport() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 transition-all text-xs font-medium"
           >
             <Home size={12} />
-            <span>Home</span>
+            <span>Accueil</span>
           </motion.a>
         </motion.div>
       </motion.div>
@@ -743,8 +743,8 @@ export function ProductImport() {
               className="w-full max-w-2xl"
             >
               <Paywall
-                title="Unlock product analysis"
-                message="To analyze products and access full results, you need an active subscription."
+                title="Débloquer l'analyse de produits"
+                message="Pour analyser des produits et accéder aux résultats complets, vous avez besoin d'un abonnement actif."
                 currentPlan={subscription?.plan || 'FREE'}
                 quotaReached={quotaReached}
                 used={subscription?.used}
@@ -760,7 +760,7 @@ export function ProductImport() {
                   onClick={() => setShowPaywall(false)}
                   className="px-6 py-3 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
                 >
-                  Back to dashboard
+                  Retour au tableau de bord
                 </button>
               </div>
             </motion.div>

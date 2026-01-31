@@ -197,9 +197,9 @@ export function AnalysisStep() {
   };
 
   const phases = [
-    { text: 'Product image analysis', icon: Eye },
-    { text: 'Etsy market evaluation', icon: BarChart3 },
-    { text: 'Competitor analysis', icon: TrendingUp },
+    { text: 'Analyse de l\'image du produit', icon: Eye },
+    { text: 'Évaluation du marché Etsy', icon: BarChart3 },
+    { text: 'Analyse des concurrents', icon: TrendingUp },
     { text: 'Génération des recommandations IA', icon: Sparkles },
   ];
 
@@ -214,7 +214,7 @@ export function AnalysisStep() {
     setIsAnalyzing(true);
     setGlobalIsAnalyzing(true); // Verrou global
     setProgress(5); // Démarrage immédiat
-    setCurrentPhase('Starting analysis...');
+    setCurrentPhase('Démarrage de l\'analyse...');
     
     const niche = selectedNiche === 'custom' ? customNiche : selectedNiche;
 
@@ -231,7 +231,7 @@ export function AnalysisStep() {
       console.log(`📦 Analyzing product:`, product.title?.substring(0, 50));
       
       setCurrentIndex(0);
-      setCurrentPhase('AI Vision Analysis');
+      setCurrentPhase('Analyse de l\'image du produit');
       setProgress(10); // 10% au début
         
       try {
@@ -476,8 +476,8 @@ export function AnalysisStep() {
     return (
       <div className="min-h-screen w-full relative overflow-hidden">
         <Paywall
-          title="Unlock product analysis"
-          message="To analyze products and access full results, you need an active subscription."
+          title="Débloquer l'analyse de produits"
+          message="Pour analyser des produits et accéder aux résultats complets, vous avez besoin d'un abonnement actif."
           currentPlan={subscription?.plan || 'FREE'}
           quotaReached={quotaReached}
           used={subscription?.used}
@@ -490,7 +490,7 @@ export function AnalysisStep() {
             variant="secondary"
             className="bg-white"
           >
-            Back to import
+            Retour à l'importation
           </Button>
         </div>
       </div>
@@ -525,7 +525,7 @@ export function AnalysisStep() {
             className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">STEP 3 OF 3</span>
+            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 3 SUR 3</span>
             <Zap size={16} className="text-[#00c9b7]" />
           </motion.div>
           
@@ -537,18 +537,18 @@ export function AnalysisStep() {
           >
             {isAnalyzing ? (
               <>
-                <span className="text-slate-900">Analysis</span>
+                <span className="text-slate-900">Analyse</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-                  in progress
+                  en cours
                 </span>
               </>
             ) : (
             <>
-                <span className="text-slate-900">Analysis</span>
+                <span className="text-slate-900">Analyse</span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-                  completed
+                  terminée
                 </span>
             </>
           )}
@@ -561,8 +561,8 @@ export function AnalysisStep() {
             transition={{ delay: 0.4 }}
           >
             {isAnalyzing 
-              ? `AI analysis in progress`
-                : `Analysis completed successfully`
+              ? `Analyse IA en cours`
+                : `Analyse terminée avec succès`
             }
           </motion.p>
         </motion.div>
@@ -588,7 +588,7 @@ export function AnalysisStep() {
                   </div>
                   <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[#00d4ff] mb-2 uppercase tracking-wide">
-                    Analyzing product
+                    Analyse du produit
                   </p>
                   <p className="text-base sm:text-lg md:text-xl font-bold text-slate-900 truncate">{currentProduct.title}</p>
                 </div>
@@ -606,7 +606,7 @@ export function AnalysisStep() {
         >
           <div className="p-8 rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-bold text-slate-700">Global progress</span>
+              <span className="text-lg font-bold text-slate-700">Progression globale</span>
               <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                 {Math.round(progress)}%
               </span>
@@ -723,9 +723,9 @@ export function AnalysisStep() {
               >
                 <CheckCircle2 className="w-16 h-16 text-white" />
               </motion.div>
-              <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-3 sm:mb-4">Analysis completed!</h3>
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-3 sm:mb-4">Analyse terminée !</h3>
               <p className="text-sm sm:text-base md:text-lg text-slate-600 mb-6 sm:mb-8 px-2 sm:px-0">
-                Redirecting to results...
+                Redirection vers les résultats...
               </p>
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
@@ -733,7 +733,7 @@ export function AnalysisStep() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold shadow-lg"
               >
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Loading results
+                Chargement des résultats
               </motion.div>
             </div>
           </motion.div>
@@ -760,7 +760,7 @@ export function AnalysisStep() {
             `}
           >
             <ArrowLeft size={20} />
-            Back to products
+            Retour aux produits
           </motion.button>
         </motion.div>
     </motion.div>

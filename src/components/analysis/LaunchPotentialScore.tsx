@@ -83,8 +83,8 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
               {getIcon()}
             </motion.div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-1">Launch Potential Score</h2>
-              <p className="text-sm text-slate-600">Market opportunity assessment</p>
+              <h2 className="text-xl font-bold text-slate-900 mb-1">Score de potentiel</h2>
+              <p className="text-sm text-slate-600">Évaluation des opportunités de marché</p>
             </div>
           </div>
         </div>
@@ -146,8 +146,8 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
           className="p-4 rounded-lg bg-slate-50 border border-slate-200"
         >
           <p className="text-xs text-slate-600 leading-relaxed italic">
-            This score reflects an overall evaluation of market saturation and competition within the product's niche. 
-            It is an estimate designed to support decision-making and does not guarantee results.
+            Ce score reflète une évaluation globale de la saturation du marché et de la concurrence dans la niche du produit. 
+            C'est une estimation destinée à faciliter la prise de décision et ne garantit pas les résultats.
           </p>
         </motion.div>
       </div>

@@ -56,10 +56,10 @@ export default function ForgotPasswordPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Forgot password?
+              Mot de passe oublié ?
             </h1>
             <p className="text-slate-600">
-              Enter your email address and we'll send you a link to reset your password
+              Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe
             </p>
           </div>
 
@@ -74,9 +74,9 @@ export default function ForgotPasswordPage() {
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
               <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-green-700 font-medium mb-1">Email sent!</p>
+                <p className="text-sm text-green-700 font-medium mb-1">Email envoyé !</p>
                 <p className="text-sm text-green-600">
-                  Check your email for a password reset link. If you don't see it, check your spam folder.
+                  Vérifiez votre email pour le lien de réinitialisation. Si vous ne le voyez pas, vérifiez vos spams.
                 </p>
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
                   </div>
                   <input
                     type="email"
-                    placeholder="your@email.com"
+                    placeholder="votre@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
@@ -115,7 +115,7 @@ export default function ForgotPasswordPage() {
                   </svg>
                 ) : (
                   <>
-                    Send reset link
+                    Envoyer le lien
                     <ArrowRight size={18} />
                   </>
                 )}
@@ -129,16 +129,16 @@ export default function ForgotPasswordPage() {
                   whileTap={{ scale: 0.98 }}
                   className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
                 >
-                  Back to login
+                  Retour à la connexion
                 </motion.button>
               </Link>
             </div>
           )}
 
           <p className="text-center text-slate-600 mt-8">
-            Remember your password?{' '}
+            Vous vous souvenez de votre mot de passe ?{' '}
             <Link href="/login" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Sign in
+              Se connecter
             </Link>
           </p>
         </motion.div>

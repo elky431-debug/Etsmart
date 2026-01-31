@@ -67,35 +67,35 @@ export function getVerdictLabel(verdict: 'launch' | 'test' | 'avoid', competitor
   // Si on a le nombre de concurrents, utiliser les nouveaux labels
   if (competitors !== undefined) {
     if (competitors <= 100) {
-      return 'LAUNCH QUICKLY';
+      return 'LANCER RAPIDEMENT';
     } else if (competitors <= 130) {
-      return 'LAUNCH BUT OPTIMIZE';
+      return 'LANCER MAIS OPTIMISER';
     } else {
-      return 'DON\'T LAUNCH';
+      return 'NE PAS LANCER';
     }
   }
   
   // Fallback sur les anciens labels si pas de nombre de concurrents
   switch (verdict) {
     case 'launch':
-      return 'LAUNCH QUICKLY';
+      return 'LANCER RAPIDEMENT';
     case 'test':
-      return 'LAUNCH BUT OPTIMIZE';
+      return 'LANCER MAIS OPTIMISER';
     case 'avoid':
-      return 'DON\'T LAUNCH';
+      return 'NE PAS LANCER';
   }
 }
 
 export function getPhaseLabel(phase: 'launch' | 'growth' | 'saturation' | 'decline'): string {
   switch (phase) {
     case 'launch':
-      return 'Launch';
+      return 'Lancement';
     case 'growth':
-      return 'Growth';
+      return 'Croissance';
     case 'saturation':
       return 'Saturation';
     case 'decline':
-      return 'Decline';
+      return 'Déclin';
   }
 }
 

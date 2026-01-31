@@ -27,7 +27,7 @@ export default function LoginPage() {
       // Redirect to dashboard is handled by AuthContext
       router.push('/dashboard?section=analyze');
     } catch (err: any) {
-      setError(err.message || 'Incorrect email or password');
+      setError(err.message || 'Email ou mot de passe incorrect');
       setIsLoading(false);
     }
   };
@@ -58,10 +58,10 @@ export default function LoginPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Welcome back!
+              Bon retour !
             </h1>
             <p className="text-slate-600">
-              Sign in to access your dashboard
+              Connectez-vous pour accéder à votre tableau de bord
             </p>
           </div>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="email"
-                  placeholder="your@email.com"
+                  placeholder="votre@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
@@ -91,7 +91,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Mot de passe</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <Lock size={18} />
@@ -120,7 +120,7 @@ export default function LoginPage() {
                   type="checkbox" 
                   className="w-4 h-4 rounded border-slate-300 text-[#00d4ff] focus:ring-[#00d4ff] focus:ring-2 cursor-pointer" 
                 />
-                <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Remember me</span>
+                <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Se souvenir de moi</span>
               </label>
             </div>
 
@@ -138,7 +138,7 @@ export default function LoginPage() {
                 </svg>
               ) : (
                 <>
-                  Sign in
+                  Se connecter
                   <ArrowRight size={18} />
                 </>
               )}
@@ -153,22 +153,22 @@ export default function LoginPage() {
                 className="w-full flex items-center justify-center gap-2 py-3 bg-white text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all shadow-sm"
               >
                 <HelpCircle size={18} />
-                Forgot password?
+                Mot de passe oublié ?
               </motion.button>
             </Link>
           </form>
 
           <p className="text-center text-slate-600 mt-8">
-            Don't have an account?{' '}
+            Pas encore de compte ?{' '}
             <Link href="/register" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Create account
+              Créer un compte
             </Link>
           </p>
         </motion.div>
 
         <p className="text-center text-slate-400 text-sm mt-8">
-          By signing in, you agree to our{' '}
-          <a href="#" className="text-slate-500 hover:text-[#00d4ff] transition-colors">terms of service</a>
+          En vous connectant, vous acceptez nos{' '}
+          <a href="#" className="text-slate-500 hover:text-[#00d4ff] transition-colors">conditions d'utilisation</a>
         </p>
       </motion.div>
     </div>

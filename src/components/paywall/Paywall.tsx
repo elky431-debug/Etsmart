@@ -21,8 +21,8 @@ interface PaywallProps {
 }
 
 export function Paywall({
-  title = 'Unlock Product Analysis',
-  message = 'Choose your plan and start analyzing products with AI-powered insights',
+  title = 'Débloquer l\'analyse de produits',
+  message = 'Choisissez votre plan et commencez à analyser des produits avec l\'IA',
   currentPlan = 'FREE',
   quotaReached = false,
   used,
@@ -58,7 +58,7 @@ export function Paywall({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+        throw new Error(data.error || 'Échec de la création de la session de paiement');
       }
 
       if (data.url) {
@@ -66,7 +66,7 @@ export function Paywall({
       }
     } catch (error: any) {
       console.error('Error creating checkout session:', error);
-      alert(error.message || 'Failed to start checkout. Please try again.');
+      alert(error.message || 'Échec du démarrage du paiement. Veuillez réessayer.');
       setLoadingPlan(null);
     }
   };
@@ -155,7 +155,7 @@ export function Paywall({
             className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-full text-sm text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:shadow-sm transition-all"
           >
             <Home size={16} />
-            <span className="hidden sm:inline">Return home</span>
+            <span className="hidden sm:inline">Retour à l'accueil</span>
           </motion.button>
         </Link>
       </div>
@@ -219,7 +219,7 @@ export function Paywall({
                   >
                     <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-[10px] sm:text-xs font-bold px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-lg shadow-[#00d4ff]/30">
                       <Sparkles size={10} className="sm:w-3 sm:h-3" />
-                      Popular
+                      Populaire
                     </span>
                   </motion.div>
                 )}
@@ -268,7 +268,7 @@ export function Paywall({
                         <span className={`text-xl sm:text-2xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-slate-900'}`}>
                           ${plan.price.toFixed(2)}
                         </span>
-                        <span className="text-slate-400 text-[10px] sm:text-xs">/month</span>
+                        <span className="text-slate-400 text-[10px] sm:text-xs">/mois</span>
                       </div>
 
                       {/* Analyses count - Hidden on mobile, visible on sm+ */}
@@ -281,14 +281,14 @@ export function Paywall({
                           <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-slate-700'}`}>
                             {plan.analysesPerMonth}
                           </span>
-                          <span className="text-slate-500 text-xs">analyses/mo</span>
+                          <span className="text-slate-500 text-xs">analyses/mois</span>
                         </div>
                       </div>
 
                       {/* Analyses - Inline on mobile */}
                       <div className="flex sm:hidden items-center gap-1 text-slate-500 text-xs">
                         <Zap className="w-3 h-3" />
-                        <span className="font-medium">{plan.analysesPerMonth} analyses/mo</span>
+                        <span className="font-medium">{plan.analysesPerMonth} analyses/mois</span>
                       </div>
                     </div>
 
@@ -311,7 +311,7 @@ export function Paywall({
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
-                          <span className="hidden sm:inline">{isPopular ? 'Get Started' : 'Choose'}</span>
+                          <span className="hidden sm:inline">{isPopular ? 'Commencer' : 'Choisir'}</span>
                           <span className="sm:hidden">Go</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
@@ -334,15 +334,15 @@ export function Paywall({
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
               <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>Secure</span>
+              <span>Sécurisé</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
               <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>Instant</span>
+              <span>Instantané</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
               <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>Cancel anytime</span>
+              <span>Annulez à tout moment</span>
             </div>
           </div>
         </motion.div>
@@ -359,7 +359,7 @@ export function Paywall({
             className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 hover:text-[#00d4ff] transition-colors"
           >
             <Home size={12} className="sm:w-3.5 sm:h-3.5" />
-            <span>Back to home</span>
+            <span>Retour à l'accueil</span>
           </Link>
         </motion.div>
       </motion.div>

@@ -15,7 +15,7 @@ const NicheSelection = dynamic(() => import('@/components/steps/NicheSelection')
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Loading...</p>
+        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
       </div>
     </div>
   ),
@@ -27,7 +27,7 @@ const ProductImport = dynamic(() => import('@/components/steps/ProductImport').t
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Loading...</p>
+        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
       </div>
     </div>
   ),
@@ -39,7 +39,7 @@ const AnalysisStep = dynamic(() => import('@/components/steps/AnalysisStep').the
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Loading...</p>
+        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
       </div>
     </div>
   ),
@@ -51,7 +51,7 @@ const ResultsStep = dynamic(() => import('@/components/steps/ResultsStep').then(
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Loading...</p>
+        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
       </div>
     </div>
   ),
@@ -127,7 +127,7 @@ export default function AppPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center px-4">
-          <p className="text-sm text-slate-600">An error occurred. Please refresh the page.</p>
+          <p className="text-sm text-slate-600">Une erreur est survenue. Veuillez rafraîchir la page.</p>
         </div>
       </div>
     );

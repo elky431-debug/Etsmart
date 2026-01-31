@@ -73,7 +73,7 @@ export default function PricingPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-600 hover:text-slate-900 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-all"
           >
             <LogOut size={18} />
-            <span className="font-medium">Logout</span>
+            <span className="font-medium">Déconnexion</span>
           </motion.button>
         </div>
       )}
@@ -87,10 +87,10 @@ export default function PricingPage() {
           className="text-center mb-16"
         >
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Choose Your Plan
+            Choisissez votre plan
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Simple, progressive pricing to help you analyze products and make better decisions on Etsy
+            Des tarifs simples et progressifs pour analyser vos produits et prendre de meilleures décisions sur Etsy
           </p>
         </motion.div>
 
@@ -113,7 +113,7 @@ export default function PricingPage() {
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-sm font-bold px-4 py-1 rounded-full">
-                    Most Popular
+                    Le plus populaire
                   </span>
                 </div>
               )}
@@ -134,7 +134,7 @@ export default function PricingPage() {
                   <span className="text-5xl font-bold text-slate-900">
                     €{plan.price}
                   </span>
-                  <span className="text-slate-600">/month</span>
+                  <span className="text-slate-600">/mois</span>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed">
                   {plan.description}
@@ -146,7 +146,7 @@ export default function PricingPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Check className="w-5 h-5 text-[#00c9b7]" />
                   <span className="font-semibold text-slate-900">
-                    {plan.analysesPerMonth} analyses per month
+                    {plan.analysesPerMonth} analyses par mois
                   </span>
                 </div>
                 <ul className="space-y-3">
@@ -177,10 +177,10 @@ export default function PricingPage() {
                 {loadingPlan === plan.id ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Loading...</span>
+                    <span>Chargement...</span>
                   </>
                 ) : (
-                  <span>{plan.popular ? 'Get Started' : 'Choose Plan'}</span>
+                  <span>{plan.popular ? 'Commencer' : 'Choisir ce plan'}</span>
                 )}
               </button>
 
@@ -212,28 +212,28 @@ export default function PricingPage() {
           className="bg-slate-50 rounded-2xl border border-slate-200 p-8 max-w-4xl mx-auto"
         >
           <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">
-            Important Notice
+            Notice importante
           </h3>
           <ul className="space-y-3 text-sm text-slate-600">
             <li className="flex items-start gap-2">
               <span className="text-slate-400">•</span>
-              <span>All subscriptions provide analyses and recommendations only. They do not guarantee any financial results.</span>
+              <span>Tous les abonnements fournissent uniquement des analyses et des recommandations. Ils ne garantissent aucun résultat financier.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400">•</span>
-              <span>All analyses are estimates and simulations based on available public data.</span>
+              <span>Toutes les analyses sont des estimations et des simulations basées sur des données publiques disponibles.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400">•</span>
-              <span>Features are related to analysis depth, not performance promises.</span>
+              <span>Les fonctionnalités concernent la profondeur d'analyse, pas des promesses de performance.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400">•</span>
-              <span>Final responsibility for product decisions remains with the user.</span>
+              <span>La responsabilité finale des décisions produits incombe à l'utilisateur.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400">•</span>
-              <span>Etsmart does not automate any actions on Etsy. All analyses use public data only.</span>
+              <span>Etsmart n'automatise aucune action sur Etsy. Toutes les analyses utilisent uniquement des données publiques.</span>
             </li>
           </ul>
         </motion.div>

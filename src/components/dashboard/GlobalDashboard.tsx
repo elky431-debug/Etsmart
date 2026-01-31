@@ -117,19 +117,19 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
           <BarChart3 className="w-8 h-8 text-white" />
         </motion.div>
         <h2 className="text-3xl font-bold text-white mb-2">
-          Global Shop Dashboard
+          Tableau de bord global
         </h2>
         <p className="text-slate-400">
-          Consolidated view of {analyses.length} analyzed products
+          Vue consolidée de {analyses.length} produits analysés
         </p>
       </div>
 
       {/* Verdict Summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { verdict: 'launch', count: stats.launchCount, label: 'To launch' },
-          { verdict: 'test', count: stats.testCount, label: 'To test' },
-          { verdict: 'avoid', count: stats.avoidCount, label: 'To avoid' },
+          { verdict: 'launch', count: stats.launchCount, label: 'À lancer' },
+          { verdict: 'test', count: stats.testCount, label: 'À tester' },
+          { verdict: 'avoid', count: stats.avoidCount, label: 'À éviter' },
         ].map((item) => (
           <motion.div
             key={item.verdict}
@@ -159,7 +159,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <DollarSign className="w-5 h-5 text-[#00c9b7]" />
             </div>
             <div>
-              <p className="text-xs text-slate-400">Potential revenue 3 months</p>
+              <p className="text-xs text-slate-400">Revenu potentiel 3 mois</p>
               <p className="text-xl font-bold text-white">
                 {formatCurrency(stats.totalPotentialRevenue)}
               </p>
@@ -173,7 +173,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <Target className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <p className="text-xs text-slate-400">Average competitors</p>
+              <p className="text-xs text-slate-400">Concurrents moyens</p>
               <p className="text-xl font-bold text-white">~{stats.avgCompetitors}</p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
           {/* Coherence Score */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400">Product coherence</span>
+              <span className="text-sm text-slate-400">Cohérence des produits</span>
               <span className="text-sm font-medium text-white">{coherenceScore}%</span>
             </div>
             <Progress 
@@ -321,8 +321,8 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
         ) : (
           <div className="text-center py-8">
             <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-            <p className="text-slate-400">No priority products identified</p>
-            <p className="text-sm text-slate-500">All products should be avoided</p>
+            <p className="text-slate-400">Aucun produit prioritaire identifié</p>
+            <p className="text-sm text-slate-500">Tous les produits sont à éviter</p>
           </div>
         )}
       </Card>
@@ -332,7 +332,7 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-violet-400" />
-            <CardTitle className="text-violet-300">Recommended Strategy</CardTitle>
+            <CardTitle className="text-violet-300">Stratégie recommandée</CardTitle>
           </div>
         </CardHeader>
         
@@ -342,11 +342,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <ArrowUpRight className="w-5 h-5 text-[#00c9b7] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-[#4dd9cc]">
-                  Launch priority
+                  Priorité au lancement
                 </p>
                 <p className="text-sm text-slate-300">
-                  Start with the {stats.launchCount} recommended product{stats.launchCount > 1 ? 's' : ''}. 
-                  They present the best potential/risk ratio.
+                  Commencez par {stats.launchCount === 1 ? 'le' : 'les'} {stats.launchCount} produit{stats.launchCount > 1 ? 's' : ''} recommandé{stats.launchCount > 1 ? 's' : ''}. 
+                  Ils présentent le meilleur ratio potentiel/risque.
                 </p>
               </div>
             </div>
@@ -357,11 +357,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <ArrowUpRight className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-300">
-                  Test with caution
+                  Tester avec prudence
                 </p>
                 <p className="text-sm text-slate-300">
-                  The {stats.testCount} product{stats.testCount > 1 ? 's' : ''} to test require validation. 
-                  Start with limited stock.
+                  {stats.testCount === 1 ? 'Le' : 'Les'} {stats.testCount} produit{stats.testCount > 1 ? 's' : ''} à tester nécessite{stats.testCount > 1 ? 'nt' : ''} une validation. 
+                  Commencez avec un stock limité.
                 </p>
               </div>
             </div>
@@ -372,11 +372,11 @@ export function GlobalDashboard({ analyses }: GlobalDashboardProps) {
               <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-rose-300">
-                  Avoid for now
+                  À éviter pour l'instant
                 </p>
                 <p className="text-sm text-slate-300">
-                  {stats.avoidCount} product{stats.avoidCount > 1 ? 's present' : ' presents'} too many risks. 
-                  Look for alternatives with less competition.
+                  {stats.avoidCount} produit{stats.avoidCount > 1 ? 's présentent' : ' présente'} trop de risques. 
+                  Cherchez des alternatives avec moins de concurrence.
                 </p>
               </div>
             </div>

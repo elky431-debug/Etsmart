@@ -49,9 +49,9 @@ export function QuotaDisplay() {
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900">Analysis Quota</h3>
+            <h3 className="font-bold text-slate-900">Quota d'analyses</h3>
             <p className="text-sm text-slate-600">
-              {subscription.plan} Plan
+              Plan {subscription.plan}
             </p>
           </div>
         </div>
@@ -66,10 +66,10 @@ export function QuotaDisplay() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.used} / {subscription.quota} used
+            {subscription.used} / {subscription.quota} utilisées
           </span>
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.remaining} remaining
+            {subscription.remaining} restantes
           </span>
         </div>
         <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -98,15 +98,15 @@ export function QuotaDisplay() {
                 subscription.remaining === 0 ? 'text-red-900' : 'text-amber-900'
               }`}>
                 {subscription.remaining === 0
-                  ? 'Quota Reached'
-                  : 'Subscription Inactive'}
+                  ? 'Quota atteint'
+                  : 'Abonnement inactif'}
               </p>
               <p className={`text-sm mb-3 ${
                 subscription.remaining === 0 ? 'text-red-700' : 'text-amber-700'
               }`}>
                 {subscription.remaining === 0
-                  ? `You've used all ${subscription.quota} analyses this month.`
-                  : 'Your subscription is not active. Please renew to continue analyzing.'}
+                  ? `Vous avez utilisé vos ${subscription.quota} analyses ce mois-ci.`
+                  : 'Votre abonnement n\'est pas actif. Veuillez le renouveler pour continuer à analyser.'}
               </p>
               {subscription.requiresUpgrade && (
                 <Link href="/pricing">
@@ -115,7 +115,7 @@ export function QuotaDisplay() {
                     whileTap={{ scale: 0.98 }}
                     className="w-full py-2 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-lg hover:shadow-lg transition-all"
                   >
-                    Upgrade to {subscription.requiresUpgrade}
+                    Passer à {subscription.requiresUpgrade}
                   </motion.button>
                 </Link>
               )}
@@ -127,7 +127,7 @@ export function QuotaDisplay() {
       {/* Reset Date */}
       {subscription.periodEnd && (
         <p className="text-xs text-slate-500 text-center mt-4">
-          Resets on {new Date(subscription.periodEnd).toLocaleDateString()}
+          Réinitialisation le {new Date(subscription.periodEnd).toLocaleDateString('fr-FR')}
         </p>
       )}
     </motion.div>

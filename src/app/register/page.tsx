@@ -34,7 +34,7 @@ export default function RegisterPage() {
       // Redirect to pricing/paywall immediately after signup
       router.push('/pricing');
     } catch (err: any) {
-      setError(err.message || 'An error occurred while creating the account');
+      setError(err.message || 'Une erreur est survenue lors de la création du compte');
       setIsLoading(false);
     }
   };
@@ -65,10 +65,10 @@ export default function RegisterPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Create an account
+              Créer un compte
             </h1>
             <p className="text-slate-600">
-              Start analyzing your products for free
+              Commencez à analyser vos produits gratuitement
             </p>
           </div>
 
@@ -81,7 +81,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Full name</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Nom complet</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <User size={18} />
@@ -115,7 +115,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Mot de passe</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
                   <Lock size={18} />
@@ -141,9 +141,9 @@ export default function RegisterPage() {
               {password && (
                 <div className="mt-3 space-y-2">
                   {[
-                    { check: passwordStrength.length, text: 'At least 8 characters' },
-                    { check: passwordStrength.uppercase, text: 'One uppercase letter' },
-                    { check: passwordStrength.number, text: 'One number' },
+                    { check: passwordStrength.length, text: 'Au moins 8 caractères' },
+                    { check: passwordStrength.uppercase, text: 'Une lettre majuscule' },
+                    { check: passwordStrength.number, text: 'Un chiffre' },
                   ].map((item) => (
                     <div key={item.text} className="flex items-center gap-2 text-sm">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
@@ -167,10 +167,10 @@ export default function RegisterPage() {
                 required
               />
               <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">
-                I accept the{' '}
-                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">terms of service</a>
-                {' '}and{' '}
-                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">privacy policy</a>
+                J'accepte les{' '}
+                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">conditions d'utilisation</a>
+                {' '}et la{' '}
+                <a href="#" className="text-[#00d4ff] hover:text-[#00c9b7] font-medium transition-colors">politique de confidentialité</a>
               </span>
             </label>
 
@@ -188,7 +188,7 @@ export default function RegisterPage() {
                 </svg>
               ) : (
                 <>
-                  Create my account
+                  Créer mon compte
                   <ArrowRight size={18} />
                 </>
               )}
@@ -196,9 +196,9 @@ export default function RegisterPage() {
           </form>
 
           <p className="text-center text-slate-600 mt-8">
-            Already have an account?{' '}
+            Déjà un compte ?{' '}
             <Link href="/login" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Sign in
+              Se connecter
             </Link>
           </p>
         </motion.div>

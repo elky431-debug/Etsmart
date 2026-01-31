@@ -24,7 +24,7 @@ export function Header() {
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Logo size="sm" showText={true} />
                   <p className="text-[9px] sm:text-[10px] text-slate-400 hidden sm:block">
-                    AI Copilot for Etsy
+                    Copilote IA pour Etsy
                   </p>
                 </div>
               </Link>
@@ -36,7 +36,7 @@ export function Header() {
                   leftIcon={<Home size={14} />}
                   className="text-xs"
                 >
-                  Home
+                  Accueil
                 </Button>
               </Link>
               
@@ -47,7 +47,7 @@ export function Header() {
                   leftIcon={<LayoutDashboard size={14} />}
                   className="text-xs"
                 >
-                  Dashboard
+                  Tableau de bord
                 </Button>
               </Link>
             </motion.div>
@@ -65,13 +65,13 @@ export function Header() {
                   leftIcon={<RotateCcw size={14} />}
                   className="text-xs px-2 sm:px-3"
                 >
-                  <span className="hidden sm:inline">Restart</span>
+                  <span className="hidden sm:inline">Recommencer</span>
                   <span className="sm:hidden">Reset</span>
                 </Button>
               )}
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
                 <Cpu className="w-3.5 h-3.5 text-[#00d4ff]" />
-                <span>AI active</span>
+                <span>IA active</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
               </div>
             </motion.div>
