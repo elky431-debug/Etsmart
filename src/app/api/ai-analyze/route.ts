@@ -382,12 +382,15 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Évite les doublons et les tags trop génériques
    - Les tags doivent être optimisés pour le référencement Etsy
 
-8. TITRE VIRAL ET SEO:
-   - Génère un titre SEO optimisé en anglais (maximum 140 caractères)
-   - Le titre doit être attractif, descriptif et optimisé pour Etsy
-   - Inclus les mots-clés principaux
-   - Rends-le accrocheur tout en restant professionnel
-   - Le titre doit inciter au clic tout en étant informatif
+8. TITRE VIRAL ET SEO (TRÈS IMPORTANT):
+   - Génère un titre SEO LONG et COMPLET en anglais (UTILISE LES 140 CARACTÈRES AU MAXIMUM)
+   - Le titre DOIT faire entre 120 et 140 caractères - PAS DE TITRE COURT
+   - Structure recommandée: [Produit principal] + [Matériau/Style] + [Caractéristiques] + [Usage/Occasion] + [Mot-clé bonus]
+   - Exemple de BON titre: "Handmade Wooden Music Box Custom Engraved Name Personalized Gift for Her Birthday Anniversary Keepsake Jewelry Storage Box" (120+ caractères)
+   - Exemple de MAUVAIS titre: "Custom Music Box Gift" (trop court, pas optimisé)
+   - Inclus TOUS les mots-clés pertinents pour maximiser le référencement Etsy
+   - Le titre doit être riche en mots-clés tout en restant naturel et lisible
+   - Évite les répétitions mais maximise les variations de mots-clés
 
 9. VERDICT FINAL ET RECOMMANDATIONS:
    - Fournis un verdict final en 1 phrase qui résume ta recommandation
@@ -449,7 +452,7 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
     },
     "simulationNote": "note explicative détaillée"
   },
-  "viralTitleEN": "titre max 140 caractères en anglais",
+  "viralTitleEN": "titre LONG (120-140 caractères) en anglais, riche en mots-clés SEO",
   "seoTags": ["tag1", "tag2", ..., "tag13"] (EXACTEMENT 13 tags),
   "finalVerdict": "verdict final en 1 phrase",
   "warningIfAny": "avertissement si nécessaire" | null
