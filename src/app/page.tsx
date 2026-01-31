@@ -374,13 +374,6 @@ export default function HomePage() {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto relative z-10">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6 sm:mb-8">
-              <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Propulsé par l'IA</span>
-              <Cpu className="w-4 h-4 text-[#00d4ff]" />
-            </div>
-
             {/* Main headline */}
             <h1 className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-8 px-4 sm:px-0">
               <span className="text-slate-900">Lancez des produits rentables</span>
