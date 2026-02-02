@@ -130,7 +130,7 @@ export default function HomePage() {
 
   const stats = [
     { value: '10K+', label: 'Produits analysés' },
-    { value: '2.5K+', label: 'Vendeurs actifs' },
+    { value: '300+', label: 'Vendeurs actifs' },
     { value: '95%', label: 'Précision IA' },
     { value: '24/7', label: 'Disponibilité' },
   ];
