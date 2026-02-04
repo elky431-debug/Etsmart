@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
-import { Sparkles, AlertCircle, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import type { LaunchPotentialScore as LaunchPotentialScoreType } from '@/types';
 
 interface LaunchPotentialScoreProps {
