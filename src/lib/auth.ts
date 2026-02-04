@@ -18,6 +18,7 @@ function ensureSupabaseConfigured() {
 // Sign up with email and password
 export async function signUp(email: string, password: string, fullName?: string) {
   ensureSupabaseConfigured();
+  const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -120,6 +121,9 @@ export async function signInWithGoogle() {
   
   console.log('🔵 Starting Google OAuth flow');
   console.log('Redirect to:', redirectTo);
+  
+  // Use SSR-compatible client for PKCE flow
+  const supabase = createClient();
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
