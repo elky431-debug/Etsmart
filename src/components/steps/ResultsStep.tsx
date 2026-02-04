@@ -524,20 +524,27 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="p-4 rounded-xl bg-amber-50 border-2 border-amber-300 shadow-sm"
+                    className="p-4 rounded-xl bg-black border-2 border-white/10"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        typeof window !== 'undefined' && (
+                          window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1'
+                        )
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                          : 'bg-amber-500'
+                      }`}>
                         <AlertTriangle size={18} className="text-white" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-amber-900 mb-1 text-sm">⚠️ Données par défaut utilisées</h3>
-                        <p className="text-sm text-amber-800 leading-relaxed">
+                        <h3 className="font-bold text-white mb-1 text-sm">⚠️ Données par défaut utilisées</h3>
+                        <p className="text-sm text-white/80 leading-relaxed">
                           {analysis.verdict.warningIfAny || 
                            'L\'API d\'analyse n\'a pas pu répondre dans les temps (timeout >30s). Les résultats affichés sont des estimations par défaut et peuvent être moins précis. Veuillez réessayer avec une image plus petite.'}
                         </p>
                         {analysis.dataSource === 'estimated' && (
-                          <p className="text-xs text-amber-700 mt-2 italic">
+                            <p className="text-xs text-white/70 mt-2 italic">
                             Source des données : Estimations par défaut (API non disponible)
                           </p>
                         )}
@@ -1172,18 +1179,32 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 </div>
 
-                <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center gap-3 mb-4">
-                    <Award size={20} className="text-amber-500" />
-                    <h3 className="text-base font-bold text-slate-900">Facteurs clés de succès</h3>
+                    <Award size={20} className={`${
+                      typeof window !== 'undefined' && (
+                        window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1'
+                      )
+                        ? 'text-[#00d4ff]'
+                        : 'text-amber-500'
+                    }`} />
+                    <h3 className="text-base font-bold text-white">Facteurs clés de succès</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {analysis.launchSimulation.keyFactors.map((factor, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white border border-amber-200">
-                        <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-black border border-white/10">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
+                          typeof window !== 'undefined' && (
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1'
+                          )
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                            : 'bg-amber-500'
+                        }`}>
                           {i + 1}
                         </div>
-                        <span className="text-xs text-slate-700">{factor}</span>
+                        <span className="text-xs text-white">{factor}</span>
                       </div>
                     ))}
                   </div>
