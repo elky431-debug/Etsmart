@@ -261,11 +261,14 @@ export default function HomePage() {
                       </button>
                     </Link>
                     <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                      <button className={`w-full px-4 py-3.5 font-semibold rounded-lg cursor-pointer ${
+                      <button className={`w-full px-4 py-3.5 font-semibold rounded-lg cursor-pointer text-white ${
                         process.env.NODE_ENV === 'development' 
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                          ? 'border-2 bg-transparent hover:opacity-90' 
                           : 'force-white'
-                      }`}>
+                      }`} style={process.env.NODE_ENV === 'development' ? {
+                        borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                        borderImageSlice: 1,
+                      } : {}}>
                         Inscription
                       </button>
                     </Link>
