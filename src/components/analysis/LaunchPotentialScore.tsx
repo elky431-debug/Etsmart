@@ -89,8 +89,21 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
   const colors = getScoreColors();
 
   const getIcon = () => {
-    // Toujours utiliser Info avec texte blanc pour être visible sur le fond dégradé
-    return <Info size={32} className="text-white" />;
+    // Utiliser un "i" avec le dégradé cyan/turquoise sur localhost
+    const isLocalhost = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1'
+    );
+    
+    return (
+      <span className={`text-3xl font-bold ${
+        isLocalhost 
+          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+          : 'text-white'
+      }`} style={isLocalhost ? {} : {}}>
+        i
+      </span>
+    );
   };
 
   return (
