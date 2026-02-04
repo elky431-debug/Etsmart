@@ -109,6 +109,10 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 export async function signInWithGoogle() {
   ensureSupabaseConfigured();
   const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '/auth/callback';
+  
+  console.log('🔵 Starting Google OAuth flow');
+  console.log('Redirect to:', redirectTo);
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -120,7 +124,12 @@ export async function signInWithGoogle() {
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ Error starting OAuth flow:', error);
+    throw error;
+  }
+  
+  console.log('✅ OAuth flow started, redirecting to:', data.url);
   return data;
 }
 
