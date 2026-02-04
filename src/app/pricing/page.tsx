@@ -1,17 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Crown, Zap, Loader2, LogOut } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { PLANS, type Plan, type PlanId } from '@/types/subscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase-client';
 
 export default function PricingPage() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
+
+  // Check if user has active subscription and redirect
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (!user) return;
+
+      try {
+        const supabase = createClient();
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('subscription_status, subscription_plan')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error checking subscription:', error);
+          return;
+        }
+
+        if (userData?.subscription_status === 'active') {
+          console.log('✅ User has active subscription, redirecting to dashboard');
+          router.push('/dashboard?section=analyze');
+        }
+      } catch (err) {
+        console.error('Error checking subscription:', err);
+      }
+    };
+
+    checkSubscription();
+  }, [user, router]);
 
   const handleLogout = async () => {
     await signOut();
