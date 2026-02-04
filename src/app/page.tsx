@@ -174,11 +174,14 @@ export default function HomePage() {
               <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
                   <Link href="/dashboard?section=analyze">
-                    <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-lg cursor-pointer ${
+                    <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-lg cursor-pointer text-white ${
                       process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-[#00d4ff]/30' 
+                        ? 'border-2 bg-transparent hover:opacity-90' 
                         : 'force-white shadow-black/30'
-                    }`}>
+                    }`} style={process.env.NODE_ENV === 'development' ? {
+                      borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                      borderImageSlice: 1,
+                    } : {}}>
                       Tableau de bord
                       <ArrowRight size={14} />
                     </button>
@@ -189,11 +192,14 @@ export default function HomePage() {
                       Connexion
                     </Link>
                     <Link href="/register">
-                      <button className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-lg cursor-pointer ${
+                      <button className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-lg cursor-pointer text-white ${
                         process.env.NODE_ENV === 'development' 
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-[#00d4ff]/30' 
+                          ? 'border-2 bg-transparent hover:opacity-90' 
                           : 'force-white shadow-black/30'
-                      }`}>
+                      }`} style={process.env.NODE_ENV === 'development' ? {
+                        borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                        borderImageSlice: 1,
+                      } : {}}>
                         Inscription
                       </button>
                     </Link>
@@ -235,11 +241,14 @@ export default function HomePage() {
               <div className="p-6 space-y-4">
                 {!loading && user ? (
                   <Link href="/dashboard?section=analyze" onClick={() => setMobileMenuOpen(false)}>
-                    <button className={`w-full px-4 py-3.5 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer ${
+                    <button className={`w-full px-4 py-3.5 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer text-white ${
                       process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                        ? 'border-2 bg-transparent hover:opacity-90' 
                         : 'force-white'
-                    }`}>
+                    }`} style={process.env.NODE_ENV === 'development' ? {
+                      borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                      borderImageSlice: 1,
+                    } : {}}>
                       Tableau de bord
                       <ArrowRight size={18} />
                     </button>
@@ -275,11 +284,14 @@ export default function HomePage() {
         <div className="relative z-10 text-center px-6">
           <div className="flex items-center justify-center gap-4">
             <Link href="/app">
-              <button className={`px-6 py-3 rounded-lg font-semibold shadow-xl flex items-center gap-2 cursor-pointer ${
+              <button className={`px-6 py-3 rounded-lg font-semibold shadow-xl flex items-center gap-2 cursor-pointer text-white ${
                 process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-[#00d4ff]/40' 
+                  ? 'border-2 bg-transparent hover:opacity-90 shadow-[#00d4ff]/40' 
                   : 'force-white shadow-black/40'
-              }`}>
+              }`} style={process.env.NODE_ENV === 'development' ? {
+                borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                borderImageSlice: 1,
+              } : {}}>
                 Essayer gratuitement
                 <ArrowRight size={16} />
               </button>
@@ -406,11 +418,14 @@ export default function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  <button className={`w-full py-3 rounded-lg font-semibold cursor-pointer ${
+                  <button className={`w-full py-3 rounded-lg font-semibold cursor-pointer text-white ${
                     process.env.NODE_ENV === 'development' 
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                      ? 'border-2 bg-transparent hover:opacity-90' 
                       : 'force-white'
-                  }`}>
+                  }`} style={process.env.NODE_ENV === 'development' ? {
+                    borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                    borderImageSlice: 1,
+                  } : {}}>
                     Choisir ce plan
                   </button>
                 </div>
@@ -467,11 +482,14 @@ export default function HomePage() {
               Rejoignez des vendeurs qui utilisent Etsmart pour prendre de meilleures décisions.
             </p>
             <Link href="/app">
-              <button className={`px-8 py-4 rounded-lg font-semibold cursor-pointer ${
+              <button className={`px-8 py-4 rounded-lg font-semibold cursor-pointer text-white ${
                 process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                  ? 'border-2 bg-transparent hover:opacity-90' 
                   : 'force-white'
-              }`}>
+              }`} style={process.env.NODE_ENV === 'development' ? {
+                borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                borderImageSlice: 1,
+              } : {}}>
                 Commencer gratuitement
                 <ArrowUpRight className="inline-block ml-2 w-4 h-4" />
               </button>
