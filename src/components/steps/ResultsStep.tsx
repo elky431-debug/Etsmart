@@ -172,8 +172,8 @@ function CreativePromptGenerator({
             <Logo size="sm" showText={false} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Prompt IA pour images</h2>
-            <p className="text-slate-500 text-xs">Utilisez ce prompt avec votre photo de produit dans un outil de génération d'images IA pour créer des images produit réalistes et de haute qualité.</p>
+            <h2 className="text-base font-bold text-white">Prompt IA pour images</h2>
+            <p className="text-white/70 text-xs">Utilisez ce prompt avec votre photo de produit dans un outil de génération d'images IA pour créer des images produit réalistes et de haute qualité.</p>
           </div>
         </div>
       </div>
