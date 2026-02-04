@@ -1,0 +1,16 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROTECTION DES FICHIERS DE BACKUP
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# ⚠️ IMPORTANT : Ne JAMAIS supprimer ou ignorer les fichiers BACKUP_*
+#
+# Fichiers de backup à protéger :
+# - BACKUP_IMAGE_GENERATOR_2024-02-04.tsx
+# - BACKUP_IMAGE_GENERATOR_README.md
+#
+# Ces fichiers contiennent des sauvegardes critiques du code.
+# Ils DOIVENT être commités dans git pour être préservés.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+

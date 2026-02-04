@@ -78,7 +78,21 @@ export default function AppPage() {
     }
   }, [user, loading, router]);
 
-  if (loading || subscriptionLoading) {
+  // Ne pas afficher de loader si on a déjà chargé une fois dans cette session
+  // Cela évite le flash de chargement au retour sur l'onglet
+  const hasLoadedOnce = typeof window !== 'undefined' && sessionStorage.getItem('etsmart-app-loaded') === 'true';
+  
+  // Marquer comme chargé une fois que tout est prêt
+  useEffect(() => {
+    if (!loading && !subscriptionLoading && user && hasActiveSubscription) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('etsmart-app-loaded', 'true');
+      }
+    }
+  }, [loading, subscriptionLoading, user, hasActiveSubscription]);
+
+  // Afficher le loader seulement si vraiment nécessaire (première fois ou si pas encore chargé)
+  if ((loading || subscriptionLoading) && !hasLoadedOnce) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center px-4">

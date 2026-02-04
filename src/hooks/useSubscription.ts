@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePageVisibility } from './usePageVisibility';
 import type { PlanId } from '@/types/subscription';
 
 interface SubscriptionInfo {
@@ -17,14 +18,30 @@ interface SubscriptionInfo {
 
 export function useSubscription() {
   const { user } = useAuth();
+  const isVisible = usePageVisibility();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchTime = useRef<number>(0);
+  const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes de cache
 
   const fetchSubscription = useCallback(async (forceSync = false) => {
     if (!user) {
       setSubscription(null);
       setLoading(false);
+      return;
+    }
+
+    // Ne pas faire de requête si l'onglet n'est pas visible (sauf si forceSync)
+    if (!forceSync && !isVisible) {
+      console.log('[useSubscription] Tab not visible, skipping fetch');
+      return;
+    }
+
+    // Vérifier le cache (ne pas re-fetch si récent)
+    const now = Date.now();
+    if (!forceSync && subscription && (now - lastFetchTime.current) < CACHE_DURATION) {
+      console.log('[useSubscription] Using cached subscription data');
       return;
     }
 
@@ -85,6 +102,7 @@ export function useSubscription() {
       console.log('[useSubscription] Subscription data:', data);
       setSubscription(data);
       setError(null);
+      lastFetchTime.current = Date.now(); // Mettre à jour le timestamp du cache
     } catch (err: any) {
       console.error('Error fetching subscription:', err);
       setError(err.message);
@@ -92,7 +110,7 @@ export function useSubscription() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isVisible, subscription]);
 
   useEffect(() => {
     // Always force sync on initial load to check Stripe directly
@@ -110,33 +128,52 @@ export function useSubscription() {
       const success = params.get('success');
       if (success === 'true') {
         // Multiple refresh attempts to catch webhook updates
-        setTimeout(() => fetchSubscription(), 2000);
-        setTimeout(() => fetchSubscription(), 5000);
-        setTimeout(() => fetchSubscription(), 10000);
+        setTimeout(() => fetchSubscription(true), 2000);
+        setTimeout(() => fetchSubscription(true), 5000);
+        setTimeout(() => fetchSubscription(true), 10000);
       }
     }
 
-    // Refresh when window regains focus (after returning from Stripe)
-    const handleFocus = () => {
-      fetchSubscription();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Periodic refresh to sync with Stripe (every 30 seconds)
+  // Refresh when tab becomes visible (only if hidden for more than 5 minutes)
   useEffect(() => {
     if (!user) return;
+
+    let hiddenTime: number | null = null;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        hiddenTime = Date.now();
+      } else if (hiddenTime && Date.now() - hiddenTime > 5 * 60 * 1000) {
+        // Seulement rafraîchir si l'onglet était caché plus de 5 minutes
+        fetchSubscription(true);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Periodic refresh to sync with Stripe (only when tab is visible, every 2 minutes)
+  useEffect(() => {
+    if (!user || !isVisible) return;
     
     const interval = setInterval(() => {
-      fetchSubscription();
-    }, 30000); // Every 30 seconds
+      // Ne rafraîchir que si l'onglet est visible et le cache est expiré
+      if (isVisible && (Date.now() - lastFetchTime.current) > CACHE_DURATION) {
+        fetchSubscription(false);
+      }
+    }, 120000); // Every 2 minutes (réduit pour moins de requêtes)
     
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isVisible]);
 
   const hasActiveSubscription = subscription?.status === 'active';
   const hasQuota = subscription ? subscription.remaining > 0 : false;

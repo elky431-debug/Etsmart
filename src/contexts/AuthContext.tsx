@@ -19,8 +19,31 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Essayer de récupérer l'utilisateur depuis le cache Supabase d'abord (évite le flash de chargement)
+  const [user, setUser] = useState<User | null>(() => {
+    // Ne pas initialiser côté serveur
+    if (typeof window === 'undefined') return null;
+    // Essayer de récupérer depuis sessionStorage pour éviter le flash
+    try {
+      const cached = sessionStorage.getItem('etsmart-user-cached');
+      if (cached === 'true') {
+        // On a déjà chargé une fois, on peut retourner null temporairement
+        // Le vrai user sera chargé par getCurrentUser mais sans afficher de loader
+        return null;
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    // Si on a déjà chargé une fois dans cette session, ne pas afficher de loader
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('etsmart-user-cached');
+      return cached !== 'true';
+    }
+    return true;
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((user) => {
         setUser(user);
         setLoading(false);
+        // Marquer comme chargé dans cette session
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('etsmart-user-cached', 'true');
+        }
       })
       .catch((error) => {
         console.error('Error getting current user:', error);
@@ -37,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signOut().catch(() => {});
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+            sessionStorage.removeItem('etsmart-user-cached');
             router.push('/login');
           }
         }

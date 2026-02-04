@@ -24,19 +24,58 @@ interface SubscriptionStatus {
 export function useSubscriptionProtection(): SubscriptionStatus {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState<SubscriptionStatus>({
-    isActive: false,
-    isLoading: true,
-    plan: null,
-    cancelAtPeriodEnd: false,
-    currentPeriodEnd: null,
+  // Initialiser avec un état optimiste si on a déjà vérifié dans cette session
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('etsmart-subscription-checked');
+      return cached !== 'true';
+    }
+    return true;
+  });
+  const [status, setStatus] = useState<SubscriptionStatus>(() => {
+    // Essayer de récupérer depuis le cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('etsmart-subscription-status');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return {
+            ...parsed,
+            currentPeriodEnd: parsed.currentPeriodEnd ? new Date(parsed.currentPeriodEnd) : null,
+            isLoading: false,
+          };
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    return {
+      isActive: false,
+      isLoading: true,
+      plan: null,
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: null,
+    };
   });
 
   useEffect(() => {
     const checkSubscription = async () => {
       // Wait for auth to load
       if (authLoading) return;
+
+      // Si on a déjà vérifié dans cette session et que l'onglet n'était pas caché longtemps, skip
+      if (typeof window !== 'undefined') {
+        const cached = sessionStorage.getItem('etsmart-subscription-checked');
+        const cachedTime = sessionStorage.getItem('etsmart-subscription-checked-time');
+        if (cached === 'true' && cachedTime) {
+          const timeDiff = Date.now() - parseInt(cachedTime, 10);
+          // Si vérifié il y a moins de 5 minutes, ne pas re-vérifier
+          if (timeDiff < 5 * 60 * 1000) {
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
 
       // If no user, redirect to login
       if (!user) {
@@ -134,13 +173,25 @@ export function useSubscriptionProtection(): SubscriptionStatus {
           return;
         }
 
-        setStatus({
+        const newStatus = {
           isActive: true,
           isLoading: false,
           plan: subscriptionPlan,
           cancelAtPeriodEnd,
           currentPeriodEnd,
-        });
+        };
+        
+        setStatus(newStatus);
+        
+        // Sauvegarder dans le cache
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('etsmart-subscription-checked', 'true');
+          sessionStorage.setItem('etsmart-subscription-checked-time', Date.now().toString());
+          sessionStorage.setItem('etsmart-subscription-status', JSON.stringify({
+            ...newStatus,
+            currentPeriodEnd: currentPeriodEnd?.toISOString() || null,
+          }));
+        }
       } catch (error) {
         console.error('[SubscriptionProtection] Error:', error);
         router.push('/pricing');

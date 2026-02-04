@@ -34,7 +34,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  Loader2
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Logo } from '@/components/ui';
@@ -49,6 +50,7 @@ import {
 } from '@/lib/utils';
 import type { ProductAnalysis, Niche } from '@/types';
 import dynamic from 'next/dynamic';
+import { ImageGenerator } from './ImageGenerator';
 
 // Lazy loading du composant LaunchPotentialScore
 const LaunchPotentialScore = dynamic(() => import('@/components/analysis/LaunchPotentialScore').then(mod => ({ default: mod.LaunchPotentialScore })), {
@@ -57,6 +59,7 @@ const LaunchPotentialScore = dynamic(() => import('@/components/analysis/LaunchP
 });
 
 type MainTab = 'analyse' | 'conception' | 'simulation';
+type SubTab = 'listing' | 'image';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GÉNÉRATEUR DE PROMPT CRÉATIF POUR IMAGES PUBLICITAIRES
@@ -243,7 +246,62 @@ const mainTabs = [
 
 
 export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
-  const [activeTab, setActiveTab] = useState<MainTab>('analyse');
+  // Vérifier si on est sur localhost
+  const [isLocalhost, setIsLocalhost] = useState(false);
+  
+  useEffect(() => {
+    setIsLocalhost(
+      typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1'
+      )
+    );
+  }, []);
+
+  // Sauvegarder et restaurer l'onglet actif depuis sessionStorage
+  const [activeTab, setActiveTab] = useState<MainTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('etsmart-active-tab');
+      if (saved && ['analyse', 'conception', 'simulation'].includes(saved)) {
+        return saved as MainTab;
+      }
+    }
+    return 'analyse';
+  });
+  
+  // Sauvegarder l'onglet actif quand il change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('etsmart-active-tab', activeTab);
+    }
+  }, [activeTab]);
+
+  // Sous-onglets pour "Fiche Produit"
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('etsmart-active-subtab');
+      if (saved && ['listing', 'image'].includes(saved)) {
+        return saved as SubTab;
+      }
+    }
+    return 'listing';
+  });
+
+  // Sauvegarder le sous-onglet actif quand il change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('etsmart-active-subtab', activeSubTab);
+    }
+  }, [activeSubTab]);
+  
+  // Tabs principaux (sans l'onglet Images générées qui est maintenant un sous-onglet)
+  const tabs = useMemo(() => {
+    return [
+      { id: 'analyse' as MainTab, label: 'Analyse', icon: Activity },
+      { id: 'conception' as MainTab, label: 'Fiche Produit', icon: FileText },
+      { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
+    ];
+  }, []);
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
   const [etsyDescription, setEtsyDescription] = useState<string | null>(null);
@@ -397,7 +455,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
               onChange={(e) => setActiveTab(e.target.value as MainTab)}
               className="w-full py-2.5 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-0 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
             >
-              {mainTabs.map((tab) => (
+              {tabs.map((tab) => (
                 <option key={tab.id} value={tab.id} className="bg-white text-slate-900">
                   {tab.label}
                 </option>
@@ -406,7 +464,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
           ) : (
             // Onglets horizontaux sur desktop
             <div className="flex items-center w-full">
-              {mainTabs.map((tab) => {
+              {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 
@@ -573,6 +631,33 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
             {/* PRODUCT SHEET TAB */}
             {activeTab === 'conception' && (
               <div className="space-y-6">
+                {/* Sous-onglets pour Fiche Produit */}
+                <div className="flex gap-0 border-b border-slate-200">
+                  <button
+                    onClick={() => setActiveSubTab('listing')}
+                    className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
+                      activeSubTab === 'listing'
+                        ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
+                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Listing
+                  </button>
+                  <button
+                    onClick={() => setActiveSubTab('image')}
+                    className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
+                      activeSubTab === 'image'
+                        ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
+                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Image
+                  </button>
+                </div>
+
+                {/* Contenu du sous-onglet Listing */}
+                {activeSubTab === 'listing' && (
+                  <div className="space-y-6">
                 {analysis.verdict.viralTitleEN && (
                   <div className="p-5 rounded-xl bg-white border border-slate-200">
                     <div className="flex items-center justify-between mb-4">
@@ -740,6 +825,13 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   psychologicalTriggers={analysis.marketing?.strategic?.psychologicalTriggers}
                   competitorMistakes={analysis.marketing?.strategic?.competitorMistakes}
                 />
+                  </div>
+                )}
+
+                {/* Contenu du sous-onglet Image */}
+                {activeSubTab === 'image' && (
+                  <ImageGenerator analysis={analysis} />
+                )}
               </div>
             )}
 
@@ -1010,11 +1102,25 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 export function ResultsStep() {
   const { analyses: storeAnalyses, setStep } = useStore();
   const [dbAnalyses, setDbAnalyses] = useState<ProductAnalysis[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialiser isLoading à false si on a déjà des analyses en store (évite le chargement au retour)
+  const [isLoading, setIsLoading] = useState(() => storeAnalyses.length === 0);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const { subscription } = useSubscription();
   
-  // Charger les analyses depuis la DB au montage ET sauvegarder l'analyse en cours si nécessaire
+  // Charger les analyses depuis la DB au montage UNE SEULE FOIS
+  // Ne pas recharger si on revient sur l'onglet (évite les rechargements inutiles)
   useEffect(() => {
+    // Si on a déjà chargé une fois, ne pas recharger
+    if (hasLoadedOnce) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Si on a déjà des analyses en store, on peut afficher directement
+    if (storeAnalyses.length > 0) {
+      setIsLoading(false);
+    }
+    
     const loadAndSaveAnalyses = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -1127,19 +1233,28 @@ export function ResultsStep() {
           }
         }
         
-        // Charger les analyses depuis la DB
+        // Charger les analyses depuis la DB (en arrière-plan, ne bloque pas l'affichage)
         const analyses = await analysisDb.getAnalyses(user.id);
         setDbAnalyses(analyses);
         console.log('📊 Loaded', analyses.length, 'analyses from database');
+        setHasLoadedOnce(true);
       } catch (error) {
         console.error('Error loading/saving analyses:', error);
       } finally {
         setIsLoading(false);
+        setHasLoadedOnce(true); // Marquer comme chargé même en cas d'erreur
       }
     };
     
-    loadAndSaveAnalyses();
-  }, [storeAnalyses]);
+    // Ne charger que si on n'a pas encore chargé ET qu'on n'a pas d'analyses en store
+    if (!hasLoadedOnce && storeAnalyses.length === 0) {
+      loadAndSaveAnalyses();
+    } else {
+      // Si on a déjà des données, ne pas charger et ne pas afficher le chargement
+      setIsLoading(false);
+      setHasLoadedOnce(true);
+    }
+  }, [storeAnalyses, hasLoadedOnce]);
   
   // Récupérer le produit actuel du store pour identifier l'analyse à afficher
   const { products: currentProducts } = useStore();
@@ -1216,8 +1331,24 @@ export function ResultsStep() {
   // ⚠️ NE PAS nettoyer le store - garder les analyses en mémoire pour la persistance
   // Les analyses restent dans le store pour permettre de revenir sur la page
 
-  // ⚠️ Attendre le chargement avant de vérifier
-  if (isLoading) {
+  // ⚠️ Afficher le chargement SEULEMENT si on n'a vraiment aucune donnée
+  // Si on a des analyses en store ou en DB, on peut afficher directement
+  const hasAnyData = storeAnalyses.length > 0 || dbAnalyses.length > 0;
+  
+  // Ne jamais afficher de loader si on a déjà chargé une fois dans cette session
+  const hasLoadedInSession = typeof window !== 'undefined' && sessionStorage.getItem('etsmart-results-loaded') === 'true';
+  
+  // Marquer comme chargé une fois qu'on a des données
+  useEffect(() => {
+    if (hasAnyData && !isLoading) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('etsmart-results-loaded', 'true');
+      }
+    }
+  }, [hasAnyData, isLoading]);
+  
+  // Ne pas afficher de loader si on a déjà chargé dans cette session
+  if (isLoading && !hasAnyData && !hasLoadedInSession) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">

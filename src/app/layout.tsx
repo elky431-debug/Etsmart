@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ScrollRestoration } from "@/components/ScrollRestoration";
 
 const sora = Sora({ 
   subsets: ["latin"],
@@ -48,6 +49,7 @@ export default function RootLayout({
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}
       >
         <AuthProvider>
+          <ScrollRestoration />
           {children}
         </AuthProvider>
       </body>
