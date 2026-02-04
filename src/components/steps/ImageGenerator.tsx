@@ -471,11 +471,6 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                   </>
                 )}
               </button>
-              {!isGenerating && !hasGeneratedImage && generatedImages.length === 0 && (
-                <p className="text-xs text-center text-slate-500 mt-2">
-                  Coût : -{quantity} crédit
-                </p>
-              )}
               {!isGenerating && (hasGeneratedImage || generatedImages.length > 0) && (
                 <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
                   <p className="text-xs text-center text-amber-800 font-medium">

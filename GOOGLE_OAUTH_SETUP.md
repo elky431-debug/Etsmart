@@ -1,129 +1,119 @@
-# Configuration Google OAuth pour Etsmart
+# 🔐 Configuration de l'authentification Google OAuth
 
-## Erreur actuelle
-Si vous voyez l'erreur : `"Unsupported provider: provider is not enabled"`, cela signifie que Google OAuth n'est pas encore activé dans votre projet Supabase.
+## ✅ Implémentation terminée
 
-## Étapes pour activer Google OAuth
+L'authentification Google a été ajoutée aux pages de connexion et d'inscription. Les utilisateurs peuvent maintenant se connecter ou s'inscrire avec leur compte Google.
 
-### Étape 1 : Créer un projet Google Cloud
+## 📋 Configuration requise dans Supabase
 
-1. Allez sur [Google Cloud Console](https://console.cloud.google.com/)
-2. Créez un nouveau projet ou sélectionnez un projet existant
-3. Donnez un nom à votre projet (ex: "Etsmart OAuth")
+Pour que l'authentification Google fonctionne, vous devez configurer le provider Google dans Supabase :
 
-### Étape 2 : Configurer l'écran de consentement OAuth
+### 1. Activer Google OAuth dans Supabase
 
-1. Dans Google Cloud Console, allez dans **APIs & Services > OAuth consent screen**
-2. Choisissez **External** (ou Internal si vous avez un compte Google Workspace)
-3. Remplissez les informations :
-   - **App name** : Etsmart
-   - **User support email** : votre email
-   - **Developer contact information** : votre email
-4. Cliquez sur **Save and Continue**
-5. Sur la page **Scopes**, cliquez sur **Save and Continue** (pas besoin d'ajouter de scopes)
-6. Sur la page **Test users**, vous pouvez ajouter des emails de test (optionnel)
-7. Cliquez sur **Save and Continue**
+1. **Allez sur** : https://supabase.com/dashboard/project/[VOTRE_PROJET]/auth/providers
+2. **Trouvez "Google"** dans la liste des providers
+3. **Cliquez sur "Enable"**
 
-### Étape 3 : Créer les identifiants OAuth
+### 2. Configurer Google OAuth (Google Cloud Console)
 
-1. Dans Google Cloud Console, allez dans **APIs & Services > Credentials**
-2. Cliquez sur **Create Credentials > OAuth client ID**
-3. Choisissez **Web application** comme type d'application
-4. Donnez un nom (ex: "Etsmart Supabase")
-5. **IMPORTANT** : Dans **Authorized redirect URIs**, ajoutez :
+1. **Créez un projet dans Google Cloud Console** :
+   - Allez sur : https://console.cloud.google.com/
+   - Créez un nouveau projet ou sélectionnez un projet existant
+
+2. **Activez l'API Google+** :
+   - Allez dans "APIs & Services" > "Library"
+   - Recherchez "Google+ API" et activez-la
+
+3. **Créez des identifiants OAuth 2.0** :
+   - Allez dans "APIs & Services" > "Credentials"
+   - Cliquez sur "Create Credentials" > "OAuth client ID"
+   - Sélectionnez "Web application"
+   - **Authorized JavaScript origins** :
+     ```
+     http://localhost:3000
+     https://etsmart.app
+     ```
+   - **Authorized redirect URIs** :
+     ```
+     https://[VOTRE_PROJET_ID].supabase.co/auth/v1/callback
+     ```
+     (Trouvez votre URL de callback dans Supabase Dashboard > Authentication > URL Configuration)
+
+4. **Copiez les identifiants** :
+   - Client ID
+   - Client Secret
+
+### 3. Configurer dans Supabase
+
+1. **Retournez dans Supabase Dashboard** > Authentication > Providers > Google
+2. **Collez les identifiants** :
+   - Client ID (Google)
+   - Client Secret (Google)
+3. **Sauvegardez**
+
+### 4. Configurer les URLs de redirection
+
+Dans Supabase Dashboard > Authentication > URL Configuration :
+
+**Site URL** :
+```
+https://etsmart.app
+```
+
+**Redirect URLs** (ajoutez ces URLs) :
+```
+https://etsmart.app/auth/callback
+http://localhost:3000/auth/callback
+```
+
+## ✅ Fonctionnalités implémentées
+
+- ✅ Bouton "Continuer avec Google" sur la page de connexion
+- ✅ Bouton "Continuer avec Google" sur la page d'inscription
+- ✅ Gestion automatique des nouveaux utilisateurs (redirection vers `/pricing`)
+- ✅ Gestion automatique des utilisateurs existants (redirection vers `/dashboard`)
+- ✅ Création automatique du profil utilisateur dans la table `users`
+- ✅ Extraction du nom complet depuis les métadonnées Google
+
+## 🧪 Test
+
+1. **Testez en local** :
+   ```bash
+   npm run dev
    ```
-   https://[VOTRE-PROJECT-REF].supabase.co/auth/v1/callback
-   ```
-   Remplacez `[VOTRE-PROJECT-REF]` par votre référence de projet Supabase.
-   
-   Pour trouver votre référence :
-   - Allez dans Supabase > Settings > API
-   - Votre Project URL ressemble à : `https://xxxxx.supabase.co`
-   - La partie `xxxxx` est votre référence de projet
-   
-   Exemple : Si votre URL est `https://drjfsqsxxpsjzmabafas.supabase.co`, alors ajoutez :
-   ```
-   https://drjfsqsxxpsjzmabafas.supabase.co/auth/v1/callback
-   ```
-6. Cliquez sur **Create**
-7. **Copiez le Client ID et le Client Secret** (vous en aurez besoin)
+   - Allez sur `http://localhost:3000/login` ou `/register`
+   - Cliquez sur "Continuer avec Google"
+   - Connectez-vous avec votre compte Google
 
-### Étape 4 : Activer Google dans Supabase
+2. **Testez en production** :
+   - Allez sur `https://etsmart.app/login` ou `/register`
+   - Cliquez sur "Continuer avec Google"
+   - Connectez-vous avec votre compte Google
 
-1. Allez dans votre projet Supabase
-2. Allez dans **Authentication > Providers**
-3. Trouvez **Google** dans la liste
-4. Cliquez sur le toggle pour **activer** Google
-5. Collez le **Client ID** (copié depuis Google Cloud Console)
-6. Collez le **Client Secret** (copié depuis Google Cloud Console)
-7. Cliquez sur **Save**
+## 🔍 Dépannage
 
-### Étape 5 : Configurer les URLs de redirection (optionnel mais recommandé)
+### L'authentification Google ne fonctionne pas
 
-1. Dans Supabase, allez dans **Authentication > URL Configuration**
-2. Dans **Redirect URLs**, ajoutez :
-   - `http://localhost:3000/auth/callback` (pour le développement)
-   - `https://votre-domaine.com/auth/callback` (pour la production, si vous avez un domaine)
-
-## Vérification
-
-Une fois configuré :
-1. Rechargez votre application
-2. Cliquez sur "Continuer avec Google"
-3. Vous devriez être redirigé vers la page de connexion Google
-4. Après connexion, vous serez redirigé vers le dashboard
-
-## Dépannage
+1. **Vérifiez que Google OAuth est activé** dans Supabase Dashboard
+2. **Vérifiez les URLs de redirection** dans Google Cloud Console
+3. **Vérifiez les URLs de callback** dans Supabase Dashboard
+4. **Vérifiez les logs** dans Supabase Dashboard > Logs > Auth
 
 ### Erreur "redirect_uri_mismatch"
-- Vérifiez que l'URL de redirection dans Google Cloud Console correspond exactement à celle de Supabase
-- L'URL doit être : `https://[VOTRE-PROJECT-REF].supabase.co/auth/v1/callback`
 
-### Erreur "provider is not enabled"
-- Vérifiez que Google est bien activé dans Supabase > Authentication > Providers
-- Vérifiez que le Client ID et Client Secret sont correctement collés
+- Vérifiez que l'URL de callback dans Google Cloud Console correspond exactement à celle dans Supabase
+- Format attendu : `https://[PROJECT_ID].supabase.co/auth/v1/callback`
 
-### L'authentification fonctionne mais la redirection échoue
-- Vérifiez que l'URL `/auth/callback` est bien configurée dans votre application
-- Vérifiez les logs de la console du navigateur pour voir les erreurs
+### Le profil utilisateur n'est pas créé
 
-## Notes importantes
+- Vérifiez que le trigger de base de données est configuré dans Supabase
+- Le callback crée automatiquement le profil si le trigger n'existe pas
 
-- Le Client Secret est sensible, ne le partagez jamais publiquement
-- Pour la production, vous devrez peut-être soumettre votre application pour vérification Google
-- En mode test, seuls les utilisateurs ajoutés dans "Test users" pourront se connecter
+## 📚 Documentation
 
+- [Supabase Auth - Google Provider](https://supabase.com/docs/guides/auth/social-login/auth-google)
+- [Google OAuth 2.0 Setup](https://developers.google.com/identity/protocols/oauth2)
 
+---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+**✅ Une fois configuré, les utilisateurs pourront se connecter et s'inscrire avec Google !**

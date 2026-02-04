@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -18,6 +18,17 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const { signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check for OAuth error in URL
+  useEffect(() => {
+    const oauthError = searchParams.get('error');
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError));
+      // Clean up URL
+      router.replace('/register');
+    }
+  }, [searchParams, router]);
 
   const passwordStrength = {
     length: password.length >= 8,
