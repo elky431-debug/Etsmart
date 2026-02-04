@@ -54,7 +54,7 @@ import { ImageGenerator } from './ImageGenerator';
 
 // Lazy loading du composant LaunchPotentialScore
 const LaunchPotentialScore = dynamic(() => import('@/components/analysis/LaunchPotentialScore').then(mod => ({ default: mod.LaunchPotentialScore })), {
-  loading: () => <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border-2 border-slate-200 bg-white animate-pulse"><div className="h-32 bg-slate-100 rounded-lg"></div></div>,
+  loading: () => <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border-2 border-white/10 bg-black animate-pulse"><div className="h-32 bg-black border border-white/10 rounded-lg"></div></div>,
   ssr: false,
 });
 
@@ -194,7 +194,7 @@ function CreativePromptGenerator({
             {copiedMain ? 'Copié !' : 'Copier'}
           </button>
         </div>
-        <div className="p-4 bg-white rounded-lg border border-violet-200 max-h-64 overflow-y-auto">
+        <div className="p-4 bg-black rounded-lg border border-white/10 max-h-64 overflow-y-auto">
           <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
             {prompt}
           </pre>
@@ -205,7 +205,7 @@ function CreativePromptGenerator({
       </div>
 
       {/* Instructions d'utilisation */}
-      <div className="p-4 bg-white rounded-lg border border-violet-200">
+      <div className="p-4 bg-black rounded-lg border border-white/10">
         <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
           <Info size={14} className="text-violet-500" />
           Comment utiliser ce prompt ?
@@ -435,9 +435,9 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-black">
       {/* Titre Résultats */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-black border-b border-white/10 px-4 sm:px-6 lg:px-8 py-8">
         <motion.h1 
           className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-center"
           initial={{ opacity: 0, y: -20 }}
@@ -451,7 +451,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
       </div>
 
       {/* Navigation onglets - Dropdown sur mobile, onglets sur desktop */}
-      <div className="sticky top-0 z-50 bg-white border-b border-slate-200 py-2 px-4 sm:px-6 lg:px-8">
+      <div className="sticky top-0 z-50 bg-black border-b border-white/10 py-2 px-4 sm:px-6 lg:px-8">
         <div className="w-full">
           {isMobile ? (
             // Dropdown sur mobile
@@ -461,7 +461,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
               className="w-full py-2.5 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-0 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
             >
               {tabs.map((tab) => (
-                <option key={tab.id} value={tab.id} className="bg-white text-slate-900">
+                <option key={tab.id} value={tab.id} className="bg-black text-white">
                   {tab.label}
                 </option>
               ))}
@@ -480,7 +480,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all mx-1 ${
                       isActive 
                         ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-black border border-white/10 text-white/80 hover:bg-black hover:border-white/20'
                     }`}
                   >
                     <Icon size={16} />
@@ -548,11 +548,11 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl border ${
                           kpi.highlight 
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] border-[#00d4ff] text-white' 
-                            : 'bg-white border-slate-200'
+                            : 'bg-black border-white/10'
                         }`}
                       >
                         <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center mb-2 sm:mb-3 ${
-                          kpi.highlight ? 'bg-white/20' : 'bg-slate-100'
+                          kpi.highlight ? 'bg-white/20' : 'bg-black border border-white/10'
                         }`}>
                           <Icon size={isMobile ? 14 : 18} className={kpi.highlight ? 'text-white' : 'text-slate-600'} />
                         </div>
@@ -574,9 +574,9 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 
                 {/* Explication estimation (si disponible) */}
                 {analysis.competitors.competitorEstimationReasoning && (
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="p-4 rounded-lg bg-black border border-white/10">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                         <Info size={14} className="text-slate-600" />
                       </div>
                       <div className="flex-1">
@@ -678,7 +678,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 {activeSubTab === 'listing' && (
                   <div className="space-y-6">
                 {analysis.verdict.viralTitleEN && (
-                  <div className="p-5 rounded-xl bg-white border border-slate-200">
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center">
@@ -691,7 +691,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           copiedTitle 
                             ? 'bg-emerald-500 text-white' 
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
                         }`}
                       >
                         {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
@@ -712,7 +712,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 
                 {/* DESCRIPTION ETSY */}
                 {analysis.verdict.verdict !== 'avoid' && (
-                  <div className="p-5 rounded-xl bg-white border border-slate-200">
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
@@ -729,7 +729,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                             copiedDescription 
                               ? 'bg-emerald-500 text-white' 
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
                           }`}
                         >
                           {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
@@ -763,7 +763,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                        <div className="p-4 rounded-lg bg-black border border-white/10">
                           <p className="text-sm text-slate-600 mb-2">
                             Vous pouvez copier et utiliser directement dans votre fiche produit.
                           </p>
@@ -779,7 +779,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 )}
 
                 {analysis.verdict.seoTags && analysis.verdict.seoTags.length > 0 && (
-                  <div className="p-5 rounded-xl bg-white border border-slate-200">
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <Hash size={20} className="text-cyan-500" />
@@ -790,7 +790,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                           copiedTags 
                             ? 'bg-emerald-500 text-white' 
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
                         }`}
                       >
                         {copiedTags ? <Check size={12} /> : <Copy size={12} />}
@@ -810,7 +810,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 )}
 
-                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center gap-3 mb-5">
                     <CircleDollarSign size={20} className="text-[#00d4ff]" />
                     <h3 className="text-base font-bold text-slate-900">Stratégie de prix</h3>
@@ -825,7 +825,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`p-4 rounded-xl text-center transition-all ${
                           p.active 
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                            : 'bg-slate-50 border border-slate-200'
+                            : 'bg-black border border-white/10'
                         }`}
                       >
                         <p className={`text-xs font-medium mb-1 ${p.active ? 'text-white/80' : 'text-slate-500'}`}>{p.sublabel}</p>
@@ -857,7 +857,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
             {/* SIMULATION TAB */}
             {activeTab === 'simulation' && (
               <div className="space-y-6">
-                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center gap-3 mb-5">
                     <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
                       <Calculator size={20} className="text-white" />
@@ -869,7 +869,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                   
                   {analysis.verdict.supplierPriceReasoning && (
-                    <div className="mb-5 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="mb-5 p-3 rounded-lg bg-black border border-white/10">
                       <p className="text-xs font-semibold text-slate-500 mb-1">Analyse IA</p>
                       <p className="text-sm text-slate-700">{analysis.verdict.supplierPriceReasoning}</p>
                     </div>
@@ -942,7 +942,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                             className={`w-full pl-8 pr-3 py-3 rounded-lg text-lg font-bold focus:ring-0 focus:outline-none transition-colors ${
                               field.highlight 
                                 ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]/10 border border-[#00d4ff] text-slate-900 focus:border-[#00d4ff]' 
-                                : 'bg-slate-50 border border-slate-200 text-slate-900 focus:border-slate-400'
+                                : 'bg-black border border-white/10 text-slate-900 focus:border-slate-400'
                             }`}
                           />
                         </div>
@@ -951,7 +951,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     ))}
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-black border border-white/10">
                     <div className="text-center">
                       <p className="text-xs text-slate-500 mb-1">Coût unitaire</p>
                       <p className="text-xl font-bold text-slate-900">{formatCurrency(simulationData.costPerUnit)}</p>
@@ -975,7 +975,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 </div>
 
                 {/* Etsy Ads Sub-tab */}
-                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
                     <Zap size={18} className="text-[#00d4ff]" />
                     <h3 className="text-base font-bold text-slate-900">Etsy Ads</h3>
@@ -1009,7 +1009,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 </div>
 
                 {/* Time to First Sale Sub-tab */}
-                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
                     <Clock size={18} className="text-[#00d4ff]" />
                     <h3 className="text-base font-bold text-slate-900">Temps estimé avant la première vente</h3>
@@ -1056,7 +1056,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     </div>
                     
                     {/* Texte de transparence obligatoire */}
-                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="p-4 rounded-lg bg-black border border-white/10">
                       <div className="flex items-start gap-2">
                         <Info size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-slate-600 leading-relaxed">
@@ -1067,7 +1067,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   </div>
                 </div>
 
-                <div className="p-5 rounded-xl bg-white border border-slate-200">
+                <div className="p-5 rounded-xl bg-black border border-white/10">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
                       <TrendingUp size={20} className="text-[#00d4ff]" />
@@ -1089,7 +1089,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`p-4 rounded-lg transition-all ${
                           scenario.highlight 
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                            : 'bg-slate-50 border border-slate-200'
+                            : 'bg-black border border-white/10'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -1456,11 +1456,11 @@ export function ResultsStep() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-black">
       {/* Header avec Logo et Navigation */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10">
         {/* Barre de progression fine */}
-        <div className="h-0.5 bg-slate-100 relative">
+        <div className="h-0.5 bg-white/10 relative">
           <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]" />
         </div>
         
@@ -1479,14 +1479,14 @@ export function ResultsStep() {
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                     i === 3 
                       ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-md shadow-[#00d4ff]/30' 
-                      : 'bg-slate-100 text-slate-400'
+                      : 'bg-black border border-white/10 text-slate-400'
                   }`}>
                     {i < 3 ? <Check size={14} /> : '4'}
                   </div>
                   <span className={`text-sm hidden sm:block font-semibold transition-colors ${
                     i === 3 ? 'text-[#00d4ff]' : 'text-slate-400'
                   }`}>{stepName}</span>
-                  {i < 3 && <div className="w-4 h-0.5 bg-slate-200 mx-1.5" />}
+                  {i < 3 && <div className="w-4 h-0.5 bg-white/10 mx-1.5" />}
                 </div>
               ))}
             </div>
@@ -1518,7 +1518,7 @@ export function ResultsStep() {
         <div className="w-full flex items-center justify-between">
           <button
             onClick={() => setStep(2)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm transition-all shadow-sm hover:shadow-md"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-50 hover:bg-black border border-white/10 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm transition-all shadow-sm hover:shadow-md"
           >
             <ArrowLeft size={18} />
             Retour à l&apos;import
@@ -1538,7 +1538,7 @@ export function ResultsStep() {
       <div className="pt-[140px] bg-white border-b border-slate-200 py-4 px-4 sm:px-6 lg:px-8">
         <div className="w-full">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200">
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-black border border-white/10 flex-shrink-0 border border-slate-200">
               {analysisToShow.product.images[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={analysisToShow.product.images[0]} alt="" className="w-full h-full object-cover" />
@@ -1552,7 +1552,7 @@ export function ResultsStep() {
             <div className="flex-1 min-w-0">
               <h1 className="text-base font-bold text-slate-900 truncate mb-1">{analysisToShow.product.title}</h1>
               <div className="flex items-center gap-3">
-                <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium">
+                <span className="px-2 py-1 rounded-md bg-black border border-white/10 text-slate-600 text-xs font-medium">
                   {analysisToShow.product.source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                 </span>
                 <span className="text-[#00d4ff] font-bold text-sm">{formatCurrency(analysisToShow.product.price)}</span>
@@ -1565,7 +1565,7 @@ export function ResultsStep() {
                 href={analysisToShow.product.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+                className="p-2 rounded-lg bg-black border border-white/10 text-slate-600 hover:text-slate-900 hover:bg-white/10 transition-colors"
               >
                 <ExternalLink size={16} />
               </a>

@@ -64,7 +64,7 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
         relative group w-full text-left p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl transition-all duration-500 overflow-hidden
         ${isSelected 
           ? 'bg-gradient-to-br from-[#00d4ff] via-[#00c9b7] to-[#00b8e6] text-white shadow-2xl shadow-[#00d4ff]/40' 
-          : 'bg-white border-2 border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/20'}
+          : 'bg-black border-2 border-white/10 hover:border-[#00d4ff]/50'}
       `}
     >
       {/* Animated background gradient */}
@@ -117,27 +117,27 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
           )}
         </div>
         
-        <h3 className={`font-bold text-base sm:text-xl md:text-2xl mb-2 sm:mb-3 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+        <h3 className={`font-bold text-base sm:text-xl md:text-2xl mb-2 sm:mb-3 ${isSelected ? 'text-white' : 'text-white'}`}>
           {niche.name}
         </h3>
         <p className={`text-sm sm:text-base mb-4 sm:mb-6 line-clamp-2 leading-relaxed ${
-          isSelected ? 'text-white/90' : 'text-slate-600'
+          isSelected ? 'text-white/90' : 'text-white/80'
         }`}>
           {niche.description}
         </p>
         
         {/* Stats */}
         <div className={`flex items-center gap-4 pt-6 border-t ${
-          isSelected ? 'border-white/30' : 'border-slate-200'
+          isSelected ? 'border-white/30' : 'border-white/10'
         }`}>
           <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
             isSelected 
               ? 'bg-white/20 backdrop-blur-sm' 
-              : 'bg-slate-50'
+              : 'bg-black border border-white/10'
           }`}>
             <Users size={16} className={isSelected ? 'text-white' : 'text-[#00d4ff]'} />
             <span className={`text-sm font-bold ${
-              isSelected ? 'text-white' : 'text-slate-700'
+              isSelected ? 'text-white' : 'text-white'
             }`}>
               {niche.avgCompetition === 'low' ? 'Faible' : niche.avgCompetition === 'medium' ? 'Moyen' : 'Élevé'}
             </span>
@@ -145,11 +145,11 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
           <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
             isSelected 
               ? 'bg-white/20 backdrop-blur-sm' 
-              : 'bg-slate-50'
+              : 'bg-black border border-white/10'
           }`}>
             <TrendingUp size={16} className={isSelected ? 'text-white' : 'text-[#00c9b7]'} />
             <span className={`text-sm font-bold ${
-              isSelected ? 'text-white' : 'text-slate-700'
+              isSelected ? 'text-white' : 'text-white'
             }`}>
               {niche.avgDemand === 'low' ? 'Faible' : niche.avgDemand === 'medium' ? 'Moyenne' : 'Élevée'}
             </span>
@@ -219,7 +219,7 @@ export function NicheSelection() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
+            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-black border-2 border-[#00d4ff]/20 mb-4 sm:mb-8 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 1 SUR 3</span>
@@ -331,7 +331,7 @@ export function NicheSelection() {
                   placeholder="Ex: Accessoires gaming personnalisés..."
                   value={customNiche}
                   onChange={(e) => setCustomNiche(e.target.value)}
-                  className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-2 border-slate-200 rounded-xl sm:rounded-2xl text-base sm:text-lg text-slate-900 placeholder-slate-400 focus:border-[#00d4ff] focus:bg-white focus:shadow-lg focus:shadow-[#00d4ff]/20 focus:outline-none transition-all duration-300"
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-black border-2 border-white/10 rounded-xl sm:rounded-2xl text-base sm:text-lg text-white placeholder-white/40 focus:border-[#00d4ff] focus:bg-black focus:outline-none transition-all duration-300"
                 />
               </div>
             </motion.div>

@@ -677,7 +677,7 @@ export function AnalysisStep() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', delay: 0.2 }}
-          className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
+          className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-black border border-white/10 mb-4 sm:mb-8 text-xs sm:text-sm"
         >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 3 SUR 3</span>
