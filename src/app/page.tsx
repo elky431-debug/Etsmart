@@ -149,7 +149,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md">
+      <header className="fixed top-0 left-0 right-0 z-50">
         <div className="px-4 sm:px-6 lg:px-10 mt-3 sm:mt-4">
           <div className="flex items-center justify-between py-2.5 sm:py-3">
               <Link 
@@ -186,7 +186,7 @@ export default function HomePage() {
               <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
                   <Link href="/dashboard?section=analyze">
-                    <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-lg cursor-pointer ${
+                    <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
                       process.env.NODE_ENV === 'development' 
                         ? 'border-2 bg-transparent hover:opacity-90' 
                         : 'force-white shadow-black/30'
@@ -206,7 +206,7 @@ export default function HomePage() {
                       Connexion
                     </Link>
                     <Link href="/register">
-                      <button className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-lg cursor-pointer ${
+                      <button className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                         process.env.NODE_ENV === 'development' 
                           ? 'border-2 bg-transparent hover:opacity-90' 
                           : 'force-white shadow-black/30'
@@ -251,7 +251,7 @@ export default function HomePage() {
               className="fixed inset-0 bg-black/60 z-40 md:hidden"
             />
             <div
-              className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm bg-black/80 border border-white/10 rounded-lg shadow-2xl z-50 md:hidden overflow-hidden"
+              className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm bg-black/80 border border-white/10 rounded-lg z-50 md:hidden overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 space-y-4">
@@ -307,10 +307,10 @@ export default function HomePage() {
         <div className="relative z-10 text-center px-6">
           <div className="flex items-center justify-center gap-4">
             <Link href="/app">
-              <button className={`px-6 py-3 rounded-lg font-semibold shadow-xl flex items-center gap-2 cursor-pointer ${
+              <button className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 cursor-pointer ${
                 process.env.NODE_ENV === 'development' 
-                  ? 'border-2 bg-transparent hover:opacity-90 shadow-[#00d4ff]/40' 
-                  : 'force-white shadow-black/40'
+                  ? 'border-2 bg-transparent hover:opacity-90' 
+                  : 'force-white'
               }`} style={process.env.NODE_ENV === 'development' ? {
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
