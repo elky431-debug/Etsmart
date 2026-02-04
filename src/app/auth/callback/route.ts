@@ -43,7 +43,14 @@ export async function GET(request: NextRequest) {
 
   try {
     console.log('🔄 Exchanging code for session...');
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+    
     const { error: exchangeError, data } = await supabase.auth.exchangeCodeForSession(code);
     
     if (exchangeError) {
@@ -54,11 +61,19 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    if (!data.user) {
+    if (!data || !data.user) {
       console.error('❌ No user data after exchange');
       console.log('Data:', JSON.stringify(data, null, 2));
       return NextResponse.redirect(
         new URL('/register?error=no_user', baseUrl)
+      );
+    }
+    
+    if (!data.session) {
+      console.error('❌ No session after exchange');
+      console.log('Data:', JSON.stringify(data, null, 2));
+      return NextResponse.redirect(
+        new URL('/register?error=no_session', baseUrl)
       );
     }
 
