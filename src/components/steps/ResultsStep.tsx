@@ -165,10 +165,17 @@ function CreativePromptGenerator({
   };
 
   return (
-    <div className="p-5 rounded-xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200">
+    <div className="p-5 rounded-xl bg-black border border-white/10">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            typeof window !== 'undefined' && (
+              window.location.hostname === 'localhost' || 
+              window.location.hostname === '127.0.0.1'
+            )
+              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+              : 'bg-gradient-to-br from-violet-500 to-indigo-500'
+          }`}>
             <Logo size="sm" showText={false} />
           </div>
           <div>
@@ -187,7 +194,12 @@ function CreativePromptGenerator({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               copiedMain 
                 ? 'bg-emerald-500 text-white' 
-                : 'bg-violet-500 text-white hover:bg-violet-600'
+                : typeof window !== 'undefined' && (
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1'
+                  )
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white hover:opacity-90'
+                    : 'bg-violet-500 text-white hover:bg-violet-600'
             }`}
           >
             {copiedMain ? <Check size={12} /> : <Copy size={12} />}
