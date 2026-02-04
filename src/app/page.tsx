@@ -285,7 +285,16 @@ export default function HomePage() {
               </button>
             </Link>
             <Link href="#pricing">
-              <button className="px-6 py-3 rounded-lg bg-transparent border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors cursor-pointer">
+              <button className={`px-6 py-3 rounded-lg bg-transparent font-semibold transition-colors cursor-pointer ${
+                process.env.NODE_ENV === 'development' 
+                  ? 'border-2 border-transparent bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-border text-white hover:opacity-90' 
+                  : 'border border-white/30 text-white hover:bg-white/10'
+              }`} style={process.env.NODE_ENV === 'development' ? {
+                borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                WebkitMaskImage: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                WebkitMaskComposite: 'xor',
+                maskComposite: 'exclude',
+              } : {}}>
                 Voir les tarifs
               </button>
             </Link>
