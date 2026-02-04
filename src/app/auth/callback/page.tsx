@@ -74,6 +74,17 @@ function AuthCallbackContent() {
         console.log('User email:', data.user.email);
         console.log('User created at:', data.user.created_at);
 
+        // Check subscription status first
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('subscription_status, subscription_plan')
+          .eq('id', data.user.id)
+          .single();
+
+        const hasActiveSubscription = userData?.subscription_status === 'active';
+        console.log('Subscription status:', userData?.subscription_status);
+        console.log('Has active subscription:', hasActiveSubscription);
+
         // Check if user is new
         const createdAt = new Date(data.user.created_at || '');
         const now = new Date();
@@ -107,11 +118,17 @@ function AuthCallbackContent() {
           } catch (err) {
             console.warn('⚠️ Error creating profile:', err);
           }
+        }
 
-          console.log('🔄 Redirecting to /pricing');
+        // Redirect based on subscription status, not just if user is new
+        if (hasActiveSubscription) {
+          console.log('🔄 User has active subscription, redirecting to /dashboard');
+          router.push('/dashboard?section=analyze');
+        } else if (isNewUser) {
+          console.log('🔄 New user without subscription, redirecting to /pricing');
           router.push('/pricing');
         } else {
-          console.log('🔄 Redirecting to /dashboard');
+          console.log('🔄 Existing user without subscription, redirecting to /dashboard');
           router.push('/dashboard?section=analyze');
         }
       } catch (err: any) {
