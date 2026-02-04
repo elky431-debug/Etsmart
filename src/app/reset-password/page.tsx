@@ -63,9 +63,9 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#00d4ff]/5 via-white to-[#00c9b7]/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#00d4ff]/5 via-black to-[#00c9b7]/5" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00d4ff]/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00c9b7]/10 rounded-full blur-[100px]" />
       
@@ -84,31 +84,31 @@ export default function ResetPasswordPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/50 p-8 md:p-10"
+          className="bg-white/5 backdrop-blur-xl rounded-lg shadow-2xl border border-white/10 p-8 md:p-10"
         >
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Reset password
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Réinitialiser le mot de passe
             </h1>
-            <p className="text-slate-600">
-              Enter your new password below
+            <p className="text-white/70">
+              Entrez votre nouveau mot de passe ci-dessous
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-              <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
+              <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-              <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-start gap-3">
+              <CheckCircle2 size={20} className="text-green-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-green-700 font-medium mb-1">Password updated!</p>
-                <p className="text-sm text-green-600">
-                  Your password has been successfully updated. Redirecting to login...
+                <p className="text-sm text-green-300 font-medium mb-1">Mot de passe mis à jour !</p>
+                <p className="text-sm text-green-200/80">
+                  Votre mot de passe a été mis à jour avec succès. Redirection vers la connexion...
                 </p>
               </div>
             </div>
@@ -117,9 +117,9 @@ export default function ResetPasswordPage() {
           {!success && (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">New password</label>
+                <label className="block text-sm font-semibold text-white/90 mb-2">Nouveau mot de passe</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 group-focus-within:text-[#00d4ff] transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
@@ -127,25 +127,25 @@ export default function ResetPasswordPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+                    className="w-full pl-12 pr-12 py-3.5 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00d4ff] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-[#00d4ff] transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Must be at least 8 characters</p>
+                <p className="text-xs text-white/50 mt-1">Au moins 8 caractères</p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Confirm password</label>
+                <label className="block text-sm font-semibold text-white/90 mb-2">Confirmer le mot de passe</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00d4ff] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 group-focus-within:text-[#00d4ff] transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
@@ -153,14 +153,14 @@ export default function ResetPasswordPage() {
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+                    className="w-full pl-12 pr-12 py-3.5 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00d4ff] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-[#00d4ff] transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
                 disabled={isLoading}
                 whileHover={{ scale: isLoading ? 1 : 1.02 }}
                 whileTap={{ scale: isLoading ? 1 : 0.98 }}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-lg hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isLoading ? (
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -181,7 +181,7 @@ export default function ResetPasswordPage() {
                   </svg>
                 ) : (
                   <>
-                    Update password
+                    Mettre à jour le mot de passe
                     <ArrowRight size={18} />
                   </>
                 )}
@@ -189,9 +189,9 @@ export default function ResetPasswordPage() {
             </form>
           )}
 
-          <p className="text-center text-slate-600 mt-8">
+          <p className="text-center text-white/70 mt-8">
             <Link href="/login" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
-              Back to login
+              Retour à la connexion
             </Link>
           </p>
         </motion.div>

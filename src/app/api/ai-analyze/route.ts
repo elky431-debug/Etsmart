@@ -472,19 +472,19 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       maxTokens: 1000,
       temperature: 0.1,
       model: 'gpt-4o-mini',
-      timeout: '28s',
-      retries: 3,
+      timeout: '40s',
+      retries: 1,
       netlifyLimit: '50s',
     });
     
     const openaiStartTime = Date.now();
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
-    // ⚡ SOLUTION RADICALE: Retry avec timeout progressif
-    // Timeout à 28s par tentative (inférieur à 30s comme demandé)
-    // Avec 3 tentatives max, on reste sous la limite Netlify de 50s par requête
-    const MAX_RETRIES = 2; // 3 tentatives au total (0, 1, 2)
-    const INITIAL_TIMEOUT = 28000; // 28s par tentative (inférieur à 30s)
+    // ⚡ OPTIMISATION: Réduire les retries et augmenter le timeout pour accélérer
+    // Timeout à 40s par tentative (donne plus de temps à OpenAI)
+    // Avec seulement 1 retry, on reste sous la limite Netlify de 50s par requête
+    const MAX_RETRIES = 1; // 2 tentatives au total (0, 1) - réduit pour accélérer
+    const INITIAL_TIMEOUT = 40000; // 40s par tentative (augmenté pour éviter les timeouts)
     let lastError: any = null;
     let openaiResponse: Response | null = null;
     

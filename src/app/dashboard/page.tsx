@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -38,7 +38,8 @@ import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysi
 import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
-type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings' | 'subscription';
+import { CompetitorFinder } from '@/components/CompetitorFinder';
+type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings' | 'subscription' | 'competitors';
 
 interface MenuItem {
   id: DashboardSection;
@@ -55,10 +56,33 @@ export default function DashboardPage() {
   // 🔒 Protect this page - redirect to /pricing if no active subscription
   const { isActive: hasActiveSubscription, isLoading: subscriptionLoading } = useSubscriptionProtection();
   
+  // Cache pour éviter les rechargements inutiles
+  const lastLoadTimeRef = useRef<number>(0);
+  const CACHE_DURATION = 60000; // 1 minute
+  const CACHE_KEY = 'etsmart-analyses-cache';
+  
   const [activeSection, setActiveSection] = useState<DashboardSection>('history');
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
-  const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialiser avec les données du cache localStorage si disponibles
+  const [analyses, setAnalyses] = useState<ProductAnalysis[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { analyses: cachedAnalyses, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+        if (cachedAnalyses && cachedAnalyses.length > 0 && (now - timestamp) < CACHE_DURATION) {
+          console.log('📊 Initializing with localStorage cache:', cachedAnalyses.length);
+          lastLoadTimeRef.current = timestamp;
+          return cachedAnalyses;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Error initializing from localStorage:', e);
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(false); // Commencer à false
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
@@ -116,7 +140,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
         setActiveSection(section);
       }
     }
@@ -145,31 +169,79 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
+      // Si on a déjà des analyses dans le state (depuis localStorage), vérifier si on doit recharger
+      const now = Date.now();
+      if (analyses.length > 0 && (now - lastLoadTimeRef.current) < CACHE_DURATION) {
+        console.log('📊 Using existing analyses from cache, no reload needed');
+        return;
+      }
+      
+      // Vérifier le store
+      const { analyses: storeAnalyses } = useStore.getState();
+      if (storeAnalyses && storeAnalyses.length > 0 && analyses.length === 0) {
+        // Utiliser les données du store temporairement pendant le chargement
+        setAnalyses(storeAnalyses);
+        lastLoadTimeRef.current = Date.now();
+      }
+      // Charger les données depuis la DB (avec cache)
       loadAnalyses();
     }
   }, [user]);
 
-  // Recharger les analyses quand l'utilisateur revient sur la page (focus)
+  // Recharger les analyses quand l'utilisateur revient sur la page (focus) - seulement si le cache est expiré
   useEffect(() => {
     if (!user) return;
     
     const handleFocus = () => {
-      loadAnalyses();
+      const now = Date.now();
+      // Ne recharger que si le cache est expiré (plus de 1 minute)
+      if ((now - lastLoadTimeRef.current) >= CACHE_DURATION) {
+        loadAnalyses(true);
+      }
     };
     
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
 
-  const loadAnalyses = async () => {
+  const loadAnalyses = async (force = false) => {
     if (!user) return;
+    
+    // Vérifier le cache (localStorage + state)
+    const now = Date.now();
+    if (!force) {
+      // Vérifier d'abord le state
+      if (analyses.length > 0 && (now - lastLoadTimeRef.current) < CACHE_DURATION) {
+        console.log('📊 Using cached analyses from state');
+        return;
+      }
+      
+      // Vérifier localStorage
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { analyses: cachedAnalyses, timestamp } = JSON.parse(cached);
+          if (cachedAnalyses && cachedAnalyses.length > 0 && (now - timestamp) < CACHE_DURATION) {
+            console.log('📊 Using cached analyses from localStorage:', cachedAnalyses.length);
+            setAnalyses(cachedAnalyses);
+            lastLoadTimeRef.current = timestamp;
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Error checking localStorage cache:', e);
+      }
+    }
     
     try {
       setIsLoading(true);
       
+      // Conserver les analyses existantes pendant le chargement
+      const currentAnalyses = analyses.length > 0 ? analyses : [];
+      
       // 1. Charger les analyses depuis la DB
       const dbAnalyses = await analysisDb.getAnalyses(user.id);
-      console.log('📊 Loaded analyses from database:', dbAnalyses.length);
+      console.log('📊 Loaded analyses from database:', dbAnalyses.length, dbAnalyses.map(a => a.product.title?.substring(0, 30)));
       
       // 2. Synchroniser les analyses du store local vers la DB (si pas déjà présentes)
       const { analyses: localAnalyses } = useStore.getState();
@@ -192,10 +264,68 @@ export default function DashboardPage() {
         
         // Recharger les analyses après la synchronisation
         const updatedAnalyses = await analysisDb.getAnalyses(user.id);
-        setAnalyses(updatedAnalyses);
+        console.log('📊 Reloaded analyses after sync:', updatedAnalyses.length, updatedAnalyses.map(a => a.product.title?.substring(0, 30)));
+        
+        // Fusionner avec les analyses locales et existantes pour ne rien perdre
+        const mergedAnalyses = [...updatedAnalyses];
+        
+        // Ajouter les analyses locales qui ne sont pas dans la DB
+        for (const localAnalysis of localAnalyses) {
+          const exists = mergedAnalyses.some(db => db.product.id === localAnalysis.product.id);
+          if (!exists) {
+            console.log('➕ Adding local analysis to merged list:', localAnalysis.product.title);
+            mergedAnalyses.push(localAnalysis);
+          }
+        }
+        
+        // Ajouter les analyses existantes qui ne sont ni dans la DB ni dans le store local
+        for (const currentAnalysis of currentAnalyses) {
+          const existsInDb = mergedAnalyses.some(db => db.product.id === currentAnalysis.product.id);
+          const existsInLocal = localAnalyses.some(local => local.product.id === currentAnalysis.product.id);
+          if (!existsInDb && !existsInLocal) {
+            console.log('➕ Adding current analysis to merged list:', currentAnalysis.product.title);
+            mergedAnalyses.push(currentAnalysis);
+          }
+        }
+        
+        setAnalyses(mergedAnalyses);
+        console.log('📊 Final merged analyses count:', mergedAnalyses.length);
+        
+        // Sauvegarder dans localStorage
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            analyses: mergedAnalyses,
+            timestamp: now
+          }));
+        } catch (e) {
+          console.warn('⚠️ Error saving to localStorage:', e);
+        }
       } else {
-        setAnalyses(dbAnalyses);
+        // Fusionner avec les analyses existantes
+        const mergedAnalyses = [...dbAnalyses];
+        for (const currentAnalysis of currentAnalyses) {
+          const exists = mergedAnalyses.some(db => db.product.id === currentAnalysis.product.id);
+          if (!exists) {
+            console.log('➕ Adding current analysis to merged list:', currentAnalysis.product.title);
+            mergedAnalyses.push(currentAnalysis);
+          }
+        }
+        setAnalyses(mergedAnalyses);
+        console.log('📊 Final merged analyses count (no local):', mergedAnalyses.length);
+        
+        // Sauvegarder dans localStorage
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            analyses: mergedAnalyses,
+            timestamp: now
+          }));
+        } catch (e) {
+          console.warn('⚠️ Error saving to localStorage:', e);
+        }
       }
+      
+      // Mettre à jour le timestamp du cache
+      lastLoadTimeRef.current = now;
     } catch (error: any) {
       console.error('❌ Error loading analyses:', {
         message: error?.message,
@@ -203,8 +333,10 @@ export default function DashboardPage() {
         details: error?.details,
         hint: error?.hint,
       });
-      // Set empty array on error to avoid breaking the UI
-      setAnalyses([]);
+      // Ne pas vider les analyses existantes en cas d'erreur
+      if (analyses.length === 0) {
+        setAnalyses([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +357,19 @@ export default function DashboardPage() {
     
     try {
       await analysisDb.deleteAnalysis(productId, user.id);
-      setAnalyses(analyses.filter(a => a.product.id !== productId));
+      const updatedAnalyses = analyses.filter(a => a.product.id !== productId);
+      setAnalyses(updatedAnalyses);
+      
+      // Mettre à jour le cache localStorage
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          analyses: updatedAnalyses,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.warn('⚠️ Error updating localStorage cache:', e);
+      }
+      
       if (selectedAnalysis?.product.id === productId) {
         handleBackToHistory();
       }
@@ -236,27 +380,36 @@ export default function DashboardPage() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
+    try {
+      await signOut();
+      // Nettoyer le localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      // Rediriger vers la page d'accueil
+      router.push('/');
+      // Forcer le rechargement pour s'assurer que tout est nettoyé
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, rediriger vers la page d'accueil
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/';
+      }
+    }
   };
 
-  if (loading || isLoading || subscriptionLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d4ff]"></div>
-          <p className="mt-4 text-slate-600">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
+  // Ne pas bloquer toute la page - afficher le layout avec un skeleton
+  if (!user && !loading) {
     return null;
   }
 
   const menuItems: MenuItem[] = [
     { id: 'analyze', label: 'Analyser', icon: BarChart3 },
+    { id: 'competitors', label: 'Analyse concurrentielle', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'history', label: 'Historique', icon: History },
@@ -264,7 +417,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-black flex">
       {/* Success Notification */}
       <AnimatePresence>
         {showSuccessNotification && (
@@ -275,7 +428,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.3 }}
             className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4"
           >
-            <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-xl shadow-2xl shadow-[#00d4ff]/40 p-4 border-2 border-white/20">
+            <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-lg shadow-2xl shadow-[#00d4ff]/40 p-4 border-2 border-white/20">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                   <CheckCircle2 className="w-6 h-6 text-white" />
@@ -300,114 +453,102 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* Header with Logo and Logout */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Logo size="md" showText={true} />
-            </div>
-
-            {/* Actions */}
+      {/* Sidebar */}
+      <aside className="group fixed left-0 top-0 h-screen z-40 flex">
+        {/* Sidebar Container */}
+        <div className="relative bg-black border-r border-black/20 w-16 group-hover:w-64 transition-all duration-300 ease-in-out overflow-hidden">
+          {/* Logo */}
+          <div className="p-4 border-b border-black/30">
             <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <Home size={18} />
-                <span className="font-medium">Retour à l'accueil</span>
-              </Link>
-              
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <LogOut size={18} />
-                <span className="font-medium">Déconnexion</span>
-              </button>
+              <div className="flex-shrink-0">
+                <Logo size="sm" showText={false} />
+              </div>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap overflow-hidden text-white font-bold text-lg">
+                Etsmart
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Tabs Navigation */}
-        <div className="border-b border-slate-200 bg-white">
-          {isMobile ? (
-            /* Mobile: Menu déroulant */
-            <div className="relative mobile-menu-container">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`
-                  w-full flex items-center justify-between px-4 py-3 font-medium text-sm transition-all
-                  ${activeSection && !selectedAnalysis
-                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                    : 'text-slate-600 bg-white'
-                  }
-                `}
-              >
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const activeItem = menuItems.find(item => item.id === activeSection);
-                    const Icon = activeItem?.icon || Menu;
-                    return (
-                      <>
-                        <Icon size={18} />
-                        <span>{activeItem?.label || 'Menu'}</span>
-                      </>
-                    );
-                  })()}
-                </div>
-                <ChevronDown 
-                  size={18} 
-                  className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
+          {/* Navigation Items */}
+          <nav className="flex flex-col p-2 space-y-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeSection === item.id && !selectedAnalysis;
               
-              <AnimatePresence>
-                {isMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-lg z-50"
-                  >
-                    {menuItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeSection === item.id && !selectedAnalysis;
-                      
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveSection(item.id);
-                            setSelectedAnalysis(null);
-                            setIsMenuOpen(false);
-                          }}
-                          className={`
-                            w-full flex items-center gap-3 px-4 py-3 font-medium text-sm transition-all border-b border-slate-100 last:border-b-0
-                            ${isActive
-                              ? 'bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 text-[#00d4ff]'
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }
-                          `}
-                        >
-                          <Icon size={18} />
-                          <span>{item.label}</span>
-                          {isActive && (
-                            <div className="ml-auto w-2 h-2 rounded-full bg-[#00d4ff]" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            /* Desktop: Onglets horizontaux */
-            <div className="w-full">
-              <nav className="flex" aria-label="Tabs">
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveSection(item.id);
+                    setSelectedAnalysis(null);
+                  }}
+                  className={`
+                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item
+                    ${isActive
+                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                    }
+                  `}
+                >
+                  <Icon size={20} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    {item.label}
+                  </span>
+                  {isActive && (
+                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Bottom Actions */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-black/30 space-y-1">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
+            >
+              <Home size={20} className="flex-shrink-0" />
+              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Retour à l'accueil
+              </span>
+            </Link>
+            
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
+            >
+              <LogOut size={20} className="flex-shrink-0" />
+              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Déconnexion
+              </span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Menu */}
+      {isMobile && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white/5 border-b border-white/10 lg:hidden">
+          <div className="flex items-center justify-between p-4">
+            <Logo size="sm" showText={true} />
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+          
+          <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="border-t border-white/10 bg-black/50 backdrop-blur-sm"
+              >
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.id && !selectedAnalysis;
@@ -418,28 +559,29 @@ export default function DashboardPage() {
                       onClick={() => {
                         setActiveSection(item.id);
                         setSelectedAnalysis(null);
+                        setIsMenuOpen(false);
                       }}
                       className={`
-                        flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-t-lg font-medium text-sm transition-all relative
+                        w-full flex items-center gap-3 px-4 py-3 font-medium text-sm transition-all
                         ${isActive
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                          : 'text-white/70 hover:text-white hover:bg-white/5'
                         }
                       `}
                     >
-                      <Icon size={18} />
+                      <Icon size={20} />
                       <span>{item.label}</span>
                     </button>
                   );
                 })}
-              </nav>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </header>
+      )}
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 ml-16 lg:ml-16 pt-16 lg:pt-0">
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
@@ -455,10 +597,10 @@ export default function DashboardPage() {
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
                     <BarChart3 className="w-10 h-10 text-white" />
                   </div>
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">
+                  <h2 className="text-4xl font-bold text-white mb-4">
                     Comment fonctionne l'analyse ?
                   </h2>
-                  <p className="text-slate-600 text-lg max-w-2xl mx-auto mb-8">
+                  <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
                     Notre IA analyse en profondeur vos produits AliExpress pour vous donner toutes les informations nécessaires à une décision éclairée
                   </p>
                 </div>
@@ -468,12 +610,12 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="text-center bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-2xl p-8 border border-[#00d4ff]/20 mb-12"
+                  className="text-center bg-white/5 rounded-lg p-8 border border-white/10 mb-12"
                 >
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                  <h3 className="text-2xl font-bold text-white mb-3">
                     Prêt à découvrir le potentiel de vos produits ?
                   </h3>
-                  <p className="text-slate-600 mb-6 max-w-xl mx-auto">
+                  <p className="text-white/70 mb-6 max-w-xl mx-auto">
                     Lancez votre première analyse en quelques clics et recevez un rapport complet en moins de 2 minutes
                   </p>
                   <Link href="/app">
@@ -491,19 +633,19 @@ export default function DashboardPage() {
 
                 {/* Process Steps */}
                 <div className="mb-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">Le processus en 3 étapes</h3>
+                  <h3 className="text-2xl font-bold text-white mb-6">Le processus en 3 étapes</h3>
                   <div className="grid md:grid-cols-3 gap-6">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <Eye className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">1. Analyse visuelle</h4>
-                      <p className="text-slate-600 text-sm">
+                      <h4 className="text-lg font-bold text-white mb-2">1. Analyse visuelle</h4>
+                      <p className="text-white/70 text-sm">
                         Notre IA examine l'image de votre produit pour comprendre ce que c'est, identifier sa niche et estimer sa valeur
                       </p>
                     </motion.div>
@@ -512,13 +654,13 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <TrendingUp className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">2. Analyse du marché</h4>
-                      <p className="text-slate-600 text-sm">
+                      <h4 className="text-lg font-bold text-white mb-2">2. Analyse du marché</h4>
+                      <p className="text-white/70 text-sm">
                         Recherche de concurrents sur Etsy, analyse de la saturation du marché et estimation du potentiel de ventes
                       </p>
                     </motion.div>
@@ -527,13 +669,13 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-4">
                         <FileText className="w-6 h-6 text-white" />
                       </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2">3. Rapport complet</h4>
-                      <p className="text-slate-600 text-sm">
+                      <h4 className="text-lg font-bold text-white mb-2">3. Rapport complet</h4>
+                      <p className="text-white/70 text-sm">
                         Vous recevez un verdict clair avec toutes les données nécessaires : prix, marketing, SEO et stratégie
                       </p>
                     </motion.div>
@@ -542,7 +684,7 @@ export default function DashboardPage() {
 
                 {/* Information Sections */}
                 <div className="mb-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">Les informations que vous recevrez</h3>
+                  <h3 className="text-2xl font-bold text-white mb-6">Les informations que vous recevrez</h3>
                   
                   <div className="space-y-4">
                     {/* Verdict */}
@@ -550,18 +692,18 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.4 }}
-                      className="bg-white rounded-xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-green-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Verdict final</h4>
-                          <p className="text-slate-600 text-sm mb-2">
+                          <h4 className="text-lg font-bold text-white mb-2">Verdict final</h4>
+                          <p className="text-white/70 text-sm mb-2">
                             Une recommandation claire : <strong>Lancer rapidement</strong>, <strong>Lancer mais optimiser</strong>, ou <strong>Ne pas lancer</strong>
                           </p>
-                          <p className="text-slate-500 text-xs">
+                          <p className="text-white/50 text-xs">
                             Basé sur l'analyse des concurrents, la saturation du marché et le potentiel de ventes
                           </p>
                         </div>
@@ -573,15 +715,15 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 }}
-                      className="bg-white rounded-xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                          <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                          <TrendingUp className="w-5 h-5 text-blue-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Analyse du marché</h4>
-                          <ul className="text-slate-600 text-sm space-y-1 mb-2">
+                          <h4 className="text-lg font-bold text-white mb-2">Analyse du marché</h4>
+                          <ul className="text-white/70 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
                               Nombre approximatif de concurrents sur Etsy
@@ -604,15 +746,15 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6 }}
-                      className="bg-white rounded-xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                          <DollarSign className="w-5 h-5 text-purple-600" />
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                          <DollarSign className="w-5 h-5 text-purple-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Stratégie de prix</h4>
-                          <ul className="text-slate-600 text-sm space-y-1 mb-2">
+                          <h4 className="text-lg font-bold text-white mb-2">Stratégie de prix</h4>
+                          <ul className="text-white/70 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
                               Prix fournisseur estimé (coût d'achat)
@@ -635,15 +777,15 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.7 }}
-                      className="bg-white rounded-xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                          <Calculator className="w-5 h-5 text-orange-600" />
+                        <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                          <Calculator className="w-5 h-5 text-orange-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Simulation de lancement</h4>
-                          <ul className="text-slate-600 text-sm space-y-1 mb-2">
+                          <h4 className="text-lg font-bold text-white mb-2">Simulation de lancement</h4>
+                          <ul className="text-white/70 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
                               Temps estimé avant la première vente (avec et sans publicité)
@@ -662,15 +804,15 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.8 }}
-                      className="bg-white rounded-xl p-6 shadow-sm border border-slate-200"
+                      className="bg-white/5 rounded-lg p-6 border border-white/10"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                          <Megaphone className="w-5 h-5 text-pink-600" />
+                        <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0">
+                          <Megaphone className="w-5 h-5 text-pink-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 mb-2">Stratégie marketing complète</h4>
-                          <ul className="text-slate-600 text-sm space-y-1 mb-2">
+                          <h4 className="text-lg font-bold text-white mb-2">Stratégie marketing complète</h4>
+                          <ul className="text-white/70 text-sm space-y-1 mb-2">
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
                               Positionnement stratégique et angles sous-exploités
@@ -698,12 +840,27 @@ export default function DashboardPage() {
           )}
 
           {activeSection === 'history' && !selectedAnalysis && (
-            <DashboardHistory
-              analyses={analyses}
-              onAnalysisClick={handleAnalysisClick}
-              onDeleteAnalysis={handleDeleteAnalysis}
-              onRefresh={loadAnalyses}
-            />
+            <>
+              {isLoading ? (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-white/10 rounded w-1/4"></div>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-48 bg-white/10 rounded-lg"></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <DashboardHistory
+                  analyses={analyses}
+                  onAnalysisClick={handleAnalysisClick}
+                  onDeleteAnalysis={handleDeleteAnalysis}
+                  onRefresh={loadAnalyses}
+                />
+              )}
+            </>
           )}
 
           {activeSection === 'analysis' && selectedAnalysis && (
@@ -712,6 +869,12 @@ export default function DashboardPage() {
               onBack={handleBackToHistory}
               onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
             />
+          )}
+
+          {activeSection === 'competitors' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <CompetitorFinder />
+            </div>
           )}
 
           {activeSection === 'subscription' && (

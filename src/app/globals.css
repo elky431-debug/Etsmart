@@ -20,6 +20,24 @@
   --accent-dark: #00a89a;
 }
 
+/* Theme: Dark (primary) */
+.theme-dark {
+  --background: #0b0b0b;
+  --background-secondary: #0f1115;
+  --background-card: #12141a;
+  --foreground: #f5f7fb;
+  --muted: #9aa3b2;
+}
+
+/* Theme: Light (secondary) */
+.theme-light {
+  --background: #ffffff;
+  --background-secondary: #fafafa;
+  --background-card: #ffffff;
+  --foreground: #1a1a1a;
+  --muted: #6b7280;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -31,8 +49,50 @@ body {
   min-height: 100vh;
 }
 
-/* Premium scrollbar */
-::-webkit-scrollbar {
+/* Hide global scrollbar */
+html, body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Dark theme overrides for common Tailwind classes */
+.theme-dark .bg-white { background-color: var(--background-card) !important; }
+.theme-dark .bg-slate-50 { background-color: var(--background-secondary) !important; }
+.theme-dark .bg-slate-100 { background-color: #151a22 !important; }
+.theme-dark .text-slate-900 { color: var(--foreground) !important; }
+.theme-dark .text-slate-800 { color: #e6eaf2 !important; }
+.theme-dark .text-slate-700 { color: #cbd3e1 !important; }
+.theme-dark .text-slate-600 { color: #aeb6c6 !important; }
+.theme-dark .text-slate-500 { color: var(--muted) !important; }
+.theme-dark .text-slate-400 { color: #7f8899 !important; }
+.theme-dark .border-slate-200 { border-color: #1e2430 !important; }
+.theme-dark .border-slate-100 { border-color: #1a202c !important; }
+.theme-dark .shadow-lg,
+.theme-dark .shadow-xl,
+.theme-dark .shadow-2xl { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important; }
+
+/* Force white buttons on dark backgrounds */
+.force-white {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  opacity: 1 !important;
+}
+
+/* Force white buttons in dark theme */
+.force-white {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Premium scrollbar - Disabled to hide scrollbar globally */
+/* ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
@@ -49,7 +109,7 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, var(--primary-light), var(--accent-light));
-}
+} */
 
 .scrollbar-hide {
   -ms-overflow-style: none;

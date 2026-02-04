@@ -179,6 +179,10 @@ export function NicheSelection() {
     setNiche(nicheId);
     if (nicheId !== 'custom') {
       setCustomNiche('');
+      // Passer automatiquement à l'étape suivante après un court délai pour l'animation
+      setTimeout(() => {
+        setStep(2);
+      }, 300);
     }
   };
 
@@ -253,27 +257,27 @@ export function NicheSelection() {
           transition={isMobile ? undefined : { delay: 0.5 }}
         >
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-2xl sm:rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-slate-200 shadow-2xl p-1.5 sm:p-2">
+            <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-2xl sm:rounded-3xl blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
+            <div className="relative bg-slate-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-white/10 shadow-2xl p-1.5 sm:p-2 group-hover:border-[#00d4ff]/30 transition-all duration-300">
               <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-6">
                 <div className="flex-shrink-0">
-                  <Logo size="sm" showText={false} />
+                  <Search className="w-5 h-5 sm:w-6 sm:h-6 text-[#00d4ff]" />
                 </div>
                 <input
                   type="text"
                   placeholder="Rechercher une niche..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none"
+                  className="flex-1 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg bg-transparent text-white placeholder-white/40 focus:outline-none"
                 />
                 {searchQuery && (
                   <motion.button
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     onClick={() => setSearchQuery('')}
-                    className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-slate-100 transition-colors"
+                    className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-white/10 transition-colors"
                   >
-                    <span className="text-slate-400 text-sm sm:text-base">✕</span>
+                    <span className="text-white/60 hover:text-white text-sm sm:text-base">✕</span>
                   </motion.button>
                 )}
               </div>

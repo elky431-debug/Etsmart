@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Globe, Save, Lock, Eye, EyeOff, ChevronDown, Check, CreditCard, XCircle, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, Save, Lock, Eye, EyeOff, ChevronDown, Check, CreditCard, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getUserSubscription } from '@/lib/subscriptions';
 
 interface DashboardSettingsProps {
   user: SupabaseUser;
@@ -62,15 +63,15 @@ function FilterDropdown<T extends string>({
         onClick={() => setIsOpen(!isOpen)}
         className={`
           relative w-full px-4 py-3.5 pr-11
-          bg-gradient-to-br from-white via-white to-slate-50
-          border-2 rounded-xl
-          font-semibold text-slate-900
+          bg-white/5
+          border-2 rounded-lg
+          font-semibold text-white
           transition-all duration-300 ease-out
           flex items-center gap-3
           backdrop-blur-sm
           ${isOpen 
-            ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/25 ring-2 ring-[#00d4ff]/30 bg-gradient-to-br from-[#00d4ff]/5 via-white to-[#00c9b7]/5' 
-            : 'border-slate-200 hover:border-[#00d4ff]/60 hover:shadow-lg hover:shadow-[#00d4ff]/10'
+            ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/25 ring-2 ring-[#00d4ff]/30 bg-white/10' 
+            : 'border-white/10 hover:border-[#00d4ff]/60 hover:shadow-lg hover:shadow-[#00d4ff]/10'
           }
         `}
       >
@@ -78,7 +79,7 @@ function FilterDropdown<T extends string>({
         {Icon && (
           <Icon 
             size={18} 
-            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-500'}`} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-white/60'}`} 
           />
         )}
         
@@ -95,7 +96,7 @@ function FilterDropdown<T extends string>({
         >
           <ChevronDown 
             size={18} 
-            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-400'}`} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-white/60'}`} 
           />
         </motion.div>
 
@@ -118,7 +119,7 @@ function FilterDropdown<T extends string>({
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="absolute top-full left-0 right-0 mt-2 z-50
-              bg-white rounded-xl border-2 border-slate-200
+              bg-black rounded-lg border-2 border-white/10
               shadow-2xl shadow-[#00d4ff]/15
               overflow-hidden
               backdrop-blur-xl"
@@ -146,7 +147,7 @@ function FilterDropdown<T extends string>({
                       relative group
                       ${isSelected 
                         ? 'bg-gradient-to-r from-[#00d4ff]/15 via-[#00d4ff]/10 to-[#00c9b7]/15 border-l-4 border-[#00d4ff]' 
-                        : 'hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-50/50'
+                        : 'hover:bg-white/5'
                       }
                     `}
                   >
@@ -155,14 +156,14 @@ function FilterDropdown<T extends string>({
                       <OptionIcon 
                         size={16} 
                         className={`transition-colors ${
-                          isSelected ? 'text-[#00d4ff]' : 'text-slate-400 group-hover:text-[#00d4ff]'
+                          isSelected ? 'text-[#00d4ff]' : 'text-white/60 group-hover:text-[#00d4ff]'
                         }`} 
                       />
                     )}
                     
                     {/* Option label */}
                     <span className={`flex-1 font-medium ${
-                      isSelected ? 'text-[#00d4ff]' : 'text-slate-700'
+                      isSelected ? 'text-[#00d4ff]' : 'text-white/80'
                     }`}>
                       {option.label}
                     </span>
@@ -210,47 +211,68 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
 
   // Load subscription status
-  const loadSubscriptionStatus = async () => {
+  const loadSubscriptionStatus = async (showLoading = false) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
+      if (showLoading) {
+        setIsRefreshingSubscription(true);
+      }
 
-      const response = await fetch('/api/check-stripe-subscription', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+      if (!user?.id) {
+        console.log('[Settings] No user ID, skipping subscription check');
+        if (showLoading) setIsRefreshingSubscription(false);
+        return;
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.hasSubscription) {
-          // Check if subscription is set to cancel
-          if (data.cancelAtPeriodEnd) {
-            setSubscriptionInfo({
-              status: 'canceling',
-              plan: data.plan,
-              cancelAt: data.periodEnd,
-            });
-          } else {
-            setSubscriptionInfo({
-              status: 'active',
-              plan: data.plan,
-            });
-          }
+      // Use getUserSubscription which checks both database and Stripe
+      const subscription = await getUserSubscription(user.id);
+      console.log('[Settings] Subscription data:', subscription);
+
+      if (subscription && subscription.status === 'active') {
+        // Check if subscription is set to cancel
+        if (subscription.cancel_at_period_end) {
+          setSubscriptionInfo({
+            status: 'canceling',
+            plan: subscription.plan_id,
+            cancelAt: subscription.current_period_end,
+          });
         } else {
-          setSubscriptionInfo({ status: 'none' });
+          setSubscriptionInfo({
+            status: 'active',
+            plan: subscription.plan_id,
+          });
         }
+      } else {
+        console.log('[Settings] No active subscription found');
+        setSubscriptionInfo({ status: 'none' });
       }
     } catch (error) {
-      console.error('Error loading subscription status:', error);
+      console.error('[Settings] Error loading subscription status:', error);
+      setSubscriptionInfo({ status: 'none' });
+    } finally {
+      if (showLoading) {
+        setIsRefreshingSubscription(false);
+      }
     }
   };
 
   useEffect(() => {
     loadSettings();
     loadSubscriptionStatus();
+  }, [user]);
+
+  // Reload subscription status when window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        loadSubscriptionStatus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
 
   const loadSettings = async () => {
@@ -403,28 +425,28 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 bg-black">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Settings</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">Settings</h1>
 
         <div className="space-y-6">
           {/* General settings */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl border-2 border-slate-200 p-6"
+            className="bg-white/5 rounded-lg border border-white/10 p-6"
           >
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/20 flex items-center justify-center">
                 <Globe className="w-5 h-5 text-[#00d4ff]" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">General</h2>
+              <h2 className="text-xl font-bold text-white">General</h2>
             </div>
 
             <div className="space-y-4">
               {/* Target country */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-white/90 mb-2">
                   Target country
                 </label>
                 <FilterDropdown
@@ -440,7 +462,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                   ]}
                   icon={Globe}
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-white/60">
                   Main country for your Etsy sales
                 </p>
               </div>
@@ -452,36 +474,36 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border-2 border-slate-200 p-6"
+            className="bg-white/5 rounded-lg border border-white/10 p-6"
           >
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-red-600" />
+              <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                <Lock className="w-5 h-5 text-red-400" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Change Password</h2>
+              <h2 className="text-xl font-bold text-white">Change Password</h2>
             </div>
 
             <div className="space-y-4">
               {/* Current Password */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-white/90 mb-2">
                   Current password
                 </label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60">
                     <Lock size={18} />
                   </div>
                   <input
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+                    className="w-full pl-12 pr-12 py-3 bg-white/5 border-2 border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all text-white placeholder:text-white/40"
                     placeholder="Enter your current password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00d4ff] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-[#00d4ff] transition-colors"
                   >
                     {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -490,53 +512,53 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
 
               {/* New Password */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-white/90 mb-2">
                   New password
                 </label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60">
                     <Lock size={18} />
                   </div>
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+                    className="w-full pl-12 pr-12 py-3 bg-white/5 border-2 border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all text-white placeholder:text-white/40"
                     placeholder="Enter your new password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00d4ff] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-[#00d4ff] transition-colors"
                   >
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-white/60">
                   Must be at least 8 characters long
                 </p>
               </div>
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-white/90 mb-2">
                   Confirm new password
                 </label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60">
                     <Lock size={18} />
                   </div>
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+                    className="w-full pl-12 pr-12 py-3 bg-white/5 border-2 border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all text-white placeholder:text-white/40"
                     placeholder="Confirm your new password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00d4ff] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-[#00d4ff] transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -574,30 +596,42 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`bg-white rounded-xl border-2 p-6 ${
+            className={`bg-white/5 rounded-lg border p-6 ${
               subscriptionInfo.status === 'canceling' || subscriptionInfo.status === 'none'
-                ? 'border-cyan-100'
-                : 'border-red-100'
+                ? 'border-[#00d4ff]/30'
+                : 'border-red-500/30'
             }`}
           >
+            {/* Refresh button */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => loadSubscriptionStatus(true)}
+                disabled={isRefreshingSubscription}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all disabled:opacity-50"
+                title="Rafraîchir le statut d'abonnement"
+              >
+                <RefreshCw size={16} className={isRefreshingSubscription ? 'animate-spin' : ''} />
+                <span>{isRefreshingSubscription ? 'Actualisation...' : 'Actualiser'}</span>
+              </button>
+            </div>
             {/* Active subscription - show cancel option */}
             {subscriptionInfo.status === 'active' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-red-500" />
+                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-red-400" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">Cancel Subscription</h2>
+                  <h2 className="text-xl font-bold text-white">Cancel Subscription</h2>
                 </div>
 
-                <div className="bg-red-50/50 rounded-xl p-4 mb-5 border border-red-100">
+                <div className="bg-red-500/10 rounded-lg p-4 mb-5 border border-red-500/20">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-red-800 font-medium mb-1">
+                      <p className="text-sm text-red-300 font-medium mb-1">
                         Are you sure you want to cancel?
                       </p>
-                      <p className="text-sm text-red-600">
+                      <p className="text-sm text-red-200/80">
                         You will lose access to all premium features at the end of your current billing period. 
                         Your analyses history will be preserved.
                       </p>
@@ -640,7 +674,8 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                       }
 
                       alert('Subscription canceled successfully. You will retain access until the end of your billing period.');
-                      setSubscriptionInfo({ status: 'canceling', plan: subscriptionInfo.plan });
+                      // Reload subscription status to get updated info
+                      await loadSubscriptionStatus();
                     } catch (error: any) {
                       console.error('Error canceling subscription:', error);
                       alert(error.message || 'Failed to cancel subscription. Please try again.');
@@ -649,7 +684,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                     }
                   }}
                   disabled={isCanceling}
-                  className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-white/10 border-2 border-red-500/30 text-red-400 font-semibold rounded-lg hover:bg-red-500/20 hover:border-red-500/50 transition-all disabled:opacity-50"
                 >
                   <XCircle size={18} />
                   <span>{isCanceling ? 'Canceling...' : 'Cancel my subscription'}</span>
@@ -661,20 +696,20 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             {subscriptionInfo.status === 'none' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-cyan-500" />
+                  <div className="w-10 h-10 rounded-lg bg-[#00d4ff]/20 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-[#00d4ff]" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">Subscription</h2>
+                  <h2 className="text-xl font-bold text-white">Subscription</h2>
                 </div>
 
-                <div className="bg-cyan-50/50 rounded-xl p-4 mb-5 border border-cyan-100">
+                <div className="bg-[#00d4ff]/10 rounded-lg p-4 mb-5 border border-[#00d4ff]/20">
                   <div className="flex items-start gap-3">
-                    <CreditCard className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                    <CreditCard className="w-5 h-5 text-[#00d4ff] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-cyan-800 font-medium mb-1">
+                      <p className="text-sm text-[#00d4ff] font-medium mb-1">
                         No active subscription
                       </p>
-                      <p className="text-sm text-cyan-700">
+                      <p className="text-sm text-white/70">
                         Subscribe to unlock all premium features and analyze unlimited products.
                       </p>
                     </div>
@@ -683,7 +718,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
 
                 <a
                   href="/pricing"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                 >
                   <CreditCard size={18} />
                   <span>Subscribe now</span>
@@ -702,7 +737,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-8 py-4 bg-white/10 border border-white/20 text-white font-semibold rounded-lg hover:bg-white/20 transition-all disabled:opacity-50"
             >
               <Save size={20} />
               <span>{isSaving ? 'Saving...' : 'Save settings'}</span>

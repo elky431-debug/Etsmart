@@ -14,9 +14,32 @@ export const analysisDb = {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error fetching analyses:', error);
+      throw error;
+    }
 
-    return data.map(transformAnalysisFromDb);
+    if (!data || data.length === 0) {
+      console.log('📊 No analyses found in database for user:', userId);
+      return [];
+    }
+
+    console.log('📊 Raw analyses from DB:', data.length);
+    
+    // Transformer les analyses et filtrer celles qui ne peuvent pas être transformées
+    const transformed = data
+      .map((dbAnalysis, index) => {
+        try {
+          return transformAnalysisFromDb(dbAnalysis);
+        } catch (transformError: any) {
+          console.warn(`⚠️ Error transforming analysis ${index}:`, transformError?.message, dbAnalysis);
+          return null;
+        }
+      })
+      .filter((analysis): analysis is ProductAnalysis => analysis !== null);
+
+    console.log('📊 Transformed analyses:', transformed.length);
+    return transformed;
   },
 
   // Get a single analysis

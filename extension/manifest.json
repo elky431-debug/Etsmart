@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Etsmart - Analyseur de Boutiques Etsy",
+  "version": "1.0.1",
+  "description": "Scrape et analyse les boutiques Etsy pour Etsmart",
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.etsy.com/*",
+    "https://etsy.com/*",
+    "https://*.etsy.com/*",
+    "https://etsmart.app/*",
+    "https://*.vercel.app/*",
+    "https://etsmart.app/dashboard/*",
+    "https://*.vercel.app/dashboard/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.etsy.com/*",
+        "https://etsy.com/*",
+        "https://*.etsy.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
+

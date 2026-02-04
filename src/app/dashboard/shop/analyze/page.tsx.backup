@@ -1,0 +1,439 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { ArrowLeft, ExternalLink, TrendingUp, Target, Zap, Shield, Lightbulb, CheckCircle2, XCircle, DollarSign, ShoppingBag, Star, Calendar, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { Logo } from '@/components/ui/Logo';
+
+interface ShopAnalysis {
+  shopName: string;
+  shopUrl: string;
+  overview: string;
+  metrics: {
+    totalSales: number;
+    totalRevenue: number;
+    monthlyRevenue: number;
+    rating: number;
+    reviewCount: number;
+    shopAge: string;
+    listingsCount: number;
+  };
+  listingsAnalysis: {
+    bestSellers: string[];
+    pricingStrategy: string;
+    patterns: string[];
+    opportunities: string[];
+  };
+  strengths: string[];
+  weaknesses: string[];
+  strategies: string[];
+  insights: string;
+}
+
+export default function ShopAnalyzePage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [analysisData, setAnalysisData] = useState<{ shop: { name: string; url: string }; analysis: ShopAnalysis; rawData: any } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingProgress, setAnalyzingProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const shopUrl = searchParams.get('shop') || '';
+  const analyzingParam = searchParams.get('analyzing');
+
+  useEffect(() => {
+    // Si on est en mode "analyse en cours"
+    if (analyzingParam === 'true') {
+      localStorage.removeItem('shopAnalysis');
+      sessionStorage.removeItem('shopAnalysis');
+      setAnalyzing(true);
+      setLoading(false);
+      
+      // Simuler une progression
+      const progressInterval = setInterval(() => {
+        setAnalyzingProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95;
+          }
+          return prev + Math.random() * 5;
+        });
+      }, 500);
+
+      // Écouter l'événement quand l'analyse est prête
+      const handleAnalysisReady = (event: CustomEvent) => {
+        const data = event.detail;
+        console.log('[Shop Analyze] Événement shopAnalysisReady reçu:', data);
+        setAnalysisData(data);
+        sessionStorage.setItem('shopAnalysis', JSON.stringify(data));
+        localStorage.setItem('shopAnalysis', JSON.stringify(data));
+        setAnalyzing(false);
+        setLoading(false);
+        clearInterval(progressInterval);
+        const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
+        window.history.replaceState({}, '', cleanUrl);
+      };
+
+      window.addEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
+
+      // Écouter les changements de storage
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'shopAnalysis' && e.newValue) {
+          try {
+            const data = JSON.parse(e.newValue);
+            setAnalysisData(data);
+            sessionStorage.setItem('shopAnalysis', e.newValue);
+            setAnalyzing(false);
+            setLoading(false);
+            clearInterval(progressInterval);
+            const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
+            window.history.replaceState({}, '', cleanUrl);
+          } catch (err) {
+            console.error('[Shop Analyze] Erreur parsing storage event:', err);
+          }
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+
+      // Vérifier localStorage une fois
+      const checkStorage = () => {
+        const stored = localStorage.getItem('shopAnalysis');
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            if (data.shop?.url === shopUrl) {
+              setAnalysisData(data);
+              setAnalyzing(false);
+              setLoading(false);
+              clearInterval(progressInterval);
+              const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
+              window.history.replaceState({}, '', cleanUrl);
+              return true;
+            }
+          } catch (err) {
+            console.error('[Shop Analyze] Erreur parsing localStorage:', err);
+          }
+        }
+        return false;
+      };
+
+      if (checkStorage()) {
+        return () => {
+          clearInterval(progressInterval);
+          window.removeEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
+          window.removeEventListener('storage', handleStorageChange);
+        };
+      }
+
+      // Timeout de sécurité
+      const timeout = setTimeout(() => {
+        console.error('[Shop Analyze] Timeout - Aucune donnée reçue après 60 secondes');
+        setError('L\'analyse prend plus de temps que prévu. Vérifiez les logs du serveur et réessayez.');
+        setAnalyzing(false);
+        setLoading(false);
+        clearInterval(progressInterval);
+      }, 60000);
+
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(progressInterval);
+        window.removeEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    } else {
+      // Mode affichage des résultats
+      const stored = localStorage.getItem('shopAnalysis');
+      const storedSession = sessionStorage.getItem('shopAnalysis');
+      
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data.shop?.url === shopUrl) {
+            setAnalysisData(data);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('[Shop Analyze] Erreur parsing localStorage:', err);
+        }
+      }
+      
+      if (storedSession) {
+        try {
+          const data = JSON.parse(storedSession);
+          if (data.shop?.url === shopUrl) {
+            setAnalysisData(data);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('[Shop Analyze] Erreur parsing sessionStorage:', err);
+        }
+      }
+      
+      setLoading(false);
+      if (!analysisData) {
+        setError('Aucune analyse disponible pour cette boutique.');
+      }
+    }
+  }, [analyzingParam, shopUrl]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d4ff]"></div>
+      </div>
+    );
+  }
+
+  if (analyzing) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-white/5 rounded-lg border border-white/10 p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#00d4ff] mx-auto mb-6"></div>
+            <h1 className="text-3xl font-bold text-white mb-2">Analyse en cours</h1>
+            <p className="text-white/70 mb-4">
+              Analyse de la boutique : <span className="text-[#00d4ff] font-semibold">{shopUrl.split('/shop/')[1] || 'Boutique'}</span>
+            </p>
+            <p className="text-white/60 text-sm mb-6">
+              GPT-4o analyse la boutique et ses listings en détail...
+            </p>
+            
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-white/70">Progression</span>
+                <span className="text-sm font-semibold text-[#00d4ff]">{Math.round(analyzingProgress)}%</span>
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] transition-all duration-300"
+                  style={{ width: `${analyzingProgress}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <ul className="text-left space-y-2 text-sm text-white/60">
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#00d4ff]"></div>
+                Récupération des données de la boutique
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#00d4ff]"></div>
+                Analyse des listings et métriques
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-white/30"></div>
+                Génération des insights stratégiques
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !analysisData) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-white/5 rounded-lg border border-red-500/30 p-8 text-center">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Erreur</h1>
+          <p className="text-white/70 mb-6">{error || 'Aucune analyse disponible'}</p>
+          <Link href="/dashboard?section=analysis">
+            <button className="px-6 py-3 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all">
+              Retour au dashboard
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { shop, analysis } = analysisData;
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="border-b border-white/10 bg-black/50 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard?section=analysis">
+                <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              </Link>
+              <Logo size="sm" showText={true} />
+            </div>
+            <a
+              href={shop.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 transition-all"
+            >
+              Voir la boutique
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Shop Header */}
+        <div className="bg-white/5 rounded-lg border border-white/10 p-6 mb-8">
+          <h1 className="text-3xl font-bold mb-4">{shop.name}</h1>
+          
+          {/* Métriques */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingBag className="w-5 h-5 text-[#00d4ff]" />
+                <span className="text-sm text-white/70">Ventes totales</span>
+              </div>
+              <p className="text-2xl font-bold">{analysis.metrics.totalSales.toLocaleString()}</p>
+            </div>
+            
+            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="w-5 h-5 text-[#00d4ff]" />
+                <span className="text-sm text-white/70">Revenu total</span>
+              </div>
+              <p className="text-2xl font-bold">{analysis.metrics.totalRevenue.toFixed(2)}€</p>
+            </div>
+            
+            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-5 h-5 text-[#00d4ff]" />
+                <span className="text-sm text-white/70">Revenu mensuel</span>
+              </div>
+              <p className="text-2xl font-bold">{analysis.metrics.monthlyRevenue.toFixed(2)}€</p>
+            </div>
+            
+            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-5 h-5 text-[#00d4ff]" />
+                <span className="text-sm text-white/70">Note moyenne</span>
+              </div>
+              <p className="text-2xl font-bold">{analysis.metrics.rating.toFixed(1)}/5</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Overview */}
+        <div className="bg-white/5 rounded-lg border border-white/10 p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Target className="w-6 h-6 text-[#00d4ff]" />
+            Analyse globale
+          </h2>
+          <p className="text-white/80 leading-relaxed whitespace-pre-line">{analysis.overview}</p>
+        </div>
+
+        {/* Listings Analysis */}
+        <div className="bg-white/5 rounded-lg border border-white/10 p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <ShoppingBag className="w-6 h-6 text-[#00d4ff]" />
+            Analyse des listings
+          </h2>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-[#00d4ff]">Best-sellers</h3>
+              <ul className="list-disc list-inside space-y-1 text-white/80">
+                {analysis.listingsAnalysis.bestSellers.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-[#00d4ff]">Stratégie de prix</h3>
+              <p className="text-white/80 leading-relaxed whitespace-pre-line">{analysis.listingsAnalysis.pricingStrategy}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-[#00d4ff]">Patterns observés</h3>
+              <ul className="list-disc list-inside space-y-1 text-white/80">
+                {analysis.listingsAnalysis.patterns.map((pattern, idx) => (
+                  <li key={idx}>{pattern}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-[#00d4ff]">Opportunités</h3>
+              <ul className="list-disc list-inside space-y-1 text-white/80">
+                {analysis.listingsAnalysis.opportunities.map((opp, idx) => (
+                  <li key={idx}>{opp}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Strengths & Weaknesses */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white/5 rounded-lg border border-white/10 p-6">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-6 h-6 text-green-400" />
+              Forces
+            </h2>
+            <ul className="space-y-2">
+              {analysis.strengths.map((strength, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-white/80">
+                  <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>{strength}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          <div className="bg-white/5 rounded-lg border border-white/10 p-6">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <XCircle className="w-6 h-6 text-red-400" />
+              Faiblesses exploitables
+            </h2>
+            <ul className="space-y-2">
+              {analysis.weaknesses.map((weakness, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-white/80">
+                  <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span>{weakness}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Strategies */}
+        <div className="bg-white/5 rounded-lg border border-white/10 p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Zap className="w-6 h-6 text-[#00d4ff]" />
+            Stratégies pour les battre
+          </h2>
+          <ul className="space-y-3">
+            {analysis.strategies.map((strategy, idx) => (
+              <li key={idx} className="flex items-start gap-3 text-white/80">
+                <div className="w-6 h-6 rounded-full bg-[#00d4ff]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-sm font-bold text-[#00d4ff]">{idx + 1}</span>
+                </div>
+                <span>{strategy}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Insights */}
+        <div className="bg-white/5 rounded-lg border border-white/10 p-6">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Lightbulb className="w-6 h-6 text-[#00d4ff]" />
+            Insights stratégiques
+          </h2>
+          <p className="text-white/80 leading-relaxed whitespace-pre-line">{analysis.insights}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+

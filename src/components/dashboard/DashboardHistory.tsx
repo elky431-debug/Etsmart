@@ -70,15 +70,15 @@ function FilterDropdown<T extends string>({
         onClick={() => setIsOpen(!isOpen)}
         className={`
           relative w-full px-4 py-3.5 pr-11
-          bg-gradient-to-br from-white via-white to-slate-50
-          border-2 rounded-xl
-          font-semibold text-slate-900
+          bg-white/5
+          border-2 rounded-lg
+          font-semibold text-white
           transition-all duration-300 ease-out
           flex items-center gap-3
           backdrop-blur-sm
           ${isOpen 
-            ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/25 ring-2 ring-[#00d4ff]/30 bg-gradient-to-br from-[#00d4ff]/5 via-white to-[#00c9b7]/5' 
-            : 'border-slate-200 hover:border-[#00d4ff]/60 hover:shadow-lg hover:shadow-[#00d4ff]/10'
+            ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/25 ring-2 ring-[#00d4ff]/30 bg-white/10' 
+            : 'border-white/10 hover:border-[#00d4ff]/60 hover:shadow-lg hover:shadow-[#00d4ff]/10'
           }
         `}
       >
@@ -86,7 +86,7 @@ function FilterDropdown<T extends string>({
         {Icon && (
           <Icon 
             size={18} 
-            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-500'}`} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-white/60'}`} 
           />
         )}
         
@@ -103,7 +103,7 @@ function FilterDropdown<T extends string>({
         >
           <ChevronDown 
             size={18} 
-            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-slate-400'}`} 
+            className={`transition-colors ${isOpen ? 'text-[#00d4ff]' : 'text-white/60'}`} 
           />
         </motion.div>
 
@@ -126,7 +126,7 @@ function FilterDropdown<T extends string>({
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="absolute top-full left-0 right-0 mt-2 z-50
-              bg-white rounded-xl border-2 border-slate-200
+              bg-black rounded-lg border-2 border-white/10
               shadow-2xl shadow-[#00d4ff]/15
               overflow-hidden
               backdrop-blur-xl"
@@ -154,7 +154,7 @@ function FilterDropdown<T extends string>({
                       relative group
                       ${isSelected 
                         ? 'bg-gradient-to-r from-[#00d4ff]/15 via-[#00d4ff]/10 to-[#00c9b7]/15 border-l-4 border-[#00d4ff]' 
-                        : 'hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-50/50'
+                        : 'hover:bg-white/5'
                       }
                     `}
                   >
@@ -163,14 +163,14 @@ function FilterDropdown<T extends string>({
                       <OptionIcon 
                         size={16} 
                         className={`transition-colors ${
-                          isSelected ? 'text-[#00d4ff]' : 'text-slate-400 group-hover:text-[#00d4ff]'
+                          isSelected ? 'text-[#00d4ff]' : 'text-white/60 group-hover:text-[#00d4ff]'
                         }`} 
                       />
                     )}
                     
                     {/* Option label */}
                     <span className={`flex-1 font-medium ${
-                      isSelected ? 'text-[#00d4ff]' : 'text-slate-700'
+                      isSelected ? 'text-[#00d4ff]' : 'text-white/80'
                     }`}>
                       {option.label}
                     </span>
@@ -252,21 +252,21 @@ export function DashboardHistory({
     
     if (note < 3.9) {
       return {
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-red-400',
+        bgColor: 'bg-red-500/20',
+        borderColor: 'border-red-500/50',
       };
     } else if (note >= 4 && note <= 7) {
       return {
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
-        borderColor: 'border-yellow-200',
+        color: 'text-yellow-400',
+        bgColor: 'bg-yellow-500/20',
+        borderColor: 'border-yellow-500/50',
       };
     } else {
       return {
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-green-400',
+        bgColor: 'bg-green-500/20',
+        borderColor: 'border-green-500/50',
       };
     }
   };
@@ -287,18 +287,18 @@ export function DashboardHistory({
       <div className="p-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Eye className="w-10 h-10 text-slate-400" />
+            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+              <Eye className="w-10 h-10 text-white/60" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            <h2 className="text-2xl font-bold text-white mb-2">
               Aucune analyse pour le moment
             </h2>
-            <p className="text-slate-600 mb-6">
+            <p className="text-white/70 mb-6">
               Commencez par analyser un produit pour voir votre historique ici.
             </p>
             <a
               href="/app"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-lg hover:shadow-lg transition-all"
             >
               Analyser un produit
             </a>
@@ -313,8 +313,8 @@ export function DashboardHistory({
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Historique des analyses</h1>
-          <p className="text-slate-600">
+          <h1 className="text-3xl font-bold text-white mb-2">Historique des analyses</h1>
+          <p className="text-white/70">
             {analyses.length} {analyses.length === 1 ? 'produit analysé' : 'produits analysés'}
           </p>
         </div>
@@ -331,7 +331,7 @@ export function DashboardHistory({
               placeholder="Rechercher un produit..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all"
+              className="w-full pl-14 pr-4 py-3 bg-white/5 border-2 border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 focus:border-[#00d4ff] transition-all text-white placeholder:text-white/40"
             />
           </div>
 
@@ -339,7 +339,7 @@ export function DashboardHistory({
           <div className="flex flex-wrap gap-3">
             {/* Verdict filter */}
             <div className="flex items-center gap-2">
-              <Filter size={18} className="text-slate-500 flex-shrink-0" />
+              <Filter size={18} className="text-white/60 flex-shrink-0" />
               <FilterDropdown
                 value={verdictFilter}
                 onChange={(value) => setVerdictFilter(value as Verdict | 'all')}
@@ -375,7 +375,7 @@ export function DashboardHistory({
 
         {/* Results count */}
         {filteredAnalyses.length !== analyses.length && (
-          <div className="mb-4 text-sm text-slate-600">
+          <div className="mb-4 text-sm text-white/70">
             {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'résultat' : 'résultats'}
           </div>
         )}
@@ -398,12 +398,12 @@ export function DashboardHistory({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() => onAnalysisClick(analysis)}
-                className="bg-white rounded-xl border-2 border-slate-200 p-6 hover:border-[#00d4ff] hover:shadow-lg transition-all cursor-pointer group"
+                className="bg-white/5 rounded-lg border-2 border-white/10 p-6 hover:border-[#00d4ff] hover:shadow-lg transition-all cursor-pointer group"
               >
                 <div className="flex gap-6">
                   {/* Product image */}
                   <div className="flex-shrink-0">
-                    <div className="w-24 h-24 rounded-lg bg-slate-100 overflow-hidden">
+                    <div className="w-24 h-24 rounded-lg bg-white/5 overflow-hidden">
                       {analysis.product.images[0] ? (
                         <img
                           src={analysis.product.images[0]}
@@ -411,7 +411,7 @@ export function DashboardHistory({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <div className="w-full h-full flex items-center justify-center text-white/40">
                           <Tag size={32} />
                         </div>
                       )}
@@ -422,15 +422,15 @@ export function DashboardHistory({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-slate-900 mb-1 truncate">
+                        <h3 className="text-lg font-bold text-white mb-1 truncate">
                           {analysis.product.title}
                         </h3>
-                        <p className="text-sm text-slate-600 mb-3 line-clamp-2">
+                        <p className="text-sm text-white/70 mb-3 line-clamp-2">
                           {analysis.verdict.summary || 'Analyse complète disponible'}
                         </p>
 
                         {/* Meta info */}
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-white/60">
                           <div className="flex items-center gap-1.5">
                             <Tag size={14} />
                             <span>{nicheInfo?.name || analysis.niche}</span>
@@ -468,7 +468,7 @@ export function DashboardHistory({
                         e.stopPropagation();
                         onAnalysisClick(analysis);
                       }}
-                      className="p-2 rounded-lg bg-slate-100 hover:bg-[#00d4ff] hover:text-white transition-colors group-hover:bg-[#00d4ff] group-hover:text-white"
+                      className="p-2 rounded-lg bg-white/5 hover:bg-[#00d4ff] hover:text-white transition-colors group-hover:bg-[#00d4ff] group-hover:text-white text-white/80"
                       title="Voir l'analyse complète"
                     >
                       <Eye size={20} />
@@ -479,7 +479,7 @@ export function DashboardHistory({
                         p-2 rounded-lg transition-colors
                         ${showDeleteConfirm === analysis.product.id
                           ? 'bg-red-500 text-white'
-                          : 'bg-slate-100 hover:bg-red-100 hover:text-red-600'
+                          : 'bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/80'
                         }
                       `}
                       title="Supprimer"
@@ -495,7 +495,7 @@ export function DashboardHistory({
 
         {filteredAnalyses.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-slate-600">Aucun résultat trouvé pour ces filtres.</p>
+            <p className="text-white/70">Aucun résultat trouvé pour ces filtres.</p>
           </div>
         )}
       </div>

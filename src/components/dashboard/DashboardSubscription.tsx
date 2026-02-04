@@ -258,14 +258,14 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-teal-50/20 p-4 md:p-8">
+      <div className="min-h-screen bg-black p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-10 bg-white/60 rounded-xl w-1/3"></div>
-            <div className="h-64 bg-white/60 rounded-3xl"></div>
+            <div className="h-10 bg-white/5 rounded-xl w-1/3"></div>
+            <div className="h-64 bg-white/5 rounded-3xl"></div>
             <div className="grid md:grid-cols-2 gap-6">
-              <div className="h-48 bg-white/60 rounded-2xl"></div>
-              <div className="h-48 bg-white/60 rounded-2xl"></div>
+              <div className="h-48 bg-white/5 rounded-2xl"></div>
+              <div className="h-48 bg-white/5 rounded-2xl"></div>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   // Free plan (no subscription)
   if (!subscription || !currentPlan) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-teal-50/20 p-4 md:p-8">
+      <div className="min-h-screen bg-black p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -286,20 +286,20 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             {/* Header */}
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-cyan-500/25">
                   <CreditCard className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold text-white">
                     Abonnement
                   </h1>
-                  <p className="text-slate-500 mt-1">Gérez votre plan et votre facturation</p>
+                  <p className="text-white/60 mt-1">Gérez votre plan et votre facturation</p>
                 </div>
               </div>
               <button
                 onClick={loadSubscription}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-cyan-600 bg-white hover:bg-cyan-50 rounded-xl border border-slate-200 hover:border-cyan-200 transition-all shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/90 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 hover:border-white/20 transition-all shadow-sm disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
@@ -311,24 +311,24 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
-              className="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 mb-10"
+              className="relative overflow-hidden bg-white/5 rounded-lg border border-white/10 p-8 mb-10"
             >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-100/40 to-teal-100/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
               
               <div className="relative flex items-start gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 flex-shrink-0">
+                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 flex-shrink-0">
                   <AlertCircle className="w-7 h-7 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  <h2 className="text-2xl font-bold text-white mb-2">
                     Aucun abonnement actif
                   </h2>
-                  <p className="text-slate-600 mb-6 text-lg">
+                  <p className="text-white/70 mb-6 text-lg">
                     Abonnez-vous pour débloquer l'analyse de produits Etsy et booster vos ventes.
                   </p>
                   <Link
                     href="/pricing"
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-2xl hover:shadow-xl hover:shadow-cyan-500/30 transition-all hover:-translate-y-0.5 text-lg"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-lg hover:shadow-xl hover:shadow-cyan-500/30 transition-all hover:-translate-y-0.5 text-lg"
                   >
                     <Sparkles className="w-5 h-5" />
                     Voir les plans
@@ -339,8 +339,8 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
             {/* Available Plans */}
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                <Star className="w-6 h-6 text-cyan-500" />
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Star className="w-6 h-6 text-[#00d4ff]" />
                 Plans disponibles
               </h2>
               <div className="grid md:grid-cols-3 gap-5">
@@ -352,49 +352,49 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     transition={{ delay: 0.1 + index * 0.1 }}
                     whileHover={{ y: -6, scale: 1.02 }}
                     className={`
-                      relative bg-white rounded-2xl shadow-lg border-2 p-6 overflow-hidden
+                      relative bg-white/5 rounded-lg border p-6 overflow-hidden
                       ${plan.popular
-                        ? 'border-cyan-400 shadow-cyan-500/20'
-                        : 'border-slate-100 shadow-slate-200/50'
+                        ? 'border-[#00d4ff]/30 shadow-lg shadow-cyan-500/10'
+                        : 'border-white/10'
                       }
                     `}
                   >
                     {plan.popular && (
                       <div className="absolute top-0 right-0">
-                        <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">
+                        <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-bl-lg">
                           Popular
                         </div>
                       </div>
                     )}
 
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getPlanGradient(plan.id)} flex items-center justify-center mb-4 shadow-lg`}>
+                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getPlanGradient(plan.id)} flex items-center justify-center mb-4 shadow-lg`}>
                       <div className="text-white">
                         {getPlanIcon(plan.id)}
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900 mb-1">
+                    <h3 className="text-xl font-bold text-white mb-1">
                       {plan.name}
                     </h3>
                     
                     <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-4xl font-black bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                      <span className="text-4xl font-black text-white">
                         ${plan.price}
                       </span>
-                      <span className="text-slate-500 font-medium">/month</span>
+                      <span className="text-white/60 font-medium">/month</span>
                     </div>
 
-                    <div className="bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl px-4 py-3 mb-5 border border-cyan-100">
-                      <span className="text-2xl font-bold text-cyan-700">{plan.analysesPerMonth}</span>
-                      <span className="text-cyan-600 text-sm ml-1">analyses/month</span>
+                    <div className="bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-lg px-4 py-3 mb-5 border border-[#00d4ff]/20">
+                      <span className="text-2xl font-bold text-[#00d4ff]">{plan.analysesPerMonth}</span>
+                      <span className="text-[#00c9b7] text-sm ml-1">analyses/month</span>
                     </div>
 
                     <ul className="space-y-2.5 mb-6">
                       {plan.features.slice(0, 4).map((feature, idx) => (
                         feature.available && (
                           <li key={idx} className="flex items-start gap-2">
-                            <Check className="w-5 h-5 text-cyan-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-slate-600">{feature.name}</span>
+                            <Check className="w-5 h-5 text-[#00d4ff] mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-white/80">{feature.name}</span>
                           </li>
                         )
                       ))}
@@ -403,10 +403,10 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     <Link
                       href="/pricing"
                       className={`
-                        w-full py-3.5 rounded-xl font-bold transition-all text-center block
+                        w-full py-3.5 rounded-lg font-bold transition-all text-center block
                         ${plan.popular
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white hover:shadow-lg hover:shadow-cyan-500/30 hover:-translate-y-0.5'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
                         }
                       `}
                     >
@@ -424,7 +424,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
   // Active subscription view
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-teal-50/20 p-4 md:p-8">
+    <div className="min-h-screen bg-black p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -434,20 +434,20 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-cyan-500/25">
+              <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-cyan-500/25">
                 <CreditCard className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-white">
                   Subscription
                 </h1>
-                <p className="text-slate-500 mt-1">Manage your plan and billing</p>
+                <p className="text-white/60 mt-1">Manage your plan and billing</p>
               </div>
             </div>
             <button
               onClick={loadSubscription}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-cyan-600 bg-white hover:bg-cyan-50 rounded-xl border border-slate-200 hover:border-cyan-200 transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/90 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 hover:border-white/20 transition-all shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -459,24 +459,24 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-amber-500/10 border-2 border-amber-200 mb-6"
+              className="relative overflow-hidden bg-white/5 rounded-lg border-2 border-amber-500/30 mb-6"
             >
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">Abonnement en fin de période</h2>
+                  <h2 className="text-xl font-bold text-white">Abonnement en fin de période</h2>
                 </div>
 
-                <div className="bg-amber-50/80 rounded-xl p-4 mb-5 border border-amber-200">
+                <div className="bg-amber-500/10 rounded-lg p-4 mb-5 border border-amber-500/20">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-amber-800 font-medium mb-1">
+                      <p className="text-sm text-amber-300 font-medium mb-1">
                         Votre abonnement a été annulé
                       </p>
-                      <p className="text-sm text-amber-700">
+                      <p className="text-sm text-amber-200/80">
                         Vous conserverez l'accès jusqu'à la fin de votre période de facturation
                         {subscription.current_period_end && (
                           <span className="font-semibold">
@@ -491,7 +491,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
                 <Link
                   href="/pricing"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                 >
                   <CreditCard size={18} />
                   <span>Se réabonner</span>
@@ -505,24 +505,24 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-cyan-500/10 border border-cyan-100 mb-10"
+            className="relative overflow-hidden bg-white/5 rounded-lg border border-white/10 mb-10"
           >
             {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-cyan-100/50 via-teal-100/30 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-teal-100/40 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#00d4ff]/10 via-[#00c9b7]/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-[#00c9b7]/10 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
             
             <div className="relative p-8">
               {/* Plan Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div className="flex items-center gap-5">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getPlanGradient(normalizedPlanId || 'SCALE')} flex items-center justify-center shadow-xl`}>
+                  <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${getPlanGradient(normalizedPlanId || 'SCALE')} flex items-center justify-center shadow-xl`}>
                     <div className="text-white">
                       {getPlanIcon(normalizedPlanId || 'SCALE')}
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-3">
-                      <h2 className="text-2xl font-bold text-slate-900">
+                      <h2 className="text-2xl font-bold text-white">
                         {currentPlan.name}
                       </h2>
                       <span className={`px-3 py-1 text-white text-xs font-bold rounded-full shadow-sm ${
@@ -533,33 +533,33 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         {subscription.cancel_at_period_end ? 'Ending' : 'Active'}
                       </span>
                     </div>
-                    <p className="text-slate-500 mt-1">Votre plan d'abonnement actuel</p>
+                    <p className="text-white/60 mt-1">Votre plan d'abonnement actuel</p>
                   </div>
                 </div>
                 
-                <div className="flex items-baseline gap-2 bg-gradient-to-br from-slate-50 to-slate-100 px-6 py-4 rounded-2xl border border-slate-200">
-                  <span className="text-4xl font-black bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">
+                <div className="flex items-baseline gap-2 bg-white/5 px-6 py-4 rounded-lg border border-white/10">
+                  <span className="text-4xl font-black text-[#00d4ff]">
                     ${currentPlan.price}
                   </span>
-                  <span className="text-slate-500 font-medium">/month</span>
+                  <span className="text-white/60 font-medium">/month</span>
                 </div>
               </div>
 
               {/* Usage Stats */}
-              <div className="bg-gradient-to-r from-cyan-50/80 to-teal-50/80 rounded-2xl p-6 mb-8 border border-cyan-100">
+              <div className="bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-lg p-6 mb-8 border border-[#00d4ff]/20">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-cyan-600" />
-                    <span className="font-semibold text-slate-800">Utilisation mensuelle</span>
+                    <TrendingUp className="w-5 h-5 text-[#00d4ff]" />
+                    <span className="font-semibold text-white">Utilisation mensuelle</span>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-cyan-700">{usageStats.used}</span>
-                    <span className="text-slate-500 font-medium">/ {usageStats.limit}</span>
-                    <span className="text-slate-400 text-sm ml-1">analyses</span>
+                    <span className="text-3xl font-black text-[#00d4ff]">{usageStats.used}</span>
+                    <span className="text-white/60 font-medium">/ {usageStats.limit}</span>
+                    <span className="text-white/40 text-sm ml-1">analyses</span>
                   </div>
                 </div>
                 
-                <div className="w-full h-4 bg-white rounded-full overflow-hidden shadow-inner border border-cyan-100">
+                <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden shadow-inner border border-white/10">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(usageStats.percentage, 100)}%` }}
@@ -575,7 +575,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 </div>
                 
                 {usageStats.resetDate && (
-                  <p className="text-sm text-cyan-700 mt-3 flex items-center gap-2">
+                  <p className="text-sm text-[#00d4ff] mt-3 flex items-center gap-2">
                     <RefreshCw className="w-4 h-4" />
                     Resets on {usageStats.resetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                   </p>
@@ -584,8 +584,8 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
               {/* Features Grid */}
               <div className="mb-8">
-                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-cyan-500" />
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#00d4ff]" />
                   Fonctionnalités incluses
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -597,23 +597,23 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 + index * 0.03 }}
-                        className="flex items-center gap-3 bg-white/60 px-4 py-3 rounded-xl border border-slate-100"
+                        className="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-lg border border-white/10"
                       >
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center flex-shrink-0">
                           <Check className="w-3.5 h-3.5 text-white" />
                         </div>
-                        <span className="text-slate-700">{feature.name}</span>
+                        <span className="text-white/80">{feature.name}</span>
                       </motion.div>
                     ))}
                 </div>
               </div>
 
               {/* Cancel/Resubscribe Button */}
-              <div className="pt-6 border-t border-slate-200">
+              <div className="pt-6 border-t border-white/10">
                 {subscription.cancel_at_period_end ? (
                   <Link
                     href="/pricing"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                   >
                     <CreditCard className="w-4 h-4" />
                     Subscribe again
@@ -622,7 +622,7 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                   <button
                     onClick={handleCancelSubscription}
                     disabled={canceling}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-600 hover:text-white hover:bg-red-500 rounded-xl border border-red-200 hover:border-red-500 transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-400 hover:text-white hover:bg-red-500 rounded-lg border border-red-500/30 hover:border-red-500 transition-all disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" />
                     {canceling ? 'Annulation...' : 'Annuler l\'abonnement'}
@@ -635,8 +635,8 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
           {/* Other Plans */}
           {otherPlans.length > 0 && (
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                <Star className="w-6 h-6 text-cyan-500" />
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Star className="w-6 h-6 text-[#00d4ff]" />
                 Autres plans
               </h2>
               <div className="grid md:grid-cols-2 gap-6">
@@ -648,16 +648,16 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     transition={{ delay: 0.2 + index * 0.1 }}
                     whileHover={{ y: -4 }}
                     className={`
-                      relative bg-white rounded-2xl shadow-lg border-2 p-6 overflow-hidden
+                      relative bg-white/5 rounded-lg border p-6 overflow-hidden
                       ${plan.popular
-                        ? 'border-cyan-300 shadow-cyan-500/15'
-                        : 'border-slate-100 shadow-slate-200/50'
+                        ? 'border-[#00d4ff]/30 shadow-lg shadow-cyan-500/10'
+                        : 'border-white/10'
                       }
                     `}
                   >
                     {plan.popular && (
                       <div className="absolute top-0 right-0">
-                        <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">
+                        <div className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-bold px-4 py-1.5 rounded-bl-lg">
                           Popular
                         </div>
                       </div>
@@ -665,36 +665,36 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getPlanGradient(plan.id)} flex items-center justify-center shadow-lg`}>
+                        <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getPlanGradient(plan.id)} flex items-center justify-center shadow-lg`}>
                           <div className="text-white">
                             {getPlanIcon(plan.id)}
                           </div>
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-900">
+                          <h3 className="text-xl font-bold text-white">
                             {plan.name}
                           </h3>
                           <div className="flex items-baseline gap-1 mt-1">
-                            <span className="text-3xl font-black text-slate-800">
+                            <span className="text-3xl font-black text-white">
                               ${plan.price}
                             </span>
-                            <span className="text-slate-500">/month</span>
+                            <span className="text-white/60">/month</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl px-4 py-3 mb-5 border border-cyan-100">
-                      <span className="text-xl font-bold text-cyan-700">{plan.analysesPerMonth}</span>
-                      <span className="text-cyan-600 text-sm ml-1">analyses/month</span>
+                    <div className="bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-lg px-4 py-3 mb-5 border border-[#00d4ff]/20">
+                      <span className="text-xl font-bold text-[#00d4ff]">{plan.analysesPerMonth}</span>
+                      <span className="text-[#00c9b7] text-sm ml-1">analyses/month</span>
                     </div>
 
                     <ul className="space-y-2 mb-6">
                       {plan.features.slice(0, 4).map((feature, idx) => (
                         feature.available && (
                           <li key={idx} className="flex items-start gap-2">
-                            <Check className="w-5 h-5 text-cyan-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-slate-600">{feature.name}</span>
+                            <Check className="w-5 h-5 text-[#00d4ff] mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-white/80">{feature.name}</span>
                           </li>
                         )
                       ))}
@@ -703,10 +703,10 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                     <Link
                       href="/pricing"
                       className={`
-                        w-full py-3.5 rounded-xl font-bold transition-all text-center block
+                        w-full py-3.5 rounded-lg font-bold transition-all text-center block
                         ${plan.price > currentPlan.price
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white hover:shadow-lg hover:shadow-cyan-500/30'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
                         }
                       `}
                     >
@@ -723,17 +723,17 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="mt-10 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm"
+            className="mt-10 p-6 bg-white/5 rounded-lg border border-white/10"
           >
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-100 to-teal-100 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5 text-cyan-600" />
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-[#00d4ff]" />
               </div>
               <div>
-                <p className="font-semibold text-slate-900 mb-1">
+                <p className="font-semibold text-white mb-1">
                   Besoin d'aide ?
                 </p>
-                <p className="text-slate-600">
+                <p className="text-white/70">
                   Contactez notre équipe pour toute question sur votre abonnement ou pour un plan entreprise personnalisé.
                 </p>
               </div>

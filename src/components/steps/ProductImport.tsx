@@ -207,12 +207,33 @@ export function ProductImport() {
       const formData = new FormData();
       formData.append('image', compressedFile);
 
-      // Get auth token for API call
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get auth token for API call - rafraîchir si nécessaire
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      // Si pas de session ou erreur, essayer de rafraîchir
+      if (!session || sessionError) {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshedSession) {
+          session = refreshedSession;
+        } else if (refreshError) {
+          setError('Session expirée. Veuillez vous reconnecter.');
+          setIsLoadingImage(false);
+          // Rediriger vers la page de connexion après 2 secondes
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+      }
+      
       const token = session?.access_token;
       
       if (!token) {
         setError('Authentification requise. Veuillez vous reconnecter.');
+        setIsLoadingImage(false);
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
         return;
       }
 
@@ -229,8 +250,46 @@ export function ProductImport() {
       if (!response.ok) {
         // Gérer les erreurs HTTP
         const errorMessage = data.message || data.error || `Erreur ${response.status}`;
+        
+        // Si le token est expiré, rafraîchir et réessayer une fois
+        if (response.status === 401 && (errorMessage.includes('token') || errorMessage.includes('expired'))) {
+          console.log('🔄 Token expiré, tentative de rafraîchissement...');
+          const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (newSession?.access_token && !refreshError) {
+            // Réessayer avec le nouveau token
+            const retryResponse = await fetch('/api/parse-product-image', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${newSession.access_token}`,
+              },
+              body: formData,
+            });
+            
+            const retryData = await retryResponse.json();
+            
+            if (retryResponse.ok && retryData.success && retryData.product) {
+              addProduct(retryData.product);
+              setUploadedImage(null);
+              setError('');
+              e.target.value = '';
+              setIsLoadingImage(false);
+              return;
+            }
+          }
+          
+          // Si le rafraîchissement échoue, rediriger vers la connexion
+          setError('Session expirée. Redirection vers la page de connexion...');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          setIsLoadingImage(false);
+          return;
+        }
+        
         setError(errorMessage);
         console.error('API Error:', response.status, data);
+        setIsLoadingImage(false);
         return;
       }
 
@@ -289,14 +348,14 @@ export function ProductImport() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-3 sm:mb-5 text-xs sm:text-sm"
+            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-slate-900/80 backdrop-blur-xl border-2 border-white/10 shadow-lg mb-3 sm:mb-5 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 2 SUR 3</span>
             {currentNiche && (
               <>
-                <span className="text-slate-300">•</span>
-                <span className="text-sm font-bold text-slate-700">{currentNiche.name}</span>
+                <span className="text-white/40">•</span>
+                <span className="text-sm font-bold text-white">{currentNiche.name}</span>
               </>
             )}
             <Zap size={16} className="text-[#00c9b7]" />
@@ -311,15 +370,15 @@ export function ProductImport() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border border-[#00d4ff]/30 mb-4"
             >
               <Zap size={14} className="text-[#00d4ff]" />
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-white">
                 {subscription.used} / {subscription.quota} analyses
               </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 subscription.remaining > subscription.quota * 0.5 
-                  ? 'bg-emerald-100 text-emerald-700' 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                   : subscription.remaining > subscription.quota * 0.2 
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-red-100 text-red-700'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
               }`}>
                 {subscription.remaining} restantes
               </span>
@@ -332,7 +391,7 @@ export function ProductImport() {
             animate={isMobile ? undefined : { opacity: 1, y: 0 }}
             transition={isMobile ? undefined : { delay: 0.3 }}
           >
-            <span className="text-slate-900">Importez</span>
+            <span className="text-white">Importez</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
               vos produits
@@ -340,7 +399,7 @@ export function ProductImport() {
           </motion.h1>
           
           <motion.p 
-            className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0"
+            className="text-sm sm:text-base text-white/70 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0"
             initial={isMobile ? undefined : { opacity: 0 }}
             animate={isMobile ? undefined : { opacity: 1 }}
             transition={isMobile ? undefined : { delay: 0.4 }}
@@ -358,19 +417,19 @@ export function ProductImport() {
         >
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl border-2 border-slate-200 shadow-xl p-4 sm:p-6">
+            <div className="relative bg-slate-900/80 backdrop-blur-xl rounded-2xl border-2 border-white/10 shadow-xl p-4 sm:p-6 group-hover:border-[#00d4ff]/30 transition-all duration-300">
               <div className="text-center">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00c9b7]/10 to-[#00d4ff]/10 flex items-center justify-center mx-auto mb-3 border-2 border-[#00c9b7]/20"
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00c9b7]/20 to-[#00d4ff]/20 flex items-center justify-center mx-auto mb-3 border-2 border-[#00c9b7]/30 shadow-lg shadow-[#00c9b7]/20"
                 >
                   <ImageIcon className="w-8 h-8 text-[#00c9b7]" />
                 </motion.div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
                   Prenez une capture d'écran
                 </h3>
-                <p className="text-sm text-slate-600 mb-4 sm:mb-5 px-2 sm:px-0">
+                <p className="text-sm text-white/70 mb-4 sm:mb-5 px-2 sm:px-0">
                   Prenez une photo de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
                 </p>
                 
@@ -390,7 +449,7 @@ export function ProductImport() {
                   className={`
                     inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base cursor-pointer transition-all w-full sm:w-auto justify-center btn-mobile
                     ${isLoadingImage
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      ? 'bg-slate-800 text-white/40 cursor-not-allowed border-2 border-white/5'
                       : 'bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] text-white shadow-xl shadow-[#00c9b7]/30 hover:shadow-[#00c9b7]/50'
                     }
                   `}
@@ -409,7 +468,7 @@ export function ProductImport() {
                 </motion.label>
 
                 {/* Example Section */}
-                <div className="mt-8 pt-8 border-t border-slate-200">
+                <div className="mt-8 pt-8 border-t border-white/10">
                   <button
                     onClick={() => setShowExample(!showExample)}
                     className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
@@ -424,18 +483,18 @@ export function ProductImport() {
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-6"
                     >
-                      <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
+                      <div className="bg-slate-800/50 rounded-2xl p-6 border-2 border-white/10 backdrop-blur-sm">
                         <div className="mb-4">
-                          <h4 className="text-sm font-bold text-slate-900 mb-2">
+                          <h4 className="text-sm font-bold text-white mb-2">
                             Exemple de capture d'écran valide
                           </h4>
-                          <p className="text-xs text-slate-600 leading-relaxed">
+                          <p className="text-xs text-white/70 leading-relaxed">
                             Prenez une capture d'écran de la page produit AliExpress ou Alibaba montrant l'image du produit, le titre et le prix.
                             <br />
-                            <span className="text-slate-500 italic">Cet exemple est donné à titre indicatif uniquement.</span>
+                            <span className="text-white/50 italic">Cet exemple est donné à titre indicatif uniquement.</span>
                           </p>
                         </div>
-                        <div className="relative rounded-xl overflow-hidden border-2 border-slate-300 shadow-lg bg-white">
+                        <div className="relative rounded-xl overflow-hidden border-2 border-white/20 shadow-lg bg-slate-900/50">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src="/examples/screenshot-example.png"
@@ -448,7 +507,7 @@ export function ProductImport() {
                               const parent = target.parentElement;
                               if (parent) {
                                 parent.innerHTML = `
-                                  <div class="p-12 text-center text-slate-400">
+                                  <div class="p-12 text-center text-white/50">
                                     <p class="text-sm mb-2">Image d'exemple à ajouter</p>
                                     <p class="text-xs">Placez votre capture d'écran dans /public/examples/screenshot-example.png</p>
                                   </div>
@@ -457,7 +516,7 @@ export function ProductImport() {
                             }}
                           />
                         </div>
-                        <p className="mt-4 text-xs text-slate-500 text-center">
+                        <p className="mt-4 text-xs text-white/50 text-center">
                           📸 Capture d'écran d'une page produit AliExpress avec le produit "Etsmart Cup"
                         </p>
                       </div>
@@ -474,7 +533,7 @@ export function ProductImport() {
                     <img
                       src={uploadedImage}
                       alt="Uploaded product"
-                      className="max-w-full h-auto max-h-64 rounded-2xl border-2 border-slate-200 shadow-lg mx-auto"
+                      className="max-w-full h-auto max-h-64 rounded-2xl border-2 border-white/20 shadow-lg mx-auto"
                     />
                   </motion.div>
                 )}
@@ -490,12 +549,12 @@ export function ProductImport() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-3xl mx-auto mt-4 p-4 rounded-2xl bg-red-50 border-2 border-red-200"
+              className="max-w-3xl mx-auto mt-4 p-4 rounded-2xl bg-red-500/10 border-2 border-red-500/30 backdrop-blur-sm"
             >
               <div className="flex items-start gap-3">
                 <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-700 mb-1">{error}</p>
+                  <p className="text-sm font-semibold text-red-400 mb-1">{error}</p>
                 </div>
               </div>
             </motion.div>
@@ -510,22 +569,22 @@ export function ProductImport() {
           transition={{ delay: 0.6 }}
         >
           <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
               Produits à analyser
             </h2>
           </div>
 
           {products.length === 0 ? (
-            <div className="py-24 text-center border-2 border-dashed border-slate-300 rounded-3xl bg-white/50 backdrop-blur-sm">
+            <div className="py-24 text-center border-2 border-dashed border-white/20 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10 flex items-center justify-center mx-auto mb-6 border-2 border-[#00d4ff]/20"
+                className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20 flex items-center justify-center mx-auto mb-6 border-2 border-[#00d4ff]/30 shadow-lg shadow-[#00d4ff]/20"
               >
                 <Package className="w-12 h-12 text-[#00d4ff]" />
               </motion.div>
-              <p className="text-lg font-bold text-slate-700 mb-2">Aucun produit ajouté</p>
-              <p className="text-sm text-slate-500">Prenez une capture d'écran de la page produit AliExpress/Alibaba ci-dessus pour commencer</p>
+              <p className="text-lg font-bold text-white mb-2">Aucun produit ajouté</p>
+              <p className="text-sm text-white/60">Prenez une capture d'écran de la page produit AliExpress/Alibaba ci-dessus pour commencer</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -539,7 +598,7 @@ export function ProductImport() {
                     type: 'spring',
                     stiffness: 100
                   }}
-                  className="group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/10 transition-all duration-300 overflow-hidden"
+                  className="group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-slate-900/80 backdrop-blur-xl border-2 border-white/10 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/20 transition-all duration-300 overflow-hidden"
                 >
                     {/* Shine effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -550,7 +609,7 @@ export function ProductImport() {
 
                     <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                       {/* Image */}
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border-2 border-slate-200 shadow-sm">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-800 flex-shrink-0 border-2 border-white/10 shadow-sm">
                         {products[0].images[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -561,14 +620,14 @@ export function ProductImport() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
+                            <Package className="w-8 h-8 sm:w-10 sm:h-10 text-white/40" />
                           </div>
                         )}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 w-full sm:w-auto">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 line-clamp-2 sm:line-clamp-1">
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-2 line-clamp-2 sm:line-clamp-1">
                           {products[0].title}
                         </h3>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -584,12 +643,12 @@ export function ProductImport() {
                                     alert('Veuillez entrer un prix valide supérieur à 0');
                                   }
                                 }}
-                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors font-semibold text-xs sm:text-sm"
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 border-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 transition-colors font-semibold text-xs sm:text-sm"
                               >
                                 <AlertCircle size={14} className="sm:w-4 sm:h-4" />
                                 <span className="whitespace-nowrap">Prix requis - Cliquez pour ajouter</span>
                               </button>
-                              <p className="text-xs text-amber-600">Le prix est requis pour continuer</p>
+                              <p className="text-xs text-amber-400/80">Le prix est requis pour continuer</p>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -606,14 +665,14 @@ export function ProductImport() {
                                     alert('Veuillez entrer un prix valide supérieur à 0');
                                   }
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-lg transition-all"
+                                className="p-1.5 text-white/60 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-lg transition-all"
                                 title="Edit price"
                               >
                                 <Edit3 size={14} />
                               </button>
                             </div>
                           )}
-                          <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-[10px] sm:text-xs font-bold text-slate-600 whitespace-nowrap">
+                          <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 border border-white/10 text-[10px] sm:text-xs font-bold text-white/80 whitespace-nowrap">
                             {products[0].source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                           </span>
                         </div>
@@ -625,13 +684,13 @@ export function ProductImport() {
                           href={products[0].url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-3 text-slate-400 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-xl transition-all border-2 border-transparent hover:border-[#00d4ff]/20"
+                          className="p-3 text-white/60 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 rounded-xl transition-all border-2 border-transparent hover:border-[#00d4ff]/20"
                         >
                           <ExternalLink size={20} />
                         </a>
                         <button
                           onClick={() => removeProduct(products[0].id)}
-                          className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border-2 border-transparent hover:border-red-200"
+                          className="p-3 text-white/60 hover:text-red-400 hover:bg-red-500/20 rounded-xl transition-all border-2 border-transparent hover:border-red-500/30"
                         >
                           <Trash2 size={20} />
                         </button>
@@ -654,7 +713,7 @@ export function ProductImport() {
             onClick={() => setStep(1)}
             whileHover={{ scale: 1.02, x: -2 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
+            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-slate-900/80 hover:bg-slate-800 border-2 border-white/10 hover:border-white/20 text-white font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
           >
             <ArrowLeft size={20} />
             Retour
@@ -665,7 +724,7 @@ export function ProductImport() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-medium"
               >
                 <AlertCircle size={16} />
                 Tous les produits doivent avoir un prix renseigné
@@ -679,8 +738,8 @@ export function ProductImport() {
               className={`
                 group relative w-full sm:w-auto px-6 sm:px-12 py-2.5 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-bold rounded-xl transition-all duration-300 overflow-hidden btn-mobile
                 ${products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60'
+                  ? 'bg-slate-800 text-white/40 cursor-not-allowed border-2 border-white/5'
+                  : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60 border-2 border-transparent'
                 }
               `}
             >

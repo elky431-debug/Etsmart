@@ -49,8 +49,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       
       // Redirect based on user state
+      // Ne pas rediriger si on est sur /auth/callback (la page gère déjà la redirection)
       if (user && typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
+        if (currentPath === '/auth/callback') {
+          // La page callback gère la redirection, ne rien faire ici
+          return;
+        }
         if (currentPath === '/login' || currentPath === '/register') {
           // Check if user is new (created in the last 30 seconds) → redirect to pricing
           const createdAt = new Date(user.created_at || '');
@@ -83,9 +88,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    setUser(null);
-    router.push('/');
+    try {
+      await signOut();
+      setUser(null);
+      // Nettoyer le localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      router.push('/');
+      // Forcer le rechargement pour s'assurer que tout est nettoyé
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, nettoyer et rediriger
+      setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/';
+      }
+    }
   };
 
   const handleSignInWithGoogle = async () => {

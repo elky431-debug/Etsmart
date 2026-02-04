@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,19 @@ interface SubscriptionStatus {
   currentPeriodEnd: Date | null;
 }
 
+// Cache pour éviter les appels répétés
+const subscriptionCache: {
+  userId: string | null;
+  status: SubscriptionStatus | null;
+  timestamp: number;
+} = {
+  userId: null,
+  status: null,
+  timestamp: 0,
+};
+
+const CACHE_DURATION = 30000; // 30 secondes
+
 /**
  * Hook to protect pages that require an active subscription.
  * Redirects to /pricing if user doesn't have an active subscription.
@@ -24,14 +37,15 @@ interface SubscriptionStatus {
 export function useSubscriptionProtection(): SubscriptionStatus {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Commencer à false pour ne pas bloquer
   const [status, setStatus] = useState<SubscriptionStatus>({
     isActive: false,
-    isLoading: true,
+    isLoading: false, // Commencer à false
     plan: null,
     cancelAtPeriodEnd: false,
     currentPeriodEnd: null,
   });
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
     const checkSubscription = async () => {
@@ -43,6 +57,22 @@ export function useSubscriptionProtection(): SubscriptionStatus {
         router.push('/login');
         return;
       }
+
+      // Vérifier le cache
+      const now = Date.now();
+      if (
+        subscriptionCache.userId === user.id &&
+        subscriptionCache.status &&
+        (now - subscriptionCache.timestamp) < CACHE_DURATION
+      ) {
+        console.log('[SubscriptionProtection] Using cached status');
+        setStatus(subscriptionCache.status);
+        return;
+      }
+
+      // Éviter les vérifications multiples simultanées
+      if (hasCheckedRef.current) return;
+      hasCheckedRef.current = true;
 
       try {
         setIsLoading(true);
@@ -134,27 +164,38 @@ export function useSubscriptionProtection(): SubscriptionStatus {
           return;
         }
 
-        setStatus({
+        const newStatus: SubscriptionStatus = {
           isActive: true,
           isLoading: false,
           plan: subscriptionPlan,
           cancelAtPeriodEnd,
           currentPeriodEnd,
-        });
+        };
+
+        // Mettre à jour le cache
+        subscriptionCache.userId = user.id;
+        subscriptionCache.status = newStatus;
+        subscriptionCache.timestamp = Date.now();
+
+        setStatus(newStatus);
       } catch (error) {
         console.error('[SubscriptionProtection] Error:', error);
         router.push('/pricing');
       } finally {
         setIsLoading(false);
+        hasCheckedRef.current = false;
       }
     };
 
     checkSubscription();
   }, [user, authLoading, router]);
 
+  // Ne pas bloquer si on a un cache valide
+  const shouldBlock = isLoading && !subscriptionCache.status;
+  
   return {
     ...status,
-    isLoading: isLoading || authLoading,
+    isLoading: shouldBlock || authLoading,
   };
 }
 

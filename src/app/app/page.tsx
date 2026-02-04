@@ -62,7 +62,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 
 export default function AppPage() {
-  const { currentStep } = useStore();
+  const { currentStep, products, analyses } = useStore();
   const { user, loading } = useAuth();
   const router = useRouter();
   
@@ -77,6 +77,16 @@ export default function AppPage() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Log l'état du store au montage pour debug
+  useEffect(() => {
+    console.log('[AppPage] État du store au montage:', {
+      currentStep,
+      productsCount: products.length,
+      analysesCount: analyses.length,
+      localStorage: typeof window !== 'undefined' ? localStorage.getItem('etsmart-storage')?.substring(0, 100) : 'N/A'
+    });
+  }, []);
 
   if (loading || subscriptionLoading) {
     return (

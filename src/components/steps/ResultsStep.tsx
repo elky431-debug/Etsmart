@@ -261,6 +261,11 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
   const [supplierPrice, setSupplierPrice] = useState<number>(userSupplierPrice);
   const [useEtsyAds, setUseEtsyAds] = useState<boolean>(false);
   
+  // États locaux pour les valeurs d'affichage des inputs (permet de supprimer le 0)
+  const [sellingPriceDisplay, setSellingPriceDisplay] = useState<string>(analysis.pricing.recommendedPrice > 0 ? analysis.pricing.recommendedPrice.toString() : '');
+  const [shippingCostDisplay, setShippingCostDisplay] = useState<string>(aiEstimatedShippingCost > 0 ? aiEstimatedShippingCost.toString() : '');
+  const [supplierPriceDisplay, setSupplierPriceDisplay] = useState<string>(userSupplierPrice > 0 ? userSupplierPrice.toString() : '');
+  
   const simulationData = useMemo(() => {
     const costPerUnit = supplierPrice + shippingCost;
     
@@ -768,14 +773,31 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     {[
                       { 
                         label: 'Prix fournisseur', 
-                        value: supplierPrice, 
-                        setValue: setSupplierPrice, 
+                        displayValue: supplierPriceDisplay,
+                        setDisplayValue: setSupplierPriceDisplay,
+                        numericValue: supplierPrice, 
+                        setNumericValue: setSupplierPrice, 
                         hint: analysis.product.price > 0 
                           ? `Prix entré : ${formatCurrency(analysis.product.price)}` 
                           : `Est. IA : ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
                       },
-                      { label: 'Frais de livraison', value: shippingCost, setValue: setShippingCost, hint: `Est. : ${formatCurrency(aiEstimatedShippingCost)}` },
-                      { label: 'Prix de vente', value: sellingPrice, setValue: setSellingPrice, hint: `Rec. : ${formatCurrency(analysis.pricing.recommendedPrice)}`, highlight: true },
+                      { 
+                        label: 'Frais de livraison', 
+                        displayValue: shippingCostDisplay,
+                        setDisplayValue: setShippingCostDisplay,
+                        numericValue: shippingCost, 
+                        setNumericValue: setShippingCost, 
+                        hint: `Est. : ${formatCurrency(aiEstimatedShippingCost)}` 
+                      },
+                      { 
+                        label: 'Prix de vente', 
+                        displayValue: sellingPriceDisplay,
+                        setDisplayValue: setSellingPriceDisplay,
+                        numericValue: sellingPrice, 
+                        setNumericValue: setSellingPrice, 
+                        hint: `Rec. : ${formatCurrency(analysis.pricing.recommendedPrice)}`, 
+                        highlight: true 
+                      },
                     ].map((field, i) => (
                       <div key={i}>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
@@ -784,11 +806,33 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <div className="relative">
                           <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${field.highlight ? 'text-[#00d4ff]' : 'text-slate-400'}`}>$</span>
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={field.value}
-                            onChange={(e) => field.setValue(parseFloat(e.target.value) || 0)}
+                            type="text"
+                            inputMode="decimal"
+                            value={field.displayValue}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              // Permettre toute saisie (y compris vide) pour l'affichage
+                              field.setDisplayValue(inputValue);
+                              
+                              // Mettre à jour la valeur numérique seulement si c'est un nombre valide
+                              if (inputValue === '' || inputValue === '0') {
+                                field.setNumericValue(0);
+                              } else {
+                                const numValue = parseFloat(inputValue);
+                                if (!isNaN(numValue) && numValue >= 0) {
+                                  field.setNumericValue(numValue);
+                                }
+                              }
+                            }}
+                            onBlur={(e) => {
+                              // Au blur, s'assurer que la valeur d'affichage correspond à la valeur numérique
+                              const numValue = field.numericValue;
+                              if (numValue === 0) {
+                                field.setDisplayValue('');
+                              } else {
+                                field.setDisplayValue(numValue.toString());
+                              }
+                            }}
                             className={`w-full pl-8 pr-3 py-3 rounded-lg text-lg font-bold focus:ring-0 focus:outline-none transition-colors ${
                               field.highlight 
                                 ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]/10 border border-[#00d4ff] text-slate-900 focus:border-[#00d4ff]' 

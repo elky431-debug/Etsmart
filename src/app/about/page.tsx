@@ -45,7 +45,7 @@ export default function AboutPage() {
               <Link href="/">
                 <button className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-full transition-all">
                   <ArrowLeft size={16} />
-                  Back
+                  Retour
                 </button>
               </Link>
             </div>
@@ -54,7 +54,7 @@ export default function AboutPage() {
       </motion.header>
 
       {/* Hero Section */}
-      <section className="relative pt-40 pb-32 overflow-hidden">
+      <section className="relative pt-32 pb-16 sm:pt-36 sm:pb-20 overflow-hidden">
         {/* Subtle background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#00d4ff]/5 to-transparent" />
         <div className="absolute top-40 left-1/4 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-[120px]" />
@@ -66,10 +66,10 @@ export default function AboutPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-8"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 mb-6"
             >
               <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-              <span className="text-sm text-slate-700">Powered by AI</span>
+              <span className="text-sm text-slate-700">Propulsé par l'IA</span>
               <Cpu className="w-4 h-4 text-[#00d4ff]" />
             </motion.div>
 
@@ -78,9 +78,9 @@ export default function AboutPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.6 }}
-              className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-8"
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6"
             >
-              <span className="text-slate-900">About</span>
+              <span className="text-slate-900">À propos de</span>
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">Etsmart</span>
             </motion.h1>
@@ -90,42 +90,42 @@ export default function AboutPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed"
+              className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed"
             >
-              The AI analysis tool that turns your product ideas into{' '}
-              <span className="text-slate-900 font-medium">Etsy wins</span>.
+              L'outil d'analyse IA qui transforme vos idées de produits en{' '}
+              <span className="text-slate-900 font-medium">succès sur Etsy</span>.
             </motion.p>
           </div>
         </div>
       </section>
 
       {/* Content */}
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
         {/* Mission */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="mb-20"
+          className="mb-12 sm:mb-16"
         >
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                <Target size={28} className="text-white" />
+          <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                <Target size={24} className="text-white sm:w-7 sm:h-7" />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">Our Mission</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Notre Mission</h2>
             </div>
-            <div className="space-y-4 text-lg text-slate-700 leading-relaxed">
+            <div className="space-y-3 sm:space-y-4 text-base sm:text-lg text-slate-700 leading-relaxed">
               <p>
-                Etsmart was built to help Etsy sellers make confident decisions before launching products.
-                We believe every product deserves a chance to succeed—but only if it's launched at the right time,
-                at the right price, with the right strategy.
+                Etsmart a été créé pour aider les vendeurs Etsy à prendre des décisions éclairées avant de lancer leurs produits.
+                Nous croyons que chaque produit mérite sa chance de réussir—mais uniquement s'il est lancé au bon moment,
+                au bon prix, avec la bonne stratégie.
               </p>
               <p>
-                With <strong className="text-slate-900">our advanced AI</strong>, we analyze your AliExpress products and provide a complete analysis including:
-                a <strong className="text-[#00d4ff]">Launch Potential Score</strong> (0-10), competitor analysis, pricing recommendations,
-                launch simulation, and a complete marketing strategy with SEO tags, viral titles, and ad ideas.
+                Grâce à <strong className="text-slate-900">notre IA avancée</strong>, nous analysons vos produits AliExpress et fournissons une analyse complète incluant :
+                un <strong className="text-[#00d4ff]">Score de Potentiel de Lancement</strong> (0-10), une analyse concurrentielle, des recommandations de prix,
+                une simulation de lancement, et une stratégie marketing complète avec des tags SEO, des titres viraux et des idées de publicités.
               </p>
             </div>
           </div>
@@ -137,40 +137,40 @@ export default function AboutPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="mb-20"
+          className="mb-12 sm:mb-16"
         >
-          <div className="text-center mb-12">
-            <span className="text-[#00d4ff] font-medium mb-4 block uppercase tracking-wider text-sm">Why Etsmart</span>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="text-slate-900">What makes us</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">different</span>
+          <div className="text-center mb-8 sm:mb-10">
+            <span className="text-[#00d4ff] font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm">Pourquoi Etsmart</span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+              <span className="text-slate-900">Ce qui nous rend</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">uniques</span>
             </h2>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
             {[
               {
                 icon: Eye,
-                title: 'Vision-based AI analysis',
-                description: "Our AI analyzes your product image—not just the title—so the analysis is more accurate and reliable.",
+                title: 'Analyse IA basée sur l\'image',
+                description: "Notre IA analyse l'image de votre produit—pas seulement le titre—pour une analyse plus précise et fiable.",
                 color: 'from-violet-500 to-purple-500',
               },
               {
                 icon: Target,
-                title: 'Launch Potential Score',
-                description: 'Get a clear 0-10 score that evaluates market saturation, competition density, and product specificity to guide your launch decision.',
+                title: 'Score de Potentiel de Lancement',
+                description: 'Obtenez un score clair de 0 à 10 qui évalue la saturation du marché, la densité de la concurrence et la spécificité du produit pour guider votre décision de lancement.',
                 color: 'from-[#00d4ff] to-[#00c9b7]',
               },
               {
                 icon: Zap,
-                title: 'Speed',
-                description: 'Get a full analysis in seconds—no more hours of manual research.',
+                title: 'Rapidité',
+                description: 'Obtenez une analyse complète en quelques secondes—plus besoin d\'heures de recherche manuelle.',
                 color: 'from-amber-500 to-orange-500',
               },
               {
                 icon: Shield,
-                title: 'Reliability',
-                description: 'Built on real Etsy market and competition signals—not rough guesses.',
+                title: 'Fiabilité',
+                description: 'Basé sur de vrais signaux du marché Etsy et de la concurrence—pas sur des suppositions approximatives.',
                 color: 'from-emerald-500 to-teal-500',
               },
             ].map((feature, index) => {
@@ -182,13 +182,13 @@ export default function AboutPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.3 + index * 0.1 }}
-                  className="group p-8 bg-white border-2 border-slate-200 rounded-3xl hover:border-[#00d4ff]/30 hover:shadow-xl transition-all duration-300"
+                  className="group p-6 sm:p-8 bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl hover:border-[#00d4ff]/30 hover:shadow-xl transition-all duration-300"
                 >
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                    <Icon size={28} className="text-white" />
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                    <Icon size={24} className="text-white sm:w-7 sm:h-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                  <p className="text-slate-600 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3">{feature.title}</h3>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">{feature.description}</p>
                 </motion.div>
               );
             })}
@@ -201,10 +201,10 @@ export default function AboutPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.4 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] p-12 text-center"
+          className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] p-8 sm:p-12 text-center"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-[#00b8e6] to-[#00c9b7] opacity-50" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px]" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] sm:w-[500px] h-[400px] sm:h-[500px] bg-white/10 rounded-full blur-[120px]" />
           
           <div className="relative z-10">
             <motion.div
@@ -212,28 +212,28 @@ export default function AboutPage() {
               whileInView={{ scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: 0.5, type: 'spring' }}
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mb-6"
+              className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-sm mb-4 sm:mb-6"
             >
-              <CheckCircle2 size={40} className="text-white" />
+              <CheckCircle2 size={32} className="text-white sm:w-10 sm:h-10" />
             </motion.div>
             
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6 text-white">
-              Ready to launch your
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 text-white">
+              Prêt à lancer votre
               <br />
-              first product?
+              premier produit ?
             </h2>
-            <p className="text-white/90 mb-8 text-lg max-w-2xl mx-auto">
-              Start for free and discover your products' potential in seconds.
+            <p className="text-white/90 mb-6 sm:mb-8 text-base sm:text-lg max-w-2xl mx-auto">
+              Commencez gratuitement et découvrez le potentiel de vos produits en quelques secondes.
             </p>
             <Link href="/app">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-[#00d4ff] text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all"
+                className="group inline-flex items-center gap-2 sm:gap-3 px-8 sm:px-10 py-4 sm:py-5 bg-white text-[#00d4ff] text-base sm:text-lg font-semibold rounded-full shadow-xl hover:shadow-2xl transition-all"
               >
-                <Play size={20} className="fill-[#00d4ff]" />
-                Start now
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                <Play size={18} className="fill-[#00d4ff] sm:w-5 sm:h-5" />
+                Commencer maintenant
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform sm:w-5 sm:h-5" />
               </motion.button>
             </Link>
           </div>
@@ -241,22 +241,22 @@ export default function AboutPage() {
       </div>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-slate-200 bg-white mt-20">
+      <footer className="py-8 sm:py-12 border-t border-slate-200 bg-white mt-12 sm:mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
             <Link href="/">
               <Logo size="md" showText={true} />
             </Link>
             
-            <div className="flex items-center gap-8 text-sm text-slate-500">
-              <Link href="/about" className="hover:text-slate-900 transition-colors">About</Link>
-              <Link href="/legal" className="hover:text-slate-900 transition-colors">Legal</Link>
-              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
+            <div className="flex items-center gap-6 sm:gap-8 text-sm text-slate-500">
+              <Link href="/about" className="hover:text-slate-900 transition-colors">À propos</Link>
+              <Link href="/legal" className="hover:text-slate-900 transition-colors">Mentions légales</Link>
+              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Confidentialité</Link>
               <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             </div>
             
             <p className="text-sm text-slate-400">
-              © 2026 Etsmart. All rights reserved.
+              © 2026 Etsmart. Tous droits réservés.
             </p>
           </div>
         </div>

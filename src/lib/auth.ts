@@ -108,7 +108,16 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 // Sign in with Google (OAuth)
 export async function signInWithGoogle() {
   ensureSupabaseConfigured();
-  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '/auth/callback';
+  
+  // Utiliser etsmart.app en production, sinon window.location.origin
+  let redirectTo = '/auth/callback';
+  if (typeof window !== 'undefined') {
+    const isProduction = window.location.hostname === 'etsmart.app' || window.location.hostname.includes('vercel.app');
+    redirectTo = isProduction 
+      ? 'https://etsmart.app/auth/callback'
+      : `${window.location.origin}/auth/callback`;
+  }
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {

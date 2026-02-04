@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -27,31 +27,88 @@ import { Paywall } from '@/components/paywall/Paywall';
 import { QuotaExceeded } from '@/components/paywall/QuotaExceeded';
 
 export function AnalysisStep() {
-  const { products, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
+  const { currentStep, products, analyses, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, refreshSubscription } = useSubscription();
   const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
   const [showQuotaExceeded, setShowQuotaExceeded] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [isAnalyzing, setIsAnalyzing] = useState(true);
-  const [currentPhase, setCurrentPhase] = useState('Initialisation...');
-  const [completedProducts, setCompletedProducts] = useState<string[]>([]);
-  const [analysisComplete, setAnalysisComplete] = useState(false);
-  const [startTime] = useState(Date.now());
+  // Refs pour éviter les boucles infinies
+  const analysisStartedRef = useRef(false);
+  const transitionDoneRef = useRef(false);
+  // Restaurer l'état depuis localStorage si disponible
+  const getStoredAnalysisState = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('analysis-state');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Vérifier que l'état n'est pas trop vieux (max 1 heure)
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 3600000) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.log('[AnalysisStep] Erreur lecture localStorage:', e);
+    }
+    return null;
+  }, []);
+
+  const storedState = useMemo(() => getStoredAnalysisState(), [getStoredAnalysisState]);
+  
+  const [currentIndex, setCurrentIndex] = useState(storedState?.currentIndex || 0);
+  const [progress, setProgress] = useState(storedState?.progress || 0);
+  const [isAnalyzing, setIsAnalyzing] = useState(storedState?.isAnalyzing ?? globalIsAnalyzing ?? false);
+  const [currentPhase, setCurrentPhase] = useState(storedState?.currentPhase || 'Initialisation...');
+  const [completedProducts, setCompletedProducts] = useState<string[]>(storedState?.completedProducts || []);
+  const [analysisComplete, setAnalysisComplete] = useState(storedState?.analysisComplete || false);
+  // Utiliser useRef pour startTime pour qu'il ne soit pas réinitialisé à chaque re-render
+  const startTimeRef = useRef<number>(storedState?.startTime || Date.now());
   const [showPaywall, setShowPaywall] = useState(false);
-  const MINIMUM_DURATION = 30000; // 30 secondes minimum
+  const MINIMUM_DURATION = 20000; // 20 secondes minimum (réduit pour accélérer)
+
+  // Sauvegarder l'état dans localStorage à chaque changement
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('analysis-state', JSON.stringify({
+        currentIndex,
+        progress,
+        isAnalyzing,
+        currentPhase,
+        completedProducts,
+        analysisComplete,
+        startTime: startTimeRef.current,
+        timestamp: Date.now(),
+      }));
+    } catch (e) {
+      console.log('[AnalysisStep] Erreur sauvegarde localStorage:', e);
+    }
+  }, [currentIndex, progress, isAnalyzing, currentPhase, completedProducts, analysisComplete]);
+
+  // Nettoyer localStorage quand l'analyse est terminée
+  useEffect(() => {
+    if (!isAnalyzing && analysisComplete) {
+      setTimeout(() => {
+        localStorage.removeItem('analysis-state');
+      }, 1000);
+    }
+  }, [isAnalyzing, analysisComplete]);
 
   // ⚠️ CRITICAL: Check subscription before allowing analysis
   useEffect(() => {
+    // Si on a déjà des analyses en cours d'affichage, ne pas bloquer
+    if (currentStep === 3 && analyses.length > 0) {
+      return;
+    }
+
     if (subscriptionLoading) return; // Wait for subscription to load
-    
+
     if (!user) {
       // User not authenticated - redirect to login
       setStep(2); // Go back to import step
       return;
     }
-    
+
     if (!canAnalyze) {
       // Check if it's a quota issue (has subscription but no quota)
       if (hasActiveSubscription && !hasQuota) {
@@ -67,14 +124,59 @@ export function AnalysisStep() {
       setGlobalIsAnalyzing(false);
       return;
     }
-    
-    // User has active subscription and quota - proceed with analysis
-    // Only start analysis if not already analyzing and not complete
-    if (!globalIsAnalyzing && !analysisComplete && !showPaywall && !showQuotaExceeded && canAnalyze) {
+
+    if (currentStep !== 3) {
+      analysisStartedRef.current = false;
+      transitionDoneRef.current = false;
+      return;
+    }
+
+    if (
+      products.length > 0 &&
+      !analysisComplete &&
+      analyses.length === 0 &&
+      !globalIsAnalyzing &&
+      !isAnalyzing &&
+      !analysisStartedRef.current
+    ) {
+      analysisStartedRef.current = true;
       runAnalysis();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, user, showPaywall, showQuotaExceeded]);
+  }, [
+    subscriptionLoading,
+    canAnalyze,
+    hasActiveSubscription,
+    hasQuota,
+    user,
+    currentStep,
+    products.length,
+    analysisComplete,
+    analyses.length,
+    globalIsAnalyzing,
+    isAnalyzing,
+    showPaywall,
+    showQuotaExceeded,
+    setStep,
+  ]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRANSITION: passer à l'étape 4 quand l'analyse est terminée
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (transitionDoneRef.current) return;
+    if (currentStep !== 3) return;
+
+    const hasAnalyses = analyses.length > 0;
+    if ((analysisComplete || hasAnalyses) && progress >= 100) {
+      transitionDoneRef.current = true;
+      setIsAnalyzing(false);
+      setGlobalIsAnalyzing(false);
+      setTimeout(() => {
+        setStep(4);
+      }, 300);
+    }
+  }, [analysisComplete, analyses.length, progress, currentStep, setStep, setGlobalIsAnalyzing]);
+
   
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -211,8 +313,16 @@ export function AnalysisStep() {
     }
     
     console.log('🚀 Analysis started');
+    console.log('[AnalysisStep] État avant démarrage:', {
+      productsCount: products.length,
+      currentStep: useStore.getState().currentStep,
+      storeIsAnalyzing: globalIsAnalyzing
+    });
+    
     setIsAnalyzing(true);
     setGlobalIsAnalyzing(true); // Verrou global
+    // Réinitialiser startTime seulement au début d'une nouvelle analyse
+    startTimeRef.current = Date.now();
     setProgress(5); // Démarrage immédiat
     setCurrentPhase('Démarrage de l\'analyse...');
     
@@ -237,11 +347,11 @@ export function AnalysisStep() {
       try {
         // ⚠️ L'ANALYSE NE PEUT JAMAIS ÉCHOUER - analyzeProduct retourne TOUJOURS un résultat
         // Même en cas d'erreur, le fallback ultime garantit un ProductAnalysis valide
-        // Timeout de 90 secondes max (pour permettre les retries côté serveur: 3 tentatives × 28s = 84s max)
-        // Le serveur a un timeout de 28s par tentative avec 3 retries, donc on attend 90s côté client
+        // Timeout de 60 secondes max (pour permettre les retries côté serveur: 2 tentatives × 40s = 80s max)
+        // Le serveur a un timeout de 40s par tentative avec 1 retry, donc on attend 60s côté client
         const analysisPromise = analyzeProduct(product, (niche || 'custom') as Niche);
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Product timeout')), 90000) // 90s pour permettre les retries (3 × 28s)
+          setTimeout(() => reject(new Error('Product timeout')), 60000) // 60s pour permettre les retries (2 × 40s)
         );
         
         const analysis = await Promise.race([analysisPromise, timeout]) as any;
@@ -415,31 +525,62 @@ export function AnalysisStep() {
   useEffect(() => {
     if (!isAnalyzing) return; // Ne pas animer si déjà terminé
     
+    // Si on a restauré depuis localStorage, ajuster le startTime pour continuer la progression
+    if (storedState && storedState.startTime && storedState.progress > 0) {
+      // Calculer le temps écoulé depuis la sauvegarde
+      const timeSinceSave = Date.now() - storedState.timestamp;
+      // Ajuster startTime pour que la progression continue naturellement
+      startTimeRef.current = Date.now() - (storedState.progress / 100 * MINIMUM_DURATION);
+    } else if (!startTimeRef.current || progress === 0) {
+      // Initialiser startTime seulement si pas déjà défini ou si l'analyse vient de commencer
+      startTimeRef.current = Date.now();
+    }
+    
     const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+      const elapsed = Date.now() - startTimeRef.current;
       const progressPercent = Math.min(100, (elapsed / MINIMUM_DURATION) * 100);
       setProgress(progressPercent);
     }, 50); // Mise à jour toutes les 50ms pour une animation fluide
     
     return () => clearInterval(interval);
-  }, [isAnalyzing, startTime]);
+  }, [isAnalyzing, progress, storedState]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // VÉRIFICATION FINALE : Attendre les 30 secondes minimum ET l'analyse terminée
+  // VÉRIFICATION FINALE : Transition automatique quand l'analyse est terminée
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
+    // Vérifier si on a des analyses dans le store (signe que l'analyse est terminée)
+    const hasAnalyses = useStore.getState().analyses.length > 0;
+    
+    // Si on a des analyses ET que la progression est à 100%, passer à l'étape 4
+    if (hasAnalyses && progress >= 100 && !isAnalyzing) {
+      console.log('✅ Analyse terminée (analyses présentes) - passage à l\'étape 4');
+      setIsAnalyzing(false);
+      setGlobalIsAnalyzing(false);
+      setTimeout(() => {
+        setStep(4);
+      }, 500);
+      return;
+    }
+    
+    // Sinon, vérifier avec le système de timing
+    if (!startTimeRef.current) return;
+    
     const checkCompletion = () => {
-      const elapsed = Date.now() - startTime;
+      if (!startTimeRef.current) return;
+      
+      const elapsed = Date.now() - startTimeRef.current;
       const hasMinimumTime = elapsed >= MINIMUM_DURATION;
       
-      // On redirige seulement si :
-      // 1. Les 30 secondes minimum sont écoulées
-      // 2. L'analyse est terminée
+      // On redirige si :
+      // 1. Les 20 secondes minimum sont écoulées
+      // 2. L'analyse est terminée OU on a des analyses
       // 3. La progression est à 100%
-      if (hasMinimumTime && analysisComplete && progress >= 100) {
+      const hasAnalysesCheck = useStore.getState().analyses.length > 0;
+      if (hasMinimumTime && (analysisComplete || hasAnalysesCheck) && progress >= 100) {
+        console.log('✅ Analyse terminée - passage à l\'étape 4');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
-        // Petit délai pour l'animation finale
         setTimeout(() => {
           setStep(4);
         }, 500);
@@ -449,8 +590,22 @@ export function AnalysisStep() {
     // Vérifier toutes les 100ms
     const interval = setInterval(checkCompletion, 100);
     
-    return () => clearInterval(interval);
-  }, [analysisComplete, progress, startTime, setStep, setGlobalIsAnalyzing]);
+    // ⚠️ FALLBACK: Forcer la transition après 30 secondes si on a des analyses
+    const forceTransitionTimeout = setTimeout(() => {
+      const hasAnalysesCheck = useStore.getState().analyses.length > 0;
+      if (progress >= 100 && hasAnalysesCheck) {
+        console.warn('⚠️ Force transition après 30s - l\'analyse est terminée');
+        setIsAnalyzing(false);
+        setGlobalIsAnalyzing(false);
+        setStep(4);
+      }
+    }, 30000); // 30 secondes maximum
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(forceTransitionTimeout);
+    };
+  }, [analysisComplete, progress, setStep, setGlobalIsAnalyzing, isAnalyzing]);
 
   // Removed duplicate useEffect - analysis is now triggered by subscription check useEffect
 
@@ -488,7 +643,7 @@ export function AnalysisStep() {
           <Button
             onClick={() => setStep(2)}
             variant="secondary"
-            className="bg-white"
+            className="bg-slate-900/80 text-white border border-white/20 hover:bg-slate-800"
           >
             Retour à l'importation
           </Button>
@@ -521,9 +676,9 @@ export function AnalysisStep() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-            transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/80 backdrop-blur-xl border-2 border-[#00d4ff]/20 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
-          >
+          transition={{ type: 'spring', delay: 0.2 }}
+          className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-lg mb-4 sm:mb-8 text-xs sm:text-sm"
+        >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
             <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 3 SUR 3</span>
             <Zap size={16} className="text-[#00c9b7]" />
@@ -574,7 +729,7 @@ export function AnalysisStep() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto mb-12"
           >
-            <div className="p-8 rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-slate-200 shadow-2xl">
+            <div className="p-8 rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl">
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border-2 border-slate-200 shadow-lg">
                   {currentProduct.images[0] ? (
@@ -590,7 +745,7 @@ export function AnalysisStep() {
                   <p className="text-sm font-bold text-[#00d4ff] mb-2 uppercase tracking-wide">
                     Analyse du produit
                   </p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold text-slate-900 truncate">{currentProduct.title}</p>
+                  <p className="text-base sm:text-lg md:text-xl font-bold text-white truncate">{currentProduct.title}</p>
                 </div>
               </div>
             </div>
@@ -604,14 +759,14 @@ export function AnalysisStep() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <div className="p-8 rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-slate-200 shadow-2xl">
+          <div className="p-8 rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-bold text-slate-700">Progression globale</span>
+              <span className="text-lg font-bold text-white">Progression globale</span>
               <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                 {Math.round(progress)}%
               </span>
             </div>
-            <div className="h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-slate-200">
+            <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
               <motion.div
                 className="h-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-full shadow-lg"
                 initial={{ width: 0 }}
@@ -649,10 +804,10 @@ export function AnalysisStep() {
                               className={`
                       relative p-6 rounded-3xl transition-all duration-500 border-2 overflow-hidden
                       ${isActive 
-                        ? 'bg-gradient-to-br from-[#00d4ff]/20 via-[#00c9b7]/10 to-white border-[#00d4ff] shadow-xl shadow-[#00d4ff]/20' 
+                        ? 'bg-gradient-to-br from-[#00d4ff]/20 via-[#00c9b7]/10 to-slate-900 border-[#00d4ff] shadow-xl shadow-[#00d4ff]/20' 
                         : isPast 
-                          ? 'bg-gradient-to-br from-[#00d4ff]/10 to-white border-[#00d4ff]/30' 
-                          : 'bg-white border-slate-200'
+                          ? 'bg-gradient-to-br from-[#00d4ff]/10 to-slate-900 border-[#00d4ff]/30' 
+                          : 'bg-slate-900/70 border-slate-800'
                       }
                     `}
                   >
