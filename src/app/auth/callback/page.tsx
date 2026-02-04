@@ -75,15 +75,25 @@ function AuthCallbackContent() {
         console.log('User created at:', data.user.created_at);
 
         // Check subscription status first
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('subscription_status, subscription_plan')
-          .eq('id', data.user.id)
-          .single();
+        let hasActiveSubscription = false;
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('subscription_status, subscription_plan')
+            .eq('id', data.user.id)
+            .single();
 
-        const hasActiveSubscription = userData?.subscription_status === 'active';
-        console.log('Subscription status:', userData?.subscription_status);
-        console.log('Has active subscription:', hasActiveSubscription);
+          if (userError) {
+            console.warn('⚠️ Error fetching user data:', userError);
+            // If user doesn't exist yet, we'll create it below
+          } else {
+            hasActiveSubscription = userData?.subscription_status === 'active';
+            console.log('Subscription status:', userData?.subscription_status);
+            console.log('Has active subscription:', hasActiveSubscription);
+          }
+        } catch (err) {
+          console.warn('⚠️ Error checking subscription:', err);
+        }
 
         // Check if user is new
         const createdAt = new Date(data.user.created_at || '');
