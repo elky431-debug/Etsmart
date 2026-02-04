@@ -711,12 +711,19 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       </button>
                     </div>
                     <div className="space-y-3">
-                      <div className="p-4 rounded-lg bg-cyan-50 border border-cyan-200">
+                      <div className="p-4 rounded-lg bg-black border border-white/10">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600">Anglais</span>
-                          <span className="text-xs text-slate-500">{analysis.verdict.viralTitleEN.length}/140</span>
+                          <span className={`text-xs font-bold uppercase tracking-wider ${
+                            typeof window !== 'undefined' && (
+                              window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1'
+                            )
+                              ? 'text-[#00d4ff]'
+                              : 'text-cyan-600'
+                          }`}>Anglais</span>
+                          <span className="text-xs text-white/60">{analysis.verdict.viralTitleEN.length}/140</span>
                         </div>
-                        <p className="text-sm font-medium text-slate-900">{analysis.verdict.viralTitleEN}</p>
+                        <p className="text-sm font-medium text-white">{analysis.verdict.viralTitleEN}</p>
                       </div>
                     </div>
                   </div>
