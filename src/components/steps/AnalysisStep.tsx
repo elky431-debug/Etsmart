@@ -643,7 +643,7 @@ export function AnalysisStep() {
           <Button
             onClick={() => setStep(2)}
             variant="secondary"
-            className="bg-slate-900/80 text-white border border-white/20 hover:bg-slate-800"
+            className="bg-black text-white border border-white/20 hover:bg-black"
           >
             Retour à l'importation
           </Button>
@@ -729,7 +729,7 @@ export function AnalysisStep() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto mb-12"
           >
-            <div className="p-8 rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="p-8 rounded-3xl bg-black backdrop-blur-xl border border-white/10 shadow-2xl">
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border-2 border-slate-200 shadow-lg">
                   {currentProduct.images[0] ? (
@@ -759,14 +759,14 @@ export function AnalysisStep() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <div className="p-8 rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl">
+          <div className="p-8 rounded-3xl bg-black backdrop-blur-xl border border-white/10 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <span className="text-lg font-bold text-white">Progression globale</span>
               <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                 {Math.round(progress)}%
               </span>
             </div>
-            <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <div className="h-4 bg-black rounded-full overflow-hidden border border-slate-700">
               <motion.div
                 className="h-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-full shadow-lg"
                 initial={{ width: 0 }}
@@ -807,7 +807,7 @@ export function AnalysisStep() {
                         ? 'bg-gradient-to-br from-[#00d4ff]/20 via-[#00c9b7]/10 to-slate-900 border-[#00d4ff] shadow-xl shadow-[#00d4ff]/20' 
                         : isPast 
                           ? 'bg-gradient-to-br from-[#00d4ff]/10 to-slate-900 border-[#00d4ff]/30' 
-                          : 'bg-slate-900/70 border-slate-800'
+                          : 'bg-black border-slate-800'
                       }
                     `}
                   >

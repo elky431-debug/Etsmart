@@ -258,7 +258,7 @@ export function NicheSelection() {
         >
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-2xl sm:rounded-3xl blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
-            <div className="relative bg-slate-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-white/10 shadow-2xl p-1.5 sm:p-2 group-hover:border-[#00d4ff]/30 transition-all duration-300">
+            <div className="relative bg-black backdrop-blur-xl rounded-2xl sm:rounded-3xl border-2 border-white/10 shadow-2xl p-1.5 sm:p-2 group-hover:border-[#00d4ff]/30 transition-all duration-300">
               <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-6">
                 <div className="flex-shrink-0">
                   <Search className="w-5 h-5 sm:w-6 sm:h-6 text-[#00d4ff]" />

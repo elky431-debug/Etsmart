@@ -417,7 +417,7 @@ export function ProductImport() {
         >
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] rounded-3xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
-            <div className="relative bg-slate-900/80 backdrop-blur-xl rounded-2xl border-2 border-white/10 shadow-xl p-4 sm:p-6 group-hover:border-[#00d4ff]/30 transition-all duration-300">
+            <div className="relative bg-black backdrop-blur-xl rounded-2xl border-2 border-white/10 shadow-xl p-4 sm:p-6 group-hover:border-[#00d4ff]/30 transition-all duration-300">
               <div className="text-center">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
@@ -449,7 +449,7 @@ export function ProductImport() {
                   className={`
                     inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base cursor-pointer transition-all w-full sm:w-auto justify-center btn-mobile
                     ${isLoadingImage
-                      ? 'bg-slate-800 text-white/40 cursor-not-allowed border-2 border-white/5'
+                      ? 'bg-black text-white/40 cursor-not-allowed border-2 border-white/5'
                       : 'bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] text-white shadow-xl shadow-[#00c9b7]/30 hover:shadow-[#00c9b7]/50'
                     }
                   `}
@@ -483,7 +483,7 @@ export function ProductImport() {
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-6"
                     >
-                      <div className="bg-slate-800/50 rounded-2xl p-6 border-2 border-white/10 backdrop-blur-sm">
+                      <div className="bg-black/50 rounded-2xl p-6 border-2 border-white/10 backdrop-blur-sm">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-white mb-2">
                             Exemple de capture d'écran valide
@@ -494,7 +494,7 @@ export function ProductImport() {
                             <span className="text-white/50 italic">Cet exemple est donné à titre indicatif uniquement.</span>
                           </p>
                         </div>
-                        <div className="relative rounded-xl overflow-hidden border-2 border-white/20 shadow-lg bg-slate-900/50">
+                        <div className="relative rounded-xl overflow-hidden border-2 border-white/20 shadow-lg bg-black">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src="/examples/screenshot-example.png"
@@ -575,7 +575,7 @@ export function ProductImport() {
           </div>
 
           {products.length === 0 ? (
-            <div className="py-24 text-center border-2 border-dashed border-white/20 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
+            <div className="py-24 text-center border-2 border-dashed border-white/20 rounded-3xl bg-black backdrop-blur-sm">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -598,7 +598,7 @@ export function ProductImport() {
                     type: 'spring',
                     stiffness: 100
                   }}
-                  className="group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-slate-900/80 backdrop-blur-xl border-2 border-white/10 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/20 transition-all duration-300 overflow-hidden"
+                  className="group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-black backdrop-blur-xl border-2 border-white/10 hover:border-[#00d4ff]/50 hover:shadow-xl hover:shadow-[#00d4ff]/20 transition-all duration-300 overflow-hidden"
                 >
                     {/* Shine effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -609,7 +609,7 @@ export function ProductImport() {
 
                     <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                       {/* Image */}
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-800 flex-shrink-0 border-2 border-white/10 shadow-sm">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-black flex-shrink-0 border-2 border-white/10 shadow-sm">
                         {products[0].images[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -672,7 +672,7 @@ export function ProductImport() {
                               </button>
                             </div>
                           )}
-                          <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 border border-white/10 text-[10px] sm:text-xs font-bold text-white/80 whitespace-nowrap">
+                          <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-black border border-white/10 text-[10px] sm:text-xs font-bold text-white/80 whitespace-nowrap">
                             {products[0].source === 'aliexpress' ? 'AliExpress' : 'Alibaba'}
                           </span>
                         </div>
@@ -713,7 +713,7 @@ export function ProductImport() {
             onClick={() => setStep(1)}
             whileHover={{ scale: 1.02, x: -2 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-slate-900/80 hover:bg-slate-800 border-2 border-white/10 hover:border-white/20 text-white font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
+            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl bg-black hover:bg-black border-2 border-white/10 hover:border-white/20 text-white font-semibold text-sm sm:text-base transition-all shadow-sm hover:shadow-md btn-mobile"
           >
             <ArrowLeft size={20} />
             Retour
@@ -738,7 +738,7 @@ export function ProductImport() {
               className={`
                 group relative w-full sm:w-auto px-6 sm:px-12 py-2.5 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-bold rounded-xl transition-all duration-300 overflow-hidden btn-mobile
                 ${products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading
-                  ? 'bg-slate-800 text-white/40 cursor-not-allowed border-2 border-white/5'
+                  ? 'bg-black text-white/40 cursor-not-allowed border-2 border-white/5'
                   : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60 border-2 border-transparent'
                 }
               `}
