@@ -181,7 +181,7 @@ function CreativePromptGenerator({
       {/* Prompt principal */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Prompt IA universel</span>
+          <span className="text-xs font-semibold text-[#00d4ff] uppercase tracking-wide">Prompt IA universel</span>
           <button
             onClick={copyToClipboard}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
