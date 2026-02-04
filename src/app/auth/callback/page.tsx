@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -44,7 +44,10 @@ function AuthCallbackContent() {
       try {
         console.log('🔄 Exchanging code for session (client-side)...');
         
-        // Exchange code for session using client-side Supabase
+        // Create SSR-compatible client that uses cookies for PKCE
+        const supabase = createClient();
+        
+        // Exchange code for session using SSR-compatible client
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (exchangeError) {
