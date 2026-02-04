@@ -573,10 +573,10 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center mb-2 sm:mb-3 ${
                           kpi.highlight ? 'bg-white/20' : 'bg-black border border-white/10'
                         }`}>
-                          <Icon size={isMobile ? 14 : 18} className={kpi.highlight ? 'text-white' : 'text-slate-600'} />
+                          <Icon size={isMobile ? 14 : 18} className={kpi.highlight ? 'text-white' : 'text-white/60'} />
                         </div>
-                        <p className={`text-base sm:text-xl font-bold mb-1 ${kpi.highlight ? 'text-white' : 'text-slate-900'}`}>{kpi.value}</p>
-                        <p className={`text-xs font-medium ${kpi.highlight ? 'text-white/80' : 'text-slate-500'}`}>{kpi.label}</p>
+                        <p className={`text-base sm:text-xl font-bold mb-1 ${kpi.highlight ? 'text-white' : 'text-white'}`}>{kpi.value}</p>
+                        <p className={`text-xs font-medium ${kpi.highlight ? 'text-white/80' : 'text-white/70'}`}>{kpi.label}</p>
                         <p className={`text-[10px] mt-0.5 ${kpi.highlight ? 'text-white/60' : 'text-slate-400'}`}>{kpi.sub}</p>
                       </div>
                     );
@@ -596,7 +596,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="p-4 rounded-lg bg-black border border-white/10">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                        <Info size={14} className="text-slate-600" />
+                        <Info size={14} className="text-white/60" />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-medium text-slate-700 mb-1">Méthodologie d'estimation</p>
