@@ -693,10 +693,17 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          typeof window !== 'undefined' && (
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1'
+                          )
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                            : 'bg-cyan-500'
+                        }`}>
                           <PenTool size={20} className="text-white" />
                         </div>
-                        <h2 className="text-base font-bold text-slate-900">Titre SEO optimisé</h2>
+                        <h2 className="text-base font-bold text-white">Titre SEO optimisé</h2>
                       </div>
                       <button
                         onClick={() => copyToClipboard(analysis.verdict.viralTitleEN!, 'title')}
@@ -801,8 +808,15 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                   <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <Hash size={20} className="text-cyan-500" />
-                        <h3 className="text-base font-bold text-slate-900">Tags Etsy ({analysis.verdict.seoTags.length}/13)</h3>
+                        <Hash size={20} className={`${
+                          typeof window !== 'undefined' && (
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1'
+                          )
+                            ? 'text-[#00d4ff]'
+                            : 'text-cyan-500'
+                        }`} />
+                        <h3 className="text-base font-bold text-white">Tags Etsy ({analysis.verdict.seoTags.length}/13)</h3>
                       </div>
                       <button
                         onClick={() => copyToClipboard(analysis.verdict.seoTags!.join(', '), 'tags')}
@@ -820,7 +834,14 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                       {analysis.verdict.seoTags.map((tag, i) => (
                         <span
                           key={i}
-                          className="px-3 py-1.5 bg-cyan-100 text-cyan-700 text-xs font-medium rounded-lg border border-cyan-200"
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${
+                            typeof window !== 'undefined' && (
+                              window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1'
+                            )
+                              ? 'bg-black border-[#00d4ff] text-[#00d4ff]'
+                              : 'bg-cyan-100 text-cyan-700 border-cyan-200'
+                          }`}
                         >
                           {tag}
                         </span>
