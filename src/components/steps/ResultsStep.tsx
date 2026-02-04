@@ -592,33 +592,47 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
 
                 {/* Recherche Etsy */}
                 {analysis.verdict.etsySearchQuery && (
-                  <div className="p-5 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          typeof window !== 'undefined' && (
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1'
+                          )
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                            : 'bg-indigo-500'
+                        }`}>
                           <Eye size={20} className="text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">Vision IA</h3>
-                          <p className="text-xs text-slate-500">Recherche optimisée pour Etsy</p>
+                          <h3 className="text-base font-bold text-white">Vision IA</h3>
+                          <p className="text-xs text-white/70">Recherche optimisée pour Etsy</p>
                         </div>
                       </div>
                       <a
                         href={`https://www.etsy.com/search?q=${encodeURIComponent(analysis.verdict.etsySearchQuery)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors"
+                        className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                          typeof window !== 'undefined' && (
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1'
+                          )
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90'
+                            : 'bg-indigo-500 hover:bg-indigo-600'
+                        }`}
                       >
                         <Search size={14} />
                         Voir sur Etsy
                       </a>
                     </div>
                     {analysis.verdict.productVisualDescription && (
-                      <p className="text-sm text-slate-600 italic mb-3">
+                      <p className="text-sm text-white/80 italic mb-3">
                         &quot;{analysis.verdict.productVisualDescription}&quot;
                       </p>
                     )}
-                    <div className="p-3 bg-white rounded-lg border border-indigo-200">
+                    <div className="p-3 bg-black border border-white/10 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Search size={16} className="text-[#00d4ff]" />
                         <span className="text-sm text-[#00d4ff] font-medium">{analysis.verdict.etsySearchQuery}</span>
