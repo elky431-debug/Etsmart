@@ -314,14 +314,14 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
       {/* Full Width Layout */}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Paramètres en haut */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div className="bg-black rounded-xl border border-white/10 mb-6">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">Génération d'images</h2>
+            <h2 className="text-xl font-bold text-white mb-6">Génération d'images</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* A. Input Source */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+              <label className="block text-sm font-bold text-white mb-3">
                 Image source
               </label>
               <div
@@ -366,11 +366,11 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                   </div>
                 ) : (
                   <>
-                    <Upload size={32} className="mx-auto mb-3 text-slate-400" />
-                    <p className="text-sm text-slate-600 mb-1">
+                    <Upload size={32} className="mx-auto mb-3 text-white/60" />
+                    <p className="text-sm text-white/80 mb-1">
                       Glissez-déposez une image ou cliquez pour sélectionner
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-white/60">
                       JPG / PNG • Max 10MB
                     </p>
                   </>
@@ -380,21 +380,21 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
 
             {/* B. Custom Instructions */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">
+              <label className="block text-sm font-bold text-white mb-2">
                 Instructions personnalisées (optionnel)
               </label>
               <textarea
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
                 placeholder="Describe specific details (optional)"
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 outline-none resize-none text-sm"
+                className="w-full px-4 py-3 rounded-lg border border-white/10 bg-black text-white placeholder-white/40 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 outline-none resize-none text-sm"
                 rows={3}
               />
             </div>
 
             {/* C. Quantity */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+              <label className="block text-sm font-bold text-white mb-3">
                 Quantité
               </label>
               <div className="grid grid-cols-1 gap-2">
@@ -409,7 +409,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
 
             {/* D. Aspect Ratio */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+              <label className="block text-sm font-bold text-white mb-3">
                 Format
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -420,7 +420,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                     className={`py-3 rounded-lg font-semibold text-sm transition-all ${
                       aspectRatio === ratio
                         ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
                     }`}
                   >
                     {ratio}
@@ -432,14 +432,14 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
 
             {/* F. Engine (Nanonbanana) */}
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-3">
+              <label className="block text-sm font-bold text-white mb-3">
                 Moteur
               </label>
-              <div className="p-4 rounded-lg bg-slate-100 border border-slate-200">
+              <div className="p-4 rounded-lg bg-black border border-white/10">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Nanonbanana</p>
-                    <p className="text-xs text-slate-500">Image-to-Image • Génération</p>
+                    <p className="text-sm font-semibold text-white">Nanonbanana</p>
+                    <p className="text-xs text-white/70">Image-to-Image • Génération</p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
                 </div>
@@ -486,12 +486,12 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
         </div>
 
         {/* RÉSULTATS - Full width en dessous */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-black rounded-xl border border-white/10">
           <div className="p-6">
             {/* Message d'erreur */}
             {error && (
-              <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm text-red-800">{error}</p>
+              <div className="mb-4 p-4 rounded-lg bg-black border border-red-500/50">
+                <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
             
@@ -505,10 +505,10 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                   className="min-h-[400px] flex flex-col items-center justify-center py-12"
                 >
                   <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
-                  <p className="text-lg font-semibold text-slate-900">
+                  <p className="text-lg font-semibold text-white">
                     Génération des images...
                   </p>
-                  <p className="text-sm text-slate-500 mt-2">
+                  <p className="text-sm text-white/70 mt-2">
                     Cela peut prendre quelques secondes
                   </p>
                 </motion.div>
@@ -520,7 +520,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                   className="space-y-4"
                 >
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-slate-900">
+                    <h3 className="text-xl font-bold text-white">
                       {generatedImages.length} image{generatedImages.length > 1 ? 's' : ''} générée{generatedImages.length > 1 ? 's' : ''}
                     </h3>
                   </div>
@@ -531,7 +531,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.1 }}
-                        className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                        className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
                       >
                         <div className="aspect-square relative">
                           <img
@@ -550,15 +550,15 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                           <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => setFullscreenImage(img.url)}
-                              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Maximize2 size={16} className="text-slate-700" />
+                              <Maximize2 size={16} className="text-white" />
                             </button>
                             <button
                               onClick={() => downloadImage(img.url, index)}
-                              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Download size={16} className="text-slate-700" />
+                              <Download size={16} className="text-white" />
                             </button>
                           </div>
                         </div>
