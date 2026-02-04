@@ -910,7 +910,7 @@ export function AnalysisStep() {
               flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm
               ${isAnalyzing
                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 hover:shadow-md'
+                : 'bg-black hover:bg-black border-2 border-white/10 hover:border-white/20 text-white hover:text-white'
               }
             `}
           >
