@@ -362,7 +362,11 @@ export default function HomePage() {
             {features.map((feature, index) => (
               <AnimatedCard key={feature.title} delay={index * 0.1}>
                 <div className="p-6 sm:p-8 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-12 h-12 rounded-lg bg-[#00d4ff] flex items-center justify-center mb-5">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-5 ${
+                    process.env.NODE_ENV === 'development' 
+                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]' 
+                      : 'bg-[#00d4ff]'
+                  }`}>
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
@@ -401,7 +405,11 @@ export default function HomePage() {
               ].map((item, index) => (
                 <AnimatedCard key={item.step} delay={index * 0.15}>
                   <div className="relative p-6 pt-10 rounded-lg border border-white/10 bg-white/5">
-                    <div className="absolute -top-5 left-6 w-10 h-10 rounded-lg bg-[#00d4ff] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30">
+                    <div className={`absolute -top-5 left-6 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
+                      process.env.NODE_ENV === 'development' 
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30' 
+                        : 'bg-[#00d4ff] shadow-[#00d4ff]/30'
+                    }`}>
                       <item.icon className="w-5 h-5 text-white" />
                     </div>
                     <div className="text-white/60 text-xs font-semibold mb-2">{item.step}</div>
@@ -452,7 +460,11 @@ export default function HomePage() {
                   <ul className="space-y-2 mb-6">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-center gap-2 text-white/80 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-[#00d4ff]" />
+                        <CheckCircle2 className={`w-4 h-4 ${
+                          process.env.NODE_ENV === 'development' 
+                            ? 'text-[#00c9b7]' 
+                            : 'text-[#00d4ff]'
+                        }`} />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -481,7 +493,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className="text-[#00d4ff] font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm">Témoignages</span>
+              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
+                process.env.NODE_ENV === 'development' 
+                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                  : 'text-[#00d4ff]'
+              }`}>Témoignages</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">Ils nous font confiance</h2>
             </div>
           </AnimatedSection>
@@ -492,12 +508,20 @@ export default function HomePage() {
                 <div className="p-6 rounded-lg border border-white/10 bg-white/5">
                   <div className="flex items-center gap-1 mb-4">
                     {Array.from({ length: t.rating }).map((_, i) => (
-                      <CheckCircle2 key={i} className="w-4 h-4 text-[#00d4ff]" />
+                      <CheckCircle2 key={i} className={`w-4 h-4 ${
+                        process.env.NODE_ENV === 'development' 
+                          ? 'text-[#00c9b7]' 
+                          : 'text-[#00d4ff]'
+                      }`} />
                     ))}
                   </div>
                   <p className="text-white/80 mb-4 text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-[#00d4ff] flex items-center justify-center text-white font-bold text-sm">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm ${
+                      process.env.NODE_ENV === 'development' 
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]' 
+                        : 'bg-[#00d4ff]'
+                    }`}>
                       {t.avatar}
                     </div>
                     <div>
