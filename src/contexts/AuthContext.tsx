@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
-import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, signInWithGoogle, resetPassword, updatePassword } from '@/lib/auth';
+import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, resetPassword, updatePassword } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -11,7 +11,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
 }
@@ -116,11 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/');
   };
 
-  const handleSignInWithGoogle = async () => {
-    await signInWithGoogle();
-    // Redirect will be handled by Supabase
-  };
-
   const handleResetPassword = async (email: string) => {
     await resetPassword(email);
   };
@@ -137,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp: handleSignUp,
         signIn: handleSignIn,
         signOut: handleSignOut,
-        signInWithGoogle: handleSignInWithGoogle,
         resetPassword: handleResetPassword,
         updatePassword: handleUpdatePassword,
       }}

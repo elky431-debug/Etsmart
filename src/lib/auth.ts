@@ -113,39 +113,6 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
   });
 }
 
-// Sign in with Google (OAuth)
-export async function signInWithGoogle() {
-  ensureSupabaseConfigured();
-  // Use client-side callback page instead of server route
-  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '/auth/callback';
-  
-  console.log('🔵 Starting Google OAuth flow');
-  console.log('Redirect to:', redirectTo);
-  
-  // Use SSR-compatible client for PKCE flow
-  const supabase = createClient();
-  
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
-    },
-  });
-
-  if (error) {
-    console.error('❌ Error starting OAuth flow:', error);
-    throw error;
-  }
-  
-  console.log('✅ OAuth flow started, redirecting to:', data.url);
-  // The redirect happens automatically via data.url
-  return data;
-}
-
 // Reset password
 export async function resetPassword(email: string) {
   ensureSupabaseConfigured();
