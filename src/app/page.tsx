@@ -164,10 +164,22 @@ export default function HomePage() {
                 <Logo size="md" showText={true} />
               </Link>
 
-              <nav className="hidden md:flex items-center gap-6 text-base font-medium text-white/90">
-                <a href="#features" className="hover:text-white transition-colors cursor-pointer">Fonctionnalités</a>
-                <a href="#how" className="hover:text-white transition-colors cursor-pointer">Comment ça marche</a>
-                <a href="#pricing" className="hover:text-white transition-colors cursor-pointer">Tarifs</a>
+              <nav className="hidden md:flex items-center gap-6 text-base font-medium">
+                <a href="#features" className={`transition-colors cursor-pointer ${
+                  process.env.NODE_ENV === 'development' 
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
+                    : 'text-white/90 hover:text-white'
+                }`}>Fonctionnalités</a>
+                <a href="#how" className={`transition-colors cursor-pointer ${
+                  process.env.NODE_ENV === 'development' 
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
+                    : 'text-white/90 hover:text-white'
+                }`}>Comment ça marche</a>
+                <a href="#pricing" className={`transition-colors cursor-pointer ${
+                  process.env.NODE_ENV === 'development' 
+                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
+                    : 'text-white/90 hover:text-white'
+                }`}>Tarifs</a>
               </nav>
 
               {/* CTA Desktop */}
@@ -320,7 +332,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className="text-[#00d4ff] font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm">Fonctionnalités</span>
+              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
+                process.env.NODE_ENV === 'development' 
+                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                  : 'text-[#00d4ff]'
+              }`}>Fonctionnalités</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">
                 Tout ce qu’il faut pour dominer sur Etsy
               </h2>
@@ -351,7 +367,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className="text-[#00d4ff] font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm">Comment ça marche</span>
+              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
+                process.env.NODE_ENV === 'development' 
+                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                  : 'text-[#00d4ff]'
+              }`}>Comment ça marche</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">
                 Analysez en 3 étapes
               </h2>
@@ -388,7 +408,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className="text-[#00d4ff] font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm">Tarifs</span>
+              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
+                process.env.NODE_ENV === 'development' 
+                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                  : 'text-[#00d4ff]'
+              }`}>Tarifs</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">Des tarifs transparents</h2>
               <p className="text-white/70 max-w-2xl mx-auto mt-3">
                 Commencez gratuitement, passez à la vitesse supérieure quand vous êtes prêt.
