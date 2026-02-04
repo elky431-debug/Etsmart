@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
-import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, signInWithGoogle, resetPassword, updatePassword } from '@/lib/auth';
+import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, resetPassword, updatePassword } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -11,7 +11,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
 }
@@ -19,8 +18,31 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Essayer de récupérer l'utilisateur depuis le cache Supabase d'abord (évite le flash de chargement)
+  const [user, setUser] = useState<User | null>(() => {
+    // Ne pas initialiser côté serveur
+    if (typeof window === 'undefined') return null;
+    // Essayer de récupérer depuis sessionStorage pour éviter le flash
+    try {
+      const cached = sessionStorage.getItem('etsmart-user-cached');
+      if (cached === 'true') {
+        // On a déjà chargé une fois, on peut retourner null temporairement
+        // Le vrai user sera chargé par getCurrentUser mais sans afficher de loader
+        return null;
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    // Si on a déjà chargé une fois dans cette session, ne pas afficher de loader
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('etsmart-user-cached');
+      return cached !== 'true';
+    }
+    return true;
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((user) => {
         setUser(user);
         setLoading(false);
+        // Marquer comme chargé dans cette session
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('etsmart-user-cached', 'true');
+        }
       })
       .catch((error) => {
         console.error('Error getting current user:', error);
@@ -37,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signOut().catch(() => {});
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+            sessionStorage.removeItem('etsmart-user-cached');
             router.push('/login');
           }
         }
@@ -113,11 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSignInWithGoogle = async () => {
-    await signInWithGoogle();
-    // Redirect will be handled by Supabase
-  };
-
   const handleResetPassword = async (email: string) => {
     await resetPassword(email);
   };
@@ -134,7 +156,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp: handleSignUp,
         signIn: handleSignIn,
         signOut: handleSignOut,
-        signInWithGoogle: handleSignInWithGoogle,
         resetPassword: handleResetPassword,
         updatePassword: handleUpdatePassword,
       }}
