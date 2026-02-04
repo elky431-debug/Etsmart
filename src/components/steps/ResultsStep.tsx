@@ -195,40 +195,40 @@ function CreativePromptGenerator({
           </button>
         </div>
         <div className="p-4 bg-black rounded-lg border border-white/10 max-h-64 overflow-y-auto">
-          <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+          <pre className="text-xs text-white whitespace-pre-wrap font-mono leading-relaxed">
             {prompt}
           </pre>
         </div>
-        <p className="mt-2 text-[10px] text-slate-500 italic">
+        <p className="mt-2 text-[10px] text-white/70 italic">
           ⚠️ Ce prompt universel et fixe fonctionne pour tous les produits. Utilisez-le avec votre photo de produit dans n'importe quel outil de génération d'images IA.
         </p>
       </div>
 
       {/* Instructions d'utilisation */}
       <div className="p-4 bg-black rounded-lg border border-white/10">
-        <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <Info size={14} className="text-violet-500" />
+        <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+          <Info size={14} className="text-[#00d4ff]" />
           Comment utiliser ce prompt ?
         </h4>
-        <ol className="space-y-2 text-xs text-slate-600">
+        <ol className="space-y-2 text-xs text-white/80">
           <li className="flex items-start gap-2">
-            <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">1</span>
+            <span className="w-5 h-5 rounded-full bg-black border border-[#00d4ff] text-[#00d4ff] flex items-center justify-center flex-shrink-0 font-bold text-[10px]">1</span>
             <span>Copiez le prompt ci-dessus</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
+            <span className="w-5 h-5 rounded-full bg-black border border-[#00d4ff] text-[#00d4ff] flex items-center justify-center flex-shrink-0 font-bold text-[10px]">2</span>
             <span>Ouvrez ChatGPT, Midjourney ou autre IA d'images</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
+            <span className="w-5 h-5 rounded-full bg-black border border-[#00d4ff] text-[#00d4ff] flex items-center justify-center flex-shrink-0 font-bold text-[10px]">3</span>
             <span>Importez votre photo de produit</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center flex-shrink-0 font-bold text-[10px]">4</span>
+            <span className="w-5 h-5 rounded-full bg-black border border-[#00d4ff] text-[#00d4ff] flex items-center justify-center flex-shrink-0 font-bold text-[10px]">4</span>
             <span>Collez le prompt et générez l'image</span>
           </li>
         </ol>
-        <p className="mt-3 text-[10px] text-slate-500 italic">
+        <p className="mt-3 text-[10px] text-white/70 italic">
           Ce prompt universel est conçu pour produire des images produit réalistes et de haute qualité style Etsy. 
           Le prompt est fixe et immuable - il fonctionne pour tous les produits sans modification. 
           Aucun texte ou logo ne sera ajouté à l'image générée.
