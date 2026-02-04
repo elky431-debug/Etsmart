@@ -108,6 +108,7 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 // Sign in with Google (OAuth)
 export async function signInWithGoogle() {
   ensureSupabaseConfigured();
+  // Use client-side callback page instead of server route
   const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '/auth/callback';
   
   console.log('🔵 Starting Google OAuth flow');
@@ -130,6 +131,7 @@ export async function signInWithGoogle() {
   }
   
   console.log('✅ OAuth flow started, redirecting to:', data.url);
+  // The redirect happens automatically via data.url
   return data;
 }
 
