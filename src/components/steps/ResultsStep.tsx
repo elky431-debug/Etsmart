@@ -657,7 +657,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
                       activeSubTab === 'listing'
                         ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
-                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
+                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-black'
                     }`}
                   >
                     Listing
@@ -667,7 +667,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
                       activeSubTab === 'image'
                         ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
-                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
+                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-black'
                     }`}
                   >
                     Image
@@ -995,7 +995,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                         className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00d4ff] focus:ring-offset-2 ${
                           useEtsyAds
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                            : 'bg-slate-300'
+                            : 'bg-black border border-white/10'
                         }`}
                       >
                         <span
@@ -1518,7 +1518,7 @@ export function ResultsStep() {
         <div className="w-full flex items-center justify-between">
           <button
             onClick={() => setStep(2)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-50 hover:bg-black border border-white/10 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-sm transition-all shadow-sm hover:shadow-md"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black hover:bg-black border border-white/10 hover:border-white/20 text-white hover:text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md"
           >
             <ArrowLeft size={18} />
             Retour à l&apos;import

@@ -483,7 +483,7 @@ export function ProductImport() {
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-6"
                     >
-                      <div className="bg-black/50 rounded-2xl p-6 border-2 border-white/10 backdrop-blur-sm">
+                      <div className="bg-black rounded-2xl p-6 border-2 border-white/10 backdrop-blur-sm">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-white mb-2">
                             Exemple de capture d'écran valide
@@ -776,7 +776,7 @@ export function ProductImport() {
             href="/"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 transition-all text-xs font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black hover:bg-black border border-white/10 hover:border-white/20 text-white hover:text-white transition-all text-xs font-medium"
           >
             <Home size={12} />
             <span>Accueil</span>
@@ -791,7 +791,7 @@ export function ProductImport() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black backdrop-blur-sm"
             onClick={() => setShowPaywall(false)}
           >
             <motion.div
@@ -817,7 +817,7 @@ export function ProductImport() {
               <div className="mt-4 text-center">
                 <button
                   onClick={() => setShowPaywall(false)}
-                  className="px-6 py-3 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-6 py-3 bg-black text-white font-semibold rounded-xl hover:bg-black border border-white/10 transition-colors"
                 >
                   Retour au tableau de bord
                 </button>

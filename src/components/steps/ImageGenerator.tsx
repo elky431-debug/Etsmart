@@ -310,7 +310,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-black">
       {/* Full Width Layout */}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Paramètres en haut */}
@@ -333,7 +333,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
                 className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
                   isDragging
                     ? 'border-[#00d4ff] bg-[#00d4ff]/5'
-                    : 'border-slate-300 hover:border-slate-400 bg-slate-50'
+                    : 'border-slate-300 hover:border-slate-400 bg-black'
                 }`}
               >
                 <input

@@ -731,7 +731,7 @@ export function AnalysisStep() {
           >
             <div className="p-8 rounded-3xl bg-black backdrop-blur-xl border border-white/10 shadow-2xl">
               <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border-2 border-slate-200 shadow-lg">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-black border border-white/10 flex-shrink-0 border-2 border-white/10 shadow-lg">
                   {currentProduct.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={currentProduct.images[0]} alt="" className="w-full h-full object-cover" />
@@ -832,7 +832,7 @@ export function AnalysisStep() {
                           ? 'bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/30' 
                           : isPast 
                             ? 'bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20' 
-                            : 'bg-slate-100'
+                            : 'bg-black border border-white/10'
                         }
                       `}>
                         {isActive ? (
@@ -909,7 +909,7 @@ export function AnalysisStep() {
             className={`
               flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm
               ${isAnalyzing
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                ? 'bg-black border border-white/10 text-slate-400 cursor-not-allowed'
                 : 'bg-black hover:bg-black border-2 border-white/10 hover:border-white/20 text-white hover:text-white'
               }
             `}

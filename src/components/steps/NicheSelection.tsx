@@ -372,7 +372,7 @@ export function NicheSelection() {
               group relative w-full sm:w-auto px-6 sm:px-16 py-2.5 sm:py-4 md:py-6 text-sm sm:text-lg md:text-xl font-bold rounded-xl sm:rounded-2xl transition-all duration-300 overflow-hidden btn-mobile
               ${canContinue 
                 ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60' 
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-black border border-white/10 text-slate-400 cursor-not-allowed'
               }
             `}
           >
