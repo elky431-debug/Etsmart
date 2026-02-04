@@ -322,8 +322,8 @@ export function NicheSelection() {
               exit={{ opacity: 0, height: 0 }}
               className="max-w-2xl mx-auto mb-12"
             >
-              <div className="p-8 rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-[#00d4ff]/30 shadow-2xl">
-                <label className="block text-lg font-bold text-slate-900 mb-4">
+              <div className="p-8 rounded-3xl bg-black border-2 border-[#00d4ff]/30">
+                <label className="block text-lg font-bold text-white mb-4">
                   Décrivez votre niche personnalisée
                 </label>
                 <input
