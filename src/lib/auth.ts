@@ -1,5 +1,4 @@
-import { isSupabaseConfigured } from './supabase';
-import { createClient } from './supabase-client';
+import { supabase, isSupabaseConfigured } from './supabase';
 import type { User } from '@supabase/supabase-js';
 
 export interface AuthUser {
@@ -18,7 +17,6 @@ function ensureSupabaseConfigured() {
 // Sign up with email and password
 export async function signUp(email: string, password: string, fullName?: string) {
   ensureSupabaseConfigured();
-  const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -40,8 +38,7 @@ export async function signUp(email: string, password: string, fullName?: string)
       // Small delay to let trigger execute first
       setTimeout(async () => {
         try {
-          const supabaseClient = createClient();
-          await supabaseClient
+          await supabase
             .from('users')
             .insert({
               id: data.user!.id,
@@ -63,7 +60,6 @@ export async function signUp(email: string, password: string, fullName?: string)
 // Sign in with email and password
 export async function signIn(email: string, password: string) {
   ensureSupabaseConfigured();
-  const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -76,7 +72,6 @@ export async function signIn(email: string, password: string) {
 // Sign out
 export async function signOut() {
   if (!isSupabaseConfigured()) return;
-  const supabase = createClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
@@ -84,7 +79,6 @@ export async function signOut() {
 // Get current user
 export async function getCurrentUser(): Promise<User | null> {
   if (!isSupabaseConfigured()) return null;
-  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
@@ -92,7 +86,6 @@ export async function getCurrentUser(): Promise<User | null> {
 // Get current session
 export async function getSession() {
   if (!isSupabaseConfigured()) return null;
-  const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 }
@@ -107,7 +100,6 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
       data: { subscription: { unsubscribe: () => {} } }
     };
   }
-  const supabase = createClient();
   return supabase.auth.onAuthStateChange((_event, session) => {
     callback(session?.user ?? null);
   });
@@ -116,7 +108,6 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 // Reset password
 export async function resetPassword(email: string) {
   ensureSupabaseConfigured();
-  const supabase = createClient();
   const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : '/reset-password';
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
@@ -128,7 +119,6 @@ export async function resetPassword(email: string) {
 // Update password
 export async function updatePassword(newPassword: string) {
   ensureSupabaseConfigured();
-  const supabase = createClient();
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
   });
