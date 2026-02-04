@@ -800,8 +800,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                           <p className="text-sm text-slate-600 mb-2">
                             Vous pouvez copier et utiliser directement dans votre fiche produit.
                           </p>
-                          <div className="p-4 bg-white rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
-                            <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                          <div className="p-4 bg-black rounded-lg border border-white/10 max-h-96 overflow-y-auto">
+                            <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
                               {etsyDescription}
                             </pre>
                           </div>
@@ -1066,7 +1066,7 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                     <div className={`p-6 rounded-xl border-2 ${
                       useEtsyAds
                         ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-transparent shadow-lg shadow-[#00d4ff]/30'
-                        : 'bg-white border-[#00d4ff] shadow-lg shadow-[#00d4ff]/20'
+                        : 'bg-black border-[#00d4ff]'
                     }`}>
                       <div className="flex items-center gap-3 mb-4">
                         {useEtsyAds ? (
@@ -1469,7 +1469,7 @@ export function ResultsStep() {
   // Ne pas afficher de loader si on a déjà chargé dans cette session
   if (isLoading && !hasAnyData && !hasLoadedInSession) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
           <p className="text-xl text-slate-900 mb-4">Chargement de l'analyse...</p>
@@ -1484,7 +1484,7 @@ export function ResultsStep() {
   
   if (!hasAnyAnalysis) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <Package className="w-16 h-16 text-slate-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Aucune analyse trouvée</h2>
@@ -1507,7 +1507,7 @@ export function ResultsStep() {
   
   if (!analysisToShow) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin mx-auto mb-4" />
           <p className="text-xl text-slate-900 mb-4">Chargement de l'analyse...</p>
@@ -1575,7 +1575,7 @@ export function ResultsStep() {
       </div>
 
       {/* Bouton Retour visible */}
-      <div className="fixed top-[76px] left-0 right-0 z-40 bg-white border-b border-slate-100 px-4 sm:px-6 lg:px-8 py-3">
+      <div className="fixed top-[76px] left-0 right-0 z-40 bg-black border-b border-white/10 px-4 sm:px-6 lg:px-8 py-3">
         <div className="w-full flex items-center justify-between">
           <button
             onClick={() => setStep(2)}
@@ -1596,7 +1596,7 @@ export function ResultsStep() {
       </div>
 
       {/* En-tête produit */}
-      <div className="pt-[140px] bg-white border-b border-slate-200 py-4 px-4 sm:px-6 lg:px-8">
+      <div className="pt-[140px] bg-black border-b border-white/10 py-4 px-4 sm:px-6 lg:px-8">
         <div className="w-full">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-black border border-white/10 flex-shrink-0 border border-slate-200">
