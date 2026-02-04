@@ -47,41 +47,26 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
   const explanationFR = useMemo(() => getExplanationFR(score.score), [score.score]);
   const justificationFR = useMemo(() => getJustificationFR(score.score), [score.score]);
 
-  // Couleurs dynamiques basées sur le score
+  // Couleurs dynamiques basées sur le score pour le contour
   // 0-3: Rouge, 4-6: Orange, 7-10: Vert
   const getScoreColors = () => {
     if (score.score <= 3) {
       return {
-        bg: 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-white',
-        border: 'border-red-500/30',
-        shadow: 'shadow-red-500/20',
-        glow: 'bg-gradient-to-r from-red-500/20 to-red-400/20',
-        iconBg: 'bg-gradient-to-br from-red-500 to-red-600',
-        text: 'text-slate-800',
-        badgeBg: 'bg-white/90 border-red-500/30 text-slate-800',
+        border: 'border-red-500',
         scoreText: 'text-red-500',
+        text: 'text-white',
       };
     } else if (score.score <= 6) {
       return {
-        bg: 'bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-white',
-        border: 'border-orange-500/30',
-        shadow: 'shadow-orange-500/20',
-        glow: 'bg-gradient-to-r from-orange-500/20 to-amber-400/20',
-        iconBg: 'bg-gradient-to-br from-orange-500 to-amber-500',
-        text: 'text-slate-800',
-        badgeBg: 'bg-white/90 border-orange-500/30 text-slate-800',
+        border: 'border-orange-500',
         scoreText: 'text-orange-500',
+        text: 'text-white',
       };
     } else {
       return {
-        bg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white',
-        border: 'border-emerald-500/30',
-        shadow: 'shadow-emerald-500/20',
-        glow: 'bg-gradient-to-r from-emerald-500/20 to-green-400/20',
-        iconBg: 'bg-gradient-to-br from-emerald-500 to-green-500',
-        text: 'text-slate-800',
-        badgeBg: 'bg-white/90 border-emerald-500/30 text-slate-800',
+        border: 'border-emerald-500',
         scoreText: 'text-emerald-500',
+        text: 'text-white',
       };
     }
   };
@@ -111,11 +96,8 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.5, type: 'spring' }}
-      className={`relative overflow-hidden p-8 rounded-3xl border-2 shadow-xl ${colors.bg} ${colors.border} ${colors.shadow}`}
+      className={`relative overflow-hidden p-8 rounded-3xl border-2 bg-black ${colors.border}`}
     >
-      {/* Effet de glow */}
-      <div className={`absolute inset-0 opacity-20 ${colors.glow} blur-3xl`} />
-      
       <div className="relative z-10">
         {/* Header */}
         <div className="flex items-start mb-6">
@@ -124,20 +106,20 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${
                 typeof window !== 'undefined' && (
                   window.location.hostname === 'localhost' || 
                   window.location.hostname === '127.0.0.1'
                 )
                   ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                  : colors.iconBg
+                  : colors.border.replace('border-', 'bg-')
               }`}
             >
               {getIcon()}
             </motion.div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-1">Score de potentiel</h2>
-              <p className="text-sm text-slate-600">Évaluation des opportunités de marché</p>
+              <h2 className="text-xl font-bold text-white mb-1">Score de potentiel</h2>
+              <p className="text-sm text-white/70">Évaluation des opportunités de marché</p>
             </div>
           </div>
         </div>
@@ -153,7 +135,7 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             >
               {score.score.toFixed(1)}
             </motion.span>
-            <span className="text-2xl font-bold text-slate-400">/ 10</span>
+            <span className="text-2xl font-bold text-white/50">/ 10</span>
           </div>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -169,11 +151,11 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55 }}
-            className="p-4 rounded-xl bg-gradient-to-r from-[#00d4ff]/5 to-[#00c9b7]/5 border border-[#00d4ff]/20 mb-4"
+            className="p-4 rounded-xl bg-black border border-white/10 mb-4"
           >
             <div className="flex items-start gap-2">
               <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-slate-700 leading-relaxed">
+              <p className="text-sm text-white/90 leading-relaxed">
                 {justificationFR}
               </p>
             </div>
@@ -183,7 +165,7 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-sm text-slate-600 leading-relaxed"
+            className="text-sm text-white/80 leading-relaxed"
           >
             {explanationFR}
           </motion.p>
@@ -194,9 +176,9 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="p-4 rounded-lg bg-slate-50 border border-slate-200"
+          className="p-4 rounded-lg bg-black border border-white/10"
         >
-          <p className="text-xs text-slate-600 leading-relaxed italic">
+          <p className="text-xs text-white/70 leading-relaxed italic">
             Ce score reflète une évaluation globale de la saturation du marché et de la concurrence dans la niche du produit. 
             C'est une estimation destinée à faciliter la prise de décision et ne garantit pas les résultats.
           </p>
