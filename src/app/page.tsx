@@ -379,7 +379,7 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section id="how" className="py-16 sm:py-28 bg-[#0b0b0b]">
+      <section id="how" className="py-16 sm:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
@@ -489,7 +489,7 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" className="py-16 sm:py-28 bg-[#0b0b0b]">
+      <section id="testimonials" className="py-16 sm:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
@@ -570,7 +570,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 border-t border-white/5 bg-[#0b0b0b]">
+      <footer className="py-10 border-t border-white/5 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <Link 
             href="/" 

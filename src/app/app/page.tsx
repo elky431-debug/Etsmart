@@ -90,7 +90,7 @@ export default function AppPage() {
 
   if (loading || subscriptionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center px-4">
           <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
           <p className="mt-4 text-sm sm:text-base text-slate-600">Loading...</p>
@@ -110,9 +110,9 @@ export default function AppPage() {
   // Protection contre les erreurs de rendu
   try {
     return (
-      <div className="min-h-screen flex flex-col bg-white">
+      <div className="min-h-screen flex flex-col bg-black">
         {/* Stepper en haut - très fin */}
-        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10">
           <Stepper />
         </div>
         
@@ -135,7 +135,7 @@ export default function AppPage() {
     // Fallback en cas d'erreur
     console.error('Error rendering AppPage:', error);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center px-4">
           <p className="text-sm text-slate-600">Une erreur est survenue. Veuillez rafraîchir la page.</p>
         </div>
