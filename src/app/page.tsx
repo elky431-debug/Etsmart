@@ -230,7 +230,7 @@ export default function HomePage() {
                   e.stopPropagation();
                   setMobileMenuOpen(prev => !prev);
                 }}
-                className="md:hidden w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center active:scale-95 transition-all duration-100 cursor-pointer"
+                className="md:hidden w-9 h-9 rounded-lg bg-transparent border border-white/5 hover:border-white/10 flex items-center justify-center active:scale-95 transition-all duration-100 cursor-pointer"
                 aria-label="Toggle menu"
                 type="button"
               >
@@ -251,7 +251,7 @@ export default function HomePage() {
               className="fixed inset-0 bg-black/60 z-40 md:hidden"
             />
             <div
-              className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm bg-black/80 border border-white/10 rounded-lg z-50 md:hidden overflow-hidden"
+              className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm bg-black/80 border border-white/5 rounded-lg z-50 md:hidden overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 space-y-4">
@@ -274,7 +274,7 @@ export default function HomePage() {
                 ) : (
                   <>
                     <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                      <button className="w-full px-4 py-3 border border-white/30 text-white font-semibold rounded-lg cursor-pointer">
+                      <button className="w-full px-4 py-3 border border-white/10 text-white font-semibold rounded-lg cursor-pointer">
                         Connexion
                       </button>
                     </Link>
@@ -361,7 +361,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {features.map((feature, index) => (
               <AnimatedCard key={feature.title} delay={index * 0.1}>
-                <div className="p-6 sm:p-8 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="p-6 sm:p-8 rounded-lg border border-white/5 bg-transparent hover:border-white/10 transition-colors">
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-5 ${
                     process.env.NODE_ENV === 'development' 
                       ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]' 
@@ -396,7 +396,7 @@ export default function HomePage() {
 
           <div className="relative">
             {/* Ligne conductrice */}
-            <div className="hidden md:block absolute top-8 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="hidden md:block absolute top-8 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 { step: '01', icon: ShoppingBag, title: 'Choisissez votre niche', description: 'Sélectionnez une niche ou entrez la vôtre.' },
@@ -404,7 +404,7 @@ export default function HomePage() {
                 { step: '03', icon: Sparkles, title: 'Obtenez votre verdict', description: 'Notre IA vous donne un verdict clair et actionnable.' },
               ].map((item, index) => (
                 <AnimatedCard key={item.step} delay={index * 0.15}>
-                  <div className="relative p-6 pt-10 rounded-lg border border-white/10 bg-white/5">
+                  <div className="relative p-6 pt-10 rounded-lg border border-white/5 bg-transparent">
                     <div className={`absolute -top-5 left-6 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
                       process.env.NODE_ENV === 'development' 
                         ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30' 
@@ -449,7 +449,7 @@ export default function HomePage() {
               <AnimatedCard key={plan.name} delay={index * 0.15}>
                 <div
                   className={`p-6 rounded-lg border ${
-                    plan.popular ? 'border-[#00d4ff] bg-white/10' : 'border-white/10 bg-white/5'
+                    plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
                   }`}
                 >
                   <h3 className="text-lg font-semibold text-white mb-2">{plan.name}</h3>
@@ -505,7 +505,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t, index) => (
               <AnimatedCard key={t.name} delay={index * 0.1}>
-                <div className="p-6 rounded-lg border border-white/10 bg-white/5">
+                <div className="p-6 rounded-lg border border-white/5 bg-transparent">
                   <div className="flex items-center gap-1 mb-4">
                     {Array.from({ length: t.rating }).map((_, i) => (
                       <CheckCircle2 key={i} className={`w-4 h-4 ${
@@ -570,7 +570,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 border-t border-white/10 bg-[#0b0b0b]">
+      <footer className="py-10 border-t border-white/5 bg-[#0b0b0b]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <Link 
             href="/" 
