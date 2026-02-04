@@ -1516,18 +1516,6 @@ export function ResultsStep() {
         </div>
       </div>
 
-      {/* Message obligatoire selon cahier des charges */}
-      <div className="max-w-7xl mx-auto px-6 mb-6">
-        <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-200">
-          <div className="flex items-start gap-3">
-            <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-800 font-medium">
-              <strong>Important :</strong> Toutes les analyses sont basées sur la capture d'écran fournie et les données publiques du marché. Les résultats sont des estimations et ne sont pas garantis.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <ProductAnalysisView analysis={analysisToShow} />
     </div>
   );
