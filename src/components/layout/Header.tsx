@@ -13,7 +13,7 @@ export function Header() {
   return (
     <header className="fixed top-12 sm:top-12 left-0 right-0 z-40">
       <div className="mx-2 sm:mx-4 mt-1 sm:mt-2">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 bg-black border border-white/10 rounded-lg sm:rounded-xl">
           <div className="flex items-center justify-between">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
