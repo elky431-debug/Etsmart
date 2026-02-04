@@ -614,7 +614,7 @@ export function AnalysisStep() {
   // Show QuotaExceeded modal if user has subscription but no quota
   if (showQuotaExceeded && subscription) {
     return (
-      <div className="min-h-screen w-full relative overflow-hidden bg-slate-50">
+      <div className="min-h-screen w-full relative overflow-hidden bg-black">
         <QuotaExceeded
           currentPlan={subscription.plan}
           used={subscription.used}
