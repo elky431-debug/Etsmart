@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
-import { Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Sparkles, AlertCircle, CheckCircle2, XCircle, Info } from 'lucide-react';
 import type { LaunchPotentialScore as LaunchPotentialScoreType } from '@/types';
 
 interface LaunchPotentialScoreProps {
@@ -89,13 +89,8 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
   const colors = getScoreColors();
 
   const getIcon = () => {
-    if (score.score > 6) {
-      return <CheckCircle2 size={32} className="text-white" />;
-    } else if (score.score > 3) {
-      return <AlertCircle size={32} className="text-white" />;
-    } else {
-      return <XCircle size={32} className="text-white" />;
-    }
+    // Toujours utiliser Info avec texte blanc pour être visible sur le fond dégradé
+    return <Info size={32} className="text-white" />;
   };
 
   return (
@@ -116,7 +111,14 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${colors.iconBg}`}
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${
+                typeof window !== 'undefined' && (
+                  window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1'
+                )
+                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                  : colors.iconBg
+              }`}
             >
               {getIcon()}
             </motion.div>
