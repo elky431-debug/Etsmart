@@ -662,7 +662,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
               <div className="p-6 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Trending Monthly Searches</h2>
+                  <h2 className="text-2xl font-bold text-white">Recherches Mensuelles Tendances</h2>
                   <button className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
                     <HelpCircle size={16} className="text-white/70" />
                   </button>
@@ -673,9 +673,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-white/10">
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rank</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Search Phrase</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Change</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Expression de Recherche</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Évolution</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -711,7 +711,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
               {/* Pagination */}
               <div className="p-4 border-t border-white/10 flex items-center justify-between bg-white/5">
                 <p className="text-sm text-white/70">
-                  Page {currentPage} of {totalPages} - <span className="text-orange-400">upgrade to unlock more pages</span>
+                  Page {currentPage} sur {totalPages} - <span className="text-orange-400">mettre à niveau pour débloquer plus de pages</span>
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -724,7 +724,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     }`}
                   >
                     <ChevronLeft size={16} className="inline mr-1" />
-                    Previous
+                    Précédent
                   </button>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -735,7 +735,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         : 'bg-white/10 text-white hover:bg-white/20'
                     }`}
                   >
-                    Next
+                    Suivant
                     <ChevronRight size={16} className="inline ml-1" />
                   </button>
                 </div>
@@ -744,7 +744,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
             {/* Upcoming Events */}
             <div>
-              <h2 className="text-2xl font-bold text-white mb-6">Upcoming Events</h2>
+              <h2 className="text-2xl font-bold text-white mb-6">Événements à Venir</h2>
               <div className="overflow-x-auto pb-4">
                 <div className="flex gap-4 min-w-max">
                   {upcomingEvents.map((event, index) => (
