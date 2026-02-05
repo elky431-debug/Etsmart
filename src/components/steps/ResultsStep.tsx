@@ -42,6 +42,7 @@ import { Logo } from '@/components/ui';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useRouter } from 'next/navigation';
 import { 
   formatCurrency, 
   getPhaseLabel,
@@ -841,6 +842,8 @@ export function ResultsStep() {
   const [isLoading, setIsLoading] = useState(() => storeAnalyses.length === 0);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const { subscription } = useSubscription();
+  const router = useRouter();
+  const hasRedirectedRef = useRef(false);
   
   // Charger les analyses depuis la DB au montage UNE SEULE FOIS
   // Ne pas recharger si on revient sur l'onglet (évite les rechargements inutiles)
@@ -990,6 +993,21 @@ export function ResultsStep() {
       setHasLoadedOnce(true);
     }
   }, [storeAnalyses, hasLoadedOnce]);
+
+  // ⚠️ AUTO-REDIRECT: Rediriger automatiquement vers la page de listing une fois l'analyse terminée
+  useEffect(() => {
+    // Attendre que l'analyse soit chargée et sauvegardée
+    if (!hasLoadedOnce || isLoading || hasRedirectedRef.current) return;
+    
+    // Si on a au moins une analyse, rediriger vers la page de listing
+    if (storeAnalyses.length > 0 || dbAnalyses.length > 0) {
+      hasRedirectedRef.current = true;
+      // Attendre un court délai pour que l'UI se mette à jour, puis rediriger
+      setTimeout(() => {
+        router.push('/dashboard?section=listing');
+      }, 1500); // 1.5 secondes pour que l'utilisateur voie brièvement les résultats
+    }
+  }, [hasLoadedOnce, isLoading, storeAnalyses.length, dbAnalyses.length, router]);
   
   // Récupérer le produit actuel du store pour identifier l'analyse à afficher
   const { products: currentProducts } = useStore();

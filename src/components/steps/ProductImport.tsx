@@ -62,6 +62,23 @@ export function ProductImport() {
     }
   }, [user?.id]); // Only depend on user.id to avoid re-triggering
 
+  // ⚠️ AUTO-LAUNCH: Surveiller quand le prix est ajouté et lancer automatiquement l'analyse
+  const hasAutoLaunchedRef = useRef(false);
+  useEffect(() => {
+    // Si on a un produit avec un prix > 0 et qu'on n'a pas encore lancé l'analyse automatiquement
+    if (products.length > 0 && products[0].price > 0 && !hasAutoLaunchedRef.current) {
+      // Vérifier qu'on est toujours à l'étape 2 (import)
+      const currentStep = useStore.getState().currentStep;
+      if (currentStep === 2) {
+        hasAutoLaunchedRef.current = true;
+        // Attendre un court délai pour que l'UI se mette à jour
+        setTimeout(() => {
+          setStep(3); // Passer à l'étape d'analyse qui lancera automatiquement l'analyse
+        }, 500);
+      }
+    }
+  }, [products, setStep]);
+
   // Handle Analyze button click - check subscription before proceeding
   const handleAnalyzeClick = async () => {
     // Check if user is authenticated
@@ -293,6 +310,15 @@ export function ProductImport() {
         
         // Reset file input
         e.target.value = '';
+        
+        // ⚠️ AUTO-LAUNCH: Si le produit a un prix, lancer automatiquement l'analyse
+        if (data.product.price > 0) {
+          // Attendre un court délai pour que le produit soit bien ajouté au store
+          setTimeout(() => {
+            setStep(3); // Passer à l'étape d'analyse qui lancera automatiquement l'analyse
+          }, 500);
+        }
+        // Si le prix est 0, on attendra que l'utilisateur l'ajoute (voir useEffect ci-dessous)
       } else {
         // Extraire le message d'erreur
         const errorMessage = data.message || data.error || 'Impossible d\'extraire les informations de la capture d\'écran. Essayez de prendre une photo plus claire de la page produit.';
