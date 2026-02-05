@@ -271,14 +271,13 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
     setError('');
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const imageData = event.target?.result as string;
-        console.log('[ListingProductImport] Image uploaded, setting uploadedImage:', imageData ? 'Image data received' : 'No image data');
-        setUploadedImage(imageData);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const imageData = event.target?.result as string;
+          console.log('[ListingProductImport] Image uploaded, setting uploadedImage:', imageData ? 'Image data received' : 'No image data');
+          setUploadedImage(imageData);
 
-        // ⚠️ CRITICAL: En mode 'images', parser automatiquement l'image et rediriger vers la page de génération
-        if (mode === 'images') {
+          // ⚠️ CRITICAL: Parser automatiquement l'image pour les deux modes ('listing' et 'images')
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
@@ -313,7 +312,7 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
 
             const product = parseData.product;
 
-            // Créer une analyse minimale pour la génération d'images
+            // Créer une analyse minimale pour la génération (listing ou images)
             const minimalAnalysis = createMinimalAnalysis(product);
             
             // Mettre à jour l'analyse et le produit pour afficher la page de génération
@@ -323,18 +322,21 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
             if (onProductImported) {
               onProductImported(product);
             }
+            
+            console.log('[ListingProductImport] ✅ Produit parsé avec succès, analyse minimale créée');
           } catch (parseError: any) {
-            console.error('Error parsing image:', parseError);
+            console.error('[ListingProductImport] ❌ Error parsing image:', parseError);
             setError(parseError.message || 'Erreur lors de l\'analyse de l\'image');
+            setIsLoadingImage(false);
           }
-        }
-      };
-      reader.readAsDataURL(file);
+        };
+        reader.readAsDataURL(file);
 
       e.target.value = '';
-      setIsLoadingImage(false);
+      // Ne pas mettre setIsLoadingImage(false) ici car le parsing est asynchrone
+      // setIsLoadingImage sera mis à false dans le catch du parsing
     } catch (err: any) {
-      console.error('Error uploading image:', err);
+      console.error('[ListingProductImport] ❌ Error uploading image:', err);
       setError(err.message || 'Erreur lors de l\'upload de l\'image');
       setIsLoadingImage(false);
     }
