@@ -169,39 +169,21 @@ export default function HomePage() {
               </Link>
 
               <nav className="hidden md:flex items-center gap-6 text-base font-medium">
-                <a href="#features" className={`transition-colors cursor-pointer ${
-                  process.env.NODE_ENV === 'development' 
-                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
-                    : 'text-white/90 hover:text-white'
-                }`}>Fonctionnalités</a>
-                <a href="#how" className={`transition-colors cursor-pointer ${
-                  process.env.NODE_ENV === 'development' 
-                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
-                    : 'text-white/90 hover:text-white'
-                }`}>Comment ça marche</a>
-                <a href="#pricing" className={`transition-colors cursor-pointer ${
-                  process.env.NODE_ENV === 'development' 
-                    ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]' 
-                    : 'text-white/90 hover:text-white'
-                }`}>Tarifs</a>
+                <a href="#features" className="transition-colors cursor-pointer bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]">Fonctionnalités</a>
+                <a href="#how" className="transition-colors cursor-pointer bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]">Comment ça marche</a>
+                <a href="#pricing" className="transition-colors cursor-pointer bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent hover:from-[#00d4ff] hover:to-[#00c9b7]">Tarifs</a>
               </nav>
 
               {/* CTA Desktop */}
               <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
                   <Link href="/dashboard?section=analyse-simulation">
-                    <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
-                      process.env.NODE_ENV === 'development' 
-                        ? 'border-2 bg-transparent hover:opacity-90' 
-                        : 'force-white shadow-black/30'
-                    }`} style={process.env.NODE_ENV === 'development' ? {
+                    <button className="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                       borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                       borderImageSlice: 1,
-                    } : {}}>
-                      <span className={process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                        : 'text-black'}>Tableau de bord</span>
-                      <ArrowRight size={14} className={process.env.NODE_ENV === 'development' ? 'text-[#00c9b7]' : 'text-black'} />
+                    }}>
+                      <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tableau de bord</span>
+                      <ArrowRight size={14} className="text-[#00c9b7]" />
                     </button>
                   </Link>
                 ) : (
@@ -210,17 +192,11 @@ export default function HomePage() {
                       Connexion
                     </Link>
                     <Link href="/register">
-                      <button className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
-                        process.env.NODE_ENV === 'development' 
-                          ? 'border-2 bg-transparent hover:opacity-90' 
-                          : 'force-white shadow-black/30'
-                      }`} style={process.env.NODE_ENV === 'development' ? {
+                      <button className="px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                         borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                         borderImageSlice: 1,
-                      } : {}}>
-                        <span className={process.env.NODE_ENV === 'development' 
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                          : 'text-black'}>Inscription</span>
+                      }}>
+                        <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Inscription</span>
                       </button>
                     </Link>
                   </>
@@ -261,18 +237,12 @@ export default function HomePage() {
               <div className="p-6 space-y-4">
                 {!loading && user ? (
                   <Link href="/dashboard?section=analyze" onClick={() => setMobileMenuOpen(false)}>
-                    <button className={`w-full px-4 py-3.5 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer ${
-                      process.env.NODE_ENV === 'development' 
-                        ? 'border-2 bg-transparent hover:opacity-90' 
-                        : 'force-white'
-                    }`} style={process.env.NODE_ENV === 'development' ? {
+                    <button className="w-full px-4 py-3.5 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                       borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                       borderImageSlice: 1,
-                    } : {}}>
-                      <span className={process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                        : 'text-black'}>Tableau de bord</span>
-                      <ArrowRight size={18} className={process.env.NODE_ENV === 'development' ? 'text-[#00c9b7]' : 'text-black'} />
+                    }}>
+                      <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tableau de bord</span>
+                      <ArrowRight size={18} className="text-[#00c9b7]" />
                     </button>
                   </Link>
                 ) : (
@@ -283,17 +253,11 @@ export default function HomePage() {
                       </button>
                     </Link>
                     <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                      <button className={`w-full px-4 py-3.5 font-semibold rounded-lg cursor-pointer ${
-                        process.env.NODE_ENV === 'development' 
-                          ? 'border-2 bg-transparent hover:opacity-90' 
-                          : 'force-white'
-                      }`} style={process.env.NODE_ENV === 'development' ? {
+                      <button className="w-full px-4 py-3.5 font-semibold rounded-lg cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                         borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                         borderImageSlice: 1,
-                      } : {}}>
-                        <span className={process.env.NODE_ENV === 'development' 
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                          : 'text-black'}>Inscription</span>
+                      }}>
+                        <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Inscription</span>
                       </button>
                     </Link>
                   </>
@@ -311,32 +275,20 @@ export default function HomePage() {
         <div className="relative z-10 text-center px-6">
           <div className="flex items-center justify-center gap-4">
             <Link href="/app">
-              <button className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 cursor-pointer ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'border-2 bg-transparent hover:opacity-90' 
-                  : 'force-white'
-              }`} style={process.env.NODE_ENV === 'development' ? {
+              <button className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2 cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
-              } : {}}>
-                <span className={process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-black'}>Essayer gratuitement</span>
-                <ArrowRight size={16} className={process.env.NODE_ENV === 'development' ? 'text-[#00c9b7]' : 'text-black'} />
+              }}>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Essayer gratuitement</span>
+                <ArrowRight size={16} className="text-[#00c9b7]" />
               </button>
             </Link>
             <Link href="#pricing">
-              <button className={`px-6 py-3 rounded-lg bg-transparent font-semibold transition-colors cursor-pointer ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'border-2 hover:opacity-90' 
-                  : 'border border-white/30 text-white hover:bg-white/10'
-              }`} style={process.env.NODE_ENV === 'development' ? {
+              <button className="px-6 py-3 rounded-lg bg-transparent font-semibold transition-colors cursor-pointer border-2 hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
-              } : {}}>
-                <span className={process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-white'}>Voir les tarifs</span>
+              }}>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Voir les tarifs</span>
               </button>
             </Link>
           </div>
@@ -348,11 +300,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-[#00d4ff]'
-              }`}>Fonctionnalités</span>
+              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Fonctionnalités</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">
                 Tout ce qu’il faut pour dominer sur Etsy
               </h2>
@@ -366,11 +314,7 @@ export default function HomePage() {
             {features.map((feature, index) => (
               <AnimatedCard key={feature.title} delay={index * 0.1}>
                 <div className="p-6 sm:p-8 rounded-lg border border-white/5 bg-transparent hover:border-white/10 transition-colors">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-5 ${
-                    process.env.NODE_ENV === 'development' 
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]' 
-                      : 'bg-[#00d4ff]'
-                  }`}>
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
@@ -387,11 +331,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-[#00d4ff]'
-              }`}>Comment ça marche</span>
+              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Comment ça marche</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">
                 Analysez en 3 étapes
               </h2>
@@ -409,11 +349,7 @@ export default function HomePage() {
               ].map((item, index) => (
                 <AnimatedCard key={item.step} delay={index * 0.15}>
                   <div className="relative p-6 pt-10 rounded-lg border border-white/5 bg-transparent">
-                    <div className={`absolute -top-5 left-6 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
-                      process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30' 
-                        : 'bg-[#00d4ff] shadow-[#00d4ff]/30'
-                    }`}>
+                    <div className="absolute -top-5 left-6 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30">
                       <item.icon className="w-5 h-5 text-white" />
                     </div>
                     <div className="text-white/60 text-xs font-semibold mb-2">{item.step}</div>
@@ -432,11 +368,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-[#00d4ff]'
-              }`}>Tarifs</span>
+              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tarifs</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">Des tarifs transparents</h2>
               <p className="text-white/70 max-w-2xl mx-auto mt-3">
                 Commencez gratuitement, passez à la vitesse supérieure quand vous êtes prêt.
@@ -519,11 +451,7 @@ export default function HomePage() {
                     <ul className="space-y-2 mb-6">
                       {plan.features.map((feature) => (
                         <li key={feature} className="flex items-center gap-2 text-white/80 text-sm">
-                          <CheckCircle2 className={`w-4 h-4 ${
-                            process.env.NODE_ENV === 'development' 
-                              ? 'text-[#00c9b7]' 
-                              : 'text-[#00d4ff]'
-                          }`} />
+                          <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -531,27 +459,19 @@ export default function HomePage() {
                     <button 
                       onClick={handleSubscribe}
                       disabled={loadingPlan === plan.id}
-                      className={`w-full py-3 rounded-lg font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                        process.env.NODE_ENV === 'development' 
-                          ? 'border-2 bg-transparent hover:opacity-90' 
-                          : 'force-white'
-                      }`} 
-                      style={process.env.NODE_ENV === 'development' ? {
+                      className="w-full py-3 rounded-lg font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90" 
+                      style={{
                         borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                         borderImageSlice: 1,
-                      } : {}}
+                      }}
                     >
                       {loadingPlan === plan.id ? (
                         <span className="flex items-center justify-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className={process.env.NODE_ENV === 'development' 
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                            : 'text-black'}>Chargement...</span>
+                          <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Chargement...</span>
                         </span>
                       ) : (
-                        <span className={process.env.NODE_ENV === 'development' 
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                          : 'text-black'}>Choisir ce plan</span>
+                        <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Choisir ce plan</span>
                       )}
                     </button>
                   </div>
@@ -567,11 +487,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <span className={`font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-[#00d4ff]'
-              }`}>Témoignages</span>
+              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Témoignages</span>
               <h2 className="text-2xl sm:text-4xl font-bold text-white">Ils nous font confiance</h2>
             </div>
           </AnimatedSection>
@@ -582,20 +498,12 @@ export default function HomePage() {
                 <div className="p-6 rounded-lg border border-white/5 bg-transparent">
                   <div className="flex items-center gap-1 mb-4">
                     {Array.from({ length: t.rating }).map((_, i) => (
-                      <CheckCircle2 key={i} className={`w-4 h-4 ${
-                        process.env.NODE_ENV === 'development' 
-                          ? 'text-[#00c9b7]' 
-                          : 'text-[#00d4ff]'
-                      }`} />
+                      <CheckCircle2 key={i} className="w-4 h-4 text-[#00c9b7]" />
                     ))}
                   </div>
                   <p className="text-white/80 mb-4 text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm ${
-                      process.env.NODE_ENV === 'development' 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]' 
-                        : 'bg-[#00d4ff]'
-                    }`}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
                       {t.avatar}
                     </div>
                     <div>
@@ -621,18 +529,12 @@ export default function HomePage() {
               Rejoignez des vendeurs qui utilisent Etsmart pour prendre de meilleures décisions.
             </p>
             <Link href="/app">
-              <button className={`px-8 py-4 rounded-lg font-semibold cursor-pointer ${
-                process.env.NODE_ENV === 'development' 
-                  ? 'border-2 bg-transparent hover:opacity-90' 
-                  : 'force-white'
-              }`} style={process.env.NODE_ENV === 'development' ? {
+              <button className="px-8 py-4 rounded-lg font-semibold cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
-              } : {}}>
-                <span className={process.env.NODE_ENV === 'development' 
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                  : 'text-black'}>Commencer gratuitement</span>
-                <ArrowUpRight className={`inline-block ml-2 w-4 h-4 ${process.env.NODE_ENV === 'development' ? 'text-[#00c9b7]' : 'text-black'}`} />
+              }}>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Commencer gratuitement</span>
+                <ArrowUpRight className="inline-block ml-2 w-4 h-4 text-[#00c9b7]" />
               </button>
             </Link>
             <p className="mt-4 text-white/60 text-sm flex items-center justify-center gap-2">
