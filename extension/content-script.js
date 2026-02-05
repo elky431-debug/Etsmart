@@ -1,3 +1,4 @@
+"use strict";
 // Bouton flottant pour import manuel
 let importButton = null;
 let lastKnownNiche = null;
@@ -102,7 +103,7 @@ function createImportButton() {
         if (isShop) {
             // Mode analyse de boutique individuelle
             logPersistent('Déclenchement de l\'analyse de boutique');
-            await analyzeSingleShop();
+            await analyzeCurrentShop();
         }
         else {
             // Mode scraping de plusieurs boutiques
@@ -257,8 +258,8 @@ async function scrollToLoadMore(maxScrolls = 5) {
         }, 500);
     });
 }
-// Analyser une boutique individuelle
-async function analyzeSingleShop() {
+// Analyser une boutique individuelle (renommée pour éviter conflit avec background.ts)
+async function analyzeCurrentShop() {
     try {
         logPersistent('Début de l\'analyse de boutique individuelle');
         const shopUrl = window.location.href.split('?')[0];

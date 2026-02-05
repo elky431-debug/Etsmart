@@ -9,9 +9,17 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "outDir": ".",
+    "rootDir": ".",
+    "allowJs": false,
+    "noEmit": false
   },
-  "include": ["*.ts"],
+  "files": [
+    "background.ts.extension",
+    "content-script.ts.extension",
+    "types.ts.extension"
+  ],
   "exclude": ["node_modules", "*.js"]
 }
 

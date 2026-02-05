@@ -1,3 +1,4 @@
+"use strict";
 const EXTENSION_ID = 'YOUR_EXTENSION_ID'; // À remplacer par l'ID réel après installation
 const API_BASE_URL = 'https://etsmart.app'; // URL publique du SaaS par défaut
 // Nettoyer le storage au démarrage pour supprimer toute ancienne valeur localhost

@@ -165,7 +165,7 @@ function createImportButton() {
     if (isShop) {
       // Mode analyse de boutique individuelle
       logPersistent('Déclenchement de l\'analyse de boutique');
-      await analyzeSingleShop();
+      await analyzeCurrentShop();
     } else {
       // Mode scraping de plusieurs boutiques
       logPersistent('Déclenchement du scraping manuel');
@@ -340,8 +340,8 @@ async function scrollToLoadMore(maxScrolls = 5): Promise<void> {
   });
 }
 
-// Analyser une boutique individuelle
-async function analyzeSingleShop(): Promise<void> {
+// Analyser une boutique individuelle (renommée pour éviter conflit avec background.ts)
+async function analyzeCurrentShop(): Promise<void> {
   try {
     logPersistent('Début de l\'analyse de boutique individuelle');
     
