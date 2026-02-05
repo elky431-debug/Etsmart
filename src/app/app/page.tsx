@@ -12,17 +12,17 @@ export default function AppPage() {
   // 🔒 Protect this page - redirects blocked (no pricing page)
   const { isLoading: subscriptionLoading } = useSubscriptionProtection();
 
-  // ⚠️ CRITICAL: Rediriger automatiquement vers la page "Analyse et Simulation" du dashboard
+  // ⚠️ CRITICAL: Rediriger automatiquement vers la page d'analyse pour démarrer le processus
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
     // Attendre que le chargement soit terminé avant de rediriger
     if (loading || subscriptionLoading) return;
     
-    // Si l'utilisateur est connecté, rediriger vers le dashboard
+    // Si l'utilisateur est connecté, rediriger vers la page d'analyse pour démarrer le processus
     if (user) {
-      console.log('[AppPage] Redirecting to dashboard analyse-simulation page');
-      router.push('/dashboard?section=analyse-simulation');
+      console.log('[AppPage] Redirecting to analyze page to start analysis process');
+      router.push('/analyze');
       return;
     }
     
