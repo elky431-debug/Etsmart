@@ -324,19 +324,8 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
               onProductImported(product);
             }
             
-            // ⚠️ CRITICAL: Rafraîchir les crédits après le parsing réussi (0.5 crédit déduit)
-            if (parseData.quotaUpdated) {
-              console.log('[ListingProductImport] 🔄 Refreshing subscription credits after image parsing...');
-              setTimeout(() => {
-                refreshSubscription(true).catch(err => {
-                  console.error('❌ [ListingProductImport] Error refreshing subscription:', err);
-                });
-                // Dispatch event to notify DashboardSubscription to refresh
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('subscription-refresh'));
-                }
-              }, 1000);
-            }
+            // ⚠️ NOTE: Les crédits ne sont PAS déduits lors du parsing
+            // Ils seront déduits uniquement lors du clic sur "GENERATE 1 IMAGE"
             
             console.log('[ListingProductImport] ✅ Produit parsé avec succès, analyse minimale créée');
           } catch (parseError: any) {
