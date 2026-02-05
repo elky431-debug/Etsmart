@@ -84,16 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (currentPath === '/login' || currentPath === '/register') {
-          // Check if user is new (created in the last 30 seconds) → redirect to pricing
-          const createdAt = new Date(user.created_at || '');
-          const now = new Date();
-          const isNewUser = (now.getTime() - createdAt.getTime()) < 30000; // 30 seconds
-          
-          if (isNewUser) {
-            router.push('/pricing');
-          } else {
-            router.push('/dashboard?section=analyze');
-          }
+          // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
+          // Toujours rediriger vers le dashboard Analyse et Simulation
+          router.push('/dashboard?section=analyse-simulation');
         }
       }
     });
@@ -105,13 +98,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignUp = async (email: string, password: string, fullName?: string) => {
     await signUp(email, password, fullName);
-    // Redirect new users to pricing/paywall
-    router.push('/pricing');
+    // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
+    // Rediriger vers le dashboard Analyse et Simulation
+    router.push('/dashboard?section=analyse-simulation');
   };
 
   const handleSignIn = async (email: string, password: string) => {
     await signIn(email, password);
-    router.push('/dashboard?section=analyze');
+    // Vérifier l'abonnement avant de rediriger
+    const checkSubscription = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          const response = await fetch('/api/check-stripe-subscription', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          const data = await response.json();
+          
+          // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
+          // Toujours rediriger vers le dashboard Analyse et Simulation
+          router.push('/dashboard?section=analyse-simulation');
+        } else {
+          router.push('/dashboard?section=analyse-simulation');
+        }
+      } catch (error) {
+        console.error('Error checking subscription:', error);
+        router.push('/dashboard?section=analyse-simulation');
+      }
+    };
+    
+    checkSubscription();
   };
 
   const handleSignOut = async () => {

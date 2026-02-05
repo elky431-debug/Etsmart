@@ -105,7 +105,7 @@ export default function ShopAnalyzePageComingSoon() {
               Retour au dashboard
             </Link>
             <Link
-              href="/pricing"
+              href="/dashboard?section=analyse-simulation"
               className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-slate-700/50 text-white font-semibold rounded-full hover:bg-slate-800 transition-colors"
             >
               Voir les tarifs

@@ -58,8 +58,6 @@ const LaunchPotentialScore = dynamic(() => import('@/components/analysis/LaunchP
   ssr: false,
 });
 
-type MainTab = 'analyse' | 'conception' | 'simulation';
-type SubTab = 'listing' | 'image';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GÉNÉRATEUR DE PROMPT CRÉATIF POUR IMAGES PUBLICITAIRES
@@ -250,14 +248,9 @@ function CreativePromptGenerator({
   );
 }
 
-const mainTabs = [
-  { id: 'analyse' as MainTab, label: 'Analyse', icon: Activity },
-  { id: 'conception' as MainTab, label: 'Fiche Produit', icon: FileText },
-  { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
-];
 
 
-export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis }) {
+export function ProductAnalysisView({ analysis, hideTitle = false }: { analysis: ProductAnalysis; hideTitle?: boolean }) {
   // Vérifier si on est sur localhost
   const [isLocalhost, setIsLocalhost] = useState(false);
   
@@ -270,55 +263,8 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
     );
   }, []);
 
-  // Sauvegarder et restaurer l'onglet actif depuis sessionStorage
-  const [activeTab, setActiveTab] = useState<MainTab>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('etsmart-active-tab');
-      if (saved && ['analyse', 'conception', 'simulation'].includes(saved)) {
-        return saved as MainTab;
-      }
-    }
-    return 'analyse';
-  });
-  
-  // Sauvegarder l'onglet actif quand il change
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('etsmart-active-tab', activeTab);
-    }
-  }, [activeTab]);
-
-  // Sous-onglets pour "Fiche Produit"
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('etsmart-active-subtab');
-      if (saved && ['listing', 'image'].includes(saved)) {
-        return saved as SubTab;
-      }
-    }
-    return 'listing';
-  });
-
-  // Sauvegarder le sous-onglet actif quand il change
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('etsmart-active-subtab', activeSubTab);
-    }
-  }, [activeSubTab]);
-  
-  // Tabs principaux (sans l'onglet Images générées qui est maintenant un sous-onglet)
-  const tabs = useMemo(() => {
-    return [
-      { id: 'analyse' as MainTab, label: 'Analyse', icon: Activity },
-      { id: 'conception' as MainTab, label: 'Fiche Produit', icon: FileText },
-      { id: 'simulation' as MainTab, label: 'Simulation', icon: Calculator },
-    ];
-  }, []);
-  const [copiedTitle, setCopiedTitle] = useState(false);
-  const [copiedTags, setCopiedTags] = useState(false);
-  const [etsyDescription, setEtsyDescription] = useState<string | null>(null);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-  const [copiedDescription, setCopiedDescription] = useState(false);
+  // Plus d'onglets - seulement Analyse et Simulation
+  // Le Listing et Images est maintenant une fonctionnalité séparée dans le dashboard
   const isMobile = useIsMobile();
   
   // Priorité au prix renseigné par l'utilisateur, sinon estimation IA
@@ -350,10 +296,14 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
     // Adjust sales estimates based on Etsy Ads (ads typically increase sales by 20-40%)
     const adsMultiplier = useEtsyAds ? 1.3 : 1.0; // 30% increase with ads
     
+    // Vérifier si launchSimulation existe
+    const hasLaunchSimulation = analysis.launchSimulation?.threeMonthProjection;
+    const defaultSales = { estimatedSales: 0 };
+    
     const salesEstimates = {
-      prudent: Math.round(analysis.launchSimulation.threeMonthProjection.conservative.estimatedSales * adsMultiplier),
-      realiste: Math.round(analysis.launchSimulation.threeMonthProjection.realistic.estimatedSales * adsMultiplier),
-      optimise: Math.round(analysis.launchSimulation.threeMonthProjection.optimistic.estimatedSales * adsMultiplier),
+      prudent: Math.round((hasLaunchSimulation?.conservative?.estimatedSales || defaultSales.estimatedSales) * adsMultiplier),
+      realiste: Math.round((hasLaunchSimulation?.realistic?.estimatedSales || defaultSales.estimatedSales) * adsMultiplier),
+      optimise: Math.round((hasLaunchSimulation?.optimistic?.estimatedSales || defaultSales.estimatedSales) * adsMultiplier),
     };
     
     return {
@@ -383,141 +333,39 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
       marginPercent,
       etsyAdsCost: etsyAdsCostPerUnit,
     };
-  }, [sellingPrice, shippingCost, supplierPrice, useEtsyAds, analysis.launchSimulation.threeMonthProjection]);
+  }, [sellingPrice, shippingCost, supplierPrice, useEtsyAds, analysis.launchSimulation?.threeMonthProjection]);
 
-  const copyToClipboard = async (text: string, type: 'title' | 'tags' | 'description') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'title') {
-        setCopiedTitle(true);
-        setTimeout(() => setCopiedTitle(false), 2000);
-      } else if (type === 'tags') {
-        setCopiedTags(true);
-        setTimeout(() => setCopiedTags(false), 2000);
-      } else {
-        setCopiedDescription(true);
-        setTimeout(() => setCopiedDescription(false), 2000);
-      }
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  const generateEtsyDescription = async () => {
-    if (etsyDescription) return; // Already generated
-    
-    setIsGeneratingDescription(true);
-    try {
-      // Get auth token for API call
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch('/api/generate-etsy-description', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          productVisualDescription: analysis.verdict.productVisualDescription || analysis.product.title,
-          niche: analysis.niche,
-          positioning: analysis.marketing?.strategic?.positioning?.mainPositioning,
-          psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
-          buyerMirror: undefined, // buyerMirror not available in current structure
-          recommendedPrice: analysis.pricing.recommendedPrice,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate description');
-      }
-
-      const data = await response.json();
-      setEtsyDescription(data.description);
-    } catch (error) {
-      console.error('Error generating description:', error);
-      alert('Erreur lors de la génération de la description. Veuillez réessayer.');
-    } finally {
-      setIsGeneratingDescription(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Titre Résultats */}
-      <div className="bg-black border-b border-white/10 px-4 sm:px-6 lg:px-8 py-8">
-        <motion.h1 
-          className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-center"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
-            Résultats
-          </span>
-        </motion.h1>
-      </div>
-
-      {/* Navigation onglets - Dropdown sur mobile, onglets sur desktop */}
-      <div className="sticky top-0 z-50 bg-black border-b border-white/10 py-2 px-4 sm:px-6 lg:px-8">
-        <div className="w-full">
-          {isMobile ? (
-            // Dropdown sur mobile
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as MainTab)}
-              className="w-full py-2.5 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-0 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
-            >
-              {tabs.map((tab) => (
-                <option key={tab.id} value={tab.id} className="bg-black text-white">
-                  {tab.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            // Onglets horizontaux sur desktop
-            <div className="flex items-center w-full">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all mx-1 ${
-                      isActive 
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                        : 'bg-black border border-white/10 text-white/80 hover:bg-black hover:border-white/20'
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Contenu */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
+      {/* Titre Résultats - Masqué si hideTitle est true */}
+      {!hideTitle && (
+        <div className="bg-black border-b border-white/10 px-4 sm:px-6 lg:px-8 py-8">
+          <motion.h1 
+            className="text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-center"
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.6 }}
           >
-            {/* ANALYSIS TAB */}
-            {activeTab === 'analyse' && (
-              <div className="space-y-4">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]">
+              Résultats
+            </span>
+          </motion.h1>
+        </div>
+      )}
+
+      {/* Contenu - Plus d'onglets, seulement Analyse et Simulation */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* ANALYSE ET SIMULATION - Contenu unique */}
+          <div className="space-y-6">
+              <div className="space-y-6">
+                {/* SECTION ANALYSE */}
+                <div className="space-y-4">
                 {/* ⚠️ Avertissement si données de fallback utilisées */}
                 {(analysis.dataSource === 'estimated' || analysis.verdict.warningIfAny) && (
                   <motion.div
@@ -663,556 +511,324 @@ export function ProductAnalysisView({ analysis }: { analysis: ProductAnalysis })
                 {/* Forces et Risques */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 </div>
-              </div>
-            )}
-
-            {/* PRODUCT SHEET TAB */}
-            {activeTab === 'conception' && (
-              <div className="space-y-6">
-                {/* Sous-onglets pour Fiche Produit */}
-                <div className="flex gap-0 border-b border-slate-200">
-                  <button
-                    onClick={() => setActiveSubTab('listing')}
-                    className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
-                      activeSubTab === 'listing'
-                        ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
-                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-black'
-                    }`}
-                  >
-                    Listing
-                  </button>
-                  <button
-                    onClick={() => setActiveSubTab('image')}
-                    className={`flex-1 px-6 py-3 text-base font-semibold transition-all border-b-2 text-center ${
-                      activeSubTab === 'image'
-                        ? 'text-[#00d4ff] border-[#00d4ff] bg-[#00d4ff]/5'
-                        : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-black'
-                    }`}
-                  >
-                    Image
-                  </button>
                 </div>
 
-                {/* Contenu du sous-onglet Listing */}
-                {activeSubTab === 'listing' && (
-                  <div className="space-y-6">
-                {analysis.verdict.viralTitleEN && (
-                  <div className="p-5 rounded-xl bg-black border border-white/10">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          typeof window !== 'undefined' && (
-                            window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1'
-                          )
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                            : 'bg-cyan-500'
-                        }`}>
-                          <PenTool size={20} className="text-white" />
-                        </div>
-                        <h2 className="text-base font-bold text-white">Titre SEO optimisé</h2>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(analysis.verdict.viralTitleEN!, 'title')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          copiedTitle 
-                            ? 'bg-emerald-500 text-white' 
-                            : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
-                        }`}
-                      >
-                        {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
-                        {copiedTitle ? 'Copié' : 'Copier'}
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="p-4 rounded-lg bg-black border border-white/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`text-xs font-bold uppercase tracking-wider ${
-                            typeof window !== 'undefined' && (
-                              window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1'
-                            )
-                              ? 'text-[#00d4ff]'
-                              : 'text-cyan-600'
-                          }`}>Anglais</span>
-                          <span className="text-xs text-white/60">{analysis.verdict.viralTitleEN.length}/140</span>
-                        </div>
-                        <p className="text-sm font-medium text-white">{analysis.verdict.viralTitleEN}</p>
-                      </div>
-                    </div>
+                {/* SECTION SIMULATION */}
+                <div className="space-y-6">
+                  <div className="border-t border-white/10 pt-6">
+                    <h2 className="text-xl font-bold text-white mb-6">Simulation</h2>
                   </div>
-                )}
-
-                {/* DESCRIPTION ETSY */}
-                {analysis.verdict.verdict !== 'avoid' && (
                   <div className="p-5 rounded-xl bg-black border border-white/10">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
-                          <FileText size={20} className="text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-bold text-slate-900">Description Etsy</h3>
-                          <p className="text-xs text-slate-500">Description optimisée pour Etsy (en anglais)</p>
-                        </div>
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                        <Calculator size={20} className="text-white" />
                       </div>
-                      {etsyDescription && (
-                        <button
-                          onClick={() => copyToClipboard(etsyDescription, 'description')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            copiedDescription 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
-                          }`}
-                        >
-                          {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedDescription ? 'Copié' : 'Copier'}
-                        </button>
-                      )}
+                      <div>
+                        <h2 className="text-base font-bold text-white">Calculateur de profit</h2>
+                        <p className="text-white/70 text-xs">Ajustez les valeurs pour voir les projections</p>
+                      </div>
                     </div>
-
-                    {!etsyDescription ? (
-                      <div className="text-center py-8">
-                        <p className="text-sm text-slate-600 mb-4">
-                          Cette description est générée par l&apos;IA à partir de l&apos;analyse du produit et des comportements d&apos;achat sur Etsy.
-                        </p>
-                        <button
-                          onClick={generateEtsyDescription}
-                          disabled={isGeneratingDescription}
-                          className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isGeneratingDescription ? (
-                            <span className="flex items-center gap-2">
-                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                              </svg>
-                              Génération en cours...
-                            </span>
-                          ) : (
-                            'Générer la description'
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-black border border-white/10">
-                          <p className="text-sm text-slate-600 mb-2">
-                            Vous pouvez copier et utiliser directement dans votre fiche produit.
-                          </p>
-                          <div className="p-4 bg-black rounded-lg border border-white/10 max-h-96 overflow-y-auto">
-                            <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
-                              {etsyDescription}
-                            </pre>
-                          </div>
-                        </div>
+                    
+                    {analysis.verdict.supplierPriceReasoning && (
+                      <div className="mb-5 p-3 rounded-lg bg-black border border-white/10">
+                        <p className="text-xs font-semibold text-white/70 mb-1">Analyse IA</p>
+                        <p className="text-sm text-white/80">{analysis.verdict.supplierPriceReasoning}</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {analysis.verdict.seoTags && analysis.verdict.seoTags.length > 0 && (
-                  <div className="p-5 rounded-xl bg-black border border-white/10">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <Hash size={20} className={`${
-                          typeof window !== 'undefined' && (
-                            window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1'
-                          )
-                            ? 'text-[#00d4ff]'
-                            : 'text-cyan-500'
-                        }`} />
-                        <h3 className="text-base font-bold text-white">Tags Etsy ({analysis.verdict.seoTags.length}/13)</h3>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(analysis.verdict.seoTags!.join(', '), 'tags')}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          copiedTags 
-                            ? 'bg-emerald-500 text-white' 
-                            : 'bg-black border border-white/10 text-slate-700 hover:bg-white/10'
-                        }`}
-                      >
-                        {copiedTags ? <Check size={12} /> : <Copy size={12} />}
-                        {copiedTags ? 'Copié' : 'Copier'}
-                      </button>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
+                      {[
+                        { 
+                          label: 'Prix fournisseur', 
+                          displayValue: supplierPriceDisplay,
+                          setDisplayValue: setSupplierPriceDisplay,
+                          numericValue: supplierPrice, 
+                          setNumericValue: setSupplierPrice, 
+                          hint: analysis.product.price > 0 
+                            ? `Prix entré : ${formatCurrency(analysis.product.price)}` 
+                            : `Est. IA : ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
+                        },
+                        { 
+                          label: 'Frais de livraison', 
+                          displayValue: shippingCostDisplay,
+                          setDisplayValue: setShippingCostDisplay,
+                          numericValue: shippingCost, 
+                          setNumericValue: setShippingCost, 
+                          hint: `Est. : ${formatCurrency(aiEstimatedShippingCost)}` 
+                        },
+                        { 
+                          label: 'Prix de vente', 
+                          displayValue: sellingPriceDisplay,
+                          setDisplayValue: setSellingPriceDisplay,
+                          numericValue: sellingPrice, 
+                          setNumericValue: setSellingPrice, 
+                          hint: `Rec. : ${formatCurrency(analysis.pricing.recommendedPrice)}`, 
+                          highlight: true 
+                        },
+                      ].map((field, i) => (
+                        <div key={i}>
+                          <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wide">
+                            {field.label}
+                          </label>
+                          <div className="relative">
+                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${field.highlight ? 'text-[#00d4ff]' : 'text-white/60'}`}>$</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={field.displayValue}
+                              onChange={(e) => {
+                                const inputValue = e.target.value;
+                                field.setDisplayValue(inputValue);
+                                if (inputValue === '' || inputValue === '0') {
+                                  field.setNumericValue(0);
+                                } else {
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue) && numValue >= 0) {
+                                    field.setNumericValue(numValue);
+                                  }
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const numValue = field.numericValue;
+                                if (numValue === 0) {
+                                  field.setDisplayValue('');
+                                } else {
+                                  field.setDisplayValue(numValue.toString());
+                                }
+                              }}
+                              className={`w-full pl-8 pr-3 py-3 rounded-lg text-lg font-bold focus:ring-0 focus:outline-none transition-colors text-white ${
+                                field.highlight 
+                                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]/10 border border-[#00d4ff] focus:border-[#00d4ff]' 
+                                  : 'bg-black border border-white/10 focus:border-white/20'
+                              }`}
+                            />
+                          </div>
+                          <p className="text-xs text-white/70 mt-1">{field.hint}</p>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.verdict.seoTags.map((tag, i) => (
-                        <span
-                          key={i}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${
-                            typeof window !== 'undefined' && (
-                              window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1'
-                            )
-                              ? 'bg-black border-[#00d4ff] text-[#00d4ff]'
-                              : 'bg-cyan-100 text-cyan-700 border-cyan-200'
+                    
+                    <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-black border border-white/10">
+                      <div className="text-center">
+                        <p className="text-xs text-white/70 mb-1">Coût unitaire</p>
+                        <p className="text-xl font-bold text-white">{formatCurrency(simulationData.costPerUnit)}</p>
+                        {useEtsyAds && simulationData.etsyAdsCost > 0 && (
+                          <p className="text-xs text-white/60 mt-1">+ Pub : {formatCurrency(simulationData.etsyAdsCost)}</p>
+                        )}
+                      </div>
+                      <div className="text-center border-x border-white/10">
+                        <p className="text-xs text-white/70 mb-1">Profit unitaire</p>
+                        <p className={`text-xl font-bold ${simulationData.profitPerUnit > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {formatCurrency(simulationData.profitPerUnit)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-white/70 mb-1">Marge</p>
+                        <p className={`text-xl font-bold ${simulationData.marginPercent > 30 ? 'text-emerald-400' : 'text-white'}`}>
+                          {simulationData.marginPercent.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Etsy Ads */}
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">
+                      <Zap size={18} className="text-[#00d4ff]" />
+                      <h3 className="text-base font-bold text-white">Etsy Ads</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-bold text-white mb-1">Activer Etsy Ads</h4>
+                          <p className="text-sm text-white/70">
+                            Activez la publicité pour accélérer la croissance et augmenter les ventes
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setUseEtsyAds(!useEtsyAds)}
+                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00d4ff] focus:ring-offset-2 ${
+                            useEtsyAds
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                              : 'bg-black border border-white/10'
                           }`}
                         >
-                          {tag}
-                        </span>
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
+                              useEtsyAds ? 'translate-x-8' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Time to First Sale */}
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">
+                      <Clock size={18} className="text-[#00d4ff]" />
+                      <h3 className="text-base font-bold text-white">Temps estimé avant la première vente</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className={`p-6 rounded-xl border-2 ${
+                        useEtsyAds
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-transparent shadow-lg shadow-[#00d4ff]/30'
+                          : 'bg-black border-[#00d4ff]'
+                      }`}>
+                        <div className="flex items-center gap-3 mb-4">
+                          {useEtsyAds ? (
+                            <Zap size={24} className="text-white" />
+                          ) : (
+                            <Clock size={24} className="text-[#00d4ff]" />
+                          )}
+                          <div>
+                            <h4 className={`text-base font-bold ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
+                              {useEtsyAds ? 'Avec Etsy Ads' : 'Sans Etsy Ads'}
+                            </h4>
+                            <p className={`text-xs ${useEtsyAds ? 'text-white/70' : 'text-white/70'}`}>
+                              {useEtsyAds ? 'Croissance accélérée' : 'Croissance organique'}
+                            </p>
+                          </div>
+                        </div>
+                        <p className={`text-4xl font-bold mb-2 ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
+                          {useEtsyAds 
+                            ? analysis.launchSimulation?.timeToFirstSale?.withAds?.expected || 'N/A'
+                            : analysis.launchSimulation?.timeToFirstSale?.withoutAds?.expected || 'N/A'
+                          }
+                          <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>jours</span>
+                        </p>
+                        <p className={`text-sm mb-3 ${useEtsyAds ? 'text-white/70' : 'text-white/70'}`}>
+                          {analysis.launchSimulation?.timeToFirstSale ? (
+                            <>
+                              Entre {
+                                useEtsyAds
+                                  ? `${analysis.launchSimulation.timeToFirstSale.withAds?.min || 0} et ${analysis.launchSimulation.timeToFirstSale.withAds?.max || 0}`
+                                  : `${analysis.launchSimulation.timeToFirstSale.withoutAds?.min || 0} et ${analysis.launchSimulation.timeToFirstSale.withoutAds?.max || 0}`
+                              } jours
+                            </>
+                          ) : (
+                            'Données non disponibles'
+                          )}
+                        </p>
+                        <p className={`text-xs ${useEtsyAds ? 'text-white/60' : 'text-white/60'}`}>
+                          Cette estimation est basée sur le score de potentiel de lancement du produit et reflète le comportement typique du marché Etsy.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 rounded-lg bg-black border border-white/10">
+                        <div className="flex items-start gap-2">
+                          <Info size={16} className="text-white/60 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-white/70 leading-relaxed">
+                            <strong>Important :</strong> Tous les délais sont des estimations basées sur les conditions du marché et le positionnement du produit. Les résultats réels peuvent varier.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Projection 3 mois */}
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp size={20} className="text-[#00d4ff]" />
+                        <h3 className="text-base font-bold text-white">Projection 3 mois</h3>
+                      </div>
+                      <span className="px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                        {analysis.launchSimulation?.successProbability ? formatPercentage(analysis.launchSimulation.successProbability) : 'N/A'} taux de réussite
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { key: 'prudent', label: 'Prudent', sublabel: 'Pessimiste', data: simulationData.prudent, highlight: false },
+                        { key: 'realiste', label: 'Réaliste', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
+                        { key: 'optimise', label: 'Optimiste', sublabel: 'Meilleur', data: simulationData.optimise, highlight: false },
+                      ].map((scenario) => (
+                        <div 
+                          key={scenario.key}
+                          className={`p-4 rounded-lg transition-all ${
+                            scenario.highlight 
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
+                              : 'bg-black border border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="text-sm font-bold">{scenario.label}</p>
+                              <p className={`text-xs ${scenario.highlight ? 'text-white/70' : 'text-white/70'}`}>
+                                {scenario.sublabel}
+                              </p>
+                            </div>
+                            {scenario.highlight && (
+                              <span className="px-2 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
+                                Recommandé
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+                            {[
+                              { label: 'Ventes', value: scenario.data.sales },
+                              { label: 'Revenus', value: formatCurrency(scenario.data.revenue) },
+                              { label: 'Coûts', value: formatCurrency(scenario.data.costs) },
+                              { label: 'Profit', value: formatCurrency(scenario.data.profit), profit: true },
+                              { label: 'Marge', value: `${scenario.data.margin.toFixed(0)}%` },
+                            ].map((metric, i) => (
+                              <div key={i} className="text-center">
+                                <p className={`text-lg font-bold ${
+                                  metric.profit && scenario.data.profit > 0 
+                                    ? (scenario.highlight ? 'text-emerald-300' : 'text-emerald-400') 
+                                    : scenario.highlight ? 'text-white' : 'text-white'
+                                }`}>
+                                  {typeof metric.value === 'number' ? formatNumber(metric.value) : metric.value}
+                                </p>
+                                <p className={`text-xs mt-0.5 ${scenario.highlight ? 'text-white/60' : 'text-white/70'}`}>
+                                  {metric.label}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
-                )}
 
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center gap-3 mb-5">
-                    <CircleDollarSign size={20} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Stratégie de prix</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Optimal', sublabel: 'Recommandé', price: analysis.pricing.recommendedPrice, active: true },
-                      { label: 'Premium', sublabel: 'Marge max', price: analysis.pricing.premiumPrice, active: false },
-                    ].map((p, i) => (
-                      <div 
-                        key={i} 
-                        className={`p-4 rounded-xl text-center transition-all ${
-                          p.active 
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                            : 'bg-black border border-white/10'
-                        }`}
-                      >
-                        <p className={`text-xs font-medium mb-1 ${p.active ? 'text-white/80' : 'text-slate-500'}`}>{p.sublabel}</p>
-                        <p className="text-xl font-bold mb-0.5">{formatCurrency(p.price)}</p>
-                        <p className={`text-xs font-semibold ${p.active ? 'text-white/90' : 'text-slate-600'}`}>{p.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* PROMPT CRÉATIF POUR IMAGES PUBLICITAIRES */}
-                <CreativePromptGenerator 
-                  productDescription={analysis.verdict.productVisualDescription || analysis.product.title}
-                  niche={analysis.niche}
-                  positioning={analysis.marketing?.strategic?.positioning?.mainPositioning}
-                  psychologicalTriggers={analysis.marketing?.strategic?.psychologicalTriggers}
-                  competitorMistakes={analysis.marketing?.strategic?.competitorMistakes}
-                />
-                  </div>
-                )}
-
-                {/* Contenu du sous-onglet Image */}
-                {activeSubTab === 'image' && (
-                  <ImageGenerator analysis={analysis} />
-                )}
-              </div>
-            )}
-
-            {/* SIMULATION TAB */}
-            {activeTab === 'simulation' && (
-              <div className="space-y-6">
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                      <Calculator size={20} className="text-white" />
+                  {/* Facteurs clés de succès */}
+                  <div className="p-5 rounded-xl bg-black border border-white/10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Award size={20} className={`${
+                        typeof window !== 'undefined' && (
+                          window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1'
+                        )
+                          ? 'text-[#00d4ff]'
+                          : 'text-amber-500'
+                      }`} />
+                      <h3 className="text-base font-bold text-white">Facteurs clés de succès</h3>
                     </div>
-                    <div>
-                      <h2 className="text-base font-bold text-slate-900">Calculateur de profit</h2>
-                      <p className="text-slate-500 text-xs">Ajustez les valeurs pour voir les projections</p>
-                    </div>
-                  </div>
-                  
-                  {analysis.verdict.supplierPriceReasoning && (
-                    <div className="mb-5 p-3 rounded-lg bg-black border border-white/10">
-                      <p className="text-xs font-semibold text-slate-500 mb-1">Analyse IA</p>
-                      <p className="text-sm text-slate-700">{analysis.verdict.supplierPriceReasoning}</p>
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-                    {[
-                      { 
-                        label: 'Prix fournisseur', 
-                        displayValue: supplierPriceDisplay,
-                        setDisplayValue: setSupplierPriceDisplay,
-                        numericValue: supplierPrice, 
-                        setNumericValue: setSupplierPrice, 
-                        hint: analysis.product.price > 0 
-                          ? `Prix entré : ${formatCurrency(analysis.product.price)}` 
-                          : `Est. IA : ${formatCurrency(analysis.verdict.estimatedSupplierPrice ?? 0)}` 
-                      },
-                      { 
-                        label: 'Frais de livraison', 
-                        displayValue: shippingCostDisplay,
-                        setDisplayValue: setShippingCostDisplay,
-                        numericValue: shippingCost, 
-                        setNumericValue: setShippingCost, 
-                        hint: `Est. : ${formatCurrency(aiEstimatedShippingCost)}` 
-                      },
-                      { 
-                        label: 'Prix de vente', 
-                        displayValue: sellingPriceDisplay,
-                        setDisplayValue: setSellingPriceDisplay,
-                        numericValue: sellingPrice, 
-                        setNumericValue: setSellingPrice, 
-                        hint: `Rec. : ${formatCurrency(analysis.pricing.recommendedPrice)}`, 
-                        highlight: true 
-                      },
-                    ].map((field, i) => (
-                      <div key={i}>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
-                          {field.label}
-                        </label>
-                        <div className="relative">
-                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${field.highlight ? 'text-[#00d4ff]' : 'text-slate-400'}`}>$</span>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={field.displayValue}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              // Permettre toute saisie (y compris vide) pour l'affichage
-                              field.setDisplayValue(inputValue);
-                              
-                              // Mettre à jour la valeur numérique seulement si c'est un nombre valide
-                              if (inputValue === '' || inputValue === '0') {
-                                field.setNumericValue(0);
-                              } else {
-                                const numValue = parseFloat(inputValue);
-                                if (!isNaN(numValue) && numValue >= 0) {
-                                  field.setNumericValue(numValue);
-                                }
-                              }
-                            }}
-                            onBlur={(e) => {
-                              // Au blur, s'assurer que la valeur d'affichage correspond à la valeur numérique
-                              const numValue = field.numericValue;
-                              if (numValue === 0) {
-                                field.setDisplayValue('');
-                              } else {
-                                field.setDisplayValue(numValue.toString());
-                              }
-                            }}
-                            className={`w-full pl-8 pr-3 py-3 rounded-lg text-lg font-bold focus:ring-0 focus:outline-none transition-colors ${
-                              field.highlight 
-                                ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]/10 border border-[#00d4ff] text-slate-900 focus:border-[#00d4ff]' 
-                                : 'bg-black border border-white/10 text-slate-900 focus:border-slate-400'
-                            }`}
-                          />
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">{field.hint}</p>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-black border border-white/10">
-                    <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Coût unitaire</p>
-                      <p className="text-xl font-bold text-slate-900">{formatCurrency(simulationData.costPerUnit)}</p>
-                      {useEtsyAds && simulationData.etsyAdsCost > 0 && (
-                        <p className="text-xs text-slate-400 mt-1">+ Pub : {formatCurrency(simulationData.etsyAdsCost)}</p>
-                      )}
-                    </div>
-                    <div className="text-center border-x border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Profit unitaire</p>
-                      <p className={`text-xl font-bold ${simulationData.profitPerUnit > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {formatCurrency(simulationData.profitPerUnit)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-slate-500 mb-1">Marge</p>
-                      <p className={`text-xl font-bold ${simulationData.marginPercent > 30 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                        {simulationData.marginPercent.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Etsy Ads Sub-tab */}
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
-                    <Zap size={18} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Etsy Ads</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-base font-bold text-slate-900 mb-1">Activer Etsy Ads</h4>
-                        <p className="text-sm text-slate-500">
-                          Activez la publicité pour accélérer la croissance et augmenter les ventes
-                        </p>
-                      </div>
-                      {/* Toggle Switch */}
-                      <button
-                        onClick={() => setUseEtsyAds(!useEtsyAds)}
-                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00d4ff] focus:ring-offset-2 ${
-                          useEtsyAds
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                            : 'bg-black border border-white/10'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
-                            useEtsyAds ? 'translate-x-8' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Time to First Sale Sub-tab */}
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
-                    <Clock size={18} className="text-[#00d4ff]" />
-                    <h3 className="text-base font-bold text-slate-900">Temps estimé avant la première vente</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className={`p-6 rounded-xl border-2 ${
-                      useEtsyAds
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white border-transparent shadow-lg shadow-[#00d4ff]/30'
-                        : 'bg-black border-[#00d4ff]'
-                    }`}>
-                      <div className="flex items-center gap-3 mb-4">
-                        {useEtsyAds ? (
-                          <Zap size={24} className="text-white" />
-                        ) : (
-                          <Clock size={24} className="text-[#00d4ff]" />
-                        )}
-                        <div>
-                          <h4 className={`text-base font-bold ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
-                            {useEtsyAds ? 'Avec Etsy Ads' : 'Sans Etsy Ads'}
-                          </h4>
-                          <p className={`text-xs ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
-                            {useEtsyAds ? 'Croissance accélérée' : 'Croissance organique'}
-                          </p>
-                        </div>
-                      </div>
-                      <p className={`text-4xl font-bold mb-2 ${useEtsyAds ? 'text-white' : 'text-[#00d4ff]'}`}>
-                        {useEtsyAds 
-                          ? analysis.launchSimulation.timeToFirstSale.withAds.expected
-                          : analysis.launchSimulation.timeToFirstSale.withoutAds.expected
-                        }
-                        <span className={`text-lg font-normal ml-2 ${useEtsyAds ? 'text-white/70' : 'text-[#00d4ff]/70'}`}>jours</span>
-                      </p>
-                      <p className={`text-sm mb-3 ${useEtsyAds ? 'text-white/70' : 'text-slate-500'}`}>
-                        Entre {
-                          useEtsyAds
-                            ? `${analysis.launchSimulation.timeToFirstSale.withAds.min} et ${analysis.launchSimulation.timeToFirstSale.withAds.max}`
-                            : `${analysis.launchSimulation.timeToFirstSale.withoutAds.min} et ${analysis.launchSimulation.timeToFirstSale.withoutAds.max}`
-                        } jours
-                      </p>
-                      <p className={`text-xs ${useEtsyAds ? 'text-white/60' : 'text-slate-400'}`}>
-                        Cette estimation est basée sur le score de potentiel de lancement du produit et reflète le comportement typique du marché Etsy.
-                      </p>
-                    </div>
-                    
-                    {/* Texte de transparence obligatoire */}
-                    <div className="p-4 rounded-lg bg-black border border-white/10">
-                      <div className="flex items-start gap-2">
-                        <Info size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-slate-600 leading-relaxed">
-                          <strong>Important :</strong> Tous les délais sont des estimations basées sur les conditions du marché et le positionnement du produit. Les résultats réels peuvent varier.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-3">
-                      <TrendingUp size={20} className="text-[#00d4ff]" />
-                      <h3 className="text-base font-bold text-slate-900">Projection 3 mois</h3>
-                    </div>
-                    <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                      {formatPercentage(analysis.launchSimulation.successProbability)} taux de réussite
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {[
-                      { key: 'prudent', label: 'Prudent', sublabel: 'Pessimiste', data: simulationData.prudent, highlight: false },
-                      { key: 'realiste', label: 'Réaliste', sublabel: 'Probable', data: simulationData.realiste, highlight: true },
-                      { key: 'optimise', label: 'Optimiste', sublabel: 'Meilleur', data: simulationData.optimise, highlight: false },
-                    ].map((scenario) => (
-                      <div 
-                        key={scenario.key}
-                        className={`p-4 rounded-lg transition-all ${
-                          scenario.highlight 
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white' 
-                            : 'bg-black border border-white/10'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="text-sm font-bold">{scenario.label}</p>
-                            <p className={`text-xs ${scenario.highlight ? 'text-white/70' : 'text-slate-500'}`}>
-                              {scenario.sublabel}
-                            </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(analysis.launchSimulation?.keyFactors || []).map((factor, i) => (
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-black border border-white/10">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
+                            typeof window !== 'undefined' && (
+                              window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1'
+                            )
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                              : 'bg-amber-500'
+                          }`}>
+                            {i + 1}
                           </div>
-                          {scenario.highlight && (
-                            <span className="px-2 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
-                              Recommandé
-                            </span>
-                          )}
+                          <span className="text-xs text-white">{factor}</span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
-                          {[
-                            { label: 'Ventes', value: scenario.data.sales },
-                            { label: 'Revenus', value: formatCurrency(scenario.data.revenue) },
-                            { label: 'Coûts', value: formatCurrency(scenario.data.costs) },
-                            { label: 'Profit', value: formatCurrency(scenario.data.profit), profit: true },
-                            { label: 'Marge', value: `${scenario.data.margin.toFixed(0)}%` },
-                          ].map((metric, i) => (
-                            <div key={i} className="text-center">
-                              <p className={`text-lg font-bold ${
-                                metric.profit && scenario.data.profit > 0 
-                                  ? (scenario.highlight ? 'text-emerald-300' : 'text-emerald-600') 
-                                  : ''
-                              }`}>
-                                {typeof metric.value === 'number' ? formatNumber(metric.value) : metric.value}
-                              </p>
-                              <p className={`text-xs mt-0.5 ${scenario.highlight ? 'text-white/60' : 'text-slate-500'}`}>
-                                {metric.label}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-xl bg-black border border-white/10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Award size={20} className={`${
-                      typeof window !== 'undefined' && (
-                        window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1'
-                      )
-                        ? 'text-[#00d4ff]'
-                        : 'text-amber-500'
-                    }`} />
-                    <h3 className="text-base font-bold text-white">Facteurs clés de succès</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {analysis.launchSimulation.keyFactors.map((factor, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-black border border-white/10">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
-                          typeof window !== 'undefined' && (
-                            window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1'
-                          )
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                            : 'bg-amber-500'
-                        }`}>
-                          {i + 1}
-                        </div>
-                        <span className="text-xs text-white">{factor}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </motion.div>
-        </AnimatePresence>
       </div>
     </div>
   );
@@ -1559,7 +1175,7 @@ export function ResultsStep() {
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border border-[#00d4ff]/30">
                   <Zap size={14} className="text-[#00d4ff]" />
                   <span className="text-sm font-semibold text-slate-700">
-                    {subscription.used}/{subscription.quota}
+                    {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)}/{subscription.quota}
                   </span>
                 </div>
               )}

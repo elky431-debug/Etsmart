@@ -67,6 +67,7 @@ interface GenerateImagesRequest {
   quantity: number;
   aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
   artDirection: 'auto' | 'professional-studio' | 'home-decor' | 'jewelry-accessories' | 'fashion-apparel' | 'print-on-demand';
+  skipListingGeneration?: boolean; // ⚠️ DEPRECATED: Image generation is now always independent (0.25 credit). This parameter is ignored.
 }
 
 /**
@@ -110,6 +111,19 @@ export async function POST(request: NextRequest) {
 
     console.log('[IMAGE GENERATION] ✅ User authenticated:', user.id);
     
+    // ⚠️ CRITICAL: Check subscription status and quota before allowing generation
+    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    
+    if (quotaInfo.status !== 'active') {
+      console.error('[IMAGE GENERATION] ❌ Subscription not active');
+      return NextResponse.json(
+        { error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required to generate images.' },
+        { status: 403 }
+      );
+    }
+
+    // Parse request body first to check if listing generation should be skipped
     let body: GenerateImagesRequest;
     try {
       body = await request.json();
@@ -119,6 +133,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Format de requête invalide' },
         { status: 400 }
+      );
+    }
+
+    // ⚠️ CRITICAL: Image generation is now INDEPENDENT from listing
+    // We ALWAYS generate only the image (0.5 credit), regardless of skipListingGeneration value
+    // The listing must be generated separately in the "Listing" tab
+    // This allows users to generate images without needing a listing first
+    const creditNeeded = 0.5; // Always 0.5 credit for image generation only
+    
+    // Check if user has enough quota
+    if (quotaInfo.remaining < creditNeeded) {
+      console.error(`[IMAGE GENERATION] ❌ Insufficient quota. Need ${creditNeeded} credit(s) for image generation`);
+      return NextResponse.json(
+        { error: 'QUOTA_EXCEEDED', message: `Insufficient quota. You need ${creditNeeded} credit(s) to generate images.` },
+        { status: 403 }
       );
     }
 
@@ -800,6 +829,26 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
         },
         { status: 500 }
       );
+    }
+
+    // ⚠️ CRITICAL: Increment quota AFTER successful generation
+    // Image generation is INDEPENDENT - always 0.5 credit for image only
+    // Listing must be generated separately in the "Listing" tab
+    const creditAmount = 0.5; // Always 0.5 credit for image generation only
+    console.log(`[IMAGE GENERATION] ⚠️ About to decrement ${creditAmount} credit(s) for user:`, user.id, '(image only - independent from listing)');
+    const quotaResult = await incrementAnalysisCount(user.id, creditAmount);
+    if (!quotaResult.success) {
+      console.error(`❌ [IMAGE GENERATION] Failed to decrement quota (${creditAmount} credit):`, quotaResult.error);
+      // Generation already completed, but quota wasn't incremented
+      // This is logged but doesn't block the response
+    } else {
+      console.log(`✅ [IMAGE GENERATION] Quota decremented successfully (${creditAmount} credit):`, {
+        used: quotaResult.used,
+        quota: quotaResult.quota,
+        remaining: quotaResult.remaining,
+        amount: creditAmount,
+        breakdown: 'image only (0.5) - independent from listing',
+      });
     }
 
     return NextResponse.json({

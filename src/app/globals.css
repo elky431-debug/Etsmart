@@ -22,11 +22,16 @@
 
 /* Theme: Dark (primary) */
 .theme-dark {
-  --background: #0b0b0b;
+  --background: #000000;
   --background-secondary: #0f1115;
   --background-card: #12141a;
   --foreground: #f5f7fb;
   --muted: #9aa3b2;
+}
+
+/* ⚠️ CRITICAL: S'assurer que le body a toujours un fond noir pour éviter l'espace blanc */
+.theme-dark body {
+  background: #000000 !important;
 }
 
 /* Theme: Light (secondary) */
@@ -40,6 +45,14 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
+  overflow-x: hidden;
+  background: #000000;
+}
+
+/* ⚠️ CRITICAL: S'assurer que html a toujours un fond noir en mode dark */
+.theme-dark html {
+  background: #000000 !important;
 }
 
 body {
@@ -47,6 +60,15 @@ body {
   color: var(--foreground);
   font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
+  height: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* ⚠️ CRITICAL: S'assurer que le body a toujours un fond noir en mode dark pour éviter l'espace blanc */
+.theme-dark body {
+  background: #000000 !important;
 }
 
 /* Hide global scrollbar */

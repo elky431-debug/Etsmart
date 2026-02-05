@@ -44,7 +44,7 @@ export default function CompetitorsPageComingSoon() {
 
           {/* Title */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
-            Analyse Concurrentielle
+            Boutiques Concurrents
           </h1>
 
           {/* Subtitle */}
@@ -113,7 +113,7 @@ export default function CompetitorsPageComingSoon() {
               Retour au dashboard
             </Link>
             <Link
-              href="/pricing"
+              href="/dashboard?section=analyse-simulation"
               className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-slate-700/50 text-white font-semibold rounded-full hover:bg-slate-800 transition-colors"
             >
               Voir les tarifs

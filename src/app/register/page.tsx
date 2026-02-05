@@ -32,8 +32,9 @@ export default function RegisterPage() {
 
     try {
       await signUp(email, password, name);
-      // Redirect to pricing/paywall immediately after signup
-      router.push('/pricing');
+      // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
+      // Rediriger vers le dashboard Analyse et Simulation
+      router.push('/dashboard?section=analyse-simulation');
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue lors de la création du compte');
       setIsLoading(false);

@@ -17,13 +17,13 @@ export function DashboardAnalysisDetail({
   onDelete 
 }: DashboardAnalysisDetailProps) {
   return (
-    <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
+    <div className="p-4 md:p-8 bg-black min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-white/10"
           >
             <ArrowLeft size={20} />
             <span>Retour à l'historique</span>
@@ -31,15 +31,15 @@ export function DashboardAnalysisDetail({
 
           <button
             onClick={onDelete}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
           >
             <Trash2 size={18} />
             <span>Supprimer</span>
           </button>
         </div>
 
-        {/* Full analysis with all tabs */}
-        <ProductAnalysisView analysis={analysis} />
+        {/* Full analysis with all tabs - Analyse et Simulation / Listing et Images */}
+        <ProductAnalysisView analysis={analysis} hideTitle={true} />
       </div>
     </div>
   );

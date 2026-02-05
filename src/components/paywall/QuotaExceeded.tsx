@@ -81,6 +81,16 @@ export function QuotaExceeded({
   onUpgrade,
   onClose 
 }: QuotaExceededProps) {
+  // ⚠️ CRITICAL: Ne JAMAIS afficher QuotaExceeded en localhost
+  if (typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0'
+  )) {
+    console.log('[QuotaExceeded] ⚠️ QuotaExceeded désactivé en localhost');
+    return null;
+  }
+
   const { upgrade, isLoading, error } = useUpgrade();
   
   // Determine upgrade suggestion

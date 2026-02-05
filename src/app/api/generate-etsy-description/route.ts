@@ -24,7 +24,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    // Parse body first to check if credit deduction should be skipped
+    let body: any;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('[DESCRIPTION GENERATION] Error parsing request body:', parseError);
+      return NextResponse.json(
+        { error: 'INVALID_REQUEST', message: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
     const {
       productVisualDescription,
       niche,
@@ -32,7 +43,30 @@ export async function POST(request: NextRequest) {
       psychologicalTriggers,
       buyerMirror,
       recommendedPrice,
+      skipCreditDeduction = false, // Par défaut, on déduit les crédits (0.25). Si true, ne pas décrémenter (sera fait dans generate-images)
     } = body;
+
+    // ⚠️ CRITICAL: Check subscription status and quota before allowing generation
+    // (sauf si skipCreditDeduction est true, auquel cas les crédits seront déduits dans generate-images)
+    if (!skipCreditDeduction) {
+      const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+      const quotaInfo = await getUserQuotaInfo(user.id);
+      
+      if (quotaInfo.status !== 'active') {
+        return NextResponse.json(
+          { error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required to generate descriptions.' },
+          { status: 403 }
+        );
+      }
+
+      // Check if user has enough quota (0.5 credit needed)
+      if (quotaInfo.remaining < 0.5) {
+        return NextResponse.json(
+          { error: 'QUOTA_EXCEEDED', message: 'Insufficient quota. You need 0.5 credit to generate a description.' },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
@@ -188,9 +222,78 @@ Generate the description now:`;
       );
     }
 
-    return NextResponse.json({ description });
+    // ⚠️ CRITICAL: Increment quota AFTER successful generation
+    // Listing generation costs 0.5 credit (independent from image generation)
+    // Sauf si skipCreditDeduction est true (les crédits seront déduits dans generate-images)
+    let quotaResult: { success: boolean; used: number; quota: number; remaining: number; error?: string } | null = null;
+    
+    if (!skipCreditDeduction) {
+      const { incrementAnalysisCount } = await import('@/lib/subscription-quota');
+      console.log('[DESCRIPTION GENERATION] ⚠️ About to decrement 0.5 credit for listing generation (user:', user.id, ')');
+      quotaResult = await incrementAnalysisCount(user.id, 0.5);
+      if (!quotaResult.success) {
+        console.error('❌ [DESCRIPTION GENERATION] Failed to decrement quota:', quotaResult.error);
+        // Generation already completed, but quota wasn't incremented
+        // This is logged but doesn't block the response
+      } else {
+        console.log('✅ [DESCRIPTION GENERATION] Quota decremented successfully:', {
+          used: quotaResult.used,
+          quota: quotaResult.quota,
+          remaining: quotaResult.remaining,
+          amount: 0.5,
+        });
+        
+        // ⚠️ CRITICAL: Verify the value was stored correctly by reading it back immediately
+        const { supabase } = await import('@/lib/supabase-admin');
+        const { createSupabaseAdminClient } = await import('@/lib/supabase-admin');
+        const adminSupabase = createSupabaseAdminClient();
+        const { data: verifyUser, error: verifyError } = await adminSupabase
+          .from('users')
+          .select('analysis_used_this_month')
+          .eq('id', user.id)
+          .single();
+        
+        if (!verifyError && verifyUser) {
+          const storedValue = typeof verifyUser.analysis_used_this_month === 'number' 
+            ? verifyUser.analysis_used_this_month 
+            : parseFloat(String(verifyUser.analysis_used_this_month)) || 0;
+          console.log('✅ [DESCRIPTION GENERATION] Verified stored value in DB:', storedValue);
+          
+          if (Math.abs(storedValue - quotaResult.used) > 0.01) {
+            console.error('❌ [DESCRIPTION GENERATION] WARNING: Stored value differs from expected:', {
+              expected: quotaResult.used,
+              stored: storedValue,
+            });
+          }
+        } else {
+          console.warn('⚠️ [DESCRIPTION GENERATION] Could not verify stored value:', verifyError);
+        }
+      }
+    } else {
+      console.log('[DESCRIPTION GENERATION] ⚠️ Credit deduction skipped (will be done in image generation)');
+    }
+
+    // Return description AND updated quota info so client can verify
+    return NextResponse.json({ 
+      description,
+      quotaUpdated: !skipCreditDeduction,
+      // Include quota info if available
+      ...(quotaResult && !skipCreditDeduction && quotaResult.success ? {
+        quota: {
+          used: quotaResult.used,
+          remaining: quotaResult.remaining,
+          quota: quotaResult.quota,
+        }
+      } : {}),
+    });
   } catch (error: any) {
-    console.error('Error generating Etsy description:', error);
+    console.error('[DESCRIPTION GENERATION] ❌ Error generating Etsy description:', error);
+    console.error('[DESCRIPTION GENERATION] Error stack:', error.stack);
+    console.error('[DESCRIPTION GENERATION] Error details:', {
+      message: error.message,
+      name: error.name,
+      response: error.response,
+    });
     
     if (error.response?.status === 401) {
       return NextResponse.json(
@@ -207,7 +310,11 @@ Generate the description now:`;
     }
 
     return NextResponse.json(
-      { error: 'GENERATION_ERROR', message: error.message || 'Failed to generate description' },
+      { 
+        error: 'GENERATION_ERROR', 
+        message: error.message || 'Failed to generate description',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

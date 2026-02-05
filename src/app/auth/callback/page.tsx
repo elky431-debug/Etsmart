@@ -43,20 +43,10 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // Check if user is new (created in the last 60 seconds) → redirect to pricing
-        const createdAt = new Date(data.user.created_at || '');
-        const now = new Date();
-        const isNewUser = (now.getTime() - createdAt.getTime()) < 60000; // 60 seconds
-        
-        if (isNewUser) {
-          // New user → redirect to pricing/paywall
-          console.log('[OAuth Callback] Nouvel utilisateur, redirection vers /pricing');
-          router.push('/pricing');
-        } else {
-          // Returning user → redirect to dashboard
-          console.log('[OAuth Callback] Utilisateur existant, redirection vers /dashboard');
-          router.push('/dashboard?section=analyze');
-        }
+        // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
+        // Toujours rediriger vers le dashboard Analyse et Simulation
+        console.log('[OAuth Callback] Redirection vers Analyse et Simulation (NO REDIRECT TO /pricing)');
+        router.push('/dashboard?section=analyse-simulation');
       } catch (err: any) {
         console.error('[OAuth Callback] Erreur inattendue:', err);
         router.push(`/login?error=oauth_error&message=${encodeURIComponent(err.message || 'Erreur inconnue')}`);

@@ -14,11 +14,13 @@ import {
   CheckCircle2,
   Globe,
   ArrowUpRight,
-  Lock
+  Lock,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
 
 // Composant d'animation pour les sections
@@ -59,8 +61,10 @@ function AnimatedCard({ children, delay = 0, className = '' }: { children: React
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [splineLoaded, setSplineLoaded] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const features = [
     {
@@ -85,7 +89,7 @@ export default function HomePage() {
     },
     {
       icon: ShoppingBag,
-      title: 'Analyse concurrentielle',
+      title: 'Boutiques concurrents',
       description: 'Identifiez les leaders et les angles exploitables de votre niche.',
     },
     {
@@ -185,7 +189,7 @@ export default function HomePage() {
               {/* CTA Desktop */}
               <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
-                  <Link href="/dashboard?section=analyze">
+                  <Link href="/dashboard?section=analyse-simulation">
                     <button className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
                       process.env.NODE_ENV === 'development' 
                         ? 'border-2 bg-transparent hover:opacity-90' 
@@ -442,48 +446,118 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: 'Smart', price: '€19.99', period: '/mois', features: ['30 analyses / mois', 'Toutes les fonctionnalités'] },
-              { name: 'Pro', price: '€29.99', period: '/mois', features: ['60 analyses / mois', 'Toutes les fonctionnalités'], popular: true },
-              { name: 'Scale', price: '€49.99', period: '/mois', features: ['100 analyses / mois', 'Toutes les fonctionnalités'] },
-            ].map((plan, index) => (
-              <AnimatedCard key={plan.name} delay={index * 0.15}>
-                <div
-                  className={`p-6 rounded-lg border ${
-                    plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
-                  }`}
-                >
-                  <h3 className="text-lg font-semibold text-white mb-2">{plan.name}</h3>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-4xl font-bold text-white">{plan.price}</span>
-                    <span className="text-white/60">{plan.period}</span>
+              { id: 'SMART', name: 'Smart', price: '€19.99', period: '/mois', features: ['30 analyses / mois', 'Toutes les fonctionnalités'] },
+              { id: 'PRO', name: 'Pro', price: '€29.99', period: '/mois', features: ['60 analyses / mois', 'Toutes les fonctionnalités'], popular: true },
+              { id: 'SCALE', name: 'Scale', price: '€49.99', period: '/mois', features: ['100 analyses / mois', 'Toutes les fonctionnalités'] },
+            ].map((plan, index) => {
+              const handleSubscribe = async () => {
+                // Si l'utilisateur n'est pas connecté, rediriger vers login
+                if (!user) {
+                  router.push(`/login?redirect=/dashboard?section=analyse-simulation&plan=${plan.id}`);
+                  return;
+                }
+
+                setLoadingPlan(plan.id);
+
+                try {
+                  // Récupérer le token d'authentification Supabase
+                  const { supabase } = await import('@/lib/supabase');
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const token = session?.access_token;
+
+                  // Créer une session Stripe Checkout
+                  const headers: HeadersInit = {
+                    'Content-Type': 'application/json',
+                  };
+
+                  // Ajouter le token d'authentification si disponible
+                  if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                  }
+
+                  const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                      planId: plan.id,
+                      userId: user.id,
+                      userEmail: user.email,
+                    }),
+                  });
+
+                  const data = await response.json();
+
+                  if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create checkout session');
+                  }
+
+                  // Rediriger vers Stripe Checkout
+                  if (data.url) {
+                    window.location.href = data.url;
+                  } else {
+                    throw new Error('No checkout URL returned');
+                  }
+                } catch (error: any) {
+                  console.error('Error creating checkout session:', error);
+                  alert(error.message || 'Failed to start checkout. Please try again.');
+                  setLoadingPlan(null);
+                }
+              };
+
+              return (
+                <AnimatedCard key={plan.name} delay={index * 0.15}>
+                  <div
+                    className={`p-6 rounded-lg border ${
+                      plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
+                    }`}
+                  >
+                    <h3 className="text-lg font-semibold text-white mb-2">{plan.name}</h3>
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-4xl font-bold text-white">{plan.price}</span>
+                      <span className="text-white/60">{plan.period}</span>
+                    </div>
+                    <ul className="space-y-2 mb-6">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-center gap-2 text-white/80 text-sm">
+                          <CheckCircle2 className={`w-4 h-4 ${
+                            process.env.NODE_ENV === 'development' 
+                              ? 'text-[#00c9b7]' 
+                              : 'text-[#00d4ff]'
+                          }`} />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button 
+                      onClick={handleSubscribe}
+                      disabled={loadingPlan === plan.id}
+                      className={`w-full py-3 rounded-lg font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        process.env.NODE_ENV === 'development' 
+                          ? 'border-2 bg-transparent hover:opacity-90' 
+                          : 'force-white'
+                      }`} 
+                      style={process.env.NODE_ENV === 'development' ? {
+                        borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
+                        borderImageSlice: 1,
+                      } : {}}
+                    >
+                      {loadingPlan === plan.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className={process.env.NODE_ENV === 'development' 
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                            : 'text-black'}>Chargement...</span>
+                        </span>
+                      ) : (
+                        <span className={process.env.NODE_ENV === 'development' 
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
+                          : 'text-black'}>Choisir ce plan</span>
+                      )}
+                    </button>
                   </div>
-                  <ul className="space-y-2 mb-6">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-white/80 text-sm">
-                        <CheckCircle2 className={`w-4 h-4 ${
-                          process.env.NODE_ENV === 'development' 
-                            ? 'text-[#00c9b7]' 
-                            : 'text-[#00d4ff]'
-                        }`} />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button className={`w-full py-3 rounded-lg font-semibold cursor-pointer ${
-                    process.env.NODE_ENV === 'development' 
-                      ? 'border-2 bg-transparent hover:opacity-90' 
-                      : 'force-white'
-                  }`} style={process.env.NODE_ENV === 'development' ? {
-                    borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
-                    borderImageSlice: 1,
-                  } : {}}>
-                    <span className={process.env.NODE_ENV === 'development' 
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-                      : 'text-black'}>Choisir ce plan</span>
-                  </button>
-                </div>
-              </AnimatedCard>
-            ))}
+                </AnimatedCard>
+              );
+            })}
           </div>
         </div>
       </section>

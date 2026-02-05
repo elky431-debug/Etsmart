@@ -14,8 +14,10 @@ const stripe = process.env.STRIPE_SECRET_KEY
 /**
  * Increment analysis count for user (server-side only)
  * Returns true if successful, false if quota exceeded
+ * @param userId - User ID
+ * @param amount - Amount to increment (default: 0.5 for analysis, can be customized)
  */
-export async function incrementAnalysisCount(userId: string): Promise<{
+export async function incrementAnalysisCount(userId: string, amount: number = 0.5): Promise<{
   success: boolean;
   used: number;
   quota: number;
@@ -51,7 +53,10 @@ export async function incrementAnalysisCount(userId: string): Promise<{
     // Use snake_case column names (database standard)
     const subscriptionStatus = user.subscription_status;
     const subscriptionPlan = user.subscription_plan;
-    const analysisUsed = user.analysis_used_this_month ?? 0;
+    // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+    // Handle both string and number types from database
+    const rawUsed = user.analysis_used_this_month;
+    const analysisUsed = typeof rawUsed === 'string' ? parseFloat(rawUsed) : (typeof rawUsed === 'number' ? rawUsed : 0);
     const analysisQuota = user.analysis_quota;
     const periodEnd = user.current_period_end;
     
@@ -79,7 +84,9 @@ export async function incrementAnalysisCount(userId: string): Promise<{
     const now = new Date();
     const periodEndDate = periodEnd ? new Date(periodEnd) : null;
     
-    let currentUsed = analysisUsed;
+    // Ensure we work with numbers (not strings) to support decimals
+    let currentUsed = typeof analysisUsed === 'number' ? analysisUsed : (typeof analysisUsed === 'string' ? parseFloat(analysisUsed) : 0);
+    if (isNaN(currentUsed)) currentUsed = 0;
     
     if (periodEndDate && periodEndDate < now) {
       console.log(`[incrementAnalysisCount] Period expired, resetting quota`);
@@ -108,31 +115,41 @@ export async function incrementAnalysisCount(userId: string): Promise<{
     // Check current quota
     const quota = analysisQuota || PLAN_QUOTAS[subscriptionPlan as PlanId] || 100;
     
-    console.log(`[incrementAnalysisCount] Quota check: used=${currentUsed}, quota=${quota}`);
+    // Ensure amount is a number
+    const amountNum = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
     
-    if (currentUsed >= quota) {
+    console.log(`[incrementAnalysisCount] Quota check: used=${currentUsed}, quota=${quota}, amount=${amountNum}`);
+    
+    // Check if adding the amount would exceed quota
+    if (currentUsed + amountNum > quota) {
       return {
         success: false,
         used: currentUsed,
         quota,
-        remaining: 0,
+        remaining: Math.max(0, quota - currentUsed),
         error: 'Quota exceeded',
       };
     }
     
-    // Increment count (snake_case column!)
-    const newUsed = currentUsed + 1;
-    console.log(`[incrementAnalysisCount] Incrementing from ${currentUsed} to ${newUsed}`);
+    // Increment count by specified amount (snake_case column!)
+    const newUsed = currentUsed + amountNum;
+    console.log(`[incrementAnalysisCount] Incrementing from ${currentUsed} to ${newUsed} (${amountNum} credit)`);
+    
+    // Force decimal value to be stored as number (not string)
+    // Ensure newUsed is always a number, even if it's a whole number like 8.0
+    const newUsedValue = typeof newUsed === 'number' ? newUsed : parseFloat(String(newUsed));
+    
+    console.log(`[incrementAnalysisCount] ⚠️ Updating database: analysis_used_this_month = ${newUsedValue} (type: ${typeof newUsedValue})`);
     
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        analysis_used_this_month: newUsed,
+        analysis_used_this_month: newUsedValue, // Explicitly pass as number
       })
       .eq('id', userId);
     
     if (updateError) {
-      console.error(`[incrementAnalysisCount] Update error:`, updateError);
+      console.error(`[incrementAnalysisCount] ❌ Update error:`, updateError);
       return {
         success: false,
         used: currentUsed,
@@ -140,6 +157,31 @@ export async function incrementAnalysisCount(userId: string): Promise<{
         remaining: quota - currentUsed,
         error: updateError.message,
       };
+    }
+    
+    // Verify the value was stored correctly by reading it back
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('users')
+      .select('analysis_used_this_month')
+      .eq('id', userId)
+      .single();
+    
+    if (!verifyError && verifyData) {
+      const storedValue = verifyData.analysis_used_this_month;
+      const storedValueNum = typeof storedValue === 'number' ? storedValue : parseFloat(String(storedValue)) || 0;
+      console.log(`[incrementAnalysisCount] ✅ Database updated. Stored value: ${storedValueNum} (type: ${typeof storedValue})`);
+      
+      // Check if the stored value matches what we sent (allow small floating point differences)
+      if (Math.abs(storedValueNum - newUsedValue) > 0.01) {
+        console.error(`[incrementAnalysisCount] ❌ ERROR: Stored value (${storedValueNum}) differs from sent value (${newUsedValue})`);
+        // Use the stored value instead
+        return {
+          success: true,
+          used: storedValueNum,
+          quota,
+          remaining: quota - storedValueNum,
+        };
+      }
     }
     
     console.log(`[incrementAnalysisCount] ✅ Successfully incremented to ${newUsed}`);
@@ -356,8 +398,12 @@ export async function getUserQuotaInfo(userId: string): Promise<{
     if (user && user.subscription_status === 'active') {
       console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscription_plan}`);
       const quota = user.analysis_quota || PLAN_QUOTAS[user.subscription_plan as PlanId] || 100;
-      const used = user.analysis_used_this_month || 0;
-      const remaining = Math.max(0, quota - used);
+      // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+      // Handle both string and number types from database
+      const rawUsed = user.analysis_used_this_month;
+      const used = typeof rawUsed === 'number' ? rawUsed : (rawUsed != null ? parseFloat(String(rawUsed)) : 0);
+      const usedNum = isNaN(used) ? 0 : used;
+      const remaining = Math.max(0, quota - usedNum);
       
       let requiresUpgrade: PlanId | undefined;
       if (used >= quota) {
@@ -367,7 +413,7 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       return {
         plan: user.subscription_plan as PlanId,
         status: 'active',
-        used,
+        used: usedNum,
         quota,
         remaining,
         periodStart: user.current_period_start ? new Date(user.current_period_start) : null,
@@ -398,15 +444,19 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       
       if (stripeData && stripeData.status === 'active' && stripeData.plan) {
         console.log(`[getUserQuotaInfo] ✅ Stripe says ACTIVE: ${stripeData.plan}, quota: ${stripeData.quota}`);
-        const used = user?.analysis_used_this_month || 0;
+        // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+        // Handle both string and number types from database
+        const rawUsed = user?.analysis_used_this_month;
+        const used = typeof rawUsed === 'number' ? rawUsed : (rawUsed != null ? parseFloat(String(rawUsed)) : 0);
+        const usedNum = isNaN(used) ? 0 : used;
         const quota = stripeData.quota;
         
         return {
           plan: stripeData.plan,
           status: 'active',
-          used,
+          used: usedNum,
           quota,
-          remaining: Math.max(0, quota - used),
+          remaining: Math.max(0, quota - usedNum),
           periodStart: stripeData.periodStart,
           periodEnd: stripeData.periodEnd,
         };

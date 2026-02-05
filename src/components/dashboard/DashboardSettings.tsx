@@ -717,7 +717,7 @@ export function DashboardSettings({ user }: DashboardSettingsProps) {
                 </div>
 
                 <a
-                  href="/pricing"
+                  href="/dashboard?section=analyse-simulation"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                 >
                   <CreditCard size={18} />

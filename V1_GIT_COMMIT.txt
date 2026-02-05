@@ -1,0 +1,7 @@
+8871406 Style: Remplacement tous les fonds blancs par noir pur dans ImageGenerator
+
+88714063f0ed8f1944010bb427f6707856c2bbd2
+Yacine El fahim
+yacineelfahim@Air-de-Yacine.lan
+Wed Feb 4 16:40:18 2026 +0100
+Style: Remplacement tous les fonds blancs par noir pur dans ImageGenerator

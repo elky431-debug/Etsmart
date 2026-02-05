@@ -15,7 +15,7 @@ function SuccessContent() {
 
   useEffect(() => {
     if (!sessionId) {
-      router.push('/pricing');
+      router.push('/dashboard?section=analyse-simulation');
       return;
     }
 

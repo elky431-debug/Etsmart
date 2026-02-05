@@ -8,6 +8,10 @@ import Stripe from 'stripe';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { PLAN_QUOTAS, STRIPE_PRICE_IDS, type PlanId } from '@/types/subscription';
 
+// Disable caching for this route to ensure fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
@@ -62,14 +66,28 @@ export async function GET(request: NextRequest) {
     const customer = customers.data[0];
     console.log(`[Check Stripe] Found customer: ${customer.id}`);
 
-    // Get active subscriptions
+    // ⚠️ CRITICAL: Get active subscriptions (including those that will cancel at period end)
+    // On cherche les abonnements avec status 'active' OU 'trialing' OU 'past_due' (mais période valide)
+    // car même si cancel_at_period_end est true, l'abonnement reste 'active' jusqu'à la fin de la période
     const subscriptions = await stripe.subscriptions.list({
       customer: customer.id,
-      status: 'active',
-      limit: 1,
+      status: 'all', // Chercher tous les statuts pour ne rien manquer
+      limit: 10, // Augmenter la limite pour trouver tous les abonnements
     });
 
-    if (subscriptions.data.length === 0) {
+    // Filtrer pour trouver les abonnements actifs ou avec période valide
+    const nowUnix = Math.floor(Date.now() / 1000); // Timestamp Unix en secondes
+    const activeSubscriptions = subscriptions.data.filter(sub => {
+      const periodEnd = sub.current_period_end;
+      const isPeriodValid = periodEnd && periodEnd > nowUnix;
+      // Un abonnement est considéré comme actif si :
+      // 1. Status est 'active' ou 'trialing'
+      // 2. OU si la période est encore valide (même si status est 'canceled' ou autre)
+      return (sub.status === 'active' || sub.status === 'trialing') || 
+             (isPeriodValid && periodEnd > nowUnix);
+    });
+
+    if (activeSubscriptions.length === 0) {
       console.log(`[Check Stripe] No active subscription for customer: ${customer.id}`);
       return NextResponse.json({
         hasSubscription: false,
@@ -78,7 +96,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const subscription = subscriptions.data[0];
+    // Prendre le premier abonnement actif trouvé
+    const subscription = activeSubscriptions[0];
     const priceId = subscription.items.data[0]?.price?.id;
     const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
     
@@ -107,6 +126,19 @@ export async function GET(request: NextRequest) {
     const periodEnd = (typeof rawPeriodEnd === 'number' && rawPeriodEnd > 0) 
       ? new Date(rawPeriodEnd * 1000) 
       : defaultEnd;
+    
+    // Vérifier si la période est toujours valide
+    const isPeriodValid = periodEnd > now;
+    
+    // Si cancel_at_period_end est true mais que la période est terminée, l'abonnement n'est plus actif
+    if (cancelAtPeriodEnd && !isPeriodValid) {
+      console.log(`[Check Stripe] Subscription canceled and period expired`);
+      return NextResponse.json({
+        hasSubscription: false,
+        customerId: customer.id,
+        message: 'Subscription canceled and period expired',
+      });
+    }
 
     console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, cancelAtPeriodEnd: ${cancelAtPeriodEnd}`);
 
@@ -124,7 +156,9 @@ export async function GET(request: NextRequest) {
       
       if (userData) {
         // Handle both camelCase and snake_case column names
-        currentUsed = userData.analysisUsedThisMonth ?? userData.analysis_used_this_month ?? 0;
+        // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+        const rawValue = userData.analysisUsedThisMonth ?? userData.analysis_used_this_month ?? 0;
+        currentUsed = parseFloat(rawValue) || 0;
         console.log(`[Check Stripe] Current usage from DB: ${currentUsed}`);
       }
     } catch (fetchError) {

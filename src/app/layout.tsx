@@ -43,10 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${sora.variable} ${dmSans.variable} h-full`}>
       <body 
-        className="antialiased theme-dark"
+        className="antialiased theme-dark h-full"
         style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}
+        suppressHydrationWarning
       >
         <AuthProvider>
           <ScrollRestoration />

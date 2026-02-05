@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         user_id: finalUserId || '',
       },
       success_url: `${baseUrl}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing?canceled=true`,
+      cancel_url: `${baseUrl}/dashboard?section=analyse-simulation&canceled=true`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       payment_method_collection: 'always',

@@ -2,144 +2,49 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence } from 'framer-motion';
-import { Header } from '@/components/layout/Header';
-import { Stepper } from '@/components/layout/Stepper';
-import { Footer } from '@/components/layout/Footer';
-import dynamic from 'next/dynamic';
-
-// Lazy loading des composants lourds pour améliorer le chargement initial
-// Skeletons simples et légers pour mobile
-const NicheSelection = dynamic(() => import('@/components/steps/NicheSelection').then(mod => ({ default: mod.NicheSelection })), {
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
-      </div>
-    </div>
-  ),
-  ssr: false,
-});
-
-const ProductImport = dynamic(() => import('@/components/steps/ProductImport').then(mod => ({ default: mod.ProductImport })), {
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
-      </div>
-    </div>
-  ),
-  ssr: false,
-});
-
-const AnalysisStep = dynamic(() => import('@/components/steps/AnalysisStep').then(mod => ({ default: mod.AnalysisStep })), {
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
-      </div>
-    </div>
-  ),
-  ssr: false,
-});
-
-const ResultsStep = dynamic(() => import('@/components/steps/ResultsStep').then(mod => ({ default: mod.ResultsStep })), {
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm text-slate-600">Chargement...</p>
-      </div>
-    </div>
-  ),
-  ssr: false,
-});
-import { useStore } from '@/store/useStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 
 export default function AppPage() {
-  const { currentStep, products, analyses } = useStore();
   const { user, loading } = useAuth();
   const router = useRouter();
   
-  // 🔒 Protect this page - redirect to /pricing if no active subscription
-  const { isActive: hasActiveSubscription, isLoading: subscriptionLoading } = useSubscriptionProtection();
+  // 🔒 Protect this page - redirects blocked (no pricing page)
+  const { isLoading: subscriptionLoading } = useSubscriptionProtection();
 
+  // ⚠️ CRITICAL: Rediriger automatiquement vers la page "Analyse et Simulation" du dashboard
   useEffect(() => {
-    // Protection contre les erreurs SSR/mobile
     if (typeof window === 'undefined') return;
     
+    // Attendre que le chargement soit terminé avant de rediriger
+    if (loading || subscriptionLoading) return;
+    
+    // Si l'utilisateur est connecté, rediriger vers le dashboard
+    if (user) {
+      console.log('[AppPage] Redirecting to dashboard analyse-simulation page');
+      router.push('/dashboard?section=analyse-simulation');
+      return;
+    }
+    
+    // Si pas d'utilisateur, rediriger vers login
     if (!loading && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, loading, subscriptionLoading, router]);
 
-  // Log l'état du store au montage pour debug
-  useEffect(() => {
-    console.log('[AppPage] État du store au montage:', {
-      currentStep,
-      productsCount: products.length,
-      analysesCount: analyses.length,
-      localStorage: typeof window !== 'undefined' ? localStorage.getItem('etsmart-storage')?.substring(0, 100) : 'N/A'
-    });
-  }, []);
-
-  if (loading || subscriptionLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center px-4">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#00d4ff]"></div>
-          <p className="mt-4 text-sm sm:text-base text-slate-600">Loading...</p>
-        </div>
+  // ⚠️ CRITICAL: Afficher un loader pendant la redirection
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="text-center px-4">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:h-12 border-b-2 border-[#00d4ff]"></div>
+        <p className="mt-4 text-sm sm:text-base text-slate-600">
+          {loading || subscriptionLoading 
+            ? 'Chargement...' 
+            : user 
+              ? 'Redirection vers Analyse et Simulation...' 
+              : 'Redirection vers la connexion...'}
+        </p>
       </div>
-    );
-  }
-
-  if (!user || !hasActiveSubscription) {
-    return null; // Will redirect
-  }
-
-  if (currentStep === 4) {
-    return <ResultsStep />;
-  }
-
-  // Protection contre les erreurs de rendu
-  try {
-    return (
-      <div className="min-h-screen flex flex-col bg-black">
-        {/* Stepper en haut - très fin */}
-        <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10">
-          <Stepper />
-        </div>
-        
-        <Header />
-        
-        <main className="flex-1 pt-24 sm:pt-32 md:pt-36 pb-8 sm:pb-12 relative z-10">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-            <AnimatePresence mode="wait">
-              {currentStep === 1 && <NicheSelection key="niche" />}
-              {currentStep === 2 && <ProductImport key="products" />}
-              {currentStep === 3 && <AnalysisStep key="analysis" />}
-            </AnimatePresence>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    );
-  } catch (error) {
-    // Fallback en cas d'erreur
-    console.error('Error rendering AppPage:', error);
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center px-4">
-          <p className="text-sm text-slate-600">Une erreur est survenue. Veuillez rafraîchir la page.</p>
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 }

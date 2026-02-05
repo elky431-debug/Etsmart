@@ -121,7 +121,50 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
       )}
 
       {/* SEO Tags */}
-      {verdict.seoTags && verdict.seoTags.length > 0 && (
+      {(() => {
+        // Helper function to get tags as array and ensure 13 tags
+        const getTagsArray = () => {
+          if (!verdict.seoTags) return [];
+          if (Array.isArray(verdict.seoTags)) return verdict.seoTags;
+          if (typeof verdict.seoTags === 'string' && verdict.seoTags) {
+            return verdict.seoTags.split(',').map(t => t.trim()).filter(t => t);
+          }
+          return [];
+        };
+        
+        // Helper function to ensure exactly 13 tags
+        const ensure13Tags = (tags: string[]): string[] => {
+          const REQUIRED_COUNT = 13;
+          if (tags.length >= REQUIRED_COUNT) {
+            return tags.slice(0, REQUIRED_COUNT);
+          }
+          
+          // Compléter avec des tags génériques si nécessaire
+          const genericTags = [
+            'handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan',
+            'quality', 'premium', 'special', 'original', 'trendy', 'stylish', 'modern',
+            'vintage', 'elegant', 'beautiful', 'perfect', 'lovely', 'charming'
+          ];
+          
+          const result = [...tags];
+          for (const tag of genericTags) {
+            if (result.length >= REQUIRED_COUNT) break;
+            if (!result.includes(tag)) {
+              result.push(tag);
+            }
+          }
+          
+          // Si on n'a toujours pas 13 tags, compléter avec des tags numérotés
+          while (result.length < REQUIRED_COUNT) {
+            result.push(`tag${result.length + 1}`);
+          }
+          
+          return result.slice(0, REQUIRED_COUNT);
+        };
+        
+        const rawTags = getTagsArray();
+        const tags = ensure13Tags(rawTags);
+        return tags.length > 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -130,10 +173,10 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Tag size={16} className="text-cyan-400" />
-              <span className="text-sm font-medium text-white">Tags ({verdict.seoTags.length})</span>
+              <span className="text-sm font-medium text-white">Tags ({tags.length})</span>
             </div>
             <button
-              onClick={() => copyToClipboard(verdict.seoTags!.join(', '), 'tags')}
+              onClick={() => copyToClipboard(tags.join(', '), 'tags')}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 text-slate-400 text-xs hover:text-white transition-colors"
             >
               {copiedTags ? <Check size={12} /> : <Copy size={12} />}
@@ -141,12 +184,13 @@ export function VerdictCard({ verdict, competitors }: VerdictCardProps) {
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {verdict.seoTags.map((tag, idx) => (
+            {tags.map((tag, idx) => (
               <Badge key={idx} variant="default" size="sm">{tag}</Badge>
             ))}
           </div>
         </motion.div>
-      )}
+        ) : null;
+      })()}
 
 
       {/* Launch Tips */}

@@ -1,12 +1,29 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import Link from 'next/link';
 
 export function QuotaDisplay() {
-  const { subscription, loading, quotaPercentage, canAnalyze, requiresUpgrade } = useSubscription();
+  const { subscription, loading, quotaPercentage, canAnalyze, requiresUpgrade, refreshSubscription } = useSubscription();
+  
+  // Listen for credits-updated event and force refresh
+  useEffect(() => {
+    const handleCreditsUpdated = () => {
+      console.log('[QuotaDisplay] 💰 Credits updated event received, forcing refresh');
+      refreshSubscription(true);
+    };
+    
+    window.addEventListener('credits-updated', handleCreditsUpdated);
+    window.addEventListener('subscription-refresh', handleCreditsUpdated);
+    
+    return () => {
+      window.removeEventListener('credits-updated', handleCreditsUpdated);
+      window.removeEventListener('subscription-refresh', handleCreditsUpdated);
+    };
+  }, [refreshSubscription]);
 
   if (loading) {
     return (
@@ -66,10 +83,10 @@ export function QuotaDisplay() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.used} / {subscription.quota} utilisées
+            {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / {subscription.quota} utilisées
           </span>
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.remaining} restantes
+            {subscription.remaining % 1 === 0 ? subscription.remaining : subscription.remaining.toFixed(1)} restantes
           </span>
         </div>
         <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -109,7 +126,7 @@ export function QuotaDisplay() {
                   : 'Votre abonnement n\'est pas actif. Veuillez le renouveler pour continuer à analyser.'}
               </p>
               {subscription.requiresUpgrade && (
-                <Link href="/pricing">
+                <Link href="/dashboard?section=analyse-simulation">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

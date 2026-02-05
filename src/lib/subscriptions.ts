@@ -35,7 +35,8 @@ export async function getUserSubscription(userId: string): Promise<Subscription 
       price: PLAN_PRICES[planId] || 0,
       currency: 'USD',
       status: userData.subscription_status as SubscriptionStatus,
-      analyses_used_current_month: userData.analysis_used_this_month || 0,
+      // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+      analyses_used_current_month: parseFloat(String(userData.analysis_used_this_month)) || 0,
       current_period_start: userData.current_period_start || new Date().toISOString(),
       current_period_end: userData.current_period_end || new Date().toISOString(),
       month_reset_date: userData.current_period_end || new Date().toISOString(),
@@ -146,7 +147,8 @@ export async function getUsageStats(userId: string): Promise<{
     
     if (userData && userData.subscription_status === 'active') {
       const limit = userData.analysis_quota || PLAN_QUOTAS[userData.subscription_plan as PlanId] || 0;
-      const used = userData.analysis_used_this_month || 0;
+      // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+      const used = parseFloat(String(userData.analysis_used_this_month)) || 0;
       const remaining = Math.max(0, limit - used);
       const percentage = limit > 0 ? (used / limit) * 100 : 0;
       const resetDate = userData.current_period_end ? new Date(userData.current_period_end) : null;
@@ -164,7 +166,8 @@ export async function getUsageStats(userId: string): Promise<{
   }
   
   const limit = PLAN_QUOTAS[subscription.plan_id] || 0;
-  const used = subscription.analyses_used_current_month || 0;
+  // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
+  const used = parseFloat(String(subscription.analyses_used_current_month)) || 0;
   const remaining = Math.max(0, limit - used);
   const percentage = limit > 0 ? (used / limit) * 100 : 0;
   const resetDate = subscription.month_reset_date ? new Date(subscription.month_reset_date) : null;

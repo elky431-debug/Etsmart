@@ -153,6 +153,12 @@ export const useStore = create<AppState & AppActions>()(
           analysesCount: state?.analyses.length,
           isAnalyzing: state?.isAnalyzing,
         });
+        
+        // ⚠️ CRITICAL: Valider currentStep après réhydratation
+        if (state && (state.currentStep < 1 || state.currentStep > 4 || !Number.isInteger(state.currentStep))) {
+          console.log('[Store] ⚠️ Invalid currentStep after rehydration:', state.currentStep, '- resetting to 1');
+          state.currentStep = 1;
+        }
       },
     }
   )

@@ -190,7 +190,8 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    if (quotaInfo.remaining <= 0) {
+    // Check if user has enough quota (0.5 credit needed for analysis)
+    if (quotaInfo.remaining < 0.5) {
       isAnalyzing = false;
       return NextResponse.json({
         success: false,
@@ -374,23 +375,58 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
      * Scénario optimiste: estimation si tout va bien (conditions favorables)
    - Ajoute une note explicative (simulationNote) qui explique les hypothèses de ta simulation
 
-7. TAGS SEO OPTIMISÉS POUR ETSY:
-   - Génère EXACTEMENT 13 tags SEO en anglais (pas plus, pas moins)
+7. TAGS SEO OPTIMISÉS POUR ETSY (OBLIGATOIRE - 13 TAGS):
+   - ⚠️ CRITIQUE: Génère EXACTEMENT 13 tags SEO en anglais (OBLIGATOIRE - JAMAIS MOINS DE 13)
+   - ⚠️ Si tu génères moins de 13 tags, ton analyse sera rejetée
    - Maximum 20 caractères par tag (contrainte Etsy)
    - Utilise des mots-clés pertinents et recherchés sur Etsy
-   - Inclus des variations: matériaux, couleurs, usages, occasions
+   - Inclus des variations: matériaux, couleurs, usages, occasions, styles, caractéristiques
    - Évite les doublons et les tags trop génériques
    - Les tags doivent être optimisés pour le référencement Etsy
+   - Exemples de variations à inclure: matériau (wood, metal, fabric), couleur (black, white, blue), style (modern, vintage, minimalist), usage (gift, decoration, storage), occasion (birthday, wedding, anniversary), caractéristiques (handmade, custom, personalized)
+   - ⚠️ RAPPEL: Tu DOIS générer EXACTEMENT 13 tags, pas 12, pas 11, pas 10 - EXACTEMENT 13
 
-8. TITRE VIRAL ET SEO (TRÈS IMPORTANT):
-   - Génère un titre SEO LONG et COMPLET en anglais (UTILISE LES 140 CARACTÈRES AU MAXIMUM)
-   - Le titre DOIT faire entre 120 et 140 caractères - PAS DE TITRE COURT
-   - Structure recommandée: [Produit principal] + [Matériau/Style] + [Caractéristiques] + [Usage/Occasion] + [Mot-clé bonus]
-   - Exemple de BON titre: "Handmade Wooden Music Box Custom Engraved Name Personalized Gift for Her Birthday Anniversary Keepsake Jewelry Storage Box" (120+ caractères)
-   - Exemple de MAUVAIS titre: "Custom Music Box Gift" (trop court, pas optimisé)
-   - Inclus TOUS les mots-clés pertinents pour maximiser le référencement Etsy
-   - Le titre doit être riche en mots-clés tout en restant naturel et lisible
-   - Évite les répétitions mais maximise les variations de mots-clés
+8. TITRE VIRAL ET SEO (CRITIQUE - OBLIGATOIREMENT LONG ET VIRAL):
+   - ⚠️ CRITIQUE: Génère un titre SEO LONG et VIRAL en anglais (OBLIGATOIREMENT entre 100 et 140 caractères)
+   - ⚠️ Le titre DOIT faire AU MINIMUM 100 caractères - JAMAIS moins de 100 caractères
+   - ⚠️ Le titre DOIT faire AU MAXIMUM 140 caractères (limite Etsy)
+   - ⚠️ Si tu génères un titre de moins de 100 caractères, ton analyse sera rejetée
+   - ⚠️ Idéalement, vise entre 120 et 140 caractères pour une optimisation maximale
+   
+   TECHNIQUES VIRALES À UTILISER:
+   - Utilise des mots puissants et émotionnels: "Stunning", "Exquisite", "Premium", "Luxury", "Perfect", "Unique", "Handcrafted", "Beautiful", "Elegant"
+   - Inclus des bénéfices émotionnels: "for Her", "for Him", "Perfect Gift", "Thoughtful Present", "Memorable Keepsake"
+   - Ajoute des contextes d'usage: "Birthday Gift", "Anniversary Present", "Wedding Favor", "Home Decor", "Office Decor"
+   - Mentionne les caractéristiques premium: "Handmade", "Custom", "Personalized", "Engraved", "Premium Quality", "Artisan Made"
+   - Inclus des matériaux et styles: "Wooden", "Metal", "Leather", "Fabric", "Modern", "Vintage", "Minimalist", "Bohemian"
+   - Ajoute des occasions: "Christmas", "Valentine's Day", "Mother's Day", "Father's Day", "Graduation", "Housewarming"
+   
+   STRUCTURE VIRALE RECOMMANDÉE (100-140 caractères, idéalement 120-140):
+   [Adjectif puissant] + [Produit principal] + [Matériau/Style] + [Caractéristiques détaillées] + [Usage/Bénéfice] + [Occasion/Contexte] + [Mots-clés bonus SEO]
+   
+   EXEMPLES DE TITRES VIRAUX EXCELLENTS (100-140 caractères):
+   - "Stunning Handmade Wooden Music Box Custom Engraved Name Personalized Gift for Her Birthday Anniversary Keepsake Jewelry Storage Box" (130 caractères)
+   - "Exquisite Premium Leather Journal Handcrafted Personalized Custom Name Engraved Perfect Gift for Writers Students Office Decor" (135 caractères)
+   - "Beautiful Handmade Ceramic Mug Custom Design Personalized Name Perfect Gift for Coffee Lovers Home Decor Kitchen Essential" (132 caractères)
+   - "Luxury Handcrafted Wooden Watch Box Premium Quality Custom Engraved Perfect Gift for Him Birthday Anniversary Keepsake" (128 caractères)
+   - "Premium Handmade Custom Personalized Gift Unique Design Perfect Present for Special Occasion Thoughtful Keepsake" (105 caractères)
+   
+   EXEMPLES DE MAUVAIS TITRES (À ÉVITER):
+   - "Custom Music Box Gift" (trop court, pas viral, seulement 22 caractères - MOINS DE 100)
+   - "Wooden Box" (trop court, pas de mots-clés SEO - MOINS DE 100)
+   - "Gift for Her" (trop générique, pas de description du produit - MOINS DE 100)
+   
+   RÈGLES ABSOLUES:
+   - Le titre DOIT faire AU MINIMUM 100 caractères (OBLIGATOIRE - JAMAIS MOINS)
+   - Le titre DOIT faire AU MAXIMUM 140 caractères (limite Etsy)
+   - Idéalement, vise entre 120 et 140 caractères pour une optimisation maximale
+   - Inclus au moins 3-4 adjectifs puissants et émotionnels
+   - Mentionne le matériau ET le style
+   - Inclus au moins 2-3 contextes d'usage différents
+   - Ajoute des mots-clés SEO pertinents (handmade, custom, personalized, gift, etc.)
+   - Le titre doit être naturel, lisible et accrocheur (pas juste une liste de mots-clés)
+   - Évite les répétitions mais maximise les variations de mots-clés pertinents
+   - Le titre doit créer une émotion et donner envie de cliquer
 
 9. VERDICT FINAL ET RECOMMANDATIONS:
    - Fournis un verdict final en 1 phrase qui résume ta recommandation
@@ -452,8 +488,8 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
     },
     "simulationNote": "note explicative détaillée"
   },
-  "viralTitleEN": "titre LONG (120-140 caractères) en anglais, riche en mots-clés SEO",
-  "seoTags": ["tag1", "tag2", ..., "tag13"] (EXACTEMENT 13 tags),
+  "viralTitleEN": "titre VIRAL LONG (OBLIGATOIREMENT entre 100 et 140 caractères, idéalement 120-140) en anglais, riche en mots-clés SEO, avec adjectifs puissants et contextes d'usage",
+  "seoTags": ["tag1", "tag2", ..., "tag13"] (OBLIGATOIRE: EXACTEMENT 13 tags - JAMAIS MOINS),
   "finalVerdict": "verdict final en 1 phrase",
   "warningIfAny": "avertissement si nécessaire" | null
 }
@@ -993,7 +1029,71 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       return finalTags.slice(0, REQUIRED_TAG_COUNT);
     };
     
-    // Valider et corriger les tags SEO
+    // ⚠️ CRITICAL: Valider et corriger le titre viral - TOUJOURS garantir minimum 100 caractères
+    if (analysis.viralTitleEN) {
+      const titleLength = analysis.viralTitleEN.length;
+      if (titleLength < 100) {
+        console.warn(`⚠️ Titre viral trop court (${titleLength} caractères au lieu de minimum 100), extension appliquée`);
+        // Étendre le titre avec des mots-clés viraux supplémentaires
+        const viralKeywords = [
+          'Premium Quality', 'Handcrafted', 'Exquisite', 'Stunning', 'Beautiful',
+          'Perfect Gift', 'Thoughtful Present', 'Memorable Keepsake', 'Luxury',
+          'Custom Made', 'Personalized', 'Unique Design', 'Artisan Made'
+        ];
+        let extendedTitle = analysis.viralTitleEN;
+        for (const keyword of viralKeywords) {
+          if (extendedTitle.length >= 140) break;
+          if (!extendedTitle.toLowerCase().includes(keyword.toLowerCase())) {
+            extendedTitle += ` ${keyword}`;
+            if (extendedTitle.length >= 100 && extendedTitle.length <= 140) break;
+          }
+        }
+        // Si toujours trop court, ajouter des contextes d'usage
+        if (extendedTitle.length < 100) {
+          const usageContexts = [
+            'for Her', 'for Him', 'Home Decor', 'Office Decor', 'Gift Idea',
+            'Birthday Gift', 'Anniversary Present', 'Wedding Favor', 'Housewarming Gift'
+          ];
+          for (const context of usageContexts) {
+            if (extendedTitle.length >= 140) break;
+            if (!extendedTitle.toLowerCase().includes(context.toLowerCase())) {
+              extendedTitle += ` ${context}`;
+              if (extendedTitle.length >= 100 && extendedTitle.length <= 140) break;
+            }
+          }
+        }
+        // Si toujours trop court après tous les ajouts, compléter avec des mots-clés génériques
+        if (extendedTitle.length < 100) {
+          const genericKeywords = ['Premium Quality', 'Handcrafted', 'Unique Design', 'Perfect Gift', 'Thoughtful Present'];
+          for (const keyword of genericKeywords) {
+            if (extendedTitle.length >= 140) break;
+            if (!extendedTitle.toLowerCase().includes(keyword.toLowerCase())) {
+              extendedTitle += ` ${keyword}`;
+              if (extendedTitle.length >= 100 && extendedTitle.length <= 140) break;
+            }
+          }
+        }
+        // Limiter à 140 caractères maximum
+        if (extendedTitle.length > 140) {
+          extendedTitle = extendedTitle.substring(0, 137) + '...';
+        }
+        // Vérification finale - garantir au minimum 100 caractères
+        if (extendedTitle.length < 100) {
+          extendedTitle += ' Premium Quality Handcrafted Gift Unique Design Perfect Present';
+          if (extendedTitle.length > 140) {
+            extendedTitle = extendedTitle.substring(0, 137) + '...';
+          }
+        }
+        analysis.viralTitleEN = extendedTitle;
+        console.log(`✅ Titre viral étendu: ${analysis.viralTitleEN.length} caractères (minimum 100 requis)`);
+      } else if (titleLength > 140) {
+        console.warn(`⚠️ Titre viral trop long (${titleLength} caractères), tronqué à 140`);
+        analysis.viralTitleEN = analysis.viralTitleEN.substring(0, 137) + '...';
+      }
+    }
+    
+    // ⚠️ CRITICAL: Valider et corriger les tags SEO - TOUJOURS garantir 13 tags
+    // Cette vérification est OBLIGATOIRE même si l'IA génère moins de 13 tags
     if (!analysis.seoTags || analysis.seoTags.length !== 13) {
       console.warn(`⚠️ Tags SEO invalides (${analysis.seoTags?.length || 0} au lieu de 13), correction appliquée`);
       analysis.seoTags = ensure13Tags(
@@ -1001,20 +1101,43 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
         body.productTitle || '',
         niche || ''
       );
+      // Vérification finale - si on n'a toujours pas 13 tags, c'est une erreur critique
+      if (analysis.seoTags.length !== 13) {
+        console.error(`❌ ERREUR CRITIQUE: Impossible de générer 13 tags (${analysis.seoTags.length} tags générés)`);
+        // Forcer 13 tags en complétant avec des tags génériques
+        const genericFallback = ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
+        analysis.seoTags = [...analysis.seoTags, ...genericFallback].slice(0, 13);
+      }
+    }
+    
+    // Vérification finale absolue - garantir 13 tags
+    if (analysis.seoTags.length < 13) {
+      console.error(`❌ ERREUR CRITIQUE: Moins de 13 tags après correction (${analysis.seoTags.length}), complétion forcée`);
+      const additionalTags = ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
+      while (analysis.seoTags.length < 13) {
+        const tagToAdd = additionalTags[analysis.seoTags.length % additionalTags.length];
+        if (!analysis.seoTags.includes(tagToAdd)) {
+          analysis.seoTags.push(tagToAdd);
+        } else {
+          analysis.seoTags.push(`${tagToAdd}${analysis.seoTags.length}`);
+        }
+      }
+      analysis.seoTags = analysis.seoTags.slice(0, 13);
     }
 
-    // ⚠️ CRITICAL: Increment quota AFTER successful analysis
+    // ⚠️ CRITICAL: Increment quota AFTER successful analysis (0.5 credit)
     // Quota was already checked before analysis started, now we increment it
-    const quotaResult = await incrementAnalysisCount(user.id);
+    const quotaResult = await incrementAnalysisCount(user.id, 0.5);
     if (!quotaResult.success) {
       console.warn('⚠️ Failed to increment quota after analysis:', quotaResult.error);
       // Analysis already completed, but quota wasn't incremented
       // This is logged but doesn't block the response
     } else {
-      console.log('✅ Quota incremented successfully:', {
+      console.log('✅ Quota incremented successfully after analysis:', {
         used: quotaResult.used,
         quota: quotaResult.quota,
         remaining: quotaResult.remaining,
+        amount: 0.5,
       });
     }
     

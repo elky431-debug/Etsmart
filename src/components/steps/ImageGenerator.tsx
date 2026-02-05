@@ -13,9 +13,11 @@ import {
 } from 'lucide-react';
 import type { ProductAnalysis } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface ImageGeneratorProps {
   analysis: ProductAnalysis;
+  hasListing?: boolean; // Indique si le listing est déjà généré (pour affichage uniquement, n'affecte pas la génération)
 }
 
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
@@ -25,7 +27,8 @@ interface GeneratedImage {
   id: string;
 }
 
-export function ImageGenerator({ analysis }: ImageGeneratorProps) {
+export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorProps) {
+  const { refreshSubscription } = useSubscription();
   // Clé unique pour ce produit dans sessionStorage
   const productId = analysis.product.id || analysis.product.url || `product-${Date.now()}`;
   const storageKey = `etsmart-image-generated-${productId}`;
@@ -159,6 +162,13 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
         throw new Error('Authentification requise');
       }
 
+      // ⚠️ CRITICAL: Image generation is now INDEPENDENT from listing
+      // We ALWAYS generate only the image (0.25 credit), regardless of whether listing exists
+      // The listing can be generated separately in the "Listing" tab
+      // This allows users to generate images without needing a listing first
+      
+      console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)');
+      
       const response = await fetch('/api/generate-images', {
         method: 'POST',
         headers: {
@@ -170,6 +180,7 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
           customInstructions: customInstructions.trim() || undefined,
           quantity,
           aspectRatio,
+          skipListingGeneration: true, // ⚠️ ALWAYS true - Image generation is independent, always 0.25 credit
         }),
       });
 
@@ -202,6 +213,32 @@ export function ImageGenerator({ analysis }: ImageGeneratorProps) {
       
       setGeneratedImages(validImages);
       setHasGeneratedImage(true);
+      
+      // ⚠️ CRITICAL: Refresh subscription to update credit count
+      // Wait for database to sync, then refresh multiple times to ensure the update is picked up
+      const refreshCredits = async () => {
+        try {
+          console.log('[IMAGE GENERATION] 🔄 Refreshing subscription credits...');
+          await refreshSubscription(true);
+          // Dispatch event to notify DashboardSubscription to refresh
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('subscription-refresh'));
+          }
+          console.log('[IMAGE GENERATION] ✅ Subscription refreshed');
+        } catch (err) {
+          console.error('❌ [IMAGE GENERATION] Error refreshing subscription after image generation:', err);
+        }
+      };
+      
+      // Wait 3 seconds for database to sync, then refresh multiple times
+      console.log('[IMAGE GENERATION] ⏳ Waiting 3 seconds for database sync before refreshing credits...');
+      setTimeout(() => {
+        console.log('[IMAGE GENERATION] 🔄 Starting credit refresh sequence...');
+        refreshCredits();
+        setTimeout(refreshCredits, 1000);
+        setTimeout(refreshCredits, 2000);
+        setTimeout(refreshCredits, 3000);
+      }, 3000);
       
       // Sauvegarder dans sessionStorage que l'image a été générée
       if (typeof window !== 'undefined') {

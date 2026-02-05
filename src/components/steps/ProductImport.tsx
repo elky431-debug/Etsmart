@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -26,12 +26,14 @@ import type { SupplierProduct } from '@/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Paywall } from '@/components/paywall/Paywall';
 import { supabase } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
+import { Paywall } from '@/components/paywall/Paywall';
 
 export function ProductImport() {
   const { selectedNiche, products, addProduct, removeProduct, setStep } = useStore();
   const isMobile = useIsMobile();
+  const pathname = usePathname();
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, refreshSubscription } = useSubscription();
   const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
@@ -40,7 +42,6 @@ export function ProductImport() {
   const [error, setError] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showExample, setShowExample] = useState(true); // Visible par défaut
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const currentNiche = niches.find(n => n.id === selectedNiche);
 
@@ -49,8 +50,20 @@ export function ProductImport() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
+  // Force sync subscription on mount only once (avoid infinite loop)
+  const hasSyncedRef = useRef(false);
+  useEffect(() => {
+    if (user && !hasSyncedRef.current) {
+      hasSyncedRef.current = true;
+      // Don't wait for subscriptionLoading, just sync once
+      refreshSubscription(true).catch(err => {
+        console.error('Error syncing subscription:', err);
+      });
+    }
+  }, [user?.id]); // Only depend on user.id to avoid re-triggering
+
   // Handle Analyze button click - check subscription before proceeding
-  const handleAnalyzeClick = () => {
+  const handleAnalyzeClick = async () => {
     // Check if user is authenticated
     if (!user) {
       // Redirect to login or show auth required message
@@ -58,19 +71,8 @@ export function ProductImport() {
       return;
     }
 
-    // Wait for subscription to load
-    if (subscriptionLoading) {
-      return;
-    }
-
-    // Check subscription status
-    if (!canAnalyze) {
-      // Show paywall instead of proceeding to analysis
-      setShowPaywall(true);
-      return;
-    }
-
-    // User has active subscription and quota - proceed to analysis
+    // La vérification se fera côté serveur dans les API routes
+    // On permet toujours l'accès, la vérification se fait côté serveur
     setStep(3);
   };
 
@@ -99,23 +101,6 @@ export function ProductImport() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [refreshSubscription]);
 
-  // Periodic check to close paywall if subscription becomes active
-  useEffect(() => {
-    if (!showPaywall) return;
-    
-    const interval = setInterval(async () => {
-      await refreshSubscription(true);
-    }, 5000); // Force sync every 5 seconds when paywall is shown
-    
-    return () => clearInterval(interval);
-  }, [showPaywall, refreshSubscription]);
-
-  // Close paywall automatically when subscription becomes active
-  useEffect(() => {
-    if (canAnalyze && showPaywall) {
-      setShowPaywall(false);
-    }
-  }, [canAnalyze, showPaywall]);
 
   // Fonction pour compresser l'image (optimisée pour tenir dans 26 secondes)
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<File> => {
@@ -321,7 +306,27 @@ export function ProductImport() {
     }
   };
 
-
+  // ⚠️ CRITICAL: Afficher le paywall si l'utilisateur n'a pas d'abonnement actif
+  // Vérification simple : si le chargement est terminé ET l'utilisateur est connecté
+  if (user && !subscriptionLoading) {
+    // Vérifier directement le statut de l'abonnement
+    const subscriptionStatus = subscription?.status;
+    const isSubscriptionActive = subscriptionStatus === 'active' || (subscription?.periodEnd && new Date(subscription.periodEnd) > new Date());
+    
+    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
+    if (!subscription || !isSubscriptionActive) {
+      console.log('[ProductImport] 🚧 PAYWALL AFFICHÉ - user:', user?.id, 'subscription:', subscription, 'isSubscriptionActive:', isSubscriptionActive, 'hasActiveSubscription:', hasActiveSubscription);
+      return (
+        <div className="min-h-screen w-full relative overflow-hidden bg-black">
+          <Paywall 
+            hasActiveSubscription={false}
+            title="Débloquer l'import de produits"
+            message="Choisissez votre plan et commencez à importer des produits depuis AliExpress"
+          />
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -371,7 +376,7 @@ export function ProductImport() {
             >
               <Zap size={14} className="text-[#00d4ff]" />
               <span className="text-sm font-semibold text-white">
-                {subscription.used} / {subscription.quota} analyses
+                {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / {subscription.quota} analyses
               </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 subscription.remaining > subscription.quota * 0.5 
@@ -784,48 +789,6 @@ export function ProductImport() {
         </motion.div>
       </motion.div>
 
-      {/* Paywall Modal */}
-      <AnimatePresence>
-        {showPaywall && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black backdrop-blur-sm"
-            onClick={() => setShowPaywall(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl"
-            >
-              <Paywall
-                title="Débloquer l'analyse de produits"
-                message="Pour analyser des produits et accéder aux résultats complets, vous avez besoin d'un abonnement actif."
-                currentPlan={subscription?.plan || 'FREE'}
-                quotaReached={quotaReached}
-                used={subscription?.used}
-                quota={subscription?.quota}
-                requiresUpgrade={subscription?.requiresUpgrade}
-                onUpgrade={() => {
-                  // The Paywall component already has a link to /pricing
-                  // We can close the paywall when user clicks upgrade
-                }}
-              />
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => setShowPaywall(false)}
-                  className="px-6 py-3 bg-black text-white font-semibold rounded-xl hover:bg-black border border-white/10 transition-colors"
-                >
-                  Retour au tableau de bord
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

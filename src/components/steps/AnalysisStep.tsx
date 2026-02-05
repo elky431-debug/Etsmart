@@ -23,11 +23,13 @@ import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Paywall } from '@/components/paywall/Paywall';
 import { QuotaExceeded } from '@/components/paywall/QuotaExceeded';
+import { Paywall } from '@/components/paywall/Paywall';
+import { usePathname } from 'next/navigation';
 
 export function AnalysisStep() {
   const { currentStep, products, analyses, selectedNiche, customNiche, addAnalysis, setStep, isAnalyzing: globalIsAnalyzing, setIsAnalyzing: setGlobalIsAnalyzing } = useStore();
+  const pathname = usePathname();
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, canAnalyze, hasActiveSubscription, hasQuota, refreshSubscription } = useSubscription();
   const quotaReached = subscription ? subscription.remaining === 0 && subscription.status === 'active' : false;
@@ -63,7 +65,7 @@ export function AnalysisStep() {
   const [analysisComplete, setAnalysisComplete] = useState(storedState?.analysisComplete || false);
   // Utiliser useRef pour startTime pour qu'il ne soit pas réinitialisé à chaque re-render
   const startTimeRef = useRef<number>(storedState?.startTime || Date.now());
-  const [showPaywall, setShowPaywall] = useState(false);
+  // Paywall removed - verification is done server-side
   const MINIMUM_DURATION = 20000; // 20 secondes minimum (réduit pour accélérer)
 
   // Sauvegarder l'état dans localStorage à chaque changement
@@ -94,35 +96,39 @@ export function AnalysisStep() {
     }
   }, [isAnalyzing, analysisComplete]);
 
-  // ⚠️ CRITICAL: Check subscription before allowing analysis
+  // Paywall removed - verification is done server-side
   useEffect(() => {
     // Si on a déjà des analyses en cours d'affichage, ne pas bloquer
     if (currentStep === 3 && analyses.length > 0) {
       return;
     }
 
-    if (subscriptionLoading) return; // Wait for subscription to load
-
     if (!user) {
       // User not authenticated - redirect to login
       setStep(2); // Go back to import step
       return;
     }
-
-    if (!canAnalyze) {
-      // Check if it's a quota issue (has subscription but no quota)
-      if (hasActiveSubscription && !hasQuota) {
-        // Show the beautiful QuotaExceeded modal
+    
+    // Si l'utilisateur a un abonnement actif mais plus de quota
+    // ⚠️ CRITICAL: Ne JAMAIS afficher QuotaExceeded en localhost
+    if (hasActiveSubscription && !hasQuota) {
+      // Vérifier si on est en localhost
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '0.0.0.0'
+      );
+      
+      if (!isLocalhost) {
+        // Show the beautiful QuotaExceeded modal (seulement en production)
         setShowQuotaExceeded(true);
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         return;
+      } else {
+        // En localhost, ignorer le quota et continuer
+        console.log('[AnalysisStep] ⚠️ Quota dépassé mais localhost détecté - continuation autorisée');
       }
-      // No active subscription - show paywall
-      setShowPaywall(true);
-      setIsAnalyzing(false);
-      setGlobalIsAnalyzing(false);
-      return;
     }
 
     if (currentStep !== 3) {
@@ -143,6 +149,7 @@ export function AnalysisStep() {
       runAnalysis();
     }
   }, [
+    pathname,
     subscriptionLoading,
     canAnalyze,
     hasActiveSubscription,
@@ -154,10 +161,11 @@ export function AnalysisStep() {
     analyses.length,
     globalIsAnalyzing,
     isAnalyzing,
-    showPaywall,
     showQuotaExceeded,
     setStep,
   ]);
+
+  // Paywall removed - verification is done server-side
 
   // ═══════════════════════════════════════════════════════════════════════════
   // TRANSITION: passer à l'étape 4 quand l'analyse est terminée
@@ -365,6 +373,19 @@ export function AnalysisStep() {
         // Ajouter l'analyse au store temporairement (pour l'affichage)
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
+        
+        // ⚠️ CRITICAL: Refresh subscription to update credit count
+        // Wait a bit for database to sync, then refresh
+        setTimeout(() => {
+          refreshSubscription(true).catch(err => {
+            console.error('Error refreshing subscription after analysis:', err);
+          });
+          
+          // Dispatch event to notify DashboardSubscription to refresh
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('subscription-refresh'));
+          }
+        }, 1000); // Wait 1 second for database to sync
         
         // Sauvegarde DB - IMPORTANT pour l'historique
         saveAnalysisToDatabase(analysis).then(success => {
@@ -612,7 +633,14 @@ export function AnalysisStep() {
   const currentProduct = products[currentIndex];
 
   // Show QuotaExceeded modal if user has subscription but no quota
-  if (showQuotaExceeded && subscription) {
+  // ⚠️ CRITICAL: Ne JAMAIS afficher QuotaExceeded en localhost
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0'
+  );
+  
+  if (showQuotaExceeded && subscription && !isLocalhost) {
     return (
       <div className="min-h-screen w-full relative overflow-hidden bg-black">
         <QuotaExceeded
@@ -626,30 +654,26 @@ export function AnalysisStep() {
     );
   }
 
-  // Show paywall if no subscription
-  if (showPaywall) {
-    return (
-      <div className="min-h-screen w-full relative overflow-hidden">
-        <Paywall
-          title="Débloquer l'analyse de produits"
-          message="Pour analyser des produits et accéder aux résultats complets, vous avez besoin d'un abonnement actif."
-          currentPlan={subscription?.plan || 'FREE'}
-          quotaReached={quotaReached}
-          used={subscription?.used}
-          quota={subscription?.quota}
-          requiresUpgrade={subscription?.requiresUpgrade}
-        />
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <Button
-            onClick={() => setStep(2)}
-            variant="secondary"
-            className="bg-black text-white border border-white/20 hover:bg-black"
-          >
-            Retour à l'importation
-          </Button>
+  // ⚠️ CRITICAL: Afficher le paywall si l'utilisateur n'a pas d'abonnement actif
+  // Vérification simple : si le chargement est terminé ET l'utilisateur est connecté
+  if (user && !subscriptionLoading) {
+    // Vérifier directement le statut de l'abonnement
+    const subscriptionStatus = subscription?.status;
+    const isSubscriptionActive = subscriptionStatus === 'active' || (subscription?.periodEnd && new Date(subscription.periodEnd) > new Date());
+    
+    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
+    if (!subscription || !isSubscriptionActive) {
+      console.log('[AnalysisStep] 🚧 PAYWALL AFFICHÉ - user:', user?.id, 'subscription:', subscription, 'isSubscriptionActive:', isSubscriptionActive, 'hasActiveSubscription:', hasActiveSubscription);
+      return (
+        <div className="min-h-screen w-full relative overflow-hidden bg-black">
+          <Paywall 
+            hasActiveSubscription={false}
+            title="Débloquer l'analyse de produits"
+            message="Choisissez votre plan et commencez à analyser des produits avec l'IA"
+          />
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   return (

@@ -23,10 +23,12 @@ import {
   CreditCard,
   ChevronDown,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
+import { useSubscription } from '@/hooks/useSubscription';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
@@ -35,11 +37,16 @@ import { useStore } from '@/store/useStore';
 import type { ProductAnalysis } from '@/types';
 import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysisDetail';
+import { DashboardAnalysisSimulation } from '@/components/dashboard/DashboardAnalysisSimulation';
+import { DashboardListing } from '@/components/dashboard/DashboardListing';
+import { DashboardImage } from '@/components/dashboard/DashboardImage';
+import { ListingImagesScreen } from '@/components/dashboard/ListingImagesScreen';
 import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
-type DashboardSection = 'analyze' | 'history' | 'analysis' | 'profile' | 'settings' | 'subscription' | 'competitors';
+import { Paywall } from '@/components/paywall/Paywall';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors';
 
 interface MenuItem {
   id: DashboardSection;
@@ -53,15 +60,35 @@ export default function DashboardPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
   
-  // 🔒 Protect this page - redirect to /pricing if no active subscription
-  const { isActive: hasActiveSubscription, isLoading: subscriptionLoading } = useSubscriptionProtection();
+  // 🔒 Protect this page - redirects blocked (no pricing page)
+  const subscriptionProtection = useSubscriptionProtection();
+  // ⚠️ CRITICAL: Utiliser useSubscription pour obtenir le statut RÉEL de l'abonnement
+  // useSubscriptionProtection assume parfois un abonnement actif pour éviter les bugs, donc on utilise useSubscription
+  const { subscription, loading: subscriptionLoadingFromHook, hasActiveSubscription: realHasActiveSubscription } = useSubscription();
+  const hasActiveSubscription = subscriptionProtection.isActive;
+  const subscriptionLoading = subscriptionProtection.isLoading || subscriptionLoadingFromHook;
   
   // Cache pour éviter les rechargements inutiles
   const lastLoadTimeRef = useRef<number>(0);
   const CACHE_DURATION = 60000; // 1 minute
   const CACHE_KEY = 'etsmart-analyses-cache';
   
-  const [activeSection, setActiveSection] = useState<DashboardSection>('history');
+  const [activeSection, setActiveSection] = useState<DashboardSection>(() => {
+    // Récupérer la dernière section visitée depuis localStorage, sinon utiliser 'analyse-simulation' par défaut
+    // ⚠️ CRITICAL: Ne JAMAIS utiliser 'history' comme section par défaut, même si c'est la dernière section visitée
+    if (typeof window !== 'undefined') {
+      try {
+        const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
+        // Ne jamais utiliser 'history' comme section par défaut au refresh
+        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+          return lastSection;
+        }
+      } catch (e) {
+        console.warn('⚠️ Error reading last dashboard section:', e);
+      }
+    }
+    return 'analyse-simulation'; // Par défaut, aller sur "Analyse et Simulation" au lieu de "history"
+  });
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
   // Initialiser avec les données du cache localStorage si disponibles
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>(() => {
@@ -96,17 +123,24 @@ export default function DashboardPage() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.access_token) {
-          console.log('[Dashboard] Force syncing subscription from Stripe...');
-          const response = await fetch('/api/force-sync-subscription', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('[Dashboard] ✅ Force sync result:', data);
+          try {
+            console.log('[Dashboard] Force syncing subscription from Stripe...');
+            const response = await fetch('/api/force-sync-subscription', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log('[Dashboard] ✅ Force sync result:', data);
+            } else {
+              console.warn('[Dashboard] Sync failed, continuing anyway');
+            }
+          } catch (error) {
+            console.error('[Dashboard] Sync error (non-critical):', error);
+            // Continue even if sync fails
           }
         }
       } catch (error) {
@@ -140,11 +174,62 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
-        setActiveSection(section);
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
+        setActiveSection(section as DashboardSection);
+      } else {
+        // Récupérer la dernière section visitée depuis localStorage
+        // ⚠️ CRITICAL: Ne JAMAIS utiliser 'history' comme section par défaut
+        try {
+          const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
+          // Ne jamais utiliser 'history' comme section par défaut au refresh
+          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+            setActiveSection(lastSection);
+          } else {
+            // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
+            setActiveSection('analyse-simulation');
+          }
+        } catch (e) {
+          // En cas d'erreur, utiliser la section par défaut
+          setActiveSection('analyse-simulation');
+        }
       }
     }
   }, []);
+
+  // ⚠️ CRITICAL: Rediriger vers 'analyse-simulation' si on est sur la page d'historique vide après rafraîchissement
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user) return;
+    
+    // Si on est sur la section 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
+    if (activeSection === 'history' && analyses.length === 0 && !isLoading) {
+      console.log('[Dashboard] No analyses found on history page, redirecting to analyse-simulation section');
+      setActiveSection('analyse-simulation');
+      // Nettoyer localStorage pour éviter de revenir sur 'history' au prochain refresh
+      try {
+        localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
+      } catch (e) {
+        console.warn('⚠️ Error updating last dashboard section:', e);
+      }
+    }
+  }, [activeSection, analyses.length, isLoading, user]);
+
+  // Sauvegarder la dernière section visitée dans localStorage
+  // ⚠️ CRITICAL: Ne JAMAIS sauvegarder 'history' comme dernière section si elle est vide
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeSection) {
+      try {
+        // Ne sauvegarder 'history' que si on a des analyses, sinon sauvegarder 'analyse-simulation'
+        if (activeSection === 'history' && analyses.length === 0) {
+          console.log('[Dashboard] History section is empty, saving analyse-simulation instead');
+          localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
+        } else {
+          localStorage.setItem('etsmart-last-dashboard-section', activeSection);
+        }
+      } catch (e) {
+        console.warn('⚠️ Error saving last dashboard section:', e);
+      }
+    }
+  }, [activeSection, analyses.length]);
 
   // Fermer le menu au clic en dehors
   useEffect(() => {
@@ -344,7 +429,11 @@ export default function DashboardPage() {
 
   const handleAnalysisClick = (analysis: ProductAnalysis) => {
     setSelectedAnalysis(analysis);
-    setActiveSection('analysis');
+    // L'utilisateur peut choisir quelle section afficher via le menu
+    // Par défaut, on reste sur la section actuelle ou on va sur "analyse-simulation"
+    if (activeSection !== 'analyse-simulation' && activeSection !== 'listing' && activeSection !== 'images') {
+      setActiveSection('analyse-simulation');
+    }
   };
 
   const handleBackToHistory = () => {
@@ -402,14 +491,45 @@ export default function DashboardPage() {
     }
   };
 
-  // Ne pas bloquer toute la page - afficher le layout avec un skeleton
-  if (!user && !loading) {
+  // ⚠️ CRITICAL: Toujours afficher le contenu pour éviter l'espace noir au rafraîchissement
+  // Ne retourner null que si on est sûr qu'il n'y a pas d'utilisateur ET que le chargement est terminé
+  if (!user && !loading && !subscriptionLoading) {
     return null;
   }
 
+  // ⚠️ CRITICAL: Bloquer l'accès au dashboard si l'utilisateur n'a pas d'abonnement actif
+  // Cette vérification s'applique à TOUS les utilisateurs : nouveaux ET existants sans abonnement
+  // Utiliser useSubscription pour obtenir le statut RÉEL (pas useSubscriptionProtection qui assume parfois un abonnement)
+  if (user && !loading && !subscriptionLoading) {
+    // Vérifier le statut réel depuis useSubscription
+    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
+    const subscriptionStatus = subscription?.status;
+    const periodEnd = subscription?.periodEnd;
+    const now = new Date();
+    const isPeriodValid = periodEnd ? periodEnd > now : false;
+    const isSubscriptionActive = subscriptionStatus === 'active' || (subscription && isPeriodValid);
+    
+    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
+    if (!subscription || !isSubscriptionActive) {
+      console.log('[Dashboard] 🚧 PAYWALL - Pas d\'abonnement actif (user:', user?.id, ')');
+      console.log('[Dashboard] 📊 Subscription:', subscription, 'isSubscriptionActive:', isSubscriptionActive, 'realHasActiveSubscription:', realHasActiveSubscription);
+      return (
+        <div className="min-h-screen w-full relative overflow-hidden bg-black">
+          <Paywall 
+            hasActiveSubscription={false}
+            title="Débloquer l'analyse de produits"
+            message="Choisissez votre plan et commencez à analyser des produits avec l'IA"
+          />
+        </div>
+      );
+    }
+  }
+
   const menuItems: MenuItem[] = [
-    { id: 'analyze', label: 'Analyser', icon: BarChart3 },
-    { id: 'competitors', label: 'Analyse concurrentielle', icon: Target },
+    { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+    { id: 'listing', label: 'Listing', icon: FileText },
+    { id: 'images', label: 'Images', icon: Sparkles },
+    { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'history', label: 'Historique', icon: History },
@@ -417,7 +537,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black flex">
+    <div className="h-screen bg-black flex overflow-hidden">
       {/* Success Notification */}
       <AnimatePresence>
         {showSuccessNotification && (
@@ -471,15 +591,27 @@ export default function DashboardPage() {
 
           {/* Navigation Items */}
           <nav className="flex flex-col p-2 space-y-1">
-            {menuItems.map((item) => {
+            {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
+            {!selectedAnalysis && menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeSection === item.id && !selectedAnalysis;
+              const isActive = activeSection === item.id;
               
               return (
                 <button
                   key={item.id}
                   onClick={() => {
-                    setActiveSection(item.id);
+                    // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
+                    if (item.id === 'history' && analyses.length === 0) {
+                      console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
+                      setActiveSection('analyse-simulation');
+                      try {
+                        localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
+                      } catch (e) {
+                        console.warn('⚠️ Error saving last dashboard section:', e);
+                      }
+                    } else {
+                      setActiveSection(item.id);
+                    }
                     setSelectedAnalysis(null);
                   }}
                   className={`
@@ -557,7 +689,26 @@ export default function DashboardPage() {
                     <button
                       key={item.id}
                       onClick={() => {
-                        setActiveSection(item.id);
+                        // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
+                        if (item.id === 'history' && analyses.length === 0) {
+                          console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
+                          setActiveSection('analyse-simulation');
+                          try {
+                            localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
+                          } catch (e) {
+                            console.warn('⚠️ Error saving last dashboard section:', e);
+                          }
+                        } else {
+                          setActiveSection(item.id);
+                          // Sauvegarder la section dans localStorage
+                          if (typeof window !== 'undefined') {
+                            try {
+                              localStorage.setItem('etsmart-last-dashboard-section', item.id);
+                            } catch (e) {
+                              console.warn('⚠️ Error saving last dashboard section:', e);
+                            }
+                          }
+                        }
                         setSelectedAnalysis(null);
                         setIsMenuOpen(false);
                       }}
@@ -581,11 +732,11 @@ export default function DashboardPage() {
       )}
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 ml-16 lg:ml-16 pt-16 lg:pt-0">
+      <main className="flex-1 flex flex-col min-w-0 ml-16 lg:ml-16 pt-16 lg:pt-0 bg-black">
 
         {/* Content */}
-        <div className="flex-1 overflow-auto">
-          {activeSection === 'analyze' && (
+        <div className="flex-1 overflow-auto bg-black">
+          {activeSection === 'analyse-simulation' && (
             <div className="p-8 max-w-6xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -595,14 +746,18 @@ export default function DashboardPage() {
                 {/* Header */}
                 <div className="text-center mb-12">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
-                    <BarChart3 className="w-10 h-10 text-white" />
+                    <Calculator className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-4xl font-bold text-white mb-4">
-                    Comment fonctionne l'analyse ?
+                    Analyse et Simulation
                   </h2>
-                  <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
-                    Notre IA analyse en profondeur vos produits AliExpress pour vous donner toutes les informations nécessaires à une décision éclairée
+                  <p className="text-white/70 text-lg max-w-2xl mx-auto mb-4">
+                    Analysez vos produits AliExpress et simulez leur potentiel de vente avec notre IA
                   </p>
+                  <div className="flex items-center justify-center gap-2 text-[#00d4ff] mb-8">
+                    <Zap size={18} />
+                    <span className="text-sm font-medium">0.5 crédit par analyse</span>
+                  </div>
                 </div>
 
                 {/* CTA - Moved to top */}
@@ -613,10 +768,10 @@ export default function DashboardPage() {
                   className="text-center bg-white/5 rounded-lg p-8 border border-white/10 mb-12"
                 >
                   <h3 className="text-2xl font-bold text-white mb-3">
-                    Prêt à découvrir le potentiel de vos produits ?
+                    Prêt à analyser vos produits ?
                   </h3>
                   <p className="text-white/70 mb-6 max-w-xl mx-auto">
-                    Lancez votre première analyse en quelques clics et recevez un rapport complet en moins de 2 minutes
+                    Lancez une analyse complète et recevez un rapport détaillé avec simulation de lancement en moins de 2 minutes
                   </p>
                   <Link href="/app">
                     <motion.button
@@ -624,7 +779,7 @@ export default function DashboardPage() {
                       whileTap={{ scale: 0.98 }}
                       className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
                     >
-                      <BarChart3 size={20} />
+                      <Calculator size={20} />
                       <span>Commencer l'analyse</span>
                       <ArrowRight size={18} />
                     </motion.button>
@@ -799,44 +954,46 @@ export default function DashboardPage() {
                       </div>
                     </motion.div>
 
-                    {/* Marketing */}
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.8 }}
-                      className="bg-white/5 rounded-lg p-6 border border-white/10"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                          <Megaphone className="w-5 h-5 text-pink-400" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-lg font-bold text-white mb-2">Stratégie marketing complète</h4>
-                          <ul className="text-white/70 text-sm space-y-1 mb-2">
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Positionnement stratégique et angles sous-exploités
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Titres viraux (EN) et tags SEO optimisés
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Idées de publicités TikTok/Facebook et prompts pour images pub
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
-                              Déclencheurs psychologiques et erreurs des concurrents à éviter
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </motion.div>
                   </div>
                 </div>
               </motion.div>
             </div>
+          )}
+
+          {activeSection === 'listing' && selectedAnalysis && (
+            <DashboardListing analysis={selectedAnalysis} />
+          )}
+
+          {activeSection === 'listing' && !selectedAnalysis && (
+            <ListingImagesScreen
+              initialAnalysis={null}
+              mode="listing"
+              onAnalysisSelect={(analysis) => {
+                setSelectedAnalysis(analysis);
+                // Garder la section 'listing' active
+              }}
+              onBack={() => {
+                setSelectedAnalysis(null);
+              }}
+            />
+          )}
+
+          {activeSection === 'images' && selectedAnalysis && (
+            <DashboardImage analysis={selectedAnalysis} />
+          )}
+
+          {activeSection === 'images' && !selectedAnalysis && (
+            <ListingImagesScreen
+              initialAnalysis={null}
+              mode="images"
+              onAnalysisSelect={(analysis) => {
+                setSelectedAnalysis(analysis);
+                // Garder la section 'images' active
+              }}
+              onBack={() => {
+                setSelectedAnalysis(null);
+              }}
+            />
           )}
 
           {activeSection === 'history' && !selectedAnalysis && (
@@ -863,13 +1020,34 @@ export default function DashboardPage() {
             </>
           )}
 
-          {activeSection === 'analysis' && selectedAnalysis && (
-            <DashboardAnalysisDetail
-              analysis={selectedAnalysis}
-              onBack={handleBackToHistory}
-              onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
-            />
+          {activeSection === 'analyse-simulation' && selectedAnalysis && (
+            <div className="p-4 md:p-8 bg-black">
+              <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-6 flex items-center justify-between">
+                  <button
+                    onClick={handleBackToHistory}
+                    className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-white/10"
+                  >
+                    <ArrowRight size={20} className="rotate-180" />
+                    <span>Retour à l'historique</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
+                  >
+                    <X size={18} />
+                    <span>Supprimer</span>
+                  </button>
+                </div>
+
+                {/* Analyse et Simulation */}
+                <DashboardAnalysisSimulation analysis={selectedAnalysis} />
+              </div>
+            </div>
           )}
+
 
           {activeSection === 'competitors' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
