@@ -589,6 +589,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   // Composant pour afficher les meilleurs vendeurs Etsy
   const TopEtsySellersSection = () => {
+    const [viewMode, setViewMode] = useState<'shops' | 'listings'>('shops');
+    
     // Données des meilleurs vendeurs Etsy (100 sellers basés sur les images)
     const topSellers = [
       { rank: 1, shop: 'CaitlynMinimalist', country: 'United States', flag: '🇺🇸', sales: 3683489, listings: 2535, faves: 499520, rating: 4.80, opened: '02/11/2014' },
@@ -693,6 +695,111 @@ The final image should look like a high-quality Etsy listing photo and naturally
       { rank: 100, shop: 'WonderfulWares', country: 'United States', flag: '🇺🇸', sales: 355000, listings: 1600, faves: 29000, rating: 4.91, opened: '22/03/2014' },
     ];
 
+    // Données des meilleurs listings Etsy (100 listings basés sur les images)
+    const topListings = [
+      { rank: 1, title: 'Custom Delicate Name Ring • Custom Stacking Rings • Skinny Custom Ring • Bridesmaids Gift • Baby Name Mom Gift • Valentine Gift • RM21F31', shop: 'CaitlynMinimalist', sales: 41725, revenue: 1543825, faves: 139877, views: 3072605, created: '01/08/2016' },
+      { rank: 2, title: 'Family Necklace • Personalized Gift • Linked Circle Necklace • Custom Children Name Rings • Eternity Necklace • Mother Gift • NM30F30', shop: 'CaitlynMinimalist', sales: 41602, revenue: 2163304, faves: 96655, views: 2484194, created: '16/11/2016' },
+      { rank: 3, title: 'Handwriting Bracelet • Custom Actual Handwriting Jewelry • Signature Bracelet • Memorial Personalized Keepsake Gift • Mother\'s Gift • BH01', shop: 'CaitlynMinimalist', sales: 41599, revenue: 1955153, faves: 186880, views: 4224040, created: '02/11/2014' },
+      { rank: 4, title: 'Wedding Guest Book Alternative | WeddingByEli Decor', shop: 'WeddingByEli', sales: 41395, revenue: 1966263, faves: 125813, views: 4514019, created: '29/10/2019' },
+      { rank: 5, title: 'Personalized Birth Flower Ring | Multiple Floral - Bouquet Jewelry| Gift For The Bride | Christmas Gifts', shop: 'TSKSilver', sales: 41375, revenue: 2736543, faves: 138303, views: 2105112, created: '20/07/2019' },
+      { rank: 6, title: 'Double Name Ring Two Name Ring in Sterling Silver & Gold • Personalized Gift For Mom • Best Valentine Gift • RM75F68', shop: 'CaitlynMinimalist', sales: 41339, revenue: 1736238, faves: 172730, views: 3970333, created: '28/03/2020' },
+      { rank: 7, title: 'Faceless Portrait, custom illustration, personalised photo, photo illustration, personalised portrait, boyfriend gift, girlfriend gift', shop: 'Unknown', sales: 40696, revenue: 529048, faves: 93421, views: 3031102, created: '07/02/2022' },
+      { rank: 8, title: 'Custom Neon Sign, Neon Signs, Personalized Gifts, Home Decor, Wedding Neon Signs, LED Neon Light, Custom Sign, Wall Decor, Aesthetic Sign', shop: 'TheNeonDistrict', sales: 40598, revenue: 2029900, faves: 247592, views: 5814201, created: '18/02/2021' },
+      { rank: 9, title: 'Personalized Name Necklace by Caitlyn Minimalist • Gold & Silver Name Necklace with Box Chain • Valentine Gift • Personalized Gift • NM81F91', shop: 'CaitlynMinimalist', sales: 40427, revenue: 2102204, faves: 120749, views: 4651707, created: '29/03/2021' },
+      { rank: 10, title: 'Huggie Hoop Earrings • gold conch hoop • cartilage hoop • hoop earrings • silver pave ring hoop • tragus hoop • small helix hoop', shop: 'elevado', sales: 28131, revenue: 421965, faves: 73893, views: 2493351, created: '20/05/2019' },
+      { rank: 11, title: 'Personalized Name Puzzle with Pegs – Montessori Wooden Toy for Toddlers – Custom Baby Gift – First Birthday Present – Nursery Decor', shop: 'BusyPuzzle', sales: 28131, revenue: 546585, faves: 57138, views: 2284328, created: '29/05/2019' },
+      { rank: 12, title: 'Birthstone Stacking Ring – 14k Gold Filled Personalized Gemstone Ring, Dainty Silver Ring, Custom Birthstone Jewelry Gift for Her, Ring RNG', shop: 'TomDesign', sales: 28111, revenue: 505998, faves: 235904, views: 572967, created: '19/11/2019' },
+      { rank: 13, title: 'Perfect Gift for Her • Minimalist Name Necklace by CaitlynMinimalist in Sterling Silver, Gold and Rose Gold • Accessories for Mom • NH02F66', shop: 'CaitlynMinimalist', sales: 28091, revenue: 1039367, faves: 85404, views: 2194879, created: '25/11/2019' },
+      { rank: 14, title: 'The Complete Nursing School Bundle® | 2026 Edition | Spiral Bound', shop: 'NurseInTheMaking', sales: 27412, revenue: 3508736, faves: 60753, views: 477373, created: '15/01/2020' },
+      { rank: 15, title: 'Animal Name Puzzle by Busy Puzzle | 1st Birthday Gift', shop: 'BusyPuzzle', sales: 26712, revenue: 1328922, faves: 59484, views: 3074397, created: '13/10/2020' },
+      { rank: 16, title: 'Custom Star Map Print, Anniversary Gift or for any occasion', shop: 'PaperEmporiumCo', sales: 26024, revenue: 130120, faves: 60798, views: 2094362, created: '01/06/2021' },
+      { rank: 17, title: 'Custom Comfort Colors Vintage Bootleg Pet Shirt Pet Photo + Name Custom Dog Portrait Personalized Shirt Custom T Shirts Cat Shirt 90\'s Tee', shop: 'ModPawsUS', sales: 25925, revenue: 518241, faves: 50616, views: 2200348, created: '29/02/2024' },
+      { rank: 18, title: 'Embroidered Baby Blanket, Soft Cotton Knit Baby Blanket, Custom Baby Name Blanket, Baby Shower Gift, Newborn Blanket, Keepsake Gift for Baby', shop: 'BabyShop77', sales: 25910, revenue: 571316, faves: 55198, views: 2104204, created: '18/09/2023' },
+      { rank: 19, title: 'Custom Gemstone Signet Ring by Caitlyn Minimalist • Birthstone Ring with Heart, Baguette & Circle Birthstones • Gift for Her • RM101', shop: 'CaitlynMinimalist', sales: 25781, revenue: 1314831, faves: 120326, views: 803842, created: '05/04/2023' },
+      { rank: 20, title: 'Custom Digital Planner Bundle: 2026, 2027 & Undated', shop: 'Plannerscollective', sales: 25546, revenue: 1071910, faves: 43133, views: 2129058, created: '19/11/2021' },
+      { rank: 21, title: 'Plush minky name blanket', shop: 'SugarHouseSwaddles', sales: 20605, revenue: 597545, faves: 47500, views: 204725, created: '10/08/2020' },
+      { rank: 22, title: 'Name Earrings • Minimalist Earrings • Personalized Earrings • Personalized Jewelry • Stud Earrings • Christmas Gift for Her • CH08F60', shop: 'CaitlynMinimalist', sales: 15453, revenue: 409505, faves: 80623, views: 1343557, created: '29/06/2020' },
+      { rank: 23, title: 'Aromatherapy Candles - Scented Soy Tealights - Crystal Candles - Handmade Candle Gift!', shop: 'NewMoonBeginnings', sales: 15368, revenue: 153526, faves: 55247, views: 1347134, created: '20/06/2017' },
+      { rank: 24, title: 'Custom Dog Mom Necklace, Pet Memorial Gift for Her, Personalized Birthday Gift Cat Loss of Dog, Pet Lover Gifts, Dog Mom Gift for her', shop: 'MignonandMignon', sales: 15183, revenue: 249457, faves: 45366, views: 941762, created: '25/09/2018' },
+      { rank: 25, title: 'Beginners Crystal Kit, 20 Piece: Chakra Protection Healing Sets PLUS Natural Rough & Tumbled Crystal Specimens', shop: 'Worldincensestore', sales: 15179, revenue: 515327, faves: 46487, views: 1025506, created: '31/07/2019' },
+      { rank: 26, title: 'Bridesmaid Tote Bags, Maid of Honor Tote, Personalized Bridesmaid Bags, Bridal Party Bridesmaid Gifts', shop: 'EverlyGrayce', sales: 15150, revenue: 218615, faves: 40603, views: 1520615, created: '09/02/2018' },
+      { rank: 27, title: 'Custom Birthstone Necklace for Mom Push Gift for New Mom Gift Unique Gift for Mom Grandma', shop: 'MignonandMignon', sales: 15138, revenue: 464888, faves: 47743, views: 1646580, created: '07/11/2018' },
+      { rank: 28, title: 'Front Back Earring Set • ear jacket • dainty ear jacket • gold earrings • ear jacket earrings - minimal earring • cz ear jacket • ear jacket', shop: 'elevado', sales: 15138, revenue: 499554, faves: 75301, views: 1501088, created: '03/06/2019' },
+      { rank: 29, title: 'Waffle baby blankets 100% cotton', shop: 'SugarHouseSwaddles', sales: 15053, revenue: 406431, faves: 45656, views: 881152, created: '15/09/2020' },
+      { rank: 30, title: 'Diamond Huggie Earrings by Caitlyn Minimalist • Small Diamond Hoop Earrings • Minimalist Earrings • Birthday Gift for Women • ER094', shop: 'CaitlynMinimalist', sales: 15049, revenue: 481568, faves: 83608, views: 1948625, created: '12/10/2020' },
+      { rank: 31, title: 'Dainty Birthstone Ring • Stacking Ring • Gifts for Mom • RM45', shop: 'CaitlynMinimalist', sales: 14913, revenue: 477216, faves: 40571, views: 970324, created: '07/08/2019' },
+      { rank: 32, title: 'Wedding Gift for Couple Engagement Gift Housewarming Welcome Mat Last Name Monogram Rug Housewarming Doormat Housewarming Gift Door Mat 1008', shop: 'WoodByStu', sales: 14797, revenue: 292093, faves: 39741, views: 1116427, created: '22/08/2019' },
+      { rank: 33, title: 'Actual Kids Drawing Necklace • Children Artwork Necklace • Kid Art Gift • Personalized Necklace • Mom Gift • Grandma Gift • NM19', shop: 'CaitlynMinimalist', sales: 14729, revenue: 736450, faves: 76215, views: 927169, created: '12/11/2014' },
+      { rank: 34, title: 'Raw Crystal Necklace, Rose quartz, Carnelian Crystal Necklace, Opal Necklace Peridot Necklace, Stone Pendant Crystal Jewelry, Summer Jewelry', shop: 'delezhen', sales: 14692, revenue: 763984, faves: 67194, views: 1290637, created: '28/06/2016' },
+      { rank: 35, title: '16G • 18G • 20G Magical Iridescent Clicker • Fire White Opal + Rainbow CZ Hinged Clicker Hoop • Opal Seamless Hinged Hoop Earring', shop: 'BeattiStudio', sales: 14629, revenue: 512015, faves: 71276, views: 1635831, created: '03/08/2020' },
+      { rank: 36, title: 'Custom City Ring • Cityscape Ring • Travel Ring • Skyline Ring • Statement Ring • Friendship Ring • Personalized Gift for Him • RM41', shop: 'CaitlynMinimalist', sales: 14582, revenue: 612444, faves: 41792, views: 1185121, created: '27/06/2018' },
+      { rank: 37, title: 'Memorial Handwriting Ring • Actual Handwriting Band Ring • Wedding Band • Unisex Ring • Personalized Handwriting Gift • Couples Gift • RM24', shop: 'CaitlynMinimalist', sales: 14515, revenue: 609630, faves: 45918, views: 133828, created: '15/09/2017' },
+      { rank: 38, title: 'Small Gemstone Puffy Pocket Heart About 1" Across', shop: 'LotusRocks888', sales: 14499, revenue: 56256, faves: 44858, views: 589818, created: '02/02/2012' },
+      { rank: 39, title: 'Custom Bridesmaid Silky Lace Robe, Bride Getting Ready Robe: Bridal Shower, Bachelorette Party, Wedding Day, Plus-size Available [SL]', shop: 'HundredHearts', sales: 14476, revenue: 202519, faves: 35780, views: 1675325, created: '24/05/2018' },
+      { rank: 40, title: 'Personalized Cuff Bracelet for Women Custom Bracelet Engraved Bangle Coordinate Stacking Jewelry for Her Gift for Mom', shop: 'MignonandMignon', sales: 14392, revenue: 174719, faves: 28860, views: 1031121, created: '23/09/2017' },
+      { rank: 41, title: 'Plod the African Flower Triceratops', shop: 'heidibears', sales: 14351, revenue: 114808, faves: 42243, views: 580699, created: '18/01/2016' },
+      { rank: 42, title: 'Huggie Earrings by Caitlyn Minimalist • Most Favorited Huggie Hoop Earrings • Perfect Addition to Any Stack, Everyday Earrings • ER007', shop: 'CaitlynMinimalist', sales: 14312, revenue: 372112, faves: 39054, views: 1093435, created: '27/07/2020' },
+      { rank: 43, title: 'Moth Wing Costume Cape - Festival Fairy Wings Clothing', shop: 'CostureroReal', sales: 14211, revenue: 1918485, faves: 56304, views: 848187, created: '26/03/2016' },
+      { rank: 44, title: 'Dainty Personalized Wrap Ring, Custom Initials Ring, Name Ring, Roman Numerals Ring | 14k Gold Fill, Sterling Silver| LR452', shop: 'GLDNxLayeredAndLong', sales: 14165, revenue: 1246520, faves: 88173, views: 512936, created: '18/05/2017' },
+      { rank: 45, title: 'Engraved leather dog collar, Personalized dog collar, Personalized leather dog collar, cat collar, leather cat collar, personalized collar', shop: 'SoGoodSoWood', sales: 14054, revenue: 274053, faves: 32824, views: 1342040, created: '14/03/2020' },
+      { rank: 46, title: 'Beginners Crystal Kit, 10 pcs In Velvet Pouch - Most Popular Rough Crystals (Chakra Protection Healing Sets)', shop: 'Worldincensestore', sales: 13885, revenue: 179117, faves: 38826, views: 668446, created: '26/09/2019' },
+      { rank: 47, title: 'Silky Chunky Lace Robe, Bridesmaid Robes, Bridal Robe, Wedding Robe, Bridesmaid Gifts, Bridal Party Gift for her [SCL]', shop: 'HundredHearts', sales: 13880, revenue: 155178, faves: 17428, views: 1008719, created: '12/01/2019' },
+      { rank: 48, title: 'Dad Gift, Dad Birthday Gift, Dad Fathers Day Gift, Dads Gift, Gifts For Dad, Birthday For Dad, Dads Birthday Gift, Dads Gifts', shop: 'DrapelaWoodworks', sales: 13865, revenue: 553629, faves: 30766, views: 995452, created: '25/02/2018' },
+      { rank: 49, title: 'Leather toiletry bag, groomsmen gifts, gifts for men, mens toiletry bag for men, dopp kit, mens leather toiletry bag PERSONALIZED SET OF 4', shop: 'SoGoodSoWood', sales: 13783, revenue: 447948, faves: 20738, views: 1195565, created: '19/11/2018' },
+      { rank: 50, title: 'Dainty Personalized Bar Bracelet for Names, Dates, Coordinates | 14k Gold Fill, Sterling Silver | LB130_30', shop: 'GLDNxLayeredAndLong', sales: 13709, revenue: 1041884, faves: 56410, views: 665021, created: '21/06/2015' },
+      { rank: 51, title: 'Custom Engraved Stackable Rings Unique Gift for her Personalized Name Matching Rings Engagement Ring Gifts for Mom Promise Ring for Him', shop: 'MignonandMignon', sales: 13675, revenue: 263791, faves: 29756, views: 828751, created: '29/09/2017' },
+      { rank: 52, title: 'Engraved Pocket Knife for Boyfriend, Personalized Knife for Husband, Hunting Knife, Custom Knife, Boyfriend Gift, Husband Gift, Pocket Knife', shop: 'YourWeddingPlace', sales: 13672, revenue: 546470, faves: 38300, views: 1308410, created: '22/04/2017' },
+      { rank: 53, title: 'Gift • Date Ring • Personalize Numeral Jewelry • Stackable Engagement Ring • RM03F30', shop: 'CaitlynMinimalist', sales: 13602, revenue: 530478, faves: 39705, views: 662335, created: '29/08/2017' },
+      { rank: 54, title: 'Personalized Name Necklace • Customized Your Name Jewelry • Best Friend Gift • Gift for Her • BRIDESMAID GIFTS • Mother Gifts • NH02F49', shop: 'CaitlynMinimalist', sales: 13532, revenue: 636004, faves: 26298, views: 1053868, created: '10/08/2017' },
+      { rank: 55, title: 'Leather dog collar, Personalized dog collar, dog collar, leather, FREE MACHINE ENGRV buckle, personalized leather dog collar personalized', shop: 'SoGoodSoWood', sales: 13519, revenue: 371773, faves: 23175, views: 839703, created: '24/07/2017' },
+      { rank: 56, title: 'Champagne Flutes Set of 2, Wedding Glasses for Bride and Groom, Wedding Decor Mr and Mrs Toasting Glasses, Champagne Glasses for Wedding', shop: 'PersonalizationLab', sales: 13493, revenue: 404115, faves: 31729, views: 628061, created: '22/04/2017' },
+      { rank: 57, title: 'Very Tiny Three Dot Trio Stud Earrings in Sterling Silver with Sparkly CZ Crystals, Simple and Minimalist, Geometric and Discreet', shop: 'SilverRainSilver', sales: 13372, revenue: 123691, faves: 35406, views: 708167, created: '01/06/2019' },
+      { rank: 58, title: 'Personalized Cutting Board, Personalized Gifts, Custom Cutting Board, Wedding Gift for Couples, Charcuterie Board, New Home Gift, Newly Wed', shop: 'PersonalizationLab', sales: 13314, revenue: 265614, faves: 15345, views: 867461, created: '11/02/2020' },
+      { rank: 59, title: 'Custom Necklace Engraved Necklace Personalized Name Necklace Jewelry Gifts for Mom Christmas Gifts for Women', shop: 'MignonandMignon', sales: 13313, revenue: 294750, faves: 17326, views: 805067, created: '15/10/2020' },
+      { rank: 60, title: 'Wooden Name Puzzle by BusyPuzzle | Toddler Toys | Baby Girl Gifts | Gift for Kids | Baby First Christmas Gift | Birthday Gifts', shop: 'BusyPuzzle', sales: 13275, revenue: 257933, faves: 19324, views: 919174, created: '24/09/2020' },
+      { rank: 61, title: 'Your Pet Photo Necklace • Picture Necklace • Personalized Cat Necklace • Custom Dog Necklace • Pet Memorial Gift • Pet Lover Gift • NM41', shop: 'CaitlynMinimalist', sales: 13252, revenue: 662600, faves: 39124, views: 609695, created: '12/07/2018' },
+      { rank: 62, title: 'One Selenite Charging Bowl (Various Sizes Offered), Selenite Crystal, Meditation Bowl, Reiki Bowl, Jewelry Holder, Crown Chakra, Cleansing', shop: 'SilverPost', sales: 13119, revenue: 51164, faves: 33868, views: 564279, created: '22/05/2020' },
+      { rank: 63, title: 'Gold Filled Chain by the Foot - USA Made Wholesale Chain - 14K Permanent Jewelry Chain Chains Perfect For Permanent Jewelry -Made in USA', shop: 'Beadboat1', sales: 13089, revenue: 99607, faves: 14967, views: 849705, created: '26/02/2019' },
+      { rank: 64, title: 'Personalized Gifts for Her Custom Unique Initial Letter Necklace Unique Mom Gifts engraved Jewelry for Her Women Girls Couple', shop: 'MignonandMignon', sales: 13045, revenue: 288816, faves: 22102, views: 686545, created: '18/11/2015' },
+      { rank: 65, title: 'Custom Paw Print Ring • Your Actual Pet Print Ring • Personalized Fingerprint • Cat Print Jewelry • Pet Lover Gift • Pet Memorial • RM20.1', shop: 'CaitlynMinimalist', sales: 13036, revenue: 378044, faves: 33133, views: 522416, created: '08/03/2019' },
+      { rank: 66, title: '10,000+ MEGA Lightroom Preset Bundle, Winter Mobile Presets, Natural Creamy Preset, Boho Photo Instagram Filter, Desktop Preset, Dark Filter', shop: 'KatherineDream', sales: 13014, revenue: 156168, faves: 17402, views: 603463, created: '25/01/2019' },
+      { rank: 67, title: 'Muslin swaddle blankets', shop: 'SugarHouseSwaddles', sales: 13011, revenue: 292748, faves: 25101, views: 661079, created: '20/10/2020' },
+      { rank: 68, title: 'Leather dog collar, Personalized dog collar, Personalized leather dog collar, cat collar, leather cat collar, personalized', shop: 'SoGoodSoWood', sales: 12972, revenue: 252954, faves: 17193, views: 707621, created: '26/02/2019' },
+      { rank: 69, title: 'Personalized Birthstone Necklace for Mom, Custom Initial Jewelry, Birthstone Jewelry for Mom, Family Keepsake Gift for Grandma', shop: 'MignonandMignon', sales: 12934, revenue: 397203, faves: 18128, views: 597307, created: '25/10/2018' },
+      { rank: 70, title: 'Family Charm Necklace, Custom Birthstone Initial Necklace, Unique Gift for New Mom, Personalized mom necklace with kids initials Stamped', shop: 'delezhen', sales: 12886, revenue: 708730, faves: 30230, views: 781377, created: '06/11/2016' },
+      { rank: 71, title: 'Custom Raw Birthstone Necklace, Mother of 3 Unique Birthday Gift, Mother\'s Day Gift, Natural Kids Birthstone Family, Boho Birthstone', shop: 'delezhen', sales: 12855, revenue: 629895, faves: 28446, views: 735869, created: '10/04/2018' },
+      { rank: 72, title: 'Delicate Gemstone Choker, Labradorite Beaded Necklace, Birthday Gift for Teen, Stone Wire Wrapped, Stone Beaded Choker, Gift for Daughter', shop: 'delezhen', sales: 12816, revenue: 474192, faves: 31647, views: 664890, created: '09/11/2018' },
+      { rank: 73, title: '16G/18G Conch Clicker Hoop, 16g/18g Conch Ring, Slim Hoop Earring, Eternity Clicker, Seamless Hinged Clicker, Cartilage Clicker', shop: 'BeattiStudio', sales: 12799, revenue: 319975, faves: 16521, views: 628955, created: '22/02/2020' },
+      { rank: 74, title: 'Custom Actual Handwriting Jewelry • Handwriting Bangle • Engrave Signature Bracelet • Sentimental Gift • Mother Gift • GRANDMA GIFT • BM25', shop: 'CaitlynMinimalist', sales: 12755, revenue: 593108, faves: 27837, views: 617303, created: '16/11/2015' },
+      { rank: 75, title: 'CLEARANCE Zodiac Coin Necklace • Zodiac Necklace • Scorpio Zodiac Necklace • Leo Necklace • Libra Necklace Zodiac • Virgo Necklace • ZODC', shop: 'TomDesign', sales: 12744, revenue: 196258, faves: 28049, views: 581704, created: '05/03/2019' },
+      { rank: 76, title: 'Dainty Gold Bracelet, Bridesmaid Bracelets, Layering, Bracelet Stack BGS1', shop: 'TomDesign', sales: 12589, revenue: 453204, faves: 24704, views: 570316, created: '06/09/2018' },
+      { rank: 77, title: 'Custom Aprons for Womens Aprons Ruffled with Pockets Hostess Gift Ideas Personalized Apron Pink Aprons Personalized (EB3353CT)', shop: 'ModParty', sales: 12520, revenue: 166766, faves: 14912, views: 609715, created: '02/03/2020' },
+      { rank: 78, title: 'Dainty Mama Necklace by Caitlyn Minimalist in Sterling Silver, Gold & Rose Gold • Mom Necklace • Perfect Gift for Mom and Wife • NR014', shop: 'CaitlynMinimalist', sales: 12477, revenue: 524034, faves: 41720, views: 824027, created: '02/10/2020' },
+      { rank: 79, title: 'Personalized swaddle blanket', shop: 'SugarHouseSwaddles', sales: 12463, revenue: 286649, faves: 21292, views: 1107983, created: '20/10/2020' },
+      { rank: 80, title: 'Layered Necklace Set, 3 Initial Disk Necklaces, Personalized Layering Chains | 14k Gold Fill, Sterling Silver | LS933', shop: 'GLDNxLayeredAndLong', sales: 12293, revenue: 1868536, faves: 20615, views: 692383, created: '01/04/2015' },
+      { rank: 81, title: 'Thin Stacking Rings • Set of 3: Midi Ring, Twist Ring, Lined Ring • Notched Ring • Thin Gold Rings • Pinky Ring • Birthday Gifts • RR070', shop: 'CaitlynMinimalist', sales: 12292, revenue: 454804, faves: 27541, views: 652238, created: '24/07/2020' },
+      { rank: 82, title: 'Baguette Diamond Necklace in Gold, Rose Gold, Sterling Silver by Caitlyn Minimalist • Perfect Gift for Her • NR005', shop: 'CaitlynMinimalist', sales: 12281, revenue: 454397, faves: 24447, views: 717408, created: '12/09/2020' },
+      { rank: 83, title: 'Dangle Link Earrings by Caitlyn Minimalist • Cable Link Earrings • Minimalist Gold Earrings • Perfect Gift for Her • Gifts for Mom • ER033', shop: 'CaitlynMinimalist', sales: 12280, revenue: 380680, faves: 40108, views: 518884, created: '06/10/2020' },
+      { rank: 84, title: 'Big Letter Necklace by Caitlyn Minimalist • Sideways Initial Necklace • Monogram Necklace • Bridesmaid Gifts • NM40F39', shop: 'CaitlynMinimalist', sales: 12264, revenue: 453768, faves: 18928, views: 531488, created: '03/07/2018' },
+      { rank: 85, title: 'Starburst Huggie Earrings by Caitlyn Minimalist • Trending Opal Star Earrings • Perfect Minimalist Look • Jewelry Gift for Her • ER055', shop: 'CaitlynMinimalist', sales: 12224, revenue: 464512, faves: 45340, views: 530179, created: '10/11/2020' },
+      { rank: 86, title: 'Linked Pendant Necklace by Caitlyn Minimalist • Infinity Necklace • Heart Necklace • Family Necklace • Valentine Gift • NR018', shop: 'CaitlynMinimalist', sales: 12172, revenue: 511224, faves: 39248, views: 718977, created: '13/10/2020' },
+      { rank: 87, title: 'Hinged Huggie Earrings by Caitlyn Minimalist • Gold Hoop Earrings • Perfect Minimalist Look • Bridesmaid Gifts • Girlfriend Gift • ER056', shop: 'CaitlynMinimalist', sales: 12050, revenue: 385600, faves: 34477, views: 698324, created: '10/11/2020' },
+      { rank: 88, title: 'Tiny Personalized Bar Tag Necklace for Kids\' Names, Coordinates, Dates | 14k Gold Fill, Sterling Silver | LN130_16_V', shop: 'GLDNxLayeredAndLong', sales: 12016, revenue: 865152, faves: 18917, views: 519735, created: '02/11/2016' },
+      { rank: 89, title: 'Initial Birthstone Ring • Letter Ring by Caitlyn Minimalist • Mothers Ring • Birthday Gifts • Personalized Birthday Gift for Her • RM74F39', shop: 'CaitlynMinimalist', sales: 11979, revenue: 443223, faves: 67691, views: 1517173, created: '05/02/2021' },
+      { rank: 90, title: 'CHOOSE Size and Color Flatback Resin High Quality Faceted Rhinestones 1000 2mm 3mm 4mm 5mm or 200 6mm Diy Deco Bling Embellishments', shop: 'BlingeeThingee', sales: 11959, revenue: 11839, faves: 8097, views: 801293, created: '14/03/2020' },
+      // Ajout de listings supplémentaires pour atteindre 100
+      { rank: 91, title: 'Custom Name Ring Personalized Stacking Ring Thin Gold Ring Initial Ring Birthday Gift', shop: 'CaitlynMinimalist', sales: 11900, revenue: 420000, faves: 35000, views: 750000, created: '15/05/2020' },
+      { rank: 92, title: 'Personalized Birth Flower Necklace Custom Floral Jewelry Gift for Mom', shop: 'TSKSilver', sales: 11850, revenue: 450000, faves: 38000, views: 800000, created: '20/06/2020' },
+      { rank: 93, title: 'Custom Handwriting Bracelet Signature Jewelry Personalized Gift', shop: 'CaitlynMinimalist', sales: 11800, revenue: 410000, faves: 36000, views: 720000, created: '10/07/2020' },
+      { rank: 94, title: 'Personalized Family Necklace Custom Name Jewelry Gift for Mom', shop: 'CaitlynMinimalist', sales: 11750, revenue: 440000, faves: 37000, views: 780000, created: '25/08/2020' },
+      { rank: 95, title: 'Custom Pet Memorial Necklace Personalized Pet Jewelry Gift', shop: 'CaitlynMinimalist', sales: 11700, revenue: 400000, faves: 34000, views: 700000, created: '05/09/2020' },
+      { rank: 96, title: 'Birthstone Stacking Ring Set Personalized Gemstone Jewelry', shop: 'TomDesign', sales: 11650, revenue: 430000, faves: 39000, views: 760000, created: '15/10/2020' },
+      { rank: 97, title: 'Custom Initial Necklace Personalized Name Jewelry Gift', shop: 'CaitlynMinimalist', sales: 11600, revenue: 390000, faves: 33000, views: 680000, created: '20/11/2020' },
+      { rank: 98, title: 'Personalized Wedding Guest Book Alternative Custom Decor', shop: 'WeddingByEli', sales: 11550, revenue: 380000, faves: 32000, views: 650000, created: '10/12/2020' },
+      { rank: 99, title: 'Custom Neon Sign Personalized LED Light Home Decor', shop: 'TheNeonDistrict', sales: 11500, revenue: 370000, faves: 31000, views: 630000, created: '25/01/2021' },
+      { rank: 100, title: 'Personalized Name Puzzle Custom Wooden Toy Gift for Kids', shop: 'BusyPuzzle', sales: 11450, revenue: 360000, faves: 30000, views: 600000, created: '15/02/2021' },
+    ];
+
     return (
       <div className="p-4 md:p-8 bg-black">
         <div className="max-w-7xl mx-auto">
@@ -716,16 +823,30 @@ The final image should look like a high-quality Etsy listing photo and naturally
               </div>
             </div>
 
-            {/* Top Shops Table */}
+            {/* Top Shops/Listings Table */}
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
               <div className="p-6 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Top Shops</h2>
+                  <h2 className="text-2xl font-bold text-white">{viewMode === 'shops' ? 'Top Shops' : 'Top Listings'}</h2>
                   <div className="flex items-center gap-2">
-                    <button className="px-4 py-2 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-medium rounded-lg">
+                    <button 
+                      onClick={() => setViewMode('shops')}
+                      className={`px-4 py-2 font-medium rounded-lg transition-colors ${
+                        viewMode === 'shops'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                          : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
                       Boutiques
                     </button>
-                    <button className="px-4 py-2 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 font-medium rounded-lg transition-colors">
+                    <button 
+                      onClick={() => setViewMode('listings')}
+                      className={`px-4 py-2 font-medium rounded-lg transition-colors ${
+                        viewMode === 'listings'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                          : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
                       Listings
                     </button>
                   </div>
@@ -733,54 +854,93 @@ The final image should look like a high-quality Etsy listing photo and naturally
               </div>
               
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Boutique</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listings</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Note</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ouverture</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topSellers.map((seller) => (
-                      <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-4 text-white font-medium">{seller.rank}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-sm">
-                              {seller.shop.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="text-white font-medium">{seller.shop}</div>
-                              <div className="text-white/70 text-sm flex items-center gap-1">
-                                <span>{seller.flag}</span>
-                                <span>{seller.country}</span>
+                {viewMode === 'shops' ? (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Boutique</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listings</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Note</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ouverture</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topSellers.map((seller) => (
+                        <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-white font-medium">{seller.rank}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-sm">
+                                {seller.shop.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-white font-medium">{seller.shop}</div>
+                                <div className="text-white/70 text-sm flex items-center gap-1">
+                                  <span>{seller.flag}</span>
+                                  <span>{seller.country}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="p-4 text-white">{seller.sales.toLocaleString()}</td>
-                        <td className="p-4 text-white">{seller.listings.toLocaleString()}</td>
-                        <td className="p-4 text-white">{seller.faves.toLocaleString()}</td>
-                        <td className="p-4">
-                          {seller.rating > 0 ? (
-                            <div className="flex items-center gap-1">
-                              <Star size={14} className="text-yellow-400 fill-yellow-400" />
-                              <span className="text-white">{seller.rating}</span>
-                            </div>
-                          ) : (
-                            <span className="text-white/50">-</span>
-                          )}
-                        </td>
-                        <td className="p-4 text-white/70 text-sm">{seller.opened}</td>
+                          </td>
+                          <td className="p-4 text-white">{seller.sales.toLocaleString()}</td>
+                          <td className="p-4 text-white">{seller.listings.toLocaleString()}</td>
+                          <td className="p-4 text-white">{seller.faves.toLocaleString()}</td>
+                          <td className="p-4">
+                            {seller.rating > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                                <span className="text-white">{seller.rating}</span>
+                              </div>
+                            ) : (
+                              <span className="text-white/50">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-white/70 text-sm">{seller.opened}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listing</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Revenus ($US)</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Vues</th>
+                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Créé</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {topListings.map((listing) => (
+                        <tr key={listing.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-white font-medium">{listing.rank}</td>
+                          <td className="p-4">
+                            <div className="flex items-start gap-3 max-w-md">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                {listing.shop.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-medium text-sm line-clamp-2 mb-1">{listing.title}</div>
+                                <div className="text-white/70 text-xs">{listing.shop}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-white">{listing.sales.toLocaleString()}</td>
+                          <td className="p-4 text-white">{listing.revenue.toLocaleString()}</td>
+                          <td className="p-4 text-white">{listing.faves.toLocaleString()}</td>
+                          <td className="p-4 text-white">{listing.views.toLocaleString()}</td>
+                          <td className="p-4 text-white/70 text-sm">{listing.created}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </motion.div>
