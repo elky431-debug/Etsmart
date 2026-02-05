@@ -81,7 +81,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
           psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
           buyerMirror: undefined, // buyerMirror not available in current structure
           recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
-          skipCreditDeduction: false, // ⚠️ CRITICAL: false = déduit 0.5 crédit pour la génération du listing uniquement
+          skipCreditDeduction: true, // ⚠️ CRITICAL: true = les crédits sont déjà déduits lors du parsing de l'image (0.5 crédit)
         }),
       });
 

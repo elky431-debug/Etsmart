@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
       psychologicalTriggers,
       buyerMirror,
       recommendedPrice,
-      skipCreditDeduction = false, // Par défaut, on déduit les crédits (0.25). Si true, ne pas décrémenter (sera fait dans generate-images)
+      skipCreditDeduction = true, // ⚠️ CHANGÉ: Par défaut true car les crédits sont déjà déduits lors du parsing de l'image
     } = body;
 
     // ⚠️ CRITICAL: Check subscription status and quota before allowing generation
-    // (sauf si skipCreditDeduction est true, auquel cas les crédits seront déduits dans generate-images)
+    // (sauf si skipCreditDeduction est true, auquel cas les crédits ont déjà été déduits lors du parsing)
     if (!skipCreditDeduction) {
       const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
       const quotaInfo = await getUserQuotaInfo(user.id);

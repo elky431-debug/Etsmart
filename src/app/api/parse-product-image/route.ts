@@ -40,6 +40,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ⚠️ CRITICAL: Vérifier le quota avant de permettre le parsing
+    const { getUserQuotaInfo } = await import('@/lib/subscription-quota');
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    
+    if (quotaInfo.status !== 'active') {
+      return NextResponse.json(
+        { error: 'SUBSCRIPTION_REQUIRED', message: 'Un abonnement actif est requis pour parser des images.' },
+        { status: 403 }
+      );
+    }
+
+    // Vérifier si l'utilisateur a assez de quota (0.5 crédit nécessaire pour le parsing)
+    if (quotaInfo.remaining < 0.5) {
+      return NextResponse.json(
+        { error: 'QUOTA_EXCEEDED', message: 'Quota insuffisant. Vous avez besoin de 0.5 crédit pour parser une image.' },
+        { status: 403 }
+      );
+    }
+
     // Vérifier le Content-Type pour gérer FormData ou JSON
     const contentType = request.headers.get('content-type') || '';
     
@@ -378,12 +397,36 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
 
     console.log(`✅ Product extracted: ${product.title} - Price: $${product.price}`);
 
+    // ⚠️ CRITICAL: Déduire 0.5 crédit après le parsing réussi
+    const { incrementAnalysisCount } = await import('@/lib/subscription-quota');
+    console.log('[PARSE PRODUCT IMAGE] ⚠️ About to decrement 0.5 credit for image parsing (user:', user.id, ')');
+    const quotaResult = await incrementAnalysisCount(user.id, 0.5);
+    
+    if (!quotaResult.success) {
+      console.error('❌ [PARSE PRODUCT IMAGE] Failed to decrement quota:', quotaResult.error);
+      // Le parsing a réussi mais le quota n'a pas été déduit - on continue quand même
+      // mais on log l'erreur pour debugging
+    } else {
+      console.log('✅ [PARSE PRODUCT IMAGE] Quota decremented successfully:', {
+        used: quotaResult.used,
+        quota: quotaResult.quota,
+        remaining: quotaResult.remaining,
+        amount: 0.5,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       product,
       warning: product.price === 0 
         ? 'Le prix n\'a pas pu être extrait. Vous pourrez l\'entrer manuellement.' 
         : undefined,
+      quotaUpdated: true,
+      quota: quotaResult.success ? {
+        used: quotaResult.used,
+        remaining: quotaResult.remaining,
+        quota: quotaResult.quota,
+      } : undefined,
     });
 
   } catch (error: any) {
