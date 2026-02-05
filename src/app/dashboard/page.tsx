@@ -30,9 +30,7 @@ import {
   PenTool,
   ArrowUp,
   ArrowDown,
-  HelpCircle,
-  ChevronLeft,
-  ChevronRight
+  HelpCircle
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
