@@ -827,7 +827,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
               <div className="p-6 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">{viewMode === 'shops' ? 'Top Shops' : 'Top Listings'}</h2>
+                  <h2 className="text-2xl font-bold text-white">{viewMode === 'shops' ? 'Meilleures Boutiques' : 'Meilleurs Listings'}</h2>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setViewMode('shops')}
