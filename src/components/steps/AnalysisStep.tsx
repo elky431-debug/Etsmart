@@ -37,6 +37,7 @@ export function AnalysisStep() {
   // Refs pour éviter les boucles infinies
   const analysisStartedRef = useRef(false);
   const transitionDoneRef = useRef(false);
+  const lastProductIdRef = useRef<string | null>(null);
   // Restaurer l'état depuis localStorage si disponible
   const getStoredAnalysisState = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -134,7 +135,17 @@ export function AnalysisStep() {
     if (currentStep !== 3) {
       analysisStartedRef.current = false;
       transitionDoneRef.current = false;
+      lastProductIdRef.current = null;
       return;
+    }
+
+    // ⚠️ CRITICAL: Réinitialiser analysisStartedRef si c'est un nouveau produit
+    const currentProductId = products.length > 0 ? products[0].id : null;
+    if (currentProductId && currentProductId !== lastProductIdRef.current) {
+      console.log('[AnalysisStep] 🔄 Nouveau produit détecté, réinitialisation de analysisStartedRef');
+      analysisStartedRef.current = false;
+      setAnalysisComplete(false); // Réinitialiser aussi analysisComplete pour le nouveau produit
+      lastProductIdRef.current = currentProductId;
     }
 
     if (
@@ -145,6 +156,7 @@ export function AnalysisStep() {
       !isAnalyzing &&
       !analysisStartedRef.current
     ) {
+      console.log('[AnalysisStep] 🚀 Lancement automatique de l\'analyse');
       analysisStartedRef.current = true;
       runAnalysis();
     }
