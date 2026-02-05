@@ -62,35 +62,69 @@ export function ProductImport() {
     }
   }, [user?.id]); // Only depend on user.id to avoid re-triggering
 
-  // ⚠️ AUTO-LAUNCH: Surveiller quand le prix est ajouté et lancer automatiquement l'analyse
-  const hasAutoLaunchedRef = useRef(false);
-  useEffect(() => {
-    // Si on a un produit avec un prix > 0 et qu'on n'a pas encore lancé l'analyse automatiquement
-    if (products.length > 0 && products[0].price > 0 && !hasAutoLaunchedRef.current) {
-      // Vérifier qu'on est toujours à l'étape 2 (import)
-      const currentStep = useStore.getState().currentStep;
-      if (currentStep === 2) {
-        hasAutoLaunchedRef.current = true;
-        // Attendre un court délai pour que l'UI se mette à jour
-        setTimeout(() => {
-          setStep(3); // Passer à l'étape d'analyse qui lancera automatiquement l'analyse
-        }, 500);
-      }
-    }
-  }, [products, setStep]);
+  // ⚠️ NOTE: Le lancement automatique de l'analyse a été retiré
+  // L'utilisateur doit maintenant cliquer sur le bouton "Analyser" pour démarrer l'analyse
 
-  // Handle Analyze button click - check subscription before proceeding
+  // Handle Analyze button click - check quota and deduct credits before proceeding
   const handleAnalyzeClick = async () => {
     // Check if user is authenticated
     if (!user) {
-      // Redirect to login or show auth required message
       setError('Veuillez vous connecter pour analyser des produits');
       return;
     }
 
-    // La vérification se fera côté serveur dans les API routes
-    // On permet toujours l'accès, la vérification se fait côté serveur
-    setStep(3);
+    // Vérifier qu'on a un produit avec un prix
+    if (products.length === 0 || products[0].price === 0) {
+      setError('Veuillez ajouter un produit avec un prix pour continuer');
+      return;
+    }
+
+    // ⚠️ CRITICAL: Vérifier le quota et déduire les crédits AVANT de passer à l'étape d'analyse
+    try {
+      const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+      const quotaInfo = await getUserQuotaInfo(user.id);
+      
+      if (quotaInfo.status !== 'active') {
+        setError('Un abonnement actif est requis pour analyser des produits');
+        return;
+      }
+
+      // Vérifier si l'utilisateur a assez de quota (0.5 crédit nécessaire)
+      const creditNeeded = 0.5;
+      if (quotaInfo.remaining < creditNeeded) {
+        setError(`Quota insuffisant. Vous avez besoin de ${creditNeeded} crédit(s) pour analyser un produit.`);
+        return;
+      }
+
+      // Déduire les crédits AVANT de démarrer l'analyse
+      console.log('[ProductImport] ⚠️ About to decrement 0.5 credit for analysis (user:', user.id, ')');
+      const quotaResult = await incrementAnalysisCount(user.id, creditNeeded);
+      
+      if (!quotaResult.success) {
+        console.error('❌ [ProductImport] Failed to decrement quota:', quotaResult.error);
+        setError('Erreur lors de la déduction des crédits. Veuillez réessayer.');
+        return;
+      }
+
+      console.log('✅ [ProductImport] Quota decremented successfully:', {
+        used: quotaResult.used,
+        quota: quotaResult.quota,
+        remaining: quotaResult.remaining,
+        amount: creditNeeded,
+      });
+
+      // Rafraîchir l'affichage des crédits
+      await refreshSubscription(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscription-refresh'));
+      }
+
+      // Maintenant passer à l'étape d'analyse
+      setStep(3);
+    } catch (error: any) {
+      console.error('❌ [ProductImport] Error checking quota:', error);
+      setError('Erreur lors de la vérification du quota. Veuillez réessayer.');
+    }
   };
 
   // Refresh subscription after payment and close paywall if subscription is active
