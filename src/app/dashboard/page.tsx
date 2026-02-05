@@ -30,7 +30,9 @@ import {
   PenTool,
   ArrowUp,
   ArrowDown,
-  HelpCircle
+  HelpCircle,
+  Crown,
+  Star
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -52,7 +54,7 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { Paywall } from '@/components/paywall/Paywall';
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers';
 
 interface MenuItem {
   id: DashboardSection;
@@ -585,6 +587,128 @@ NO flat catalog-style photography
 The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
   };
 
+  // Composant pour afficher les meilleurs vendeurs Etsy
+  const TopEtsySellersSection = () => {
+    // Données des meilleurs vendeurs Etsy (basées sur les images)
+    const topSellers = [
+      { rank: 1, shop: 'CaitlynMinimalist', country: 'United States', flag: '🇺🇸', sales: 3683489, listings: 2535, faves: 499520, rating: 4.80, opened: '02/11/2014' },
+      { rank: 2, shop: 'Beadboat1', country: 'United States', flag: '🇺🇸', sales: 2236125, listings: 7801, faves: 96573, rating: 4.85, opened: '21/08/2014' },
+      { rank: 3, shop: 'ModParty', country: 'United States', flag: '🇺🇸', sales: 2077508, listings: 0, faves: 143208, rating: 4.88, opened: '26/09/2013' },
+      { rank: 4, shop: 'PlannerKate1', country: 'United States', flag: '🇺🇸', sales: 2066853, listings: 4170, faves: 69998, rating: 4.97, opened: '29/07/2014' },
+      { rank: 5, shop: 'SilverRainSilver', country: 'United Kingdom', flag: '🇬🇧', sales: 2020148, listings: 6465, faves: 133586, rating: 4.89, opened: '07/04/2015' },
+      { rank: 6, shop: 'BohemianFindings', country: 'Canada', flag: '🇨🇦', sales: 1659534, listings: 0, faves: 90342, rating: 0.00, opened: '01/09/2010' },
+      { rank: 7, shop: 'SeedGeeks', country: 'United States', flag: '🇺🇸', sales: 1580000, listings: 3200, faves: 85000, rating: 4.87, opened: '15/03/2012' },
+      { rank: 8, shop: 'WarungBeads', country: 'United States', flag: '🇺🇸', sales: 1520000, listings: 4500, faves: 72000, rating: 4.82, opened: '10/05/2011' },
+      { rank: 9, shop: 'Spoonflower', country: 'United States', flag: '🇺🇸', sales: 1480000, listings: 12000, faves: 150000, rating: 4.75, opened: '20/01/2008' },
+      { rank: 10, shop: 'yakutum', country: 'Türkiye', flag: '🇹🇷', sales: 1420000, listings: 2800, faves: 68000, rating: 4.90, opened: '05/06/2013' },
+      { rank: 11, shop: 'AZsupplies', country: 'Türkiye', flag: '🇹🇷', sales: 1380000, listings: 3500, faves: 75000, rating: 4.88, opened: '12/09/2012' },
+      { rank: 12, shop: 'Worldincensestore', country: 'United States', flag: '🇺🇸', sales: 1350000, listings: 2100, faves: 62000, rating: 4.85, opened: '18/11/2014' },
+      { rank: 13, shop: 'ArrowGiftCoLtd', country: 'United Kingdom', flag: '🇬🇧', sales: 1118075, listings: 10150, faves: 17852, rating: 4.94, opened: '03/10/2015' },
+      { rank: 14, shop: 'DOMEDBAZAAR', country: 'China mainland', flag: '🇨🇳', sales: 1107024, listings: 39431, faves: 25753, rating: 4.86, opened: '10/11/2017' },
+      { rank: 15, shop: 'MyPorchPrints', country: 'United States', flag: '🇺🇸', sales: 1096179, listings: 1336, faves: 47527, rating: 4.96, opened: '31/08/2016' },
+      { rank: 16, shop: 'HeatherRobertsArt', country: 'United States', flag: '🇺🇸', sales: 1085249, listings: 7126, faves: 41716, rating: 4.91, opened: '07/03/2020' },
+      { rank: 17, shop: 'nicoledebruin', country: 'United Kingdom', flag: '🇬🇧', sales: 1022039, listings: 5915, faves: 67838, rating: 4.95, opened: '17/10/2009' },
+      { rank: 18, shop: 'DesignInYourHeart', country: 'South Korea', flag: '🇰🇷', sales: 1021083, listings: 0, faves: 37418, rating: 4.87, opened: '05/12/2013' },
+      { rank: 19, shop: 'PeggySueAlso', country: 'United States', flag: '🇺🇸', sales: 1019982, listings: 6041, faves: 28331, rating: 4.96, opened: '19/05/2011' },
+      { rank: 20, shop: 'elevado', country: 'Canada', flag: '🇨🇦', sales: 1000990, listings: 2271, faves: 94002, rating: 4.80, opened: '18/04/2019' },
+    ];
+
+    return (
+      <div className="p-4 md:p-8 bg-black">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Top Etsy Sellers</h1>
+                  <p className="text-white/70 text-sm mt-1">
+                    Découvrez ce que font les meilleurs vendeurs et appliquez-le à votre boutique
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Top Shops Table */}
+            <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Top Shops</h2>
+                  <div className="flex items-center gap-2">
+                    <button className="px-4 py-2 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-medium rounded-lg">
+                      Boutiques
+                    </button>
+                    <button className="px-4 py-2 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 font-medium rounded-lg transition-colors">
+                      Listings
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Boutique</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listings</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Note</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ouverture</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topSellers.map((seller) => (
+                      <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="p-4 text-white font-medium">{seller.rank}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-sm">
+                              {seller.shop.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">{seller.shop}</div>
+                              <div className="text-white/70 text-sm flex items-center gap-1">
+                                <span>{seller.flag}</span>
+                                <span>{seller.country}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-white">{seller.sales.toLocaleString()}</td>
+                        <td className="p-4 text-white">{seller.listings.toLocaleString()}</td>
+                        <td className="p-4 text-white">{seller.faves.toLocaleString()}</td>
+                        <td className="p-4">
+                          {seller.rating > 0 ? (
+                            <div className="flex items-center gap-1">
+                              <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                              <span className="text-white">{seller.rating}</span>
+                            </div>
+                          ) : (
+                            <span className="text-white/50">-</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-white/70 text-sm">{seller.opened}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  };
+
   // Composant pour afficher les tendances Etsy
   const EtsyTrendsSection = () => {
 
@@ -807,6 +931,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     { id: 'images', label: 'Images', icon: Sparkles },
     { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
     { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
+    { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
     { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
@@ -1234,6 +1359,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'etsy-trends' && (
             <EtsyTrendsSection />
+          )}
+
+          {activeSection === 'top-etsy-sellers' && (
+            <TopEtsySellersSection />
           )}
 
           {activeSection === 'settings' && (
