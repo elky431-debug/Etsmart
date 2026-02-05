@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:extension": "cd extension && npx tsc --noEmit false"
+    "build:extension": "cd extension && node compile-extension.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
