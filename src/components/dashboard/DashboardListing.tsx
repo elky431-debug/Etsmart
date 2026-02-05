@@ -65,13 +65,15 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
     setIsGeneratingDescription(true);
     
     // Générer la description (qui est la partie principale)
-    await generateEtsyDescription();
+    // Permettre la régénération même si une description existe déjà
+    await generateEtsyDescription(true);
     
     setIsGeneratingAll(false);
   };
 
-  const generateEtsyDescription = async () => {
-    if (etsyDescription) return; // Already generated
+  const generateEtsyDescription = async (forceRegenerate = false) => {
+    // Si une description existe déjà et qu'on ne force pas la régénération, ne rien faire
+    if (etsyDescription && !forceRegenerate) return;
     
     setIsGeneratingDescription(true);
     try {
@@ -105,6 +107,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
       }
 
       const data = await response.json();
+      // Mettre à jour la description (remplace l'ancienne si elle existe)
       setEtsyDescription(data.description);
       
       // ⚠️ CRITICAL: Refresh subscription to update credit count
@@ -157,41 +160,49 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
 
   return (
     <div className="space-y-6">
-      {/* BOUTON GÉNÉRER PRINCIPAL */}
-      {!etsyDescription && (
-        <div className="p-6 rounded-xl bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-2 border-[#00d4ff]/30">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30">
-                <Sparkles size={24} className="text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white mb-1">Générer le listing complet</h2>
-                <p className="text-sm text-white/70">
-                  Générez automatiquement le titre SEO, les tags et la description optimisée pour Etsy
-                </p>
-              </div>
+      {/* BOUTON GÉNÉRER PRINCIPAL - TOUJOURS VISIBLE */}
+      <div className="p-6 rounded-xl bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-2 border-[#00d4ff]/30">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/30">
+              <Sparkles size={24} className="text-white" />
             </div>
-            <button
-              onClick={generateFullListing}
-              disabled={isGeneratingAll || isGeneratingDescription}
-              className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[180px] justify-center"
-            >
-              {isGeneratingAll || isGeneratingDescription ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  <span>Génération...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={20} />
-                  <span>Générer</span>
-                </>
-              )}
-            </button>
+            <div>
+              <h2 className="text-lg font-bold text-white mb-1">
+                {etsyDescription ? 'Régénérer le listing complet' : 'Générer le listing complet'}
+              </h2>
+              <p className="text-sm text-white/70">
+                {etsyDescription 
+                  ? 'Générez une nouvelle version du titre SEO, des tags et de la description optimisée pour Etsy'
+                  : 'Générez automatiquement le titre SEO, les tags et la description optimisée pour Etsy'
+                }
+                {subscription && (
+                  <span className="block mt-1 text-xs text-white/60">
+                    Coût : 0.5 crédit par génération
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={generateFullListing}
+            disabled={isGeneratingAll || isGeneratingDescription}
+            className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[180px] justify-center"
+          >
+            {isGeneratingAll || isGeneratingDescription ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Génération...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={20} />
+                <span>{etsyDescription ? 'Régénérer' : 'Générer'}</span>
+              </>
+            )}
+          </button>
         </div>
-      )}
+      </div>
 
       {/* CREDITS DISPLAY */}
       {subscription && (
