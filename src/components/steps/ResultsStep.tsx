@@ -994,20 +994,8 @@ export function ResultsStep() {
     }
   }, [storeAnalyses, hasLoadedOnce]);
 
-  // ⚠️ AUTO-REDIRECT: Rediriger automatiquement vers la page de listing une fois l'analyse terminée
-  useEffect(() => {
-    // Attendre que l'analyse soit chargée et sauvegardée
-    if (!hasLoadedOnce || isLoading || hasRedirectedRef.current) return;
-    
-    // Si on a au moins une analyse, rediriger vers la page de listing
-    if (storeAnalyses.length > 0 || dbAnalyses.length > 0) {
-      hasRedirectedRef.current = true;
-      // Attendre un court délai pour que l'UI se mette à jour, puis rediriger
-      setTimeout(() => {
-        router.push('/dashboard?section=listing');
-      }, 1500); // 1.5 secondes pour que l'utilisateur voie brièvement les résultats
-    }
-  }, [hasLoadedOnce, isLoading, storeAnalyses.length, dbAnalyses.length, router]);
+  // ⚠️ NOTE: La redirection automatique vers la page de listing a été retirée
+  // L'utilisateur peut maintenant voir les résultats et choisir de naviguer vers le listing manuellement
   
   // Récupérer le produit actuel du store pour identifier l'analyse à afficher
   const { products: currentProducts } = useStore();
