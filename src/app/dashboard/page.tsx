@@ -431,6 +431,8 @@ export default function DashboardPage() {
 
   const handleAnalysisClick = (analysis: ProductAnalysis) => {
     setSelectedAnalysis(analysis);
+    // Réinitialiser le sous-onglet à 'analyse' par défaut
+    setActiveSubTab('analyse');
     // L'utilisateur peut choisir quelle section afficher via le menu
     // Par défaut, on reste sur la section actuelle ou on va sur "analyse-simulation"
     if (activeSection !== 'analyse-simulation' && activeSection !== 'listing' && activeSection !== 'images') {
