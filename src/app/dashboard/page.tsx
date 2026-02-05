@@ -27,7 +27,12 @@ import {
   Zap,
   Copy,
   Check,
-  PenTool
+  PenTool,
+  ArrowUp,
+  ArrowDown,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -49,7 +54,7 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { Paywall } from '@/components/paywall/Paywall';
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends';
 
 interface MenuItem {
   id: DashboardSection;
@@ -582,6 +587,187 @@ NO flat catalog-style photography
 The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
   };
 
+  // Composant pour afficher les tendances Etsy
+  const EtsyTrendsSection = () => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = 10;
+
+    // Données des recherches tendances
+    const trendingSearches = [
+      { rank: 1, phrase: 'wall art', change: null },
+      { rank: 2, phrase: 'valentines', change: { type: 'up', value: 1 } },
+      { rank: 3, phrase: 'valentine', change: { type: 'up', value: 4 } },
+      { rank: 4, phrase: 'valentines day', change: { type: 'up', value: 1 } },
+      { rank: 5, phrase: 'rug', change: { type: 'up', value: 7 } },
+      { rank: 6, phrase: 'tshirt', change: { type: 'up', value: 8 } },
+      { rank: 7, phrase: 'leather jacket', change: { type: 'up', value: 18 } },
+      { rank: 8, phrase: 'rugs', change: { type: 'up', value: 18 } },
+      { rank: 9, phrase: 'highland cow', change: { type: 'down', value: 5 } },
+      { rank: 10, phrase: 'phone case', change: { type: 'down', value: 1 } },
+    ];
+
+    // Événements à venir
+    const upcomingEvents = [
+      { name: 'Super Bowl', date: '8 février 2026' },
+      { name: "Valentine's Day", date: '14 février 2026' },
+      { name: "President's Day", date: '16 février 2026' },
+      { name: 'Lunar New Year', date: '17 février 2026' },
+      { name: 'Mardi Gras', date: '17 février 2026' },
+      { name: 'Chinese New Year', date: '17 février 2026' },
+      { name: 'Ramadan Begins', date: '18 février 2026' },
+      { name: 'Read Across America Day', date: '2 mars 2026' },
+      { name: 'Employee Appreciation Day', date: '6 mars 2026' },
+      { name: "International Women's Day", date: '8 mars 2026' },
+      { name: 'Pi Day', date: '14 mars 2026' },
+      { name: "St. Patrick's Day", date: '17 mars 2026' },
+      { name: 'March Equinox', date: '20 mars 2026' },
+      { name: 'April Fool\'s Day', date: '1 avril 2026' },
+      { name: 'Good Friday', date: '3 avril 2026' },
+      { name: 'Easter Sunday', date: '5 avril 2026' },
+      { name: 'Tax Day', date: '15 avril 2026' },
+      { name: 'Boston Marathon', date: '20 avril 2026' },
+      { name: 'Earth Day', date: '22 avril 2026' },
+      { name: 'Take Our Daughters and Sons to Work Day', date: '23 avril 2026' },
+      { name: 'Cinco de Mayo', date: '5 mai 2026' },
+      { name: "Mother's Day", date: '10 mai 2026' },
+      { name: 'Memorial Day', date: '25 mai 2026' },
+      { name: 'Juneteenth', date: '19 juin 2026' },
+    ];
+
+    return (
+      <div className="p-4 md:p-8 bg-black">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-8"
+          >
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Etsy Trends</h1>
+                  <p className="text-white/70 text-sm mt-1">
+                    Tendances de recherche et événements à venir
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Trending Monthly Searches */}
+            <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Trending Monthly Searches</h2>
+                  <button className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                    <HelpCircle size={16} className="text-white/70" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rank</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Search Phrase</th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trendingSearches.map((search) => (
+                      <tr key={search.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="p-4 text-white font-medium">{search.rank}</td>
+                        <td className="p-4 text-white">{search.phrase}</td>
+                        <td className="p-4">
+                          {search.change ? (
+                            <div className="flex items-center gap-2">
+                              {search.change.type === 'up' ? (
+                                <>
+                                  <ArrowUp size={16} className="text-green-400" />
+                                  <span className="text-green-400">{search.change.value}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ArrowDown size={16} className="text-red-400" />
+                                  <span className="text-red-400">-{search.change.value}</span>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-8 h-0.5 bg-yellow-400"></div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="p-4 border-t border-white/10 flex items-center justify-between bg-white/5">
+                <p className="text-sm text-white/70">
+                  Page {currentPage} of {totalPages} - <span className="text-orange-400">upgrade to unlock more pages</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentPage === 1
+                        ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <ChevronLeft size={16} className="inline mr-1" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentPage === totalPages
+                        ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Next
+                    <ChevronRight size={16} className="inline ml-1" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Events */}
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-6">Upcoming Events</h2>
+              <div className="overflow-x-auto pb-4">
+                <div className="flex gap-4 min-w-max">
+                  {upcomingEvents.map((event, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-white/5 rounded-lg p-4 border border-white/10 min-w-[200px] flex-shrink-0"
+                    >
+                      <h3 className="text-white font-semibold mb-2">{event.name}</h3>
+                      <p className="text-white/70 text-sm">{event.date}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  };
+
   // Composant pour afficher le prompt universel
   const PromptUniverselSection = () => {
     const [copied, setCopied] = useState(false);
@@ -657,6 +843,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     { id: 'listing', label: 'Listing', icon: FileText },
     { id: 'images', label: 'Images', icon: Sparkles },
     { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
+    { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
     { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
@@ -1080,6 +1267,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </motion.div>
               </div>
             </div>
+          )}
+
+          {activeSection === 'etsy-trends' && (
+            <EtsyTrendsSection />
           )}
 
           {activeSection === 'settings' && (
