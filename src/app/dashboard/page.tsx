@@ -90,6 +90,8 @@ export default function DashboardPage() {
     return 'analyse-simulation'; // Par défaut, aller sur "Analyse et Simulation" au lieu de "history"
   });
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
+  // Sous-onglet actif dans la section "analyse-simulation" : 'analyse' ou 'simulation'
+  const [activeSubTab, setActiveSubTab] = useState<'analyse' | 'simulation'>('analyse');
   // Initialiser avec les données du cache localStorage si disponibles
   const [analyses, setAnalyses] = useState<ProductAnalysis[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -1032,18 +1034,76 @@ export default function DashboardPage() {
                     <ArrowRight size={20} className="rotate-180" />
                     <span>Retour à l'historique</span>
                   </button>
+                </div>
 
+                {/* Sous-onglets Analyse / Simulation */}
+                <div className="mb-8 flex items-center gap-4 border-b border-white/10">
                   <button
-                    onClick={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
-                    className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
+                    onClick={() => setActiveSubTab('analyse')}
+                    className={`px-6 py-3 font-semibold text-base transition-all relative ${
+                      activeSubTab === 'analyse'
+                        ? 'text-white'
+                        : 'text-white/60 hover:text-white/80'
+                    }`}
                   >
-                    <X size={18} />
-                    <span>Supprimer</span>
+                    Analyse
+                    {activeSubTab === 'analyse' && (
+                      <motion.div
+                        layoutId="activeSubTab"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveSubTab('simulation')}
+                    className={`px-6 py-3 font-semibold text-base transition-all relative ${
+                      activeSubTab === 'simulation'
+                        ? 'text-white'
+                        : 'text-white/60 hover:text-white/80'
+                    }`}
+                  >
+                    Simulation
+                    {activeSubTab === 'simulation' && (
+                      <motion.div
+                        layoutId="activeSubTab"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
                   </button>
                 </div>
 
-                {/* Analyse et Simulation */}
-                <DashboardAnalysisSimulation analysis={selectedAnalysis} />
+                {/* Contenu des sous-onglets */}
+                <AnimatePresence mode="wait">
+                  {activeSubTab === 'analyse' ? (
+                    <motion.div
+                      key="analyse"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <DashboardAnalysisDetail
+                        analysis={selectedAnalysis}
+                        onBack={handleBackToHistory}
+                        onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="simulation"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <DashboardAnalysisSimulation analysis={selectedAnalysis} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
