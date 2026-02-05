@@ -589,8 +589,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   // Composant pour afficher les tendances Etsy
   const EtsyTrendsSection = () => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const totalPages = 10;
 
     // Données des recherches tendances
     const trendingSearches = [
@@ -706,39 +704,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              {/* Pagination */}
-              <div className="p-4 border-t border-white/10 flex items-center justify-between bg-white/5">
-                <p className="text-sm text-white/70">
-                  Page {currentPage} sur {totalPages} - <span className="text-orange-400">mettre à niveau pour débloquer plus de pages</span>
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      currentPage === 1
-                        ? 'bg-white/5 text-white/30 cursor-not-allowed'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    <ChevronLeft size={16} className="inline mr-1" />
-                    Précédent
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      currentPage === totalPages
-                        ? 'bg-white/5 text-white/30 cursor-not-allowed'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    Suivant
-                    <ChevronRight size={16} className="inline ml-1" />
-                  </button>
-                </div>
               </div>
             </div>
 
