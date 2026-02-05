@@ -192,6 +192,7 @@ function createMinimalAnalysis(product: SupplierProduct): ProductAnalysis {
 export function ListingProductImport({ onProductImported, mode = 'listing' }: ListingProductImportProps) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const { refreshSubscription } = useSubscription();
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -321,6 +322,20 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
             
             if (onProductImported) {
               onProductImported(product);
+            }
+            
+            // ⚠️ CRITICAL: Rafraîchir les crédits après le parsing réussi (0.5 crédit déduit)
+            if (parseData.quotaUpdated) {
+              console.log('[ListingProductImport] 🔄 Refreshing subscription credits after image parsing...');
+              setTimeout(() => {
+                refreshSubscription(true).catch(err => {
+                  console.error('❌ [ListingProductImport] Error refreshing subscription:', err);
+                });
+                // Dispatch event to notify DashboardSubscription to refresh
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('subscription-refresh'));
+                }
+              }, 1000);
             }
             
             console.log('[ListingProductImport] ✅ Produit parsé avec succès, analyse minimale créée');
