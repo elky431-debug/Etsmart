@@ -42,6 +42,11 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Extension files (compiled JS)
+extension/*.js
+extension/*.js.map
+
 # Fichiers de backup à NE JAMAIS supprimer
 !BACKUP_*.tsx
 !BACKUP_*.md
