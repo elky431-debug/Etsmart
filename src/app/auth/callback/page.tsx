@@ -1,10 +1,15 @@
 import { Suspense } from 'react';
 import AuthCallbackClient from './AuthCallbackClient';
 
-// Désactiver le prerendering pour cette page (nécessite des headers dynamiques)
+// Désactiver complètement le prerendering pour cette page
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const runtime = 'nodejs';
+export const dynamicParams = true;
+
+// Empêcher le prerendering en retournant un tableau vide
+export function generateStaticParams() {
+  return [];
+}
 
 export default function AuthCallbackPage() {
   return (
