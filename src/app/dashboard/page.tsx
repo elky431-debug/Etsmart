@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -24,7 +24,10 @@ import {
   ChevronDown,
   Menu,
   X,
-  Zap
+  Zap,
+  Copy,
+  Check,
+  PenTool
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -46,7 +49,7 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { Paywall } from '@/components/paywall/Paywall';
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel';
 
 interface MenuItem {
   id: DashboardSection;
@@ -529,10 +532,131 @@ export default function DashboardPage() {
     }
   }
 
+  // Fonction pour obtenir le prompt universel
+  const getUniversalImagePrompt = (): string => {
+    return `You are a professional lifestyle photographer specialized in high-converting product images for Etsy.
+
+REFERENCE PRODUCT
+Use the provided product image as the ONLY reference. The generated image must faithfully represent the exact same product.
+
+CRITICAL RULE – EXACT PRODUCT FIDELITY
+The product in the generated image must be IDENTICAL to the product shown in the reference image
+Reproduce the product exactly as it appears: shape, proportions, colors, materials, textures, finishes, and details
+If the product contains any writing, text, symbols, engravings, or markings, they must be reproduced EXACTLY as shown
+Do NOT modify, enhance, stylize, or reinterpret the product in any way
+The product must remain the central focus of the image
+
+SCENE & CONTEXT
+Create a realistic, natural lifestyle scene that shows the product in its ideal real-world usage context.
+The environment must feel authentic, credible, and appropriate for the type of product.
+
+BACKGROUND & DEPTH (MANDATORY)
+The scene must include a natural background with visible depth
+Use foreground and background separation to create a sense of space
+The background should be softly blurred or naturally out of focus (depth of field)
+Avoid flat, empty, or plain backgrounds
+
+MOOD & EMOTION
+Calm, pleasant, and inviting atmosphere
+Emotion to convey: comfort, trust, and desirability
+Style: premium Etsy lifestyle photography (authentic, warm, aspirational, not commercial or artificial)
+
+PHOTOGRAPHY STYLE
+Soft natural lighting only (no artificial flash)
+Ultra-realistic photo rendering
+Natural depth of field
+Balanced, harmonious colors
+Clean and engaging camera angle
+
+ABSOLUTE PROHIBITIONS (outside of the product itself)
+NO added text
+NO added logos
+NO brand names
+NO watermarks
+NO price tags
+NO badges, stickers, or icons
+NO artificial marketing elements
+NO frames, borders, overlays, or graphic elements
+NO flat catalog-style photography
+
+The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
+  };
+
+  // Composant pour afficher le prompt universel
+  const PromptUniverselSection = () => {
+    const [copied, setCopied] = useState(false);
+    const prompt = useMemo(() => getUniversalImagePrompt(), []);
+
+    const handleCopy = async () => {
+      try {
+        await navigator.clipboard.writeText(prompt);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Instructions */}
+        <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+          <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+            <FileText size={20} className="text-[#00d4ff]" />
+            Comment utiliser ce prompt ?
+          </h3>
+          <ol className="space-y-2 text-sm text-white/80 list-decimal list-inside">
+            <li>Copiez le prompt ci-dessous</li>
+            <li>Ouvrez votre outil de génération d'images IA (Midjourney, DALL-E, Stable Diffusion, etc.)</li>
+            <li>Uploadez votre photo de produit comme référence</li>
+            <li>Collez le prompt et générez l'image</li>
+          </ol>
+          <p className="mt-4 text-xs text-white/70 italic">
+            Ce prompt universel est conçu pour produire des images produit réalistes et de haute qualité style Etsy. 
+            Le prompt est fixe et immuable - il fonctionne pour tous les produits sans modification.
+          </p>
+        </div>
+
+        {/* Prompt Display */}
+        <div className="bg-black rounded-lg border border-white/10 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
+            <span className="text-xs font-semibold text-[#00d4ff] uppercase tracking-wide">Prompt IA universel</span>
+            <button
+              onClick={handleCopy}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                copied
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-[#00d4ff]/20 text-[#00d4ff] hover:bg-[#00d4ff]/30 border border-[#00d4ff]/30'
+              }`}
+            >
+              {copied ? (
+                <>
+                  <Check size={16} />
+                  <span>Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={16} />
+                  <span>Copier</span>
+                </>
+              )}
+            </button>
+          </div>
+          <div className="p-6">
+            <pre className="text-sm text-white whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
+              {prompt}
+            </pre>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const menuItems: MenuItem[] = [
     { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
     { id: 'listing', label: 'Listing', icon: FileText },
     { id: 'images', label: 'Images', icon: Sparkles },
+    { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
     { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
@@ -926,6 +1050,36 @@ export default function DashboardPage() {
 
           {activeSection === 'profile' && (
             <DashboardProfile user={user} />
+          )}
+
+          {activeSection === 'prompt-universel' && (
+            <div className="p-4 md:p-8 bg-black">
+              <div className="max-w-4xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Header */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                        <PenTool className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h1 className="text-3xl font-bold text-white">Prompt universel</h1>
+                        <p className="text-white/70 text-sm mt-1">
+                          Prompt IA fixe et immuable pour générer des images produit de qualité Etsy
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Prompt Display */}
+                  <PromptUniverselSection />
+                </motion.div>
+              </div>
+            </div>
           )}
 
           {activeSection === 'settings' && (
