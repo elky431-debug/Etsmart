@@ -32,7 +32,9 @@ import {
   ArrowDown,
   HelpCircle,
   Crown,
-  Star
+  Star,
+  Globe,
+  ChevronUp
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -54,7 +56,7 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { Paywall } from '@/components/paywall/Paywall';
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder';
 
 interface MenuItem {
   id: DashboardSection;
@@ -585,6 +587,151 @@ NO frames, borders, overlays, or graphic elements
 NO flat catalog-style photography
 
 The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
+  };
+
+  // Composant pour afficher le Niche Finder
+  const NicheFinderSection = () => {
+    // Données des niches basées sur les images
+    const niches = [
+      { niche: 'seagrass', competition: 8628, searchVolume: 60500 },
+      { niche: 'laptop wallpaper', competition: 8603, searchVolume: 201000 },
+      { niche: 'cattle dog', competition: 8602, searchVolume: 110000 },
+      { niche: 'coaching tools', competition: 8599, searchVolume: 6600 },
+      { niche: 'purple swimsuit', competition: 8594, searchVolume: 5400 },
+      { niche: 'modeling clay', competition: 8592, searchVolume: 60500 },
+      { niche: 'rider jacket', competition: 8589, searchVolume: 14800 },
+      { niche: 'barbiecore', competition: 8578, searchVolume: 6600 },
+      { niche: 'customised bag', competition: 8571, searchVolume: 14800 },
+      { niche: 'florida vacation', competition: 8560, searchVolume: 9900 },
+    ];
+
+    const maxCompetition = 8700;
+    const maxSearchVolume = 201000;
+
+    return (
+      <div className="p-4 md:p-8 bg-black">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Niche Finder</h1>
+                  <p className="text-white/70 text-sm mt-1">
+                    Trouvez des opportunités à faible concurrence que les autres vendeurs manquent
+                  </p>
+                </div>
+              </div>
+              
+              {/* Global Dropdown */}
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors">
+                  <Globe size={16} className="text-white/70" />
+                  <span className="text-white">Global</span>
+                  <ChevronDown size={16} className="text-white/70" />
+                </button>
+              </div>
+            </div>
+
+            {/* Product Ideas & Keywords Table */}
+            <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <h2 className="text-2xl font-bold text-white">Idées de Produits & Mots-clés</h2>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
+                        <div className="flex items-center gap-2">
+                          <span>Niche</span>
+                          <div className="flex flex-col">
+                            <ChevronUp size={12} className="text-white/50" />
+                            <ChevronDown size={12} className="text-white/50 -mt-1" />
+                          </div>
+                        </div>
+                      </th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
+                        <div className="flex items-center gap-2">
+                          <span>Concurrence</span>
+                          <div className="flex flex-col">
+                            <ChevronUp size={12} className="text-white/50" />
+                            <ChevronDown size={12} className="text-white/50 -mt-1" />
+                          </div>
+                        </div>
+                      </th>
+                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
+                        <div className="flex items-center gap-2">
+                          <span>Volume de Recherche</span>
+                          <div className="flex flex-col">
+                            <ChevronUp size={12} className="text-white/50" />
+                            <ChevronDown size={12} className="text-white/50 -mt-1" />
+                          </div>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {niches.map((item, index) => {
+                      const competitionPercent = (item.competition / maxCompetition) * 100;
+                      const searchVolumePercent = (item.searchVolume / maxSearchVolume) * 100;
+                      const isLowSearchVolume = item.searchVolume < 10000;
+                      
+                      return (
+                        <tr key={index} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium">{item.niche}</span>
+                              {item.niche === 'barbiecore' && (
+                                <HelpCircle size={14} className="text-yellow-400" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-white font-medium min-w-[60px]">{item.competition.toLocaleString()}</span>
+                              <div className="flex-1 bg-white/10 rounded-full h-2 max-w-[200px]">
+                                <div 
+                                  className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] h-2 rounded-full"
+                                  style={{ width: `${Math.min(competitionPercent, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-white font-medium min-w-[80px]">{item.searchVolume.toLocaleString()}</span>
+                              <div className="flex-1 bg-white/10 rounded-full h-2 max-w-[200px]">
+                                <div 
+                                  className={`h-2 rounded-full ${
+                                    isLowSearchVolume 
+                                      ? 'bg-yellow-400' 
+                                      : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                                  }`}
+                                  style={{ width: `${Math.min(searchVolumePercent, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
   };
 
   // Composant pour afficher les meilleurs vendeurs Etsy
@@ -1172,6 +1319,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
     { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
     { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
+    { id: 'niche-finder', label: 'Niche Finder', icon: Target },
     { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
@@ -1603,6 +1751,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'top-etsy-sellers' && (
             <TopEtsySellersSection />
+          )}
+
+          {activeSection === 'niche-finder' && (
+            <NicheFinderSection />
           )}
 
           {activeSection === 'settings' && (
