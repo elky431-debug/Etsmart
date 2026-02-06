@@ -65,6 +65,11 @@ interface MenuItem {
   href?: string;
 }
 
+interface MenuCategory {
+  label: string;
+  items: MenuItem[];
+}
+
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
@@ -1312,18 +1317,36 @@ The final image should look like a high-quality Etsy listing photo and naturally
     );
   };
 
-  const menuItems: MenuItem[] = [
+  const menuCategories: MenuCategory[] = [
+    {
+      label: 'Brainstorm',
+      items: [
+        { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
+        { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
+        { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
+      ],
+    },
+    {
+      label: 'Analyze',
+      items: [
     { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+        { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
+        { id: 'history', label: 'Historique', icon: History },
+      ],
+    },
+    {
+      label: 'Compose',
+      items: [
     { id: 'listing', label: 'Listing', icon: FileText },
     { id: 'images', label: 'Images', icon: Sparkles },
-    { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
-    { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
-    { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
-    { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
-    { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
+        { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
+      ],
+    },
+  ];
+
+  const otherMenuItems: MenuItem[] = [
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
-    { id: 'history', label: 'Historique', icon: History },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
@@ -1381,9 +1404,19 @@ The final image should look like a high-quality Etsy listing photo and naturally
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex flex-col p-2 space-y-1">
+          <nav className="flex flex-col p-2 space-y-4 overflow-y-auto">
             {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
-            {!selectedAnalysis && menuItems.map((item) => {
+            {!selectedAnalysis && (
+              <>
+                {/* Catégories */}
+                {menuCategories.map((category) => (
+                  <div key={category.label} className="space-y-1">
+                    <div className="px-3 py-1.5">
+                      <span className="text-xs font-semibold text-white/50 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {category.label}
+                      </span>
+                    </div>
+                    {category.items.map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
               
@@ -1406,7 +1439,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     setSelectedAnalysis(null);
                   }}
                   className={`
-                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item
+                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
                     ${isActive
                       ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
                       : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -1423,6 +1456,43 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </button>
               );
             })}
+                  </div>
+                ))}
+                
+                {/* Autres items */}
+                <div className="pt-2 border-t border-white/10">
+                  {otherMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeSection === item.id;
+                    
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveSection(item.id);
+                          setSelectedAnalysis(null);
+                        }}
+                        className={`
+                          relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                          ${isActive
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                            : 'text-white/70 hover:text-white hover:bg-white/5'
+                          }
+                        `}
+                      >
+                        <Icon size={20} className="flex-shrink-0" />
+                        <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          {item.label}
+                        </span>
+                        {isActive && (
+                          <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </nav>
 
           {/* Bottom Actions */}
@@ -1472,7 +1542,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 transition={{ duration: 0.2 }}
                 className="border-t border-white/10 bg-black/50 backdrop-blur-sm"
               >
-                {menuItems.map((item) => {
+                <div className="p-4 space-y-6">
+                  {/* Catégories */}
+                  {menuCategories.map((category) => (
+                    <div key={category.label} className="space-y-2">
+                      <div className="px-2 py-1">
+                        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                          {category.label}
+                        </span>
+                      </div>
+                      {category.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.id && !selectedAnalysis;
                   
@@ -1504,18 +1583,57 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         setIsMenuOpen(false);
                       }}
                       className={`
-                        w-full flex items-center gap-3 px-4 py-3 font-medium text-sm transition-all
+                              w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
                         ${isActive
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
                           : 'text-white/70 hover:text-white hover:bg-white/5'
                         }
                       `}
                     >
-                      <Icon size={20} />
+                            <Icon size={20} className="flex-shrink-0" />
                       <span>{item.label}</span>
                     </button>
                   );
                 })}
+                    </div>
+                  ))}
+                  
+                  {/* Autres items */}
+                  <div className="pt-4 border-t border-white/10 space-y-2">
+                    {otherMenuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id && !selectedAnalysis;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setSelectedAnalysis(null);
+                            setIsMenuOpen(false);
+                            if (typeof window !== 'undefined') {
+                              try {
+                                localStorage.setItem('etsmart-last-dashboard-section', item.id);
+                              } catch (e) {
+                                console.warn('⚠️ Error saving last dashboard section:', e);
+                              }
+                            }
+                          }}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
+                            ${isActive
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={20} className="flex-shrink-0" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1530,27 +1648,27 @@ The final image should look like a high-quality Etsy listing photo and naturally
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
             <div className="p-8 max-w-6xl mx-auto">
               <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
-                  <Calculator className="w-10 h-10 text-white" />
-                </div>
-                <h2 className="text-4xl font-bold text-white mb-4">
-                  Analyse et Simulation
-                </h2>
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
+                    <Calculator className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-4xl font-bold text-white mb-4">
+                    Analyse et Simulation
+                  </h2>
                 <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
                   Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
-                </p>
-                <Link href="/app">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
-                  >
-                    <Calculator size={20} />
+                  </p>
+                  <Link href="/app">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
+                    >
+                      <Calculator size={20} />
                     <span>Nouvelle analyse</span>
-                    <ArrowRight size={18} />
-                  </motion.button>
-                </Link>
-              </div>
+                      <ArrowRight size={18} />
+                    </motion.button>
+                  </Link>
+                      </div>
             </div>
           )}
 
@@ -1692,7 +1810,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <DashboardAnalysisSimulation analysis={selectedAnalysis} />
+                <DashboardAnalysisSimulation analysis={selectedAnalysis} />
                     </motion.div>
                   )}
                 </AnimatePresence>
