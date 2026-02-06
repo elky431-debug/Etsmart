@@ -13,7 +13,7 @@ import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 export default function AnalyzePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { currentStep, setStep } = useStore();
+  const { currentStep, setStep, analyses } = useStore();
   const { isLoading: subscriptionLoading } = useSubscriptionProtection();
 
   // Rediriger vers login si pas connecté
@@ -23,15 +23,9 @@ export default function AnalyzePage() {
     }
   }, [user, loading, subscriptionLoading, router]);
 
-  // Initialiser le step à 1 (sélection de niche) si on démarre une nouvelle analyse
-  useEffect(() => {
-    if (user && !loading && !subscriptionLoading) {
-      // Si on est à l'étape 4 (résultats) ou si on a un step invalide, démarrer à l'étape 1
-      if (currentStep === 4 || currentStep < 1 || currentStep > 4) {
-        setStep(1);
-      }
-    }
-  }, [user, loading, subscriptionLoading, currentStep, setStep]);
+  // ⚠️ CRITICAL: SUPPRIMÉ COMPLÈTEMENT - Ne JAMAIS réinitialiser automatiquement l'étape
+  // La transition vers l'étape 4 est gérée UNIQUEMENT par AnalysisStep
+  // AUCUN useEffect ne doit interférer avec les transitions d'étapes
 
   // Afficher un loader pendant le chargement
   if (loading || subscriptionLoading || !user) {
@@ -49,13 +43,23 @@ export default function AnalyzePage() {
     );
   }
 
+  // ⚠️ PROTECTION ABSOLUE: Si on a des analyses, FORCER l'affichage de l'étape 4 (résultats)
+  // Ne JAMAIS permettre d'afficher une autre étape si on a des analyses
+  // Cette protection est CRITIQUE et ne peut JAMAIS être contournée
+  const forcedStep = analyses.length > 0 ? 4 : currentStep;
+  
+  // Log pour débogage
+  if (analyses.length > 0 && currentStep !== 4) {
+    console.warn('[AnalyzePage] ⚠️ FORCAGE: Analyses présentes mais étape incorrecte, forçage vers étape 4');
+  }
+
   // Afficher le step approprié
   return (
     <div className="min-h-screen bg-black">
-      {currentStep === 1 && <NicheSelection />}
-      {currentStep === 2 && <ProductImport />}
-      {currentStep === 3 && <AnalysisStep />}
-      {currentStep === 4 && <ResultsStep />}
+      {forcedStep === 1 && <NicheSelection />}
+      {forcedStep === 2 && <ProductImport />}
+      {forcedStep === 3 && <AnalysisStep />}
+      {forcedStep === 4 && <ResultsStep />}
     </div>
   );
 }

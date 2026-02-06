@@ -62,70 +62,9 @@ export function ProductImport() {
     }
   }, [user?.id]); // Only depend on user.id to avoid re-triggering
 
-  // ⚠️ NOTE: Le lancement automatique de l'analyse a été retiré
-  // L'utilisateur doit maintenant cliquer sur le bouton "Analyser" pour démarrer l'analyse
-
-  // Handle Analyze button click - check quota and deduct credits before proceeding
-  const handleAnalyzeClick = async () => {
-    // Check if user is authenticated
-    if (!user) {
-      setError('Veuillez vous connecter pour analyser des produits');
-      return;
-    }
-
-    // Vérifier qu'on a un produit avec un prix
-    if (products.length === 0 || products[0].price === 0) {
-      setError('Veuillez ajouter un produit avec un prix pour continuer');
-      return;
-    }
-
-    // ⚠️ CRITICAL: Vérifier le quota et déduire les crédits AVANT de passer à l'étape d'analyse
-    try {
-      const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
-      const quotaInfo = await getUserQuotaInfo(user.id);
-      
-      if (quotaInfo.status !== 'active') {
-        setError('Un abonnement actif est requis pour analyser des produits');
-        return;
-      }
-
-      // Vérifier si l'utilisateur a assez de quota (0.5 crédit nécessaire)
-      const creditNeeded = 0.5;
-      if (quotaInfo.remaining < creditNeeded) {
-        setError(`Quota insuffisant. Vous avez besoin de ${creditNeeded} crédit(s) pour analyser un produit.`);
-        return;
-      }
-
-      // Déduire les crédits AVANT de démarrer l'analyse
-      console.log('[ProductImport] ⚠️ About to decrement 0.5 credit for analysis (user:', user.id, ')');
-      const quotaResult = await incrementAnalysisCount(user.id, creditNeeded);
-      
-      if (!quotaResult.success) {
-        console.error('❌ [ProductImport] Failed to decrement quota:', quotaResult.error);
-        setError('Erreur lors de la déduction des crédits. Veuillez réessayer.');
-        return;
-      }
-
-      console.log('✅ [ProductImport] Quota decremented successfully:', {
-        used: quotaResult.used,
-        quota: quotaResult.quota,
-        remaining: quotaResult.remaining,
-        amount: creditNeeded,
-      });
-
-      // Rafraîchir l'affichage des crédits
-      await refreshSubscription(true);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('subscription-refresh'));
-      }
-
-      // Maintenant passer à l'étape d'analyse
-      setStep(3);
-    } catch (error: any) {
-      console.error('❌ [ProductImport] Error checking quota:', error);
-      setError('Erreur lors de la vérification du quota. Veuillez réessayer.');
-    }
-  };
+  // ⚠️ SUPPRIMÉ: Le bouton "Analyser" a été supprimé
+  // L'analyse démarre automatiquement quand on passe à l'étape 3
+  // Les crédits seront déduits dans AnalysisStep
 
   // Refresh subscription after payment and close paywall if subscription is active
   useEffect(() => {
@@ -795,38 +734,7 @@ export function ProductImport() {
                 Tous les produits doivent avoir un prix renseigné
               </motion.div>
             )}
-            <motion.button
-              onClick={handleAnalyzeClick}
-              disabled={products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading}
-              whileHover={products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && !isMobile ? { scale: 1.05, y: -2 } : {}}
-              whileTap={products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && !isMobile ? { scale: 0.95 } : {}}
-              className={`
-                group relative w-full sm:w-auto px-6 sm:px-12 py-2.5 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-bold rounded-xl transition-all duration-300 overflow-hidden btn-mobile
-                ${products.length === 0 || products.some(p => p.price === 0) || subscriptionLoading
-                  ? 'bg-black text-white/40 cursor-not-allowed border-2 border-white/5'
-                  : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-2xl shadow-[#00d4ff]/40 hover:shadow-[#00d4ff]/60 border-2 border-transparent'
-                }
-              `}
-            >
-              {products.length > 0 && !products.some(p => p.price === 0) && !subscriptionLoading && (
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-[#00c9b7] to-[#00d4ff] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-3">
-                {subscriptionLoading ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Chargement...
-                  </>
-                ) : (
-                  <>
-                    Analyser
-                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </span>
-            </motion.button>
+            {/* ⚠️ SUPPRIMÉ: Le bouton "Analyser" a été supprimé - l'analyse démarre automatiquement à l'étape 3 */}
           </div>
         </motion.div>
 

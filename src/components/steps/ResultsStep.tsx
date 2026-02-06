@@ -836,7 +836,7 @@ export function ProductAnalysisView({ analysis, hideTitle = false }: { analysis:
 }
 
 export function ResultsStep() {
-  const { analyses: storeAnalyses, setStep } = useStore();
+  const { analyses: storeAnalyses, setStep, reset } = useStore();
   const [dbAnalyses, setDbAnalyses] = useState<ProductAnalysis[]>([]);
   // Initialiser isLoading à false si on a déjà des analyses en store (évite le chargement au retour)
   const [isLoading, setIsLoading] = useState(() => storeAnalyses.length === 0);
@@ -1114,7 +1114,10 @@ export function ResultsStep() {
             Aucun résultat d'analyse n'est disponible. Veuillez lancer une nouvelle analyse.
           </p>
           <button
-            onClick={() => setStep(1)}
+            onClick={() => {
+              reset(); // Réinitialiser complètement le store
+              setStep(1); // Démarrer à l'étape 1
+            }}
             className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl hover:opacity-90 transition-all"
           >
             Nouvelle analyse
@@ -1186,7 +1189,10 @@ export function ResultsStep() {
                 </div>
               )}
               <button
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  reset(); // Réinitialiser complètement le store
+                  setStep(1); // Démarrer à l'étape 1
+                }}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#00d4ff] hover:bg-[#00d4ff]/10 hover:text-[#00b8e6] transition-all"
               >
                 Nouvelle analyse

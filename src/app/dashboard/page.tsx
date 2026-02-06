@@ -230,6 +230,30 @@ export default function DashboardPage() {
     }
   }, [activeSection, analyses.length, isLoading, user]);
 
+  // ⚠️ CRITICAL: Réinitialiser l'état et rediriger vers /analyze quand on quitte l'onglet "analyse et simulation"
+  const prevActiveSectionRef = useRef<DashboardSection | null>(null);
+  const hasInitializedRef = useRef(false);
+  
+  useEffect(() => {
+    // Initialiser la référence au premier rendu
+    if (!hasInitializedRef.current) {
+      prevActiveSectionRef.current = activeSection;
+      hasInitializedRef.current = true;
+      return;
+    }
+    
+    // Si on quitte l'onglet "analyse et simulation" pour aller vers un autre onglet
+    if (prevActiveSectionRef.current === 'analyse-simulation' && activeSection !== 'analyse-simulation') {
+      console.log('[Dashboard] Quitting analyse-simulation section, resetting state and redirecting to /analyze');
+      const { reset } = useStore.getState();
+      reset(); // Réinitialiser le store
+      router.push('/analyze'); // Rediriger vers la page d'analyse pour démarrer une nouvelle analyse
+      return;
+    }
+    // Mettre à jour la référence pour la prochaine fois
+    prevActiveSectionRef.current = activeSection;
+  }, [activeSection, router]);
+
   // Sauvegarder la dernière section visitée dans localStorage
   // ⚠️ CRITICAL: Ne JAMAIS sauvegarder 'history' comme dernière section si elle est vide
   useEffect(() => {
@@ -1676,20 +1700,24 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <p className="text-white/60 text-sm sm:text-base md:text-lg lg:text-xl max-w-xl mx-auto mb-6 sm:mb-8 md:mb-10 leading-relaxed px-2">
                     Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
                   </p>
-                  <Link href="/analyze">
-                    <motion.button
-                      initial={{ y: 10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-                      whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0, 212, 255, 0.3)" }}
-                      whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl sm:rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-sm sm:text-base md:text-lg"
-                    >
-                      <Calculator size={18} className="sm:w-5 sm:h-5 md:w-[22px] md:h-[22px]" />
-                      <span>Nouvelle analyse</span>
-                      <ArrowRight size={16} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
-                    </motion.button>
-                  </Link>
+                  <motion.button
+                    onClick={() => {
+                      const { reset, setStep } = useStore.getState();
+                      reset(); // Réinitialiser complètement le store
+                      setStep(1); // Démarrer à l'étape 1
+                      router.push('/analyze'); // Naviguer vers la page d'analyse
+                    }}
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                    whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0, 212, 255, 0.3)" }}
+                    whileTap={{ scale: 0.98 }}
+                    className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl sm:rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-sm sm:text-base md:text-lg"
+                  >
+                    <Calculator size={18} className="sm:w-5 sm:h-5 md:w-[22px] md:h-[22px]" />
+                    <span>Nouvelle analyse</span>
+                    <ArrowRight size={16} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
+                  </motion.button>
                 </motion.div>
                       </div>
             </div>

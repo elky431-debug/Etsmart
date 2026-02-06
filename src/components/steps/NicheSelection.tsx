@@ -161,14 +161,23 @@ function NicheCard({ niche, isSelected, onClick, isMobile = false }: { niche: Ni
 }
 
 export function NicheSelection() {
-  const { selectedNiche, setNiche, customNiche, setCustomNiche, setStep, setAnalyses } = useStore();
+  const { selectedNiche, setNiche, customNiche, setCustomNiche, setStep, setAnalyses, products, removeProduct } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const isMobile = useIsMobile();
 
-  // Nettoyer les analyses du store quand on démarre une nouvelle analyse
+  // ⚠️ CRITICAL: Nettoyer UNIQUEMENT si on est vraiment à l'étape 1 (début d'une nouvelle analyse)
+  // Ne PAS nettoyer si on vient de l'étape 4 avec des analyses (protection)
   useEffect(() => {
-    setAnalyses([]);
-  }, [setAnalyses]);
+    const { currentStep, analyses } = useStore.getState();
+    // Ne nettoyer QUE si on est à l'étape 1 ET qu'on n'a pas d'analyses (vraie nouvelle analyse)
+    if (currentStep === 1 && analyses.length === 0) {
+      console.log('[NicheSelection] Nettoyage des produits pour nouvelle analyse');
+      // Supprimer tous les produits existants
+      products.forEach(product => {
+        removeProduct(product.id);
+      });
+    }
+  }, [products, removeProduct]);
 
   const filteredNiches = niches.filter((niche) =>
     niche.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

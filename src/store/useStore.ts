@@ -40,6 +40,18 @@ export const useStore = create<AppState & AppActions>()(
       ...initialState,
       
       setStep: (step) => {
+        const state = get();
+        // ⚠️ PROTECTION ABSOLUE: Ne JAMAIS permettre de passer de l'étape 4 à l'étape 1 si on a des analyses
+        if (state.currentStep === 4 && state.analyses.length > 0 && step === 1) {
+          console.warn('[Store] ⚠️ BLOQUÉ: Tentative de réinitialisation depuis l\'étape 4 avec analyses - IGNORÉ');
+          return; // Bloquer la réinitialisation
+        }
+        // ⚠️ PROTECTION: Ne JAMAIS permettre de passer à une étape inférieure si on a des analyses
+        if (state.analyses.length > 0 && step < 4 && step !== state.currentStep) {
+          console.warn('[Store] ⚠️ BLOQUÉ: Tentative de passer à l\'étape', step, 'alors qu\'on a des analyses - FORCAGE vers étape 4');
+          set({ currentStep: 4 }); // Forcer l'étape 4
+          return;
+        }
         console.log('[Store] setStep:', step);
         set({ currentStep: step });
       },

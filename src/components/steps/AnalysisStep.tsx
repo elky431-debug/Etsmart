@@ -188,12 +188,12 @@ export function AnalysisStep() {
 
     const hasAnalyses = analyses.length > 0;
     if ((analysisComplete || hasAnalyses) && progress >= 100) {
+      console.log('✅ [AnalysisStep] Transition vers étape 4 déclenchée (premier useEffect)');
       transitionDoneRef.current = true;
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
-      setTimeout(() => {
-        setStep(4);
-      }, 300);
+      // Transition immédiate sans délai pour éviter les conflits
+      setStep(4);
     }
   }, [analysisComplete, analyses.length, progress, currentStep, setStep, setGlobalIsAnalyzing]);
 
@@ -385,6 +385,13 @@ export function AnalysisStep() {
         // Ajouter l'analyse au store temporairement (pour l'affichage)
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
+        
+        // ⚠️ CRITICAL: Forcer IMMÉDIATEMENT la transition vers l'étape 4 après l'ajout de l'analyse
+        // Ne pas attendre les useEffect, transitionner directement
+        console.log('✅ [AnalysisStep] Analyse ajoutée au store - FORCAGE IMMÉDIAT vers étape 4');
+        setIsAnalyzing(false);
+        setGlobalIsAnalyzing(false);
+        setStep(4); // Transition FORCÉE vers l'étape 4
         
         // ⚠️ CRITICAL: Refresh subscription to update credit count
         // Wait a bit for database to sync, then refresh
@@ -582,17 +589,19 @@ export function AnalysisStep() {
   // VÉRIFICATION FINALE : Transition automatique quand l'analyse est terminée
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
+    // Ne pas vérifier si on n'est pas à l'étape 3
+    if (currentStep !== 3) return;
+    
     // Vérifier si on a des analyses dans le store (signe que l'analyse est terminée)
     const hasAnalyses = useStore.getState().analyses.length > 0;
     
-    // Si on a des analyses ET que la progression est à 100%, passer à l'étape 4
+    // Si on a des analyses ET que la progression est à 100%, passer à l'étape 4 IMMÉDIATEMENT
     if (hasAnalyses && progress >= 100 && !isAnalyzing) {
-      console.log('✅ Analyse terminée (analyses présentes) - passage à l\'étape 4');
+      console.log('✅ [AnalysisStep] Analyse terminée (analyses présentes) - passage IMMÉDIAT à l\'étape 4');
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
-      setTimeout(() => {
-        setStep(4);
-      }, 500);
+      // Transition immédiate sans délai pour éviter les conflits
+      setStep(4);
       return;
     }
     
@@ -600,7 +609,7 @@ export function AnalysisStep() {
     if (!startTimeRef.current) return;
     
     const checkCompletion = () => {
-      if (!startTimeRef.current) return;
+      if (!startTimeRef.current || currentStep !== 3) return;
       
       const elapsed = Date.now() - startTimeRef.current;
       const hasMinimumTime = elapsed >= MINIMUM_DURATION;
@@ -610,13 +619,11 @@ export function AnalysisStep() {
       // 2. L'analyse est terminée OU on a des analyses
       // 3. La progression est à 100%
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
-      if (hasMinimumTime && (analysisComplete || hasAnalysesCheck) && progress >= 100) {
-        console.log('✅ Analyse terminée - passage à l\'étape 4');
+      if (hasMinimumTime && (analysisComplete || hasAnalysesCheck) && progress >= 100 && !isAnalyzing) {
+        console.log('✅ [AnalysisStep] Analyse terminée (timing) - passage à l\'étape 4');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
-        setTimeout(() => {
-          setStep(4);
-        }, 500);
+        setStep(4);
       }
     };
     
@@ -625,9 +632,10 @@ export function AnalysisStep() {
     
     // ⚠️ FALLBACK: Forcer la transition après 30 secondes si on a des analyses
     const forceTransitionTimeout = setTimeout(() => {
+      if (currentStep !== 3) return;
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
       if (progress >= 100 && hasAnalysesCheck) {
-        console.warn('⚠️ Force transition après 30s - l\'analyse est terminée');
+        console.warn('⚠️ [AnalysisStep] Force transition après 30s - l\'analyse est terminée');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         setStep(4);
@@ -638,7 +646,7 @@ export function AnalysisStep() {
       clearInterval(interval);
       clearTimeout(forceTransitionTimeout);
     };
-  }, [analysisComplete, progress, setStep, setGlobalIsAnalyzing, isAnalyzing]);
+  }, [analysisComplete, progress, setStep, setGlobalIsAnalyzing, isAnalyzing, currentStep]);
 
   // Removed duplicate useEffect - analysis is now triggered by subscription check useEffect
 
