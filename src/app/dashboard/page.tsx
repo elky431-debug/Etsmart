@@ -1327,18 +1327,18 @@ The final image should look like a high-quality Etsy listing photo and naturally
       ],
     },
     {
-      label: 'Analyze',
+      label: 'Analyser',
       items: [
-    { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
         { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
         { id: 'history', label: 'Historique', icon: History },
       ],
     },
     {
-      label: 'Compose',
+      label: 'Composer',
       items: [
-    { id: 'listing', label: 'Listing', icon: FileText },
-    { id: 'images', label: 'Images', icon: Sparkles },
+        { id: 'listing', label: 'Listing', icon: FileText },
+        { id: 'images', label: 'Images', icon: Sparkles },
         { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
       ],
     },
