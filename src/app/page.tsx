@@ -279,7 +279,7 @@ export default function HomePage() {
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
-                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Essayer gratuitement</span>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">S'abonner</span>
                 <ArrowRight size={14} className="text-[#00c9b7] sm:w-4 sm:h-4" />
               </button>
             </Link>
@@ -533,7 +533,7 @@ export default function HomePage() {
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
-                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Commencer gratuitement</span>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">S'abonner</span>
                 <ArrowUpRight className="inline-block ml-2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7]" />
               </button>
             </Link>
