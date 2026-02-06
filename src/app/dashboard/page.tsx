@@ -593,16 +593,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
   const NicheFinderSection = () => {
     // Données des niches basées sur les images
     const niches = [
-      { niche: 'seagrass', competition: 8628, searchVolume: 60500 },
-      { niche: 'laptop wallpaper', competition: 8603, searchVolume: 201000 },
-      { niche: 'cattle dog', competition: 8602, searchVolume: 110000 },
-      { niche: 'coaching tools', competition: 8599, searchVolume: 6600 },
-      { niche: 'purple swimsuit', competition: 8594, searchVolume: 5400 },
-      { niche: 'modeling clay', competition: 8592, searchVolume: 60500 },
-      { niche: 'rider jacket', competition: 8589, searchVolume: 14800 },
+      { niche: 'algue marine', competition: 8628, searchVolume: 60500 },
+      { niche: 'fond d\'écran ordinateur portable', competition: 8603, searchVolume: 201000 },
+      { niche: 'chien de troupeau', competition: 8602, searchVolume: 110000 },
+      { niche: 'outils de coaching', competition: 8599, searchVolume: 6600 },
+      { niche: 'maillot de bain violet', competition: 8594, searchVolume: 5400 },
+      { niche: 'pâte à modeler', competition: 8592, searchVolume: 60500 },
+      { niche: 'veste moto', competition: 8589, searchVolume: 14800 },
       { niche: 'barbiecore', competition: 8578, searchVolume: 6600 },
-      { niche: 'customised bag', competition: 8571, searchVolume: 14800 },
-      { niche: 'florida vacation', competition: 8560, searchVolume: 9900 },
+      { niche: 'sac personnalisé', competition: 8571, searchVolume: 14800 },
+      { niche: 'vacances en Floride', competition: 8560, searchVolume: 9900 },
     ];
 
     const maxCompetition = 8700;
