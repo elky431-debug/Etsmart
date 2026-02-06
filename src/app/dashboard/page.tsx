@@ -623,7 +623,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <Target className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">Niche Finder</h1>
+                  <h1 className="text-3xl font-bold text-white">Recherche de Niche</h1>
                   <p className="text-white/70 text-sm mt-1">
                     Trouvez des opportunités à faible concurrence que les autres vendeurs manquent
                   </p>
@@ -634,7 +634,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
               <div className="flex items-center gap-2">
                 <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors">
                   <Globe size={16} className="text-white/70" />
-                  <span className="text-white">Global</span>
+                  <span className="text-white">Mondial</span>
                   <ChevronDown size={16} className="text-white/70" />
                 </button>
               </div>
@@ -1319,7 +1319,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
     { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
     { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
-    { id: 'niche-finder', label: 'Niche Finder', icon: Target },
+    { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
     { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
     { id: 'profile', label: 'Profil', icon: User },
