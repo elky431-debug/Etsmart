@@ -1223,6 +1223,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
