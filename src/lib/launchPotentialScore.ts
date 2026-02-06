@@ -298,86 +298,93 @@ function calculateScoreFromMatrix(
   nicheSaturation: 'low' | 'medium' | 'high',
   productSpecificity: 'low' | 'medium' | 'high'
 ): number {
-  // Matrice de notation - Ajustée pour être plus généreuse
+  // Matrice de notation - Ajustée pour être plus généreuse et cohérente
+  // Logique: Les bons produits (faible saturation, faible concurrence, haute spécificité) doivent avoir des scores élevés
   const matrix: Record<string, Record<string, Record<string, { min: number; max: number }>>> = {
     high: { // Saturation niche élevée
       low: { // Spécificité faible
-        low: { min: 3, max: 5 }, // Augmenté de 1-3 à 3-5
-        medium: { min: 3, max: 5 }, // Augmenté de 1-3 à 3-5
-        high: { min: 2, max: 4 }, // Augmenté de 1-2 à 2-4
+        low: { min: 4, max: 6 }, // Augmenté pour éviter les scores trop bas
+        medium: { min: 4, max: 6 },
+        high: { min: 3, max: 5 },
       },
       medium: { // Spécificité moyenne
-        low: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
-        medium: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
-        high: { min: 3, max: 5 }, // Augmenté de 2-3 à 3-5
+        low: { min: 6, max: 8 }, // Augmenté pour récompenser la spécificité moyenne
+        medium: { min: 5, max: 7 },
+        high: { min: 4, max: 6 },
       },
       high: { // Spécificité forte
-        low: { min: 6, max: 7 }, // Augmenté de 4-5 à 6-7
-        medium: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
-        high: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
+        low: { min: 7, max: 8 }, // Même avec saturation élevée, haute spécificité = bon score
+        medium: { min: 6, max: 8 },
+        high: { min: 5, max: 7 },
       },
     },
     medium: { // Saturation niche moyenne
       low: { // Spécificité faible
-        low: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
-        medium: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
-        high: { min: 4, max: 6 }, // Augmenté de 3-4 à 4-6
+        low: { min: 6, max: 8 }, // Augmenté pour marché moyen
+        medium: { min: 6, max: 8 },
+        high: { min: 5, max: 7 },
       },
       medium: { // Spécificité moyenne
-        low: { min: 7, max: 9 }, // Augmenté de 5-7 à 7-9
-        medium: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
-        high: { min: 5, max: 7 }, // Augmenté de 4-5 à 5-7
+        low: { min: 8, max: 9 }, // Bon score pour spécificité moyenne + saturation moyenne
+        medium: { min: 7, max: 9 },
+        high: { min: 6, max: 8 },
       },
       high: { // Spécificité forte
-        low: { min: 8, max: 9 }, // Augmenté de 7-8 à 8-9
-        medium: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
-        high: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
+        low: { min: 9, max: 10 }, // Excellent score pour haute spécificité
+        medium: { min: 8, max: 10 },
+        high: { min: 7, max: 9 },
       },
     },
-    low: { // Saturation niche faible
+    low: { // Saturation niche faible - MEILLEURS SCORES
       low: { // Spécificité faible
-        low: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
-        medium: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
-        high: { min: 6, max: 8 }, // Augmenté de 5-6 à 6-8
+        low: { min: 8, max: 9 }, // Même avec spécificité faible, faible saturation = bon score
+        medium: { min: 8, max: 9 },
+        high: { min: 7, max: 9 },
       },
       medium: { // Spécificité moyenne
-        low: { min: 9, max: 10 }, // Augmenté de 8-9 à 9-10
-        medium: { min: 8, max: 10 }, // Augmenté de 7-8 à 8-10
-        high: { min: 7, max: 9 }, // Augmenté de 6-7 à 7-9
+        low: { min: 9, max: 10 }, // Excellent pour spécificité moyenne + faible saturation
+        medium: { min: 9, max: 10 },
+        high: { min: 8, max: 10 },
       },
       high: { // Spécificité forte
-        low: { min: 10, max: 10 }, // Augmenté de 9-10 à 10-10
-        medium: { min: 9, max: 10 }, // Augmenté de 8-9 à 9-10
-        high: { min: 8, max: 10 }, // Augmenté de 7-8 à 8-10
+        low: { min: 10, max: 10 }, // Parfait: faible saturation + haute spécificité = 10/10
+        medium: { min: 10, max: 10 },
+        high: { min: 9, max: 10 },
       },
     },
   };
   
   const range = matrix[nicheSaturation][productSpecificity][competitionDensity];
   
-  // Calculer le score moyen avec ajustement de ±1 selon signaux secondaires
+  // Calculer le score moyen avec ajustement selon signaux secondaires
   const baseScore = (range.min + range.max) / 2;
   
-  // Ajustements fins basés sur les combinaisons favorables/défavorables - Plus généreux
-  let adjustment = 0.2; // Bonus de base pour être plus généreux
+  // Ajustements fins basés sur les combinaisons favorables/défavorables
+  // Logique: Récompenser les bonnes combinaisons, pénaliser modérément les mauvaises
+  let adjustment = 0.3; // Bonus de base pour être généreux
   
-  // Combinaisons très favorables
+  // Combinaisons très favorables (faible saturation + haute spécificité + faible concurrence)
   if (nicheSaturation === 'low' && productSpecificity === 'high' && competitionDensity === 'low') {
-    adjustment = 0.8; // Augmenté de 0.5 à 0.8
+    adjustment = 1.0; // Bonus maximum pour la meilleure combinaison
   }
   
-  // Combinaisons défavorables - Moins pénalisant
+  // Combinaisons favorables (faible saturation OU haute spécificité)
+  if (nicheSaturation === 'low' && competitionDensity === 'low') {
+    adjustment += 0.6; // Bonus important pour faible saturation + faible concurrence
+  }
+  
+  if (productSpecificity === 'high' && competitionDensity === 'low') {
+    adjustment += 0.4; // Bonus pour haute spécificité + faible concurrence
+  }
+  
+  // Combinaisons défavorables - Pénalité modérée
   if (nicheSaturation === 'high' && productSpecificity === 'low' && competitionDensity === 'high') {
-    adjustment = -0.2; // Réduit de -0.5 à -0.2
+    adjustment = -0.3; // Pénalité modérée pour la pire combinaison
   }
   
-  // Ajustement selon la densité concurrentielle - Plus généreux
-  if (competitionDensity === 'low' && nicheSaturation === 'low') {
-    adjustment += 0.5; // Augmenté de 0.3 à 0.5
-  }
-  
+  // Pénalités modérées pour saturation/concurrence élevées
   if (competitionDensity === 'high' && nicheSaturation === 'high') {
-    adjustment -= 0.2; // Réduit de -0.3 à -0.2
+    adjustment -= 0.3; // Pénalité modérée
   }
   
   const finalScore = Math.max(0, Math.min(10, baseScore + adjustment));

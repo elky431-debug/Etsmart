@@ -3,13 +3,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
-import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, resetPassword, updatePassword } from '@/lib/auth';
+import { getCurrentUser, onAuthStateChange, signIn, signUp, signOut, resetPassword, updatePassword, signInWithGoogle } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
@@ -169,6 +170,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await updatePassword(newPassword);
   };
 
+  const handleSignInWithGoogle = async () => {
+    await signInWithGoogle();
+    // La redirection sera gérée par le callback OAuth
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -176,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signUp: handleSignUp,
         signIn: handleSignIn,
+        signInWithGoogle: handleSignInWithGoogle,
         signOut: handleSignOut,
         resetPassword: handleResetPassword,
         updatePassword: handleUpdatePassword,

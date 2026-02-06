@@ -142,17 +142,17 @@ export default function DashboardPage() {
         
         if (session?.access_token) {
           try {
-            console.log('[Dashboard] Force syncing subscription from Stripe...');
-            const response = await fetch('/api/force-sync-subscription', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log('[Dashboard] ✅ Force sync result:', data);
+          console.log('[Dashboard] Force syncing subscription from Stripe...');
+          const response = await fetch('/api/force-sync-subscription', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[Dashboard] ✅ Force sync result:', data);
             } else {
               console.warn('[Dashboard] Sync failed, continuing anyway');
             }
@@ -632,7 +632,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     const maxSearchVolume = 201000;
 
     return (
-      <div className="p-4 md:p-8 bg-black">
+      <div className="p-4 md:p-8 bg-black pb-8 md:pb-12">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -664,13 +664,13 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
 
             {/* Product Ideas & Keywords Table */}
-            <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+            <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden mb-4">
               <div className="p-3 sm:p-4 md:p-6 border-b border-white/10">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Idées de Produits & Mots-clés</h2>
               </div>
               
               <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <div className="inline-block min-w-full align-middle sm:px-0">
+                <div className="inline-block min-w-full align-middle sm:px-0 px-4">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
@@ -722,7 +722,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             <td className="p-2 sm:p-3 md:p-4">
                               <div className="flex items-center gap-2 sm:gap-3">
                                 <span className="text-white font-medium min-w-[50px] sm:min-w-[60px] text-xs sm:text-sm md:text-base">{item.competition.toLocaleString()}</span>
-                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px]">
+                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px] md:max-w-[250px]">
                                   <div 
                                     className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] h-1.5 sm:h-2 rounded-full"
                                     style={{ width: `${Math.min(competitionPercent, 100)}%` }}
@@ -730,10 +730,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                                 </div>
                               </div>
                             </td>
-                            <td className="p-2 sm:p-3 md:p-4">
+                            <td className="p-2 sm:p-3 md:p-4 pr-4 sm:pr-6">
                               <div className="flex items-center gap-2 sm:gap-3">
                                 <span className="text-white font-medium min-w-[60px] sm:min-w-[80px] text-xs sm:text-sm md:text-base">{item.searchVolume.toLocaleString()}</span>
-                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px]">
+                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px] md:max-w-[250px]">
                                   <div 
                                     className={`h-1.5 sm:h-2 rounded-full ${
                                       isLowSearchVolume 
@@ -1050,7 +1050,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
                                   {seller.shop.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="text-white font-medium text-sm sm:text-base truncate">{seller.shop}</div>
+                                  <a 
+                                    href={`https://www.etsy.com/shop/${seller.shop}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-white font-medium text-sm sm:text-base truncate hover:text-[#00d4ff] transition-colors cursor-pointer"
+                                  >
+                                    {seller.shop}
+                                  </a>
                                   <div className="text-white/70 text-xs sm:text-sm flex items-center gap-1">
                                     <span>{seller.flag}</span>
                                     <span className="truncate">{seller.country}</span>
@@ -1100,7 +1107,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-white font-medium text-xs sm:text-sm line-clamp-2 mb-1">{listing.title}</div>
-                                  <div className="text-white/70 text-xs">{listing.shop}</div>
+                                  <a 
+                                    href={`https://www.etsy.com/shop/${listing.shop}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-white/70 text-xs hover:text-[#00d4ff] transition-colors cursor-pointer"
+                                  >
+                                    {listing.shop}
+                                  </a>
                                 </div>
                               </div>
                             </td>
@@ -1427,119 +1441,121 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="flex flex-col p-2 space-y-4 overflow-y-auto">
-            {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
-            {!selectedAnalysis && (
-              <>
-                {/* Catégories */}
-                {menuCategories.map((category) => (
-                  <div key={category.label} className="space-y-1">
-                    <div className="px-3 py-1.5">
-                      <span className="text-xs font-semibold text-white/50 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        {category.label}
-                      </span>
-                    </div>
-                    {category.items.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.id;
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
-                    if (item.id === 'history' && analyses.length === 0) {
-                      console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
-                      setActiveSection('analyse-simulation');
-                      try {
-                        localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
-                      } catch (e) {
-                        console.warn('⚠️ Error saving last dashboard section:', e);
-                      }
-                    } else {
-                      setActiveSection(item.id);
-                    }
-                    setSelectedAnalysis(null);
-                  }}
-                  className={`
-                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
-                    ${isActive
-                      ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }
-                  `}
-                >
-                  <Icon size={20} className="flex-shrink-0" />
-                  <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
-                </button>
-              );
-            })}
-                  </div>
-                ))}
-                
-                {/* Autres items */}
-                <div className="pt-2 border-t border-white/10">
-                  {otherMenuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeSection === item.id;
-                    
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveSection(item.id);
-                          setSelectedAnalysis(null);
-                        }}
-                        className={`
-                          relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
-                          ${isActive
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                            : 'text-white/70 hover:text-white hover:bg-white/5'
-                          }
-                        `}
-                      >
-                        <Icon size={20} className="flex-shrink-0" />
-                        <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          {item.label}
+          {/* Navigation Items - Structure avec flex pour séparer le contenu et le footer */}
+          <div className="flex flex-col h-[calc(100vh-4rem)]">
+            <nav className="flex-1 flex flex-col p-2 space-y-4 overflow-y-auto">
+              {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
+              {!selectedAnalysis && (
+                <>
+                  {/* Catégories */}
+                  {menuCategories.map((category) => (
+                    <div key={category.label} className="space-y-1">
+                      <div className="px-3 py-1.5">
+                        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          {category.label}
                         </span>
-                        {isActive && (
-                          <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      {category.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
+                      if (item.id === 'history' && analyses.length === 0) {
+                        console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
+                        setActiveSection('analyse-simulation');
+                        try {
+                          localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
+                        } catch (e) {
+                          console.warn('⚠️ Error saving last dashboard section:', e);
+                        }
+                      } else {
+                      setActiveSection(item.id);
+                      }
+                      setSelectedAnalysis(null);
+                    }}
+                    className={`
+                              relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                      ${isActive
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }
+                    `}
+                  >
+                    <Icon size={20} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </button>
+                );
+              })}
+                    </div>
+                  ))}
+                  
+                  {/* Autres items - Section séparée */}
+                  <div className="pt-4 mt-4 border-t border-white/10 space-y-1">
+                    {otherMenuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setSelectedAnalysis(null);
+                          }}
+                          className={`
+                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                            ${isActive
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={20} className="flex-shrink-0" />
+                          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {item.label}
+                          </span>
+                          {isActive && (
+                            <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </nav>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </nav>
 
-          {/* Bottom Actions */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-black/30 space-y-1">
-            <Link
-              href="/"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
-            >
-              <Home size={20} className="flex-shrink-0" />
-              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                Retour à l'accueil
-              </span>
-            </Link>
-            
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
-            >
-              <LogOut size={20} className="flex-shrink-0" />
-              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                Déconnexion
-              </span>
-            </button>
+            {/* Bottom Actions - Fixé en bas avec padding */}
+            <div className="flex-shrink-0 p-2 border-t border-white/10 space-y-1 bg-black">
+              <Link
+                href="/"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item w-full"
+              >
+                <Home size={20} className="flex-shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Retour à l'accueil
+                </span>
+              </Link>
+              
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
+              >
+                <LogOut size={20} className="flex-shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Déconnexion
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -1593,7 +1609,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             console.warn('⚠️ Error saving last dashboard section:', e);
                           }
                         } else {
-                          setActiveSection(item.id);
+                        setActiveSection(item.id);
                           // Sauvegarder la section dans localStorage
                           if (typeof window !== 'undefined') {
                             try {
@@ -1708,8 +1724,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <p className="text-white/60 text-sm sm:text-base md:text-lg lg:text-xl max-w-xl mx-auto mb-6 sm:mb-8 md:mb-10 leading-relaxed px-2">
                     Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
                   </p>
-                  <motion.button
+                    <motion.button
                     onClick={() => {
+                      // Vérifier si l'utilisateur a un abonnement actif
+                      if (!hasActiveSubscription && !subscriptionLoading) {
+                        // Rediriger vers la section subscription pour s'abonner
+                        router.push('/dashboard?section=subscription');
+                        return;
+                      }
+                      
+                      // Si l'utilisateur a un abonnement, démarrer une nouvelle analyse
                       const { reset, setStep } = useStore.getState();
                       reset(); // Réinitialiser complètement le store
                       setStep(1); // Démarrer à l'étape 1
@@ -1719,16 +1743,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
                     whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0, 212, 255, 0.3)" }}
-                    whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.98 }}
                     className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl sm:rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-sm sm:text-base md:text-lg"
                   >
                     <Calculator size={18} className="sm:w-5 sm:h-5 md:w-[22px] md:h-[22px]" />
                     <span>Nouvelle analyse</span>
                     <ArrowRight size={16} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
-                  </motion.button>
+                    </motion.button>
                 </motion.div>
                       </div>
-            </div>
+                      </div>
           )}
 
           {activeSection === 'listing' && selectedAnalysis && (
@@ -1855,11 +1879,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <DashboardAnalysisDetail
-                        analysis={selectedAnalysis}
-                        onBack={handleBackToHistory}
-                        onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
-                      />
+            <DashboardAnalysisDetail
+              analysis={selectedAnalysis}
+              onBack={handleBackToHistory}
+              onDelete={() => handleDeleteAnalysis(selectedAnalysis.product.id)}
+            />
                     </motion.div>
                   ) : (
                     <motion.div

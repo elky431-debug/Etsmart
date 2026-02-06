@@ -449,18 +449,53 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE ET JUSTIFICATION:
-    - Attribue un score de confiance entre 30 et 95
-    - Le score doit refléter la fiabilité de ton analyse
-    - Facteurs à considérer:
-      * Clarté de l'image du produit
-      * Spécificité de la niche
-      * Qualité de tes estimations
-      * Cohérence de tes données
+10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - LOGIQUE COHÉRENTE):
+    - ⚠️ IMPORTANT: Le score doit être COHÉRENT et JUSTIFIÉ, pas aléatoire
+    - Attribue un score de confiance entre 30 et 95 selon cette logique STRICTE:
+    
+    FACTEURS DE SCORING (pondération):
+    1. QUALITÉ DU PRODUIT (30% du score):
+       - Produit unique/différencié: +15 à +25 points
+       - Produit générique mais bien présenté: +5 à +15 points
+       - Produit très générique: +0 à +5 points
+    
+    2. MARCHÉ ET CONCURRENCE (40% du score):
+       - Concurrence faible (< 20): +30 à +40 points
+       - Concurrence modérée (20-50): +15 à +30 points
+       - Concurrence élevée (50-100): +5 à +15 points
+       - Concurrence très élevée (> 100): +0 à +5 points
+    
+    3. POTENTIEL DE MARGES (20% du score):
+       - Marges excellentes (> 50%): +15 à +20 points
+       - Marges bonnes (30-50%): +10 à +15 points
+       - Marges acceptables (20-30%): +5 à +10 points
+       - Marges faibles (< 20%): +0 à +5 points
+    
+    4. SATURATION DU MARCHÉ (10% du score):
+       - Marché non saturé: +8 à +10 points
+       - Marché concurrentiel: +4 à +8 points
+       - Marché saturé: +0 à +4 points
+    
+    CALCUL DU SCORE:
+    - Score de base = 50 (point de départ neutre)
+    - Ajoute les points selon les facteurs ci-dessus
+    - Score final = min(95, max(30, score_calculé))
+    
+    EXEMPLES DE SCORING COHÉRENT:
+    - Produit unique, faible concurrence (< 20), bonnes marges (> 40%), marché non saturé: 75-85/95
+    - Produit différencié, concurrence modérée (30-50), marges correctes (25-35%), marché concurrentiel: 60-70/95
+    - Produit générique, forte concurrence (> 80), marges faibles (< 25%), marché saturé: 35-45/95
+    
+    ⚠️ RÈGLE ABSOLUE: Ne jamais donner un score < 5 pour un produit de qualité sauf si:
+    - Le produit est un bijou (règle spéciale < 3)
+    - Le produit est un sac (règle spéciale = 4)
+    - Le produit a une concurrence extrême (> 200) ET des marges très faibles (< 15%)
+    
     - OBLIGATOIRE: Fournis une justification du score en 2-3 phrases (scoreJustification)
-      * Explique pourquoi tu as attribué ce score précis
+      * Explique clairement pourquoi tu as attribué ce score précis
       * Mentionne les points forts ET les points faibles identifiés
       * Sois concis mais informatif
+      * Justifie chaque point de score attribué
     
     ⚠️ RÈGLE ABSOLUE - BIJOUX (OBLIGATION STRICTE ET NON NÉGOCIABLE):
     - Si le produit est un bijou (necklace, bracelet, ring, earring, collier, bague, boucle d'oreille, etc.) OU si la niche est "jewelry" ou "bijoux":
@@ -1275,6 +1310,34 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       if (analysis.confidenceScore < 7) {
         console.error('❌ ERREUR: Score bébé < 7 détecté, correction automatique à 7');
         analysis.confidenceScore = 7; // Forcer minimum 7
+      }
+    }
+    
+    // ⚠️ CORRECTION POST-TRAITEMENT: Ajuster les scores trop bas pour les produits normaux
+    // Si le score est < 5 et que ce n'est pas un bijou/sac/bébé, c'est probablement une erreur
+    if (!isJewelry && !isBag && !isBaby && analysis.confidenceScore < 5) {
+      console.warn(`⚠️ Score trop bas (${analysis.confidenceScore}) pour un produit normal, ajustement selon la concurrence`);
+      
+      // Ajuster selon la concurrence et la saturation
+      const competitors = analysis.estimatedCompetitors || 50;
+      const saturation = analysis.saturationLevel || 'concurrentiel';
+      
+      if (competitors < 30 && saturation !== 'sature') {
+        // Faible concurrence + marché non saturé = score minimum 6.5
+        analysis.confidenceScore = Math.max(6.5, analysis.confidenceScore);
+        console.log(`✅ Score ajusté à ${analysis.confidenceScore} (faible concurrence: ${competitors})`);
+      } else if (competitors < 60 && saturation !== 'sature') {
+        // Concurrence modérée + marché non saturé = score minimum 5.5
+        analysis.confidenceScore = Math.max(5.5, analysis.confidenceScore);
+        console.log(`✅ Score ajusté à ${analysis.confidenceScore} (concurrence modérée: ${competitors})`);
+      } else if (competitors < 100) {
+        // Concurrence élevée mais acceptable = score minimum 5
+        analysis.confidenceScore = Math.max(5, analysis.confidenceScore);
+        console.log(`✅ Score ajusté à ${analysis.confidenceScore} (concurrence élevée: ${competitors})`);
+      } else {
+        // Très forte concurrence = garder le score mais minimum 4.5
+        analysis.confidenceScore = Math.max(4.5, analysis.confidenceScore);
+        console.log(`✅ Score ajusté à ${analysis.confidenceScore} (très forte concurrence: ${competitors})`);
       }
     }
     

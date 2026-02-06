@@ -1,19 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store/useStore';
 import { ProductImport } from '@/components/steps/ProductImport';
 import { AnalysisStep } from '@/components/steps/AnalysisStep';
 import { ResultsStep } from '@/components/steps/ResultsStep';
-import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export default function AnalyzePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { currentStep, setStep, analyses } = useStore();
-  const { isLoading: subscriptionLoading } = useSubscriptionProtection();
+  const { hasActiveSubscription, loading: subscriptionLoading } = useSubscription();
+  const [hasCheckedSubscription, setHasCheckedSubscription] = useState(false);
 
   // Rediriger vers login si pas connecté
   useEffect(() => {
@@ -21,6 +22,30 @@ export default function AnalyzePage() {
       router.push('/login');
     }
   }, [user, loading, subscriptionLoading, router]);
+
+  // Vérifier l'abonnement et rediriger si nécessaire
+  useEffect(() => {
+    // Attendre que les chargements soient terminés
+    if (loading || subscriptionLoading || !user) {
+      return;
+    }
+
+    // Si on a déjà vérifié, ne pas re-vérifier
+    if (hasCheckedSubscription) {
+      return;
+    }
+
+    // Marquer comme vérifié
+    setHasCheckedSubscription(true);
+
+    // Si pas d'abonnement actif, rediriger vers la section subscription
+    if (!hasActiveSubscription) {
+      console.log('[AnalyzePage] Pas d\'abonnement actif, redirection vers subscription');
+      router.push('/dashboard?section=subscription');
+    } else {
+      console.log('[AnalyzePage] Abonnement actif détecté, accès autorisé');
+    }
+  }, [user, loading, subscriptionLoading, hasActiveSubscription, hasCheckedSubscription, router]);
 
   // ⚠️ CRITICAL: SUPPRIMÉ COMPLÈTEMENT - Ne JAMAIS réinitialiser automatiquement l'étape
   // La transition vers l'étape 4 est gérée UNIQUEMENT par AnalysisStep
@@ -36,6 +61,20 @@ export default function AnalyzePage() {
             {loading || subscriptionLoading 
               ? 'Chargement...' 
               : 'Redirection vers la connexion...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si pas d'abonnement actif ET que la vérification est terminée, rediriger
+  if (hasCheckedSubscription && !hasActiveSubscription) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-center px-4">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:h-12 border-b-2 border-[#00d4ff]"></div>
+          <p className="mt-4 text-sm sm:text-base text-slate-600">
+            Redirection vers l'abonnement...
           </p>
         </div>
       </div>
