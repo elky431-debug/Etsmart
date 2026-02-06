@@ -43,7 +43,9 @@ export function ProductImport() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showExample, setShowExample] = useState(true); // Visible par défaut
 
-  const currentNiche = niches.find(n => n.id === selectedNiche);
+  // ⚠️ MODIFIÉ: La niche n'est plus requise pour l'import du produit
+  // Elle sera sélectionnée plus tard dans les sections Listing et Image
+  const currentNiche = selectedNiche ? niches.find(n => n.id === selectedNiche) : null;
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -355,13 +357,7 @@ export function ProductImport() {
             className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-black border-2 border-white/10 mb-3 sm:mb-5 text-xs sm:text-sm"
           >
             <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />
-            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 2 SUR 3</span>
-            {currentNiche && (
-              <>
-                <span className="text-white/40">•</span>
-                <span className="text-sm font-bold text-white">{currentNiche.name}</span>
-              </>
-            )}
+            <span className="text-sm font-bold text-[#00d4ff]">ÉTAPE 1 SUR 2</span>
             <Zap size={16} className="text-[#00c9b7]" />
           </motion.div>
           

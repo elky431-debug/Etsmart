@@ -346,7 +346,11 @@ export function AnalysisStep() {
     setProgress(5); // Démarrage immédiat
     setCurrentPhase('Démarrage de l\'analyse...');
     
-    const niche = selectedNiche === 'custom' ? customNiche : selectedNiche;
+    // ⚠️ MODIFIÉ: Utiliser une niche par défaut si aucune n'est sélectionnée
+    // La niche sera sélectionnée plus tard dans les sections Listing et Image
+    const niche = selectedNiche 
+      ? (selectedNiche === 'custom' ? customNiche : selectedNiche)
+      : 'custom'; // Utiliser 'custom' par défaut si aucune niche n'est sélectionnée
 
     try {
       // ⚡ ANALYSE D'UN SEUL PRODUIT (limitation à 1 produit)

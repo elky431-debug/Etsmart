@@ -924,6 +924,10 @@ interface AIAnalysisResult {
   productVisualDescription: string;  // Ce que l'IA VOIT dans l'image
   etsySearchQuery: string;           // Mots-clés extraits de la description visuelle (JAMAIS du titre)
   
+  // Correspondance niche/produit
+  nicheMatch?: boolean; // true si le produit correspond à la niche, false sinon
+  nicheMatchReasoning?: string; // Explication de la correspondance ou non-correspondance
+  
   // Verdict
   finalVerdict: string;
   warningIfAny: string | null;
@@ -1706,6 +1710,8 @@ export const analyzeProduct = async (
         ? 'Product can be launched but requires careful optimization.'
         : 'Launch is risky due to high competition.',
       warningIfAny: '⚠️ ATTENTION: Analyse complétée avec des données par défaut. L\'API d\'analyse n\'a pas pu répondre. Les résultats peuvent être moins précis.',
+      nicheMatch: true, // Par défaut, on assume que le produit correspond (rétrocompatibilité)
+      nicheMatchReasoning: 'Correspondance assumée par défaut (analyse fallback).',
     };
     
     console.log('✅ Using fallback analysis data');
@@ -1770,6 +1776,8 @@ export const analyzeProduct = async (
       seoTags: ensure13Tags(['handmade', 'product', validNiche.toString()], product.title, validNiche.toString()),
       finalVerdict: 'Product can be launched with proper optimization.',
       warningIfAny: '⚠️ Emergency fallback used - original analysis failed.',
+      nicheMatch: true, // Par défaut, on assume que le produit correspond (rétrocompatibilité)
+      nicheMatchReasoning: 'Correspondance assumée par défaut (fallback d\'urgence).',
     };
   }
   
@@ -1998,6 +2006,11 @@ export const analyzeProduct = async (
       'ANALYSE_IMPOSSIBLE': 'avoid'
     };
     
+    // ⚠️ CRITIQUE: Vérifier la correspondance niche/produit
+    // Si le produit ne correspond pas à la niche, forcer une note basse et un verdict "avoid"
+    const nicheMatch = aiAnalysis.nicheMatch !== false; // Par défaut true si non défini (rétrocompatibilité)
+    const nicheMatchReasoning = aiAnalysis.nicheMatchReasoning || '';
+    
     // Force verdict based on competitor count (fallback if AI doesn't follow rules)
     let finalVerdict: Verdict = verdictMap[aiAnalysis.decision] || 'test';
     const competitorCount = aiAnalysis.estimatedCompetitors;
@@ -2011,14 +2024,36 @@ export const analyzeProduct = async (
       finalVerdict = 'avoid';
     }
     
+    // ⚠️ FORCER "avoid" si le produit ne correspond pas à la niche
+    if (!nicheMatch) {
+      console.warn('⚠️ Produit ne correspond pas à la niche - Forçage verdict "avoid"');
+      finalVerdict = 'avoid';
+    }
+    
+    // Calculer le score de confiance - FORCER une note basse si la correspondance n'est pas bonne
+    let confidenceScore = aiAnalysis.confidenceScore;
+    if (!nicheMatch) {
+      // Forcer une note basse (entre 20 et 35) si le produit ne correspond pas à la niche
+      confidenceScore = Math.min(35, Math.max(20, confidenceScore - 40));
+    }
+    
+    // Construire le message d'avertissement
+    let warningMessage = aiAnalysis.warningIfAny || '';
+    if (!nicheMatch) {
+      const nicheWarning = `⚠️ ATTENTION: Le produit ne correspond pas à la niche sélectionnée. ${nicheMatchReasoning || 'Ce produit risque d\'avoir des résultats médiocres sur Etsy car il ne correspond pas aux attentes des acheteurs de cette niche.'}`;
+      warningMessage = warningMessage ? `${warningMessage}\n\n${nicheWarning}` : nicheWarning;
+    }
+    
     const verdict: ProductVerdict = {
     verdict: finalVerdict,
-    confidenceScore: aiAnalysis.confidenceScore,
+    confidenceScore: confidenceScore,
     improvements: [],
-    summary: aiAnalysis.finalVerdict,
+    summary: !nicheMatch 
+      ? `⚠️ Ce produit ne correspond pas à la niche sélectionnée. ${nicheMatchReasoning || 'Les résultats seront probablement médiocres car le produit ne correspond pas aux attentes des acheteurs de cette niche.'}`
+      : aiAnalysis.finalVerdict,
     
     // AI-powered fields
-    aiComment: aiAnalysis.warningIfAny || aiAnalysis.saturationAnalysis,
+    aiComment: warningMessage || aiAnalysis.saturationAnalysis,
     difficultyAnalysis: `Saturation: ${aiAnalysis.saturationLevel === 'non_sature' ? 'Unsaturated market (<40 competitors) - Launch quickly' : aiAnalysis.saturationLevel === 'concurrentiel' ? 'Competitive market (41-90 competitors) - Optimize before launching' : aiAnalysis.saturationLevel === 'sature' ? 'SATURATED market (91+ competitors) - Do not launch' : 'VERY SATURATED market'}. ${aiAnalysis.saturationAnalysis}`,
     competitionComment: `${aiAnalysis.estimatedCompetitors} estimated competitors. ${aiAnalysis.pricingAnalysis}`,
     competitorEstimationReasoning: aiAnalysis.competitorEstimationReasoning || '', // ✨ Comment l'IA a calculé

@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store/useStore';
-import { NicheSelection } from '@/components/steps/NicheSelection';
 import { ProductImport } from '@/components/steps/ProductImport';
 import { AnalysisStep } from '@/components/steps/AnalysisStep';
 import { ResultsStep } from '@/components/steps/ResultsStep';
@@ -54,9 +53,11 @@ export default function AnalyzePage() {
   }
 
   // Afficher le step approprié
+  // ⚠️ MODIFIÉ: L'étape 1 (choix de la niche) a été supprimée
+  // Le processus commence directement à l'étape 2 (import du produit)
   return (
     <div className="min-h-screen bg-black">
-      {forcedStep === 1 && <NicheSelection />}
+      {forcedStep === 1 && <ProductImport />}
       {forcedStep === 2 && <ProductImport />}
       {forcedStep === 3 && <AnalysisStep />}
       {forcedStep === 4 && <ResultsStep />}

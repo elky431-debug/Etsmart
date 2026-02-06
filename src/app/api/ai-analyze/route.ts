@@ -65,6 +65,10 @@ interface AIAnalysisResponse {
   etsySearchQuery: string;
   canIdentifyProduct: boolean;
   
+  // Correspondance niche/produit
+  nicheMatch?: boolean; // true si le produit correspond à la niche, false sinon
+  nicheMatchReasoning?: string; // Explication de la correspondance ou non-correspondance
+  
   // SEO & Marketing
   viralTitleEN: string;
   seoTags: string[];
@@ -283,6 +287,17 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
      * Détails distinctifs (textures, motifs, finitions)
    - Si le produit n'est pas clairement identifiable, indique-le mais fournis quand même une description basée sur ce que tu peux voir
 
+1.5. VÉRIFICATION CORRESPONDANCE NICHE/PRODUIT (CRITIQUE):
+   - ⚠️ CRITIQUE: Vérifie si le produit que tu vois dans l'image correspond réellement à la niche sélectionnée: "${niche}"
+   - Compare le type de produit visible dans l'image avec ce que la niche "${niche}" devrait normalement contenir
+   - Si le produit ne correspond PAS à la niche (ex: un bijou alors que la niche est "home-decor", ou un mug alors que la niche est "jewelry"), alors:
+     * nicheMatch: false
+     * nicheMatchReasoning: "Le produit visible dans l'image ne correspond pas à la niche sélectionnée. [Explique pourquoi]"
+   - Si le produit correspond à la niche, alors:
+     * nicheMatch: true
+     * nicheMatchReasoning: "Le produit correspond bien à la niche sélectionnée."
+   - Cette vérification est CRITIQUE car un produit mal aligné avec sa niche aura des résultats médiocres sur Etsy
+
 2. ESTIMATION DU PRIX FOURNISSEUR:
    - Estime le coût d'achat probable chez le fournisseur (AliExpress/Alibaba) selon la niche:
      * Bijoux et accessoires: $0.5-12 (dépend de la complexité et des matériaux)
@@ -456,6 +471,8 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
 {
   "canIdentifyProduct": bool,
   "productVisualDescription": "1 phrase descriptive et précise",
+  "nicheMatch": bool (CRITIQUE: true si le produit correspond à la niche, false sinon),
+  "nicheMatchReasoning": "explication de la correspondance ou non-correspondance avec la niche",
   "etsySearchQuery": "5-8 mots ULTRA-PRÉCIS: [type] [matériau] [style] [couleur] [usage]",
   "estimatedSupplierPrice": nombre,
   "estimatedShippingCost": nombre,
@@ -848,6 +865,8 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
             seoTags: ['gift', 'handmade', 'product', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'],
             finalVerdict: 'Product can be launched with proper optimization',
             warningIfAny: null,
+            nicheMatch: true, // Par défaut, on assume que le produit correspond (rétrocompatibilité)
+            nicheMatchReasoning: 'Correspondance assumée par défaut (fallback API).',
           } as AIAnalysisResponse;
           
           console.log('✅ Using fallback analysis data');
@@ -912,6 +931,18 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
     if (!analysis.saturationLevel) {
       analysis.saturationLevel = analysis.estimatedCompetitors <= 100 ? 'non_sature' : 
                                   analysis.estimatedCompetitors <= 130 ? 'concurrentiel' : 'sature';
+    }
+    
+    // Validation de la correspondance niche/produit avec valeurs par défaut
+    if (analysis.nicheMatch === undefined) {
+      console.warn('⚠️ nicheMatch non défini, utilisation de la valeur par défaut (true)');
+      analysis.nicheMatch = true; // Par défaut, on assume que le produit correspond (rétrocompatibilité)
+      analysis.nicheMatchReasoning = 'Correspondance assumée par défaut (champ non fourni par l\'IA).';
+    } else if (!analysis.nicheMatchReasoning) {
+      // Si nicheMatch est défini mais pas le raisonnement, ajouter un raisonnement par défaut
+      analysis.nicheMatchReasoning = analysis.nicheMatch 
+        ? 'Le produit correspond à la niche sélectionnée.'
+        : 'Le produit ne correspond pas à la niche sélectionnée.';
     }
     
     // S'assurer que les prix recommandés existent (avec règles strictes)
