@@ -461,6 +461,46 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
       * Explique pourquoi tu as attribué ce score précis
       * Mentionne les points forts ET les points faibles identifiés
       * Sois concis mais informatif
+    
+    ⚠️ RÈGLE ABSOLUE - BIJOUX (OBLIGATION STRICTE ET NON NÉGOCIABLE):
+    - Si le produit est un bijou (necklace, bracelet, ring, earring, collier, bague, boucle d'oreille, etc.) OU si la niche est "jewelry" ou "bijoux":
+      * ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être STRICTEMENT INFÉRIEUR à 3/10
+      * ⚠️ STRICTEMENT INFÉRIEUR signifie: le score DOIT être < 3.0 (pas égal, pas supérieur)
+      * Le score DOIT être entre 1.0 et 2.99 inclusivement (jamais 3.0 ou plus)
+      * Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
+      * Même si tous les autres facteurs suggèrent un score élevé, pour les bijoux le score DOIT rester STRICTEMENT < 3
+      * Exemples de scores VALIDES: 1.0, 1.5, 2.0, 2.5, 2.9, 2.99 (tous < 3.0)
+      * Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.0, 3.1, 4.0, 5.0, 10.0, etc. (tous >= 3.0)
+      * ⚠️ Si tu génères un score de 3.0 ou plus pour un bijou, ton analyse sera automatiquement rejetée et corrigée
+      * ⚠️ Cette règle s'applique à TOUS les bijoux sans exception, quelle que soit leur qualité apparente
+    
+    b) PRODUITS POUR BÉBÉS ET NAISSANCES (baby, bébé, infant, nursery, newborn, nouveau-né, toddler, bambin, birth, naissance):
+       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être AU MINIMUM 7/10
+       - ⚠️ AU MINIMUM signifie: le score DOIT être >= 7.0 (jamais inférieur)
+       - Le score DOIT être entre 7.0 et 95 (jamais moins de 7)
+       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de qualité moyenne
+       - Même si tous les autres facteurs suggèrent un score faible, pour les produits bébés/naissance le score DOIT être >= 7
+       - Exemples de scores VALIDES: 7.0, 7.5, 8.0, 8.5, 9.0, 10.0, 95.0
+       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 6.9, 6.5, 5.0, 3.0, etc. (tous < 7.0)
+       - ⚠️ Si tu génères un score de moins de 7.0 pour un produit bébé/naissance, ton analyse sera automatiquement rejetée et corrigée
+       - ⚠️ Cette règle s'applique à TOUS les produits pour bébés et naissances sans exception
+    
+    c) SACS (bag, bags, sac, sacs, handbag, purse, tote, backpack, shoulder bag, crossbody, clutch, wallet, messenger bag, duffel, suitcase, briefcase):
+       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être EXACTEMENT 4/10
+       - ⚠️ EXACTEMENT signifie: le score DOIT être = 4.0 (jamais différent)
+       - Le score DOIT être exactement 4.0 (jamais moins, jamais plus)
+       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
+       - Même si tous les autres facteurs suggèrent un score différent, pour les sacs le score DOIT être exactement 4
+       - Exemples de scores VALIDES: 4.0 uniquement
+       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.0, 3.5, 4.5, 5.0, 10.0, etc. (tous différents de 4.0)
+       - ⚠️ Si tu génères un score différent de 4.0 pour un sac, ton analyse sera automatiquement rejetée et corrigée
+       - ⚠️ Cette règle s'applique à TOUS les sacs sans exception, quelle que soit leur qualité apparente
+    
+    ⚠️ PRIORITÉ DES RÈGLES:
+    - Si le produit est un bijou → appliquer la règle a) (score < 3)
+    - Si le produit est un sac ET n'est pas un bijou → appliquer la règle c) (score = 4)
+    - Si le produit est pour bébés ET n'est pas un bijou/sac → appliquer la règle b) (score >= 7)
+    - Ces règles sont OBLIGATOIRES et doivent être respectées même si l'analyse suggère un autre score
 
 ═══════════════════════════════════════════════════════════════════════════════
 FORMAT DE RÉPONSE STRICT (JSON UNIQUEMENT)
@@ -478,7 +518,7 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
   "estimatedShippingCost": nombre,
   "supplierPriceReasoning": "justification courte de l'estimation",
   "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
-  "confidenceScore": nombre entre 30 et 95,
+  "confidenceScore": nombre entre 30 et 95 (⚠️ OBLIGATION: pour bijoux: STRICTEMENT < 3.0 | pour sacs: EXACTEMENT 4.0 | pour bébés/naissance: >= 7.0),
   "scoreJustification": "2-3 phrases expliquant pourquoi ce score, points forts et faibles",
   "estimatedCompetitors": nombre,
   "competitorEstimationReasoning": "justification courte de l'estimation",
@@ -1172,11 +1212,78 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       });
     }
     
+    // ⚠️ RÈGLES SPÉCIFIQUES PAR NICHE ET TYPE DE PRODUIT - Ajuster le score
+    const nicheLower = (niche || '').toLowerCase();
+    const productDescription = (analysis.productVisualDescription || body.productTitle || '').toLowerCase();
+    
+    // Détecter le type de produit
+    const isJewelry = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
+        productDescription.includes('jewelry') || productDescription.includes('bijou') ||
+        productDescription.includes('necklace') || productDescription.includes('collier') ||
+        productDescription.includes('bracelet') || productDescription.includes('ring') || 
+        productDescription.includes('bague') || productDescription.includes('earring') ||
+        productDescription.includes('boucle');
+    
+    // Détecter TOUS les sacs (pas seulement les sacs à main pour femmes)
+    const isBag = nicheLower === 'bag' || nicheLower === 'bags' || nicheLower === 'sac' || nicheLower === 'sacs' ||
+        productDescription.includes('bag') || productDescription.includes('sac') ||
+        productDescription.includes('handbag') || productDescription.includes('purse') ||
+        productDescription.includes('tote') || productDescription.includes('backpack') ||
+        productDescription.includes('shoulder bag') || productDescription.includes('crossbody') ||
+        productDescription.includes('clutch') || productDescription.includes('wallet') ||
+        productDescription.includes('messenger bag') || productDescription.includes('duffel') ||
+        productDescription.includes('suitcase') || productDescription.includes('briefcase');
+    
+    const isBaby = nicheLower === 'baby' || nicheLower === 'bébé' ||
+        productDescription.includes('baby') || productDescription.includes('bébé') ||
+        productDescription.includes('infant') || productDescription.includes('nursery') ||
+        productDescription.includes('newborn') || productDescription.includes('nouveau-né') ||
+        productDescription.includes('toddler') || productDescription.includes('bambin');
+    
+    // 1. Bijoux : note strictement < 3 (priorité absolue)
+    if (isJewelry) {
+      console.log('⚠️ Produit bijoux détecté - Forçage note strictement < 3');
+      // Forcer strictement inférieur à 3 (entre 1.0 et 2.99, jamais 3 ou plus)
+      const calculatedScore = analysis.confidenceScore * 0.1;
+      analysis.confidenceScore = Math.min(2.99, Math.max(1.0, calculatedScore)); // Strictement < 3
+      
+      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est STRICTEMENT < 3
+      if (analysis.confidenceScore >= 3.0) {
+        console.error('❌ ERREUR: Score bijoux >= 3.0 détecté, correction automatique à 2.99');
+        analysis.confidenceScore = 2.99; // Forcer strictement < 3
+      }
+    }
+    // 2. Sacs : note fixe = 4 (seulement si ce n'est pas un bijou)
+    else if (isBag) {
+      console.log('⚠️ Produit sac détecté - Forçage note = 4');
+      // Forcer exactement 4.0
+      analysis.confidenceScore = 4.0;
+      
+      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est exactement 4
+      if (analysis.confidenceScore !== 4.0) {
+        console.error('❌ ERREUR: Score sac !== 4.0 détecté, correction automatique à 4.0');
+        analysis.confidenceScore = 4.0; // Forcer exactement 4
+      }
+    }
+    // 3. Produits pour bébés : note >= 7 (seulement si ce n'est pas un bijou ou un sac)
+    else if (isBaby) {
+      console.log('⚠️ Produit bébé/naissance détecté - Forçage note >= 7');
+      // Forcer minimum 7 (entre 7.0 et 95, jamais moins de 7)
+      analysis.confidenceScore = Math.max(7, Math.min(95, analysis.confidenceScore + 20)); // Forcer minimum 7, maximum 95
+      
+      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est >= 7
+      if (analysis.confidenceScore < 7) {
+        console.error('❌ ERREUR: Score bébé < 7 détecté, correction automatique à 7');
+        analysis.confidenceScore = 7; // Forcer minimum 7
+      }
+    }
+    
     const responseTime = Date.now() - openaiStartTime;
     console.log('✅ Analysis completed successfully:', {
       model: usedModel,
       responseTime: `${responseTime}ms`,
       promptLength: prompt.length,
+      finalConfidenceScore: analysis.confidenceScore,
     });
     
     return NextResponse.json({

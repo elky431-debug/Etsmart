@@ -82,10 +82,10 @@ function assessNicheSaturation(niche: string): 'low' | 'medium' | 'high' {
 }
 
 /**
- * RÈGLE SPÉCIALE: Détecte les bijoux génériques sans spécificité hors normes
- * Si c'est un bijou générique, la note sera forcée à < 3
+ * RÈGLE ABSOLUE: Détecte TOUS les bijoux (obligation stricte < 3/10)
+ * Cette fonction détecte n'importe quel bijou, quelle que soit sa spécificité
  */
-function isGenericJewelry(
+function isJewelry(
   niche: string,
   productType: string,
   productTitle: string,
@@ -95,16 +95,112 @@ function isGenericJewelry(
   const typeLower = productType.toLowerCase();
   const titleLower = productTitle.toLowerCase();
   const descriptionLower = (productVisualDescription || '').toLowerCase();
-  const combined = `${titleLower} ${descriptionLower}`;
   
   // Vérifier si c'est un bijou (niche ou type)
-  const isJewelryNiche = nicheLower.includes('jewelry') || nicheLower.includes('bijou');
-  const jewelryTypes = ['bracelet', 'necklace', 'ring', 'earring', 'earrings', 'pendant', 'charm', 'chain', 'jewelry', 'bijou', 'bijoux'];
-  const isJewelryType = jewelryTypes.some(type => typeLower.includes(type) || titleLower.includes(type));
+  const isJewelryNiche = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
+                         nicheLower.includes('jewelry') || nicheLower.includes('bijou');
+  const jewelryTypes = [
+    'bracelet', 'necklace', 'ring', 'earring', 'earrings', 'pendant', 
+    'charm', 'chain', 'jewelry', 'bijou', 'bijoux', 'collier', 'bague', 
+    'boucle', 'brooch', 'broche', 'pendentif', 'choker', 'anklet', 
+    'cheville', 'toe ring', 'bague orteil'
+  ];
+  const isJewelryType = jewelryTypes.some(type => 
+    typeLower.includes(type) || 
+    titleLower.includes(type) || 
+    descriptionLower.includes(type)
+  );
   
-  if (!isJewelryNiche && !isJewelryType) {
+  return isJewelryNiche || isJewelryType;
+}
+
+/**
+ * RÈGLE ABSOLUE: Détecte TOUS les produits pour bébés/naissance (obligation stricte >= 7/10)
+ * Cette fonction détecte n'importe quel produit pour bébés, quelle que soit sa spécificité
+ */
+function isBaby(
+  niche: string,
+  productType: string,
+  productTitle: string,
+  productVisualDescription?: string
+): boolean {
+  const nicheLower = niche.toLowerCase();
+  const typeLower = productType.toLowerCase();
+  const titleLower = productTitle.toLowerCase();
+  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  
+  // Vérifier si c'est un produit bébé (niche ou type)
+  const isBabyNiche = nicheLower === 'baby' || nicheLower === 'bébé' || 
+                      nicheLower.includes('baby') || nicheLower.includes('bébé');
+  const babyTypes = [
+    'baby', 'bébé', 'infant', 'nursery', 'newborn', 'nouveau-né',
+    'toddler', 'bambin', 'prenatal', 'prénatal', 'maternity', 'maternité',
+    'birth', 'naissance', 'christening', 'baptême', 'baby shower',
+    'crib', 'berceau', 'stroller', 'poussette', 'onesie', 'bodysuit',
+    'pacifier', 'tétine', 'bottle', 'biberon', 'rattle', 'hochet'
+  ];
+  const isBabyType = babyTypes.some(type => 
+    typeLower.includes(type) || 
+    titleLower.includes(type) || 
+    descriptionLower.includes(type)
+  );
+  
+  return isBabyNiche || isBabyType;
+}
+
+/**
+ * RÈGLE ABSOLUE: Détecte TOUS les sacs (obligation stricte = 4/10)
+ * Cette fonction détecte n'importe quel sac, quelle que soit sa spécificité
+ */
+function isBag(
+  niche: string,
+  productType: string,
+  productTitle: string,
+  productVisualDescription?: string
+): boolean {
+  const nicheLower = niche.toLowerCase();
+  const typeLower = productType.toLowerCase();
+  const titleLower = productTitle.toLowerCase();
+  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  
+  // Vérifier si c'est un sac (niche ou type)
+  const isBagNiche = nicheLower === 'bag' || nicheLower === 'bags' || 
+                     nicheLower === 'sac' || nicheLower === 'sacs' ||
+                     nicheLower.includes('bag');
+  const bagTypes = [
+    'bag', 'bags', 'sac', 'sacs', 'handbag', 'purse', 'tote', 'backpack',
+    'shoulder bag', 'crossbody', 'clutch', 'wallet', 'portefeuille',
+    'messenger bag', 'duffel', 'suitcase', 'valise', 'briefcase',
+    'shopping bag', 'sac shopping', 'beach bag', 'sac plage',
+    'gym bag', 'sac de sport', 'lunch bag', 'sac repas'
+  ];
+  const isBagType = bagTypes.some(type => 
+    typeLower.includes(type) || 
+    titleLower.includes(type) || 
+    descriptionLower.includes(type)
+  );
+  
+  return isBagNiche || isBagType;
+}
+
+/**
+ * RÈGLE SPÉCIALE: Détecte les bijoux génériques sans spécificité hors normes
+ * Si c'est un bijou générique, la note sera forcée à < 3
+ */
+function isGenericJewelry(
+  niche: string,
+  productType: string,
+  productTitle: string,
+  productVisualDescription?: string
+): boolean {
+  // D'abord vérifier si c'est un bijou
+  if (!isJewelry(niche, productType, productTitle, productVisualDescription)) {
     return false; // Ce n'est pas un bijou
   }
+  
+  const titleLower = productTitle.toLowerCase();
+  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  const combined = `${titleLower} ${descriptionLower}`;
   
   // Mots-clés indiquant une spécificité hors normes (ex: "medieval", "personalized", etc.)
   const highSpecificityKeywords = [
@@ -435,7 +531,31 @@ function generateScoreJustification(
 export function calculateLaunchPotentialScore(
   input: LaunchPotentialInput
 ): LaunchPotentialResult {
-  // ⚠️ RÈGLE SPÉCIALE: Bijoux génériques = note forcée < 3
+  // ⚠️ RÈGLE ABSOLUE: TOUS les bijoux = note strictement < 3 (priorité absolue)
+  const isJewelryProduct = isJewelry(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
+  // ⚠️ RÈGLE ABSOLUE: TOUS les sacs = note fixe 4 (seulement si ce n'est pas un bijou)
+  const isBagProduct = isBag(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
+  // ⚠️ RÈGLE ABSOLUE: TOUS les produits bébés/naissance = note >= 7 (seulement si ce n'est pas un bijou ou un sac)
+  const isBabyProduct = isBaby(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
+  // ⚠️ RÈGLE SPÉCIALE: Bijoux génériques = note forcée < 3 (déjà couvert par la règle ci-dessus)
   const isGenericJewelryProduct = isGenericJewelry(
     input.niche,
     input.productType,
@@ -455,9 +575,41 @@ export function calculateLaunchPotentialScore(
   // Calculer le score à partir de la matrice
   let score = calculateScoreFromMatrix(competitionDensity, nicheSaturation, productSpecificity);
   
-  // ⚠️ FORCER LA NOTE < 3 pour les bijoux génériques
-  if (isGenericJewelryProduct) {
-    score = Math.min(2.9, score); // Forcer à maximum 2.9
+  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE STRICTEMENT < 3 pour TOUS les bijoux (priorité absolue)
+  if (isJewelryProduct) {
+    console.log('⚠️ Produit bijoux détecté - Forçage Launch Potential Score strictement < 3');
+    // Forcer strictement inférieur à 3 (entre 1.0 et 2.99, jamais 3 ou plus)
+    score = Math.min(2.99, Math.max(1.0, score)); // Strictement < 3
+    
+    // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est STRICTEMENT < 3
+    if (score >= 3.0) {
+      console.error('❌ ERREUR: Launch Potential Score bijoux >= 3.0 détecté, correction automatique à 2.99');
+      score = 2.99; // Forcer strictement < 3
+    }
+  }
+  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE = 4 pour TOUS les sacs (seulement si ce n'est pas un bijou)
+  else if (isBagProduct) {
+    console.log('⚠️ Produit sac détecté - Forçage Launch Potential Score = 4');
+    // Forcer exactement 4.0
+    score = 4.0;
+    
+    // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est exactement 4
+    if (score !== 4.0) {
+      console.error('❌ ERREUR: Launch Potential Score sac !== 4.0 détecté, correction automatique à 4.0');
+      score = 4.0; // Forcer exactement 4
+    }
+  }
+  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE >= 7 pour TOUS les produits bébés/naissance (seulement si ce n'est pas un bijou ou un sac)
+  else if (isBabyProduct) {
+    console.log('⚠️ Produit bébé/naissance détecté - Forçage Launch Potential Score >= 7');
+    // Forcer minimum 7 (entre 7.0 et 10.0, jamais moins de 7)
+    score = Math.max(7.0, Math.min(10.0, score)); // Minimum 7
+    
+    // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est >= 7
+    if (score < 7.0) {
+      console.error('❌ ERREUR: Launch Potential Score bébé < 7.0 détecté, correction automatique à 7.0');
+      score = 7.0; // Forcer minimum 7
+    }
   }
   
   // Déterminer la tranche et le verdict
@@ -470,9 +622,21 @@ export function calculateLaunchPotentialScore(
     productSpecificity,
   });
   
-  // Ajouter une explication spéciale pour les bijoux génériques
-  if (isGenericJewelryProduct) {
-    explanation = 'Les bijoux génériques sans spécificité unique (comme le style médiéval, la personnalisation ou les thèmes de niche) font face à une saturation de marché extrêmement élevée sur Etsy. ' + explanation;
+  // Ajouter une explication spéciale pour TOUS les bijoux
+  if (isJewelryProduct) {
+    if (isGenericJewelryProduct) {
+      explanation = 'Les bijoux génériques sans spécificité unique (comme le style médiéval, la personnalisation ou les thèmes de niche) font face à une saturation de marché extrêmement élevée sur Etsy. ' + explanation;
+    } else {
+      explanation = 'Le marché des bijoux sur Etsy est extrêmement saturé, ce qui limite significativement le potentiel de lancement, même pour des produits avec une certaine spécificité. ' + explanation;
+    }
+  }
+  // Ajouter une explication spéciale pour TOUS les sacs
+  else if (isBagProduct) {
+    explanation = 'Le marché des sacs sur Etsy présente un niveau de concurrence modéré avec des opportunités moyennes pour les produits bien positionnés. ' + explanation;
+  }
+  // Ajouter une explication spéciale pour TOUS les produits bébés/naissance
+  else if (isBabyProduct) {
+    explanation = 'Le marché des produits pour bébés et naissances sur Etsy présente de bonnes opportunités avec une demande constante et des parents prêts à investir dans des produits de qualité. ' + explanation;
   }
   
   // Générer la justification détaillée du score
