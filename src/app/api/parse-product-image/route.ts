@@ -359,7 +359,7 @@ Return ONLY this JSON (no markdown, no code blocks, no explanations):
     
     // Formater le produit pour correspondre à SupplierProduct
     const product = {
-      id: `screenshot-${Date.now()}`,
+      id: crypto.randomUUID(),
       url: productData.url || 'https://www.aliexpress.com',
       source: productData.source,
       title: productData.title.trim().substring(0, 200),

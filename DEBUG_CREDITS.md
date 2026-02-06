@@ -73,3 +73,4 @@ Le type de colonne est **correct** : `numeric(10,2)` ✅
 
 
 
+

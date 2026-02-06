@@ -88,22 +88,23 @@ export default function DashboardPage() {
   const CACHE_DURATION = 60000; // 1 minute
   const CACHE_KEY = 'etsmart-analyses-cache';
   
-  const [activeSection, setActiveSection] = useState<DashboardSection>(() => {
-    // Récupérer la dernière section visitée depuis localStorage, sinon utiliser 'analyse-simulation' par défaut
-    // ⚠️ CRITICAL: Ne JAMAIS utiliser 'history' comme section par défaut, même si c'est la dernière section visitée
-    if (typeof window !== 'undefined') {
-      try {
-        const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
-        // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
-          return lastSection;
-        }
-      } catch (e) {
-        console.warn('⚠️ Error reading last dashboard section:', e);
+  // ⚠️ FIX HYDRATION: Initialiser avec une valeur fixe pour éviter les différences serveur/client
+  const [activeSection, setActiveSection] = useState<DashboardSection>('analyse-simulation');
+  
+  // Charger la section depuis localStorage uniquement côté client après le montage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
+      // Ne jamais utiliser 'history' comme section par défaut au refresh
+      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+        setActiveSection(lastSection);
       }
+    } catch (e) {
+      console.warn('⚠️ Error reading last dashboard section:', e);
     }
-    return 'analyse-simulation'; // Par défaut, aller sur "Analyse et Simulation" au lieu de "history"
-  });
+  }, []);
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
   // Sous-onglet actif dans la section "analyse-simulation" : 'analyse' ou 'simulation'
   const [activeSubTab, setActiveSubTab] = useState<'analyse' | 'simulation'>('analyse');
@@ -358,6 +359,19 @@ export default function DashboardPage() {
             // Vérifier si l'analyse existe déjà dans la DB
             const exists = dbAnalyses.some(db => db.product.id === localAnalysis.product.id);
             if (!exists) {
+              // Vérifier que product.id est un UUID valide
+              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              if (!localAnalysis.product.id || !uuidRegex.test(localAnalysis.product.id)) {
+                console.warn('⚠️ Invalid product ID format, skipping sync:', localAnalysis.product.id);
+                continue;
+              }
+              
+              // Vérifier que user.id est un UUID valide
+              if (!user.id || !uuidRegex.test(user.id)) {
+                console.warn('⚠️ Invalid user ID format, skipping sync:', user.id);
+                continue;
+              }
+              
               // Sauvegarder l'analyse locale dans la DB
               await analysisDb.saveAnalysis(user.id, localAnalysis);
               console.log('✅ Synced local analysis to database:', localAnalysis.product.title);
@@ -1609,7 +1623,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   ))}
                   
                   {/* Autres items */}
-                  <div className="pt-4 border-t border-white/10 space-y-2">
+                  <div className={`pt-4 border-t border-white/10 ${
+                    typeof window !== 'undefined' && (
+                      window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1'
+                    )
+                      ? 'space-y-4'
+                      : 'space-y-2'
+                  }`}>
                     {otherMenuItems.map((item) => {
                       const Icon = item.icon;
                       const isActive = activeSection === item.id && !selectedAnalysis;
@@ -1630,7 +1651,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             }
                           }}
                           className={`
-                            w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
+                            w-full flex items-center gap-3 px-4 ${
+                              typeof window !== 'undefined' && (
+                                window.location.hostname === 'localhost' || 
+                                window.location.hostname === '127.0.0.1'
+                              )
+                                ? 'py-4'
+                                : 'py-3'
+                            } text-left rounded-lg font-medium text-sm transition-all
                             ${isActive
                               ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
                               : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -1778,10 +1806,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </div>
 
                 {/* Sous-onglets Analyse / Simulation */}
-                <div className="mb-8 flex items-center gap-4 border-b border-white/10">
+                <div className="mb-8 flex items-center gap-2 sm:gap-4 border-b border-white/10 overflow-x-auto">
                   <button
                     onClick={() => setActiveSubTab('analyse')}
-                    className={`px-6 py-3 font-semibold text-base transition-all relative ${
+                    className={`px-4 sm:px-6 py-3 font-semibold text-sm sm:text-base transition-all relative flex-shrink-0 ${
                       activeSubTab === 'analyse'
                         ? 'text-white'
                         : 'text-white/60 hover:text-white/80'
@@ -1799,7 +1827,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   </button>
                   <button
                     onClick={() => setActiveSubTab('simulation')}
-                    className={`px-6 py-3 font-semibold text-base transition-all relative ${
+                    className={`px-4 sm:px-6 py-3 font-semibold text-sm sm:text-base transition-all relative flex-shrink-0 ${
                       activeSubTab === 'simulation'
                         ? 'text-white'
                         : 'text-white/60 hover:text-white/80'
