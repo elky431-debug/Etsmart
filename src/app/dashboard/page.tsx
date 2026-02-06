@@ -230,29 +230,9 @@ export default function DashboardPage() {
     }
   }, [activeSection, analyses.length, isLoading, user]);
 
-  // ⚠️ CRITICAL: Réinitialiser l'état et rediriger vers /analyze quand on quitte l'onglet "analyse et simulation"
-  const prevActiveSectionRef = useRef<DashboardSection | null>(null);
-  const hasInitializedRef = useRef(false);
-  
-  useEffect(() => {
-    // Initialiser la référence au premier rendu
-    if (!hasInitializedRef.current) {
-      prevActiveSectionRef.current = activeSection;
-      hasInitializedRef.current = true;
-      return;
-    }
-    
-    // Si on quitte l'onglet "analyse et simulation" pour aller vers un autre onglet
-    if (prevActiveSectionRef.current === 'analyse-simulation' && activeSection !== 'analyse-simulation') {
-      console.log('[Dashboard] Quitting analyse-simulation section, resetting state and redirecting to /analyze');
-      const { reset } = useStore.getState();
-      reset(); // Réinitialiser le store
-      router.push('/analyze'); // Rediriger vers la page d'analyse pour démarrer une nouvelle analyse
-      return;
-    }
-    // Mettre à jour la référence pour la prochaine fois
-    prevActiveSectionRef.current = activeSection;
-  }, [activeSection, router]);
+  // ⚠️ SUPPRIMÉ: La réinitialisation automatique a été retirée
+  // L'utilisateur peut naviguer librement entre les onglets du dashboard
+  // Pour démarrer une nouvelle analyse, utiliser le bouton "Nouvelle analyse"
 
   // Sauvegarder la dernière section visitée dans localStorage
   // ⚠️ CRITICAL: Ne JAMAIS sauvegarder 'history' comme dernière section si elle est vide
