@@ -250,15 +250,6 @@ export default function HomePage() {
         {/* Spline Background - uniquement dans la landing */}
         <div className="absolute inset-0" id="spline-container" />
         <div className="relative z-10 text-center px-4 sm:px-6 w-full max-w-4xl mx-auto py-16 sm:py-24 md:py-28">
-          {/* Titre principal */}
-          <h1 className="text-xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-3 sm:mb-6 leading-tight px-2">
-            Gérez vos produits Etsy en{' '}
-            <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">
-              quelques secondes
-            </span>{' '}
-            grâce à Etsmart
-          </h1>
-          
           {/* Description */}
           <p className="text-white/70 text-xs sm:text-base md:text-lg mb-6 sm:mb-10 md:mb-12 max-w-2xl mx-auto px-2 leading-relaxed">
             Analyse des niches, sélection de produits gagnants et fiches produits prêtes à publier sur Etsy.
