@@ -375,7 +375,7 @@ export function ProductImport() {
             >
               <Zap size={14} className="text-[#00d4ff]" />
               <span className="text-sm font-semibold text-white">
-                {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / {subscription.quota} analyses
+                {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / {subscription.quota} crédits
               </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 subscription.remaining > subscription.quota * 0.5 

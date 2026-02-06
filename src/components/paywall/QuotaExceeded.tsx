@@ -171,7 +171,7 @@ export function QuotaExceeded({
               <span className="text-3xl font-bold">{used}</span>
               <span className="text-lg text-white/70"> / {quota}</span>
             </div>
-            <span className="text-white/60">analyses</span>
+            <span className="text-white/60">crédits</span>
           </div>
         </div>
 
@@ -270,7 +270,7 @@ export function QuotaExceeded({
               <div className="grid grid-cols-2 gap-2 text-xs text-cyan-700">
                 <div className="flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  <span>{upgradeQuota} analyses/mois</span>
+                  <span>{upgradeQuota} crédits/mois</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap className="h-3 w-3" />
