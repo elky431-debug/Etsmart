@@ -269,22 +269,22 @@ export default function HomePage() {
       </header>
 
       {/* Hero */}
-      <section className="relative min-h-screen flex items-end justify-center pb-24 sm:pb-28 overflow-hidden">
+      <section className="relative min-h-screen flex items-end justify-center pb-16 sm:pb-24 md:pb-28 overflow-hidden">
         {/* Spline Background - uniquement dans la landing */}
         <div className="absolute inset-0" id="spline-container" />
-        <div className="relative z-10 text-center px-6">
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/app">
-              <button className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2 cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
+        <div className="relative z-10 text-center px-4 sm:px-6 w-full max-w-md mx-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4">
+            <Link href="/app" className="w-full sm:w-auto">
+              <button className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold flex items-center justify-center gap-2 cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
                 <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Essayer gratuitement</span>
-                <ArrowRight size={16} className="text-[#00c9b7]" />
+                <ArrowRight size={14} className="text-[#00c9b7] sm:w-4 sm:h-4" />
               </button>
             </Link>
-            <Link href="#pricing">
-              <button className="px-6 py-3 rounded-lg bg-transparent font-semibold transition-colors cursor-pointer border-2 hover:opacity-90" style={{
+            <Link href="#pricing" className="w-full sm:w-auto">
+              <button className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base bg-transparent font-semibold transition-colors cursor-pointer border-2 hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
@@ -296,29 +296,29 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-16 sm:py-28 bg-black">
+      <section id="features" className="py-12 sm:py-16 md:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Fonctionnalités</span>
-              <h2 className="text-2xl sm:text-4xl font-bold text-white">
-                Tout ce qu’il faut pour dominer sur Etsy
+            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Fonctionnalités</span>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">
+                Tout ce qu'il faut pour dominer sur Etsy
               </h2>
-              <p className="text-white/70 max-w-2xl mx-auto mt-3">
-                Une suite complète d’outils IA pour analyser, simuler et optimiser vos lancements.
+              <p className="text-white/70 text-sm sm:text-base max-w-2xl mx-auto mt-2 sm:mt-3 px-2">
+                Une suite complète d'outils IA pour analyser, simuler et optimiser vos lancements.
               </p>
             </div>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
             {features.map((feature, index) => (
               <AnimatedCard key={feature.title} delay={index * 0.1}>
-                <div className="p-6 sm:p-8 rounded-lg border border-white/5 bg-transparent hover:border-white/10 transition-colors">
-                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
-                    <feature.icon className="w-6 h-6 text-white" />
+                <div className="p-4 sm:p-6 md:p-8 rounded-lg border border-white/5 bg-transparent hover:border-white/10 transition-colors">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-3 sm:mb-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
+                    <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                  <p className="text-white/70 text-sm leading-relaxed">{feature.description}</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 sm:mb-2">{feature.title}</h3>
+                  <p className="text-white/70 text-xs sm:text-sm leading-relaxed">{feature.description}</p>
                 </div>
               </AnimatedCard>
             ))}
@@ -327,12 +327,12 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section id="how" className="py-16 sm:py-28 bg-black">
+      <section id="how" className="py-12 sm:py-16 md:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Comment ça marche</span>
-              <h2 className="text-2xl sm:text-4xl font-bold text-white">
+            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Comment ça marche</span>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">
                 Analysez en 3 étapes
               </h2>
             </div>
@@ -341,20 +341,20 @@ export default function HomePage() {
           <div className="relative">
             {/* Ligne conductrice */}
             <div className="hidden md:block absolute top-8 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
               {[
                 { step: '01', icon: ShoppingBag, title: 'Choisissez votre niche', description: 'Sélectionnez une niche ou entrez la vôtre.' },
                 { step: '02', icon: Globe, title: 'Ajoutez vos produits', description: 'Collez un lien fournisseur ou importez vos produits.' },
                 { step: '03', icon: Sparkles, title: 'Obtenez votre verdict', description: 'Notre IA vous donne un verdict clair et actionnable.' },
               ].map((item, index) => (
                 <AnimatedCard key={item.step} delay={index * 0.15}>
-                  <div className="relative p-6 pt-10 rounded-lg border border-white/5 bg-transparent">
-                    <div className="absolute -top-5 left-6 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30">
-                      <item.icon className="w-5 h-5 text-white" />
+                  <div className="relative p-4 sm:p-6 pt-8 sm:pt-10 rounded-lg border border-white/5 bg-transparent">
+                    <div className="absolute -top-4 sm:-top-5 left-4 sm:left-6 w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30">
+                      <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div className="text-white/60 text-xs font-semibold mb-2">{item.step}</div>
-                    <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
-                    <p className="text-white/70 text-sm">{item.description}</p>
+                    <div className="text-white/60 text-xs font-semibold mb-1.5 sm:mb-2">{item.step}</div>
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 sm:mb-2">{item.title}</h3>
+                    <p className="text-white/70 text-xs sm:text-sm">{item.description}</p>
                   </div>
                 </AnimatedCard>
               ))}
@@ -364,19 +364,19 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-16 sm:py-28 bg-black">
+      <section id="pricing" className="py-12 sm:py-16 md:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tarifs</span>
-              <h2 className="text-2xl sm:text-4xl font-bold text-white">Des tarifs transparents</h2>
-              <p className="text-white/70 max-w-2xl mx-auto mt-3">
+            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tarifs</span>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">Des tarifs transparents</h2>
+              <p className="text-white/70 text-sm sm:text-base max-w-2xl mx-auto mt-2 sm:mt-3 px-2">
                 Commencez gratuitement, passez à la vitesse supérieure quand vous êtes prêt.
               </p>
             </div>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
             {[
               { id: 'SMART', name: 'Smart', price: '€19.99', period: '/mois', features: ['30 analyses / mois', 'Toutes les fonctionnalités'] },
               { id: 'PRO', name: 'Pro', price: '€29.99', period: '/mois', features: ['60 analyses / mois', 'Toutes les fonctionnalités'], popular: true },
@@ -439,19 +439,19 @@ export default function HomePage() {
               return (
                 <AnimatedCard key={plan.name} delay={index * 0.15}>
                   <div
-                    className={`p-6 rounded-lg border ${
+                    className={`p-4 sm:p-6 rounded-lg border ${
                       plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
                     }`}
                   >
-                    <h3 className="text-lg font-semibold text-white mb-2">{plan.name}</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className="text-4xl font-bold text-white">{plan.price}</span>
-                      <span className="text-white/60">{plan.period}</span>
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">{plan.name}</h3>
+                    <div className="flex items-baseline gap-2 mb-3 sm:mb-4">
+                      <span className="text-3xl sm:text-4xl font-bold text-white">{plan.price}</span>
+                      <span className="text-white/60 text-sm sm:text-base">{plan.period}</span>
                     </div>
-                    <ul className="space-y-2 mb-6">
+                    <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
                       {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-2 text-white/80 text-sm">
-                          <CheckCircle2 className="w-4 h-4 text-[#00c9b7]" />
+                        <li key={feature} className="flex items-center gap-2 text-white/80 text-xs sm:text-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7] flex-shrink-0" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -459,7 +459,7 @@ export default function HomePage() {
                     <button 
                       onClick={handleSubscribe}
                       disabled={loadingPlan === plan.id}
-                      className="w-full py-3 rounded-lg font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90" 
+                      className="w-full py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90" 
                       style={{
                         borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                         borderImageSlice: 1,
@@ -483,31 +483,31 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" className="py-16 sm:py-28 bg-black">
+      <section id="testimonials" className="py-12 sm:py-16 md:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <span className="font-medium mb-3 block uppercase tracking-wider text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Témoignages</span>
-              <h2 className="text-2xl sm:text-4xl font-bold text-white">Ils nous font confiance</h2>
+            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Témoignages</span>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">Ils nous font confiance</h2>
             </div>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
             {testimonials.map((t, index) => (
               <AnimatedCard key={t.name} delay={index * 0.1}>
-                <div className="p-6 rounded-lg border border-white/5 bg-transparent">
-                  <div className="flex items-center gap-1 mb-4">
+                <div className="p-4 sm:p-6 rounded-lg border border-white/5 bg-transparent">
+                  <div className="flex items-center gap-1 mb-3 sm:mb-4">
                     {Array.from({ length: t.rating }).map((_, i) => (
-                      <CheckCircle2 key={i} className="w-4 h-4 text-[#00c9b7]" />
+                      <CheckCircle2 key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7]" />
                     ))}
                   </div>
-                  <p className="text-white/80 mb-4 text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]">
+                  <p className="text-white/80 mb-3 sm:mb-4 text-xs sm:text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex-shrink-0">
                       {t.avatar}
                     </div>
                     <div>
-                      <p className="text-white font-semibold text-sm">{t.name}</p>
+                      <p className="text-white font-semibold text-xs sm:text-sm">{t.name}</p>
                       <p className="text-white/60 text-xs">{t.role}</p>
                     </div>
                   </div>
@@ -519,26 +519,26 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-16 sm:py-24 bg-black">
+      <section className="py-12 sm:py-16 md:py-24 bg-black">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <AnimatedSection>
-            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-3 sm:mb-4 px-2">
               Prêt à lancer votre prochain succès ?
             </h2>
-            <p className="text-white/70 mb-8">
+            <p className="text-white/70 text-sm sm:text-base mb-6 sm:mb-8 px-2">
               Rejoignez des vendeurs qui utilisent Etsmart pour prendre de meilleures décisions.
             </p>
             <Link href="/app">
-              <button className="px-8 py-4 rounded-lg font-semibold cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
+              <button className="px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-sm sm:text-base font-semibold cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
                 <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Commencer gratuitement</span>
-                <ArrowUpRight className="inline-block ml-2 w-4 h-4 text-[#00c9b7]" />
+                <ArrowUpRight className="inline-block ml-2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7]" />
               </button>
             </Link>
-            <p className="mt-4 text-white/60 text-sm flex items-center justify-center gap-2">
-              <Lock size={14} />
+            <p className="mt-3 sm:mt-4 text-white/60 text-xs sm:text-sm flex items-center justify-center gap-2">
+              <Lock size={12} className="sm:w-3.5 sm:h-3.5" />
               Aucune carte de crédit requise
             </p>
           </AnimatedSection>
@@ -546,8 +546,8 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 border-t border-white/5 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="py-8 sm:py-10 border-t border-white/5 bg-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
           <Link 
             href="/" 
             className="flex items-center gap-3 cursor-pointer"
@@ -558,12 +558,12 @@ export default function HomePage() {
           >
             <Logo size="sm" showText={true} />
           </Link>
-          <div className="flex items-center gap-6 text-sm text-white/60">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-white/60">
             <Link href="/legal" className="hover:text-white cursor-pointer">Mentions légales</Link>
             <Link href="/privacy" className="hover:text-white cursor-pointer">Confidentialité</Link>
             <Link href="/contact" className="hover:text-white cursor-pointer">Contact</Link>
           </div>
-          <p className="text-white/40 text-sm">© 2026 Etsmart. Tous droits réservés.</p>
+          <p className="text-white/40 text-xs sm:text-sm text-center md:text-left">© 2026 Etsmart. Tous droits réservés.</p>
         </div>
       </footer>
     </div>

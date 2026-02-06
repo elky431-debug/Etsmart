@@ -622,14 +622,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
             transition={{ duration: 0.3 }}
           >
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                  <Target className="w-6 h-6 text-white" />
+            <div className="mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center flex-shrink-0">
+                  <Target className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">Recherche de Niche</h1>
-                  <p className="text-white/70 text-sm mt-1">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Recherche de Niche</h1>
+                  <p className="text-white/70 text-xs sm:text-sm mt-0.5 sm:mt-1">
                     Trouvez des opportunités à faible concurrence que les autres vendeurs manquent
                   </p>
                 </div>
@@ -637,100 +637,102 @@ The final image should look like a high-quality Etsy listing photo and naturally
               
               {/* Global Dropdown */}
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors">
-                  <Globe size={16} className="text-white/70" />
+                <button className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors text-sm sm:text-base">
+                  <Globe size={14} className="sm:w-4 sm:h-4 text-white/70" />
                   <span className="text-white">Mondial</span>
-                  <ChevronDown size={16} className="text-white/70" />
+                  <ChevronDown size={14} className="sm:w-4 sm:h-4 text-white/70" />
                 </button>
               </div>
             </div>
 
             {/* Product Ideas & Keywords Table */}
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
-              <div className="p-6 border-b border-white/10">
-                <h2 className="text-2xl font-bold text-white">Idées de Produits & Mots-clés</h2>
+              <div className="p-3 sm:p-4 md:p-6 border-b border-white/10">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Idées de Produits & Mots-clés</h2>
               </div>
               
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
-                        <div className="flex items-center gap-2">
-                          <span>Niche</span>
-                          <div className="flex flex-col">
-                            <ChevronUp size={12} className="text-white/50" />
-                            <ChevronDown size={12} className="text-white/50 -mt-1" />
-                          </div>
-                        </div>
-                      </th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
-                        <div className="flex items-center gap-2">
-                          <span>Concurrence</span>
-                          <div className="flex flex-col">
-                            <ChevronUp size={12} className="text-white/50" />
-                            <ChevronDown size={12} className="text-white/50 -mt-1" />
-                          </div>
-                        </div>
-                      </th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">
-                        <div className="flex items-center gap-2">
-                          <span>Volume de Recherche</span>
-                          <div className="flex flex-col">
-                            <ChevronUp size={12} className="text-white/50" />
-                            <ChevronDown size={12} className="text-white/50 -mt-1" />
-                          </div>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {niches.map((item, index) => {
-                      const competitionPercent = (item.competition / maxCompetition) * 100;
-                      const searchVolumePercent = (item.searchVolume / maxSearchVolume) * 100;
-                      const isLowSearchVolume = item.searchVolume < 10000;
-                      
-                      return (
-                        <tr key={index} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white font-medium">{item.niche}</span>
-                              {item.niche === 'barbiecore' && (
-                                <HelpCircle size={14} className="text-yellow-400" />
-                              )}
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle sm:px-0">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span>Niche</span>
+                            <div className="flex flex-col">
+                              <ChevronUp size={10} className="sm:w-3 sm:h-3 text-white/50" />
+                              <ChevronDown size={10} className="sm:w-3 sm:h-3 text-white/50 -mt-0.5 sm:-mt-1" />
                             </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <span className="text-white font-medium min-w-[60px]">{item.competition.toLocaleString()}</span>
-                              <div className="flex-1 bg-white/10 rounded-full h-2 max-w-[200px]">
-                                <div 
-                                  className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] h-2 rounded-full"
-                                  style={{ width: `${Math.min(competitionPercent, 100)}%` }}
-                                />
+                          </div>
+                        </th>
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span>Concurrence</span>
+                            <div className="flex flex-col">
+                              <ChevronUp size={10} className="sm:w-3 sm:h-3 text-white/50" />
+                              <ChevronDown size={10} className="sm:w-3 sm:h-3 text-white/50 -mt-0.5 sm:-mt-1" />
+                            </div>
+                          </div>
+                        </th>
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span>Volume de Recherche</span>
+                            <div className="flex flex-col">
+                              <ChevronUp size={10} className="sm:w-3 sm:h-3 text-white/50" />
+                              <ChevronDown size={10} className="sm:w-3 sm:h-3 text-white/50 -mt-0.5 sm:-mt-1" />
+                            </div>
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {niches.map((item, index) => {
+                        const competitionPercent = (item.competition / maxCompetition) * 100;
+                        const searchVolumePercent = (item.searchVolume / maxSearchVolume) * 100;
+                        const isLowSearchVolume = item.searchVolume < 10000;
+                        
+                        return (
+                          <tr key={index} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="p-2 sm:p-3 md:p-4">
+                              <div className="flex items-center gap-1.5 sm:gap-2">
+                                <span className="text-white font-medium text-sm sm:text-base">{item.niche}</span>
+                                {item.niche === 'barbiecore' && (
+                                  <HelpCircle size={12} className="sm:w-3.5 sm:h-3.5 text-yellow-400 flex-shrink-0" />
+                                )}
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <span className="text-white font-medium min-w-[80px]">{item.searchVolume.toLocaleString()}</span>
-                              <div className="flex-1 bg-white/10 rounded-full h-2 max-w-[200px]">
-                                <div 
-                                  className={`h-2 rounded-full ${
-                                    isLowSearchVolume 
-                                      ? 'bg-yellow-400' 
-                                      : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                                  }`}
-                                  style={{ width: `${Math.min(searchVolumePercent, 100)}%` }}
-                                />
+                            </td>
+                            <td className="p-2 sm:p-3 md:p-4">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <span className="text-white font-medium min-w-[50px] sm:min-w-[60px] text-xs sm:text-sm md:text-base">{item.competition.toLocaleString()}</span>
+                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px]">
+                                  <div 
+                                    className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] h-1.5 sm:h-2 rounded-full"
+                                    style={{ width: `${Math.min(competitionPercent, 100)}%` }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="p-2 sm:p-3 md:p-4">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <span className="text-white font-medium min-w-[60px] sm:min-w-[80px] text-xs sm:text-sm md:text-base">{item.searchVolume.toLocaleString()}</span>
+                                <div className="flex-1 bg-white/10 rounded-full h-1.5 sm:h-2 max-w-[150px] sm:max-w-[200px]">
+                                  <div 
+                                    className={`h-1.5 sm:h-2 rounded-full ${
+                                      isLowSearchVolume 
+                                        ? 'bg-yellow-400' 
+                                        : 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
+                                    }`}
+                                    style={{ width: `${Math.min(searchVolumePercent, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -961,14 +963,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
             transition={{ duration: 0.3 }}
           >
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-white" />
+            <div className="mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">Top Etsy Sellers</h1>
-                  <p className="text-white/70 text-sm mt-1">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Top Etsy Sellers</h1>
+                  <p className="text-white/70 text-xs sm:text-sm mt-0.5 sm:mt-1">
                     Découvrez ce que font les meilleurs vendeurs et appliquez-le à votre boutique
                   </p>
                 </div>
@@ -977,13 +979,13 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
             {/* Top Shops/Listings Table */}
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
-              <div className="p-6 border-b border-white/10">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">{viewMode === 'shops' ? 'Meilleures Boutiques' : 'Meilleurs Listings'}</h2>
-                  <div className="flex items-center gap-2">
+              <div className="p-3 sm:p-4 md:p-6 border-b border-white/10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{viewMode === 'shops' ? 'Meilleures Boutiques' : 'Meilleurs Listings'}</h2>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button 
                       onClick={() => setViewMode('shops')}
-                      className={`px-4 py-2 font-medium rounded-lg transition-colors ${
+                      className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base font-medium rounded-lg transition-colors ${
                         viewMode === 'shops'
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
                           : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
@@ -993,7 +995,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     </button>
                     <button 
                       onClick={() => setViewMode('listings')}
-                      className={`px-4 py-2 font-medium rounded-lg transition-colors ${
+                      className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base font-medium rounded-lg transition-colors ${
                         viewMode === 'listings'
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
                           : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
@@ -1005,94 +1007,96 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </div>
               </div>
               
-              <div className="overflow-x-auto">
-                {viewMode === 'shops' ? (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Boutique</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listings</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Note</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ouverture</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topSellers.map((seller) => (
-                        <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-4 text-white font-medium">{seller.rank}</td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-sm">
-                                {seller.shop.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-white font-medium">{seller.shop}</div>
-                                <div className="text-white/70 text-sm flex items-center gap-1">
-                                  <span>{seller.flag}</span>
-                                  <span>{seller.country}</span>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle sm:px-0">
+                  {viewMode === 'shops' ? (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Boutique</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Listings</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Note</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Ouverture</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {topSellers.map((seller) => (
+                          <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="p-2 sm:p-3 md:p-4 text-white font-medium text-sm sm:text-base">{seller.rank}</td>
+                            <td className="p-2 sm:p-3 md:p-4">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
+                                  {seller.shop.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-white font-medium text-sm sm:text-base truncate">{seller.shop}</div>
+                                  <div className="text-white/70 text-xs sm:text-sm flex items-center gap-1">
+                                    <span>{seller.flag}</span>
+                                    <span className="truncate">{seller.country}</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-white">{seller.sales.toLocaleString()}</td>
-                          <td className="p-4 text-white">{seller.listings.toLocaleString()}</td>
-                          <td className="p-4 text-white">{seller.faves.toLocaleString()}</td>
-                          <td className="p-4">
-                            {seller.rating > 0 ? (
-                              <div className="flex items-center gap-1">
-                                <Star size={14} className="text-yellow-400 fill-yellow-400" />
-                                <span className="text-white">{seller.rating}</span>
-                              </div>
-                            ) : (
-                              <span className="text-white/50">-</span>
-                            )}
-                          </td>
-                          <td className="p-4 text-white/70 text-sm">{seller.opened}</td>
+                            </td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{seller.sales.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{seller.listings.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{seller.faves.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4">
+                              {seller.rating > 0 ? (
+                                <div className="flex items-center gap-1">
+                                  <Star size={12} className="sm:w-3.5 sm:h-3.5 text-yellow-400 fill-yellow-400" />
+                                  <span className="text-white text-xs sm:text-sm md:text-base">{seller.rating}</span>
+                                </div>
+                              ) : (
+                                <span className="text-white/50 text-xs sm:text-sm">-</span>
+                              )}
+                            </td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white/70 text-xs sm:text-sm">{seller.opened}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Listing</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Revenus ($US)</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Vues</th>
+                          <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Créé</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Listing</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Ventes</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Revenus ($US)</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Favoris</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Vues</th>
-                        <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Créé</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topListings.map((listing) => (
-                        <tr key={listing.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-4 text-white font-medium">{listing.rank}</td>
-                          <td className="p-4">
-                            <div className="flex items-start gap-3 max-w-md">
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                {listing.shop.charAt(0).toUpperCase()}
+                      </thead>
+                      <tbody>
+                        {topListings.map((listing) => (
+                          <tr key={listing.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="p-2 sm:p-3 md:p-4 text-white font-medium text-sm sm:text-base">{listing.rank}</td>
+                            <td className="p-2 sm:p-3 md:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3 max-w-[200px] sm:max-w-md">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                  {listing.shop.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white font-medium text-xs sm:text-sm line-clamp-2 mb-1">{listing.title}</div>
+                                  <div className="text-white/70 text-xs">{listing.shop}</div>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-white font-medium text-sm line-clamp-2 mb-1">{listing.title}</div>
-                                <div className="text-white/70 text-xs">{listing.shop}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-white">{listing.sales.toLocaleString()}</td>
-                          <td className="p-4 text-white">{listing.revenue.toLocaleString()}</td>
-                          <td className="p-4 text-white">{listing.faves.toLocaleString()}</td>
-                          <td className="p-4 text-white">{listing.views.toLocaleString()}</td>
-                          <td className="p-4 text-white/70 text-sm">{listing.created}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                            </td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{listing.sales.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{listing.revenue.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{listing.faves.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white text-xs sm:text-sm md:text-base">{listing.views.toLocaleString()}</td>
+                            <td className="p-2 sm:p-3 md:p-4 text-white/70 text-xs sm:text-sm">{listing.created}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1156,14 +1160,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
             className="space-y-8"
           >
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-white" />
+            <div className="mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">Etsy Trends</h1>
-                  <p className="text-white/70 text-sm mt-1">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Etsy Trends</h1>
+                  <p className="text-white/70 text-xs sm:text-sm mt-0.5 sm:mt-1">
                     Tendances de recherche et événements à venir
                   </p>
                 </div>
@@ -1172,30 +1176,31 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
             {/* Trending Monthly Searches */}
             <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
-              <div className="p-6 border-b border-white/10">
+              <div className="p-3 sm:p-4 md:p-6 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Recherches Mensuelles Tendances</h2>
-                  <button className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-                    <HelpCircle size={16} className="text-white/70" />
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Recherches Mensuelles Tendances</h2>
+                  <button className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors flex-shrink-0">
+                    <HelpCircle size={14} className="sm:w-4 sm:h-4 text-white/70" />
                   </button>
                 </div>
               </div>
               
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Expression de Recherche</th>
-                      <th className="text-left p-4 text-sm font-semibold text-white/70 uppercase tracking-wide">Évolution</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trendingSearches.map((search) => (
-                      <tr key={search.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-4 text-white font-medium">{search.rank}</td>
-                        <td className="p-4 text-white">{search.phrase}</td>
-                        <td className="p-4">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle sm:px-0">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Rang</th>
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Expression de Recherche</th>
+                        <th className="text-left p-2 sm:p-3 md:p-4 text-xs sm:text-sm font-semibold text-white/70 uppercase tracking-wide">Évolution</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trendingSearches.map((search) => (
+                        <tr key={search.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-2 sm:p-3 md:p-4 text-white font-medium text-sm sm:text-base">{search.rank}</td>
+                          <td className="p-2 sm:p-3 md:p-4 text-white text-sm sm:text-base">{search.phrase}</td>
+                          <td className="p-2 sm:p-3 md:p-4">
                           {search.change ? (
                             <div className="flex items-center gap-2">
                               {search.change.type === 'up' ? (
@@ -1223,19 +1228,19 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
             {/* Upcoming Events */}
             <div>
-              <h2 className="text-2xl font-bold text-white mb-6">Événements à Venir</h2>
-              <div className="overflow-x-auto pb-4">
-                <div className="flex gap-4 min-w-max">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-4 sm:mb-6">Événements à Venir</h2>
+              <div className="overflow-x-auto pb-4 -mx-4 sm:mx-0 px-4 sm:px-0">
+                <div className="flex gap-3 sm:gap-4 min-w-max">
                   {upcomingEvents.map((event, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="bg-white/5 rounded-lg p-4 border border-white/10 min-w-[200px] flex-shrink-0"
+                      className="bg-white/5 rounded-lg p-3 sm:p-4 border border-white/10 min-w-[160px] sm:min-w-[200px] flex-shrink-0"
                     >
-                      <h3 className="text-white font-semibold mb-2">{event.name}</h3>
-                      <p className="text-white/70 text-sm">{event.date}</p>
+                      <h3 className="text-white font-semibold mb-1.5 sm:mb-2 text-sm sm:text-base">{event.name}</h3>
+                      <p className="text-white/70 text-xs sm:text-sm">{event.date}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -1641,33 +1646,33 @@ The final image should look like a high-quality Etsy listing photo and naturally
       )}
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 ml-16 lg:ml-16 pt-16 lg:pt-0 bg-black">
+      <main className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-16 pt-16 lg:pt-0 bg-black">
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
-            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-4rem)] p-8">
-              <div className="text-center max-w-2xl mx-auto">
+            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-8">
+              <div className="text-center max-w-2xl mx-auto w-full">
               <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="relative mb-8"
+                  className="relative mb-6 sm:mb-8"
                 >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto shadow-2xl shadow-[#00d4ff]/40 relative z-10">
-                    <Calculator className="w-12 h-12 text-white" />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto shadow-2xl shadow-[#00d4ff]/40 relative z-10">
+                    <Calculator className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
                   </div>
-                  <div className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] mx-auto blur-2xl opacity-30 animate-pulse"></div>
+                  <div className="absolute inset-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] mx-auto blur-2xl opacity-30 animate-pulse"></div>
                 </motion.div>
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
                 >
-                  <h2 className="text-5xl font-bold text-white mb-6 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent px-2">
                     Analyse et Simulation
                   </h2>
-                  <p className="text-white/60 text-xl max-w-xl mx-auto mb-10 leading-relaxed">
+                  <p className="text-white/60 text-sm sm:text-base md:text-lg lg:text-xl max-w-xl mx-auto mb-6 sm:mb-8 md:mb-10 leading-relaxed px-2">
                     Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
                   </p>
                   <Link href="/analyze">
@@ -1677,11 +1682,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
                       whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0, 212, 255, 0.3)" }}
                       whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-lg"
+                      className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-xl sm:rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-sm sm:text-base md:text-lg"
                     >
-                      <Calculator size={22} />
+                      <Calculator size={18} className="sm:w-5 sm:h-5 md:w-[22px] md:h-[22px]" />
                       <span>Nouvelle analyse</span>
-                      <ArrowRight size={20} />
+                      <ArrowRight size={16} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
                     </motion.button>
                   </Link>
                 </motion.div>

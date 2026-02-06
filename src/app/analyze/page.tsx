@@ -26,8 +26,8 @@ export default function AnalyzePage() {
   // Initialiser le step à 1 (sélection de niche) si on démarre une nouvelle analyse
   useEffect(() => {
     if (user && !loading && !subscriptionLoading) {
-      // Si on est à l'étape 0 ou si on vient de la page d'accueil, démarrer à l'étape 1
-      if (currentStep === 0 || currentStep > 4) {
+      // Si on est à l'étape 4 (résultats) ou si on a un step invalide, démarrer à l'étape 1
+      if (currentStep === 4 || currentStep < 1 || currentStep > 4) {
         setStep(1);
       }
     }

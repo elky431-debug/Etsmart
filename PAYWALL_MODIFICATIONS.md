@@ -261,3 +261,4 @@ if (cancelAtPeriodEnd && !isPeriodValid) {
 
 Pour toute question concernant ces modifications, référez-vous à ce document ou consultez les commentaires dans le code source marqués avec `⚠️ CRITICAL`.
 
+
