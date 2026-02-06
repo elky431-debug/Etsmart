@@ -1646,28 +1646,45 @@ The final image should look like a high-quality Etsy listing photo and naturally
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
-            <div className="p-8 max-w-6xl mx-auto">
-              <div className="text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#00d4ff]/30">
-                    <Calculator className="w-10 h-10 text-white" />
+            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-4rem)] p-8">
+              <div className="text-center max-w-2xl mx-auto">
+              <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="relative mb-8"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto shadow-2xl shadow-[#00d4ff]/40 relative z-10">
+                    <Calculator className="w-12 h-12 text-white" />
                   </div>
-                  <h2 className="text-4xl font-bold text-white mb-4">
+                  <div className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] mx-auto blur-2xl opacity-30 animate-pulse"></div>
+                </motion.div>
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+                >
+                  <h2 className="text-5xl font-bold text-white mb-6 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
                     Analyse et Simulation
                   </h2>
-                <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
-                  Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
+                  <p className="text-white/60 text-xl max-w-xl mx-auto mb-10 leading-relaxed">
+                    Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
                   </p>
-                  <Link href="/app">
+                  <Link href="/analyze">
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
+                      initial={{ y: 10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                      whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0, 212, 255, 0.3)" }}
                       whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all shadow-lg shadow-[#00d4ff]/20"
+                      className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-2xl hover:shadow-2xl hover:shadow-[#00d4ff]/40 transition-all shadow-xl shadow-[#00d4ff]/25 text-lg"
                     >
-                      <Calculator size={20} />
-                    <span>Nouvelle analyse</span>
-                      <ArrowRight size={18} />
+                      <Calculator size={22} />
+                      <span>Nouvelle analyse</span>
+                      <ArrowRight size={20} />
                     </motion.button>
                   </Link>
+                </motion.div>
                       </div>
             </div>
           )}
