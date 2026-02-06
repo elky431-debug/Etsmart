@@ -99,6 +99,29 @@ export default function HomePage() {
     },
   ];
 
+  const testimonials = [
+    {
+      name: 'Thomas Brikia',
+      role: 'Vendeur Pro Etsy',
+      content: 'Etsmart m’a évité plusieurs lancements perdants. L’analyse est précise et rapide.',
+      avatar: 'T',
+      rating: 5,
+    },
+    {
+      name: 'Samy Limam',
+      role: 'Dropshipper',
+      content: 'Le verdict est clair et le pricing est juste. Ça fait gagner un temps énorme.',
+      avatar: 'S',
+      rating: 5,
+    },
+    {
+      name: 'Yosri Aulombard',
+      role: 'Créateur POD',
+      content: 'Les conseils sur la niche et les concurrents sont vraiment exploitables.',
+      avatar: 'Y',
+      rating: 5,
+    },
+  ];
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -246,23 +269,17 @@ export default function HomePage() {
       </header>
 
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-end justify-center pb-16 sm:pb-24 md:pb-28 overflow-hidden">
         {/* Spline Background - uniquement dans la landing */}
         <div className="absolute inset-0" id="spline-container" />
-        <div className="relative z-10 text-center px-4 sm:px-6 w-full max-w-4xl mx-auto py-16 sm:py-24 md:py-28">
-          {/* Description */}
-          <p className="text-white/70 text-xs sm:text-base md:text-lg mb-6 sm:mb-10 md:mb-12 max-w-2xl mx-auto px-2 leading-relaxed">
-            Analyse des niches, sélection de produits gagnants et fiches produits prêtes à publier sur Etsy.
-          </p>
-          
-          {/* Boutons CTA */}
+        <div className="relative z-10 text-center px-4 sm:px-6 w-full max-w-md mx-auto">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4">
             <Link href="/app" className="w-full sm:w-auto">
               <button className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold flex items-center justify-center gap-2 cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
-                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">S'abonner</span>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Essayer gratuitement</span>
                 <ArrowRight size={14} className="text-[#00c9b7] sm:w-4 sm:h-4" />
               </button>
             </Link>
@@ -465,6 +482,42 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section id="testimonials" className="py-12 sm:py-16 md:py-28 bg-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
+            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Témoignages</span>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">Ils nous font confiance</h2>
+            </div>
+          </AnimatedSection>
+
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+            {testimonials.map((t, index) => (
+              <AnimatedCard key={t.name} delay={index * 0.1}>
+                <div className="p-4 sm:p-6 rounded-lg border border-white/5 bg-transparent">
+                  <div className="flex items-center gap-1 mb-3 sm:mb-4">
+                    {Array.from({ length: t.rating }).map((_, i) => (
+                      <CheckCircle2 key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7]" />
+                    ))}
+                  </div>
+                  <p className="text-white/80 mb-3 sm:mb-4 text-xs sm:text-sm leading-relaxed">&ldquo;{t.content}&rdquo;</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex-shrink-0">
+                      {t.avatar}
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-xs sm:text-sm">{t.name}</p>
+                      <p className="text-white/60 text-xs">{t.role}</p>
+                    </div>
+                  </div>
+                </div>
+              </AnimatedCard>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="py-12 sm:py-16 md:py-24 bg-black">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -480,7 +533,7 @@ export default function HomePage() {
                 borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                 borderImageSlice: 1,
               }}>
-                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">S'abonner</span>
+                <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Commencer gratuitement</span>
                 <ArrowUpRight className="inline-block ml-2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7]" />
               </button>
             </Link>
