@@ -331,6 +331,38 @@ export default function ShopAnalyzeClient() {
     }));
   };
 
+  // Calculer le prix moyen depuis les listings scrapés
+  const calculateAveragePrice = () => {
+    const rawData = analysisData?.rawData;
+    
+    // Calculer le prix moyen depuis les listings réels scrapés
+    if (rawData?.listings && rawData.listings.length > 0) {
+      const prices = rawData.listings.map((l: any) => l.price).filter((p: number) => p > 0);
+      if (prices.length > 0) {
+        const avgPrice = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
+        return avgPrice;
+      }
+    }
+    
+    // Si pas de prix depuis les listings, estimer selon la niche
+    const shopName = (rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
+    const titles = (rawData?.listings || []).map((l: any) => l.title?.toLowerCase() || '').join(' ');
+    
+    if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
+      return 18;
+    } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry')) {
+      return 28;
+    } else if (shopName.includes('night light') || shopName.includes('lamp') || titles.includes('night light') || titles.includes('lamp')) {
+      return 25; // Night lights / lamps
+    } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print')) {
+      return 15;
+    } else if (shopName.includes('home') || shopName.includes('decor')) {
+      return 22;
+    } else {
+      return 20; // Général Etsy
+    }
+  };
+
   // Calculer le revenu total réaliste : prix moyen × ventes totales
   const calculateTotalRevenue = () => {
     const rawData = analysisData?.rawData;
@@ -339,38 +371,13 @@ export default function ShopAnalyzeClient() {
     
     if (totalSales === 0) return 0;
 
-    // Calculer le prix moyen depuis les listings réels
-    let avgPrice = 0;
-    if (rawData?.listings && rawData.listings.length > 0) {
-      const prices = rawData.listings.map(l => l.price).filter(p => p > 0);
-      if (prices.length > 0) {
-        avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      }
-    }
+    const avgPrice = calculateAveragePrice();
     
-    // Si pas de prix moyen depuis les listings, estimer selon la niche
-    if (avgPrice === 0) {
-      const shopName = (rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
-      const titles = (rawData?.listings || []).map(l => l.title.toLowerCase()).join(' ');
-      
-      if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
-        avgPrice = 18; // Suncatchers
-      } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry')) {
-        avgPrice = 28; // Jewelry
-      } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print')) {
-        avgPrice = 15; // Art prints
-      } else if (shopName.includes('home') || shopName.includes('decor')) {
-        avgPrice = 22; // Home decor
-      } else {
-        avgPrice = 20; // Général Etsy
-      }
-    }
-
     // Revenu total = prix moyen × ventes totales
     return totalSales * avgPrice;
   };
 
-  // Estimer les ventes mensuelles et revenus de manière intelligente
+  // Estimer les ventes mensuelles et revenus de manière réaliste
   const estimateMonthlyMetrics = () => {
     const rawData = analysisData?.rawData;
     const metrics = analysisData?.analysis?.metrics;
@@ -380,31 +387,7 @@ export default function ShopAnalyzeClient() {
       return { monthlySales: 0, monthlyRevenue: 0 };
     }
 
-    // Calculer le prix moyen (même logique que calculateTotalRevenue)
-    let avgPrice = 0;
-    if (rawData?.listings && rawData.listings.length > 0) {
-      const prices = rawData.listings.map(l => l.price).filter(p => p > 0);
-      if (prices.length > 0) {
-        avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      }
-    }
-    
-    if (avgPrice === 0) {
-      const shopName = (rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
-      const titles = (rawData?.listings || []).map(l => l.title.toLowerCase()).join(' ');
-      
-      if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
-        avgPrice = 18;
-      } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry')) {
-        avgPrice = 28;
-      } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print')) {
-        avgPrice = 15;
-      } else if (shopName.includes('home') || shopName.includes('decor')) {
-        avgPrice = 22;
-      } else {
-        avgPrice = 20;
-      }
-    }
+    const avgPrice = calculateAveragePrice();
 
     // Estimation basée sur l'âge de la boutique
     let monthsActive = 12;
@@ -424,29 +407,38 @@ export default function ShopAnalyzeClient() {
       }
     }
 
-    // Calculer les ventes mensuelles
+    // Calculer les ventes mensuelles de manière plus réaliste
     let monthlySales = 0;
-    if (monthsActive <= 12) {
-      // Boutique très récente : 50% des ventes sont récentes
-      monthlySales = Math.round(totalSales * 0.5 / Math.max(1, monthsActive));
-    } else if (monthsActive <= 24) {
-      // Boutique récente : 40% des ventes sont récentes
-      monthlySales = Math.round(totalSales * 0.4 / 12);
-    } else {
-      // Boutique ancienne : moyenne sur toute la période avec pondération récente
-      monthlySales = Math.round(totalSales / monthsActive * 1.3); // +30% pour favoriser les ventes récentes
+    
+    // Si la boutique est très récente (< 6 mois), la plupart des ventes sont récentes
+    if (monthsActive <= 6) {
+      monthlySales = Math.round(totalSales / Math.max(1, monthsActive));
+    } 
+    // Si la boutique est récente (6-12 mois), 60% des ventes sont récentes
+    else if (monthsActive <= 12) {
+      monthlySales = Math.round(totalSales * 0.6 / monthsActive);
+    }
+    // Si la boutique est moyenne (1-2 ans), 45% des ventes sont récentes
+    else if (monthsActive <= 24) {
+      monthlySales = Math.round(totalSales * 0.45 / 12);
+    }
+    // Si la boutique est ancienne (> 2 ans), moyenne pondérée avec accent sur les ventes récentes
+    else {
+      // Calculer la moyenne mensuelle de base
+      const baseMonthly = totalSales / monthsActive;
+      // Appliquer un facteur de croissance (les boutiques anciennes ont souvent plus de ventes récentes)
+      monthlySales = Math.round(baseMonthly * 1.5);
     }
     
-    // Ajuster selon les performances
-    const listingsCount = metrics?.listingsCount || rawData?.listings?.length || 1;
-    const salesPerListing = totalSales / listingsCount;
-    if (salesPerListing > 50) {
-      monthlySales = Math.round(monthlySales * 1.15);
-    } else if (salesPerListing < 20) {
-      monthlySales = Math.round(monthlySales * 0.95);
+    // Ajustement selon le volume de ventes (plus de ventes = meilleure performance récente)
+    if (totalSales > 1000) {
+      // Boutique performante : augmenter l'estimation mensuelle
+      monthlySales = Math.round(monthlySales * 1.2);
+    } else if (totalSales > 500) {
+      monthlySales = Math.round(monthlySales * 1.1);
     }
 
-    // Calculer le revenu mensuel
+    // Calculer le revenu mensuel : ventes mensuelles × prix moyen
     const monthlyRevenue = monthlySales * avgPrice;
 
     return {
@@ -899,7 +891,7 @@ export default function ShopAnalyzeClient() {
                 <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
                 Statistiques de la Boutique
               </h2>
-              <div className={`grid gap-4 ${hasReliableListingsCount ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-white/70 mb-1">Ventes Totales</div>
                   <div className="text-lg font-bold text-white">{metrics.totalSales.toLocaleString()}</div>
@@ -913,20 +905,6 @@ export default function ShopAnalyzeClient() {
                     })()}
                   </div>
                 </div>
-                {hasReliableListingsCount && (
-                  <>
-                    <div>
-                      <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
-                      <div className="text-lg font-bold text-white">{realListingsCount}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-white/70 mb-1">Ventes par Listing</div>
-                      <div className="text-lg font-bold text-white">
-                        {realListingsCount > 0 ? (metrics.totalSales / realListingsCount).toFixed(1) : '0'}
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
 
