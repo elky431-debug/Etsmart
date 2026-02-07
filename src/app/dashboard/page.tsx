@@ -34,7 +34,9 @@ import {
   Crown,
   Star,
   Globe,
-  ChevronUp
+  ChevronUp,
+  ExternalLink,
+  ArrowUpRight
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -1042,23 +1044,31 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       </thead>
                       <tbody>
                         {topSellers.map((seller) => (
-                          <tr key={seller.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr 
+                            key={seller.rank} 
+                            className="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                            onClick={() => window.open(`https://www.etsy.com/shop/${seller.shop}`, '_blank', 'noopener,noreferrer')}
+                            title={`Cliquer pour ouvrir la boutique ${seller.shop} sur Etsy`}
+                          >
                             <td className="p-2 sm:p-3 md:p-4 text-white font-medium text-sm sm:text-base">{seller.rank}</td>
                             <td className="p-2 sm:p-3 md:p-4">
                               <div className="flex items-center gap-2 sm:gap-3">
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                                   {seller.shop.charAt(0).toUpperCase()}
                                 </div>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <a 
                                     href={`https://www.etsy.com/shop/${seller.shop}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-white font-medium text-sm sm:text-base truncate hover:text-[#00d4ff] transition-colors cursor-pointer"
+                                    className="group flex items-center gap-1.5 sm:gap-2 text-[#00d4ff] font-medium text-sm sm:text-base truncate hover:text-[#00c9b7] transition-all cursor-pointer underline decoration-[#00d4ff] decoration-2 underline-offset-2 hover:decoration-[#00c9b7]"
+                                    title={`Cliquer pour ouvrir la boutique ${seller.shop} sur Etsy`}
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    {seller.shop}
+                                    <span className="truncate">{seller.shop}</span>
+                                    <ArrowUpRight size={14} className="text-[#00d4ff] group-hover:text-[#00c9b7] flex-shrink-0 transition-colors" />
                                   </a>
-                                  <div className="text-white/70 text-xs sm:text-sm flex items-center gap-1">
+                                  <div className="text-white/70 text-xs sm:text-sm flex items-center gap-1 mt-0.5">
                                     <span>{seller.flag}</span>
                                     <span className="truncate">{seller.country}</span>
                                   </div>
@@ -1098,7 +1108,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       </thead>
                       <tbody>
                         {topListings.map((listing) => (
-                          <tr key={listing.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr 
+                            key={listing.rank} 
+                            className="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                            onClick={() => window.open(`https://www.etsy.com/shop/${listing.shop}`, '_blank', 'noopener,noreferrer')}
+                            title={`Cliquer pour ouvrir la boutique ${listing.shop} sur Etsy`}
+                          >
                             <td className="p-2 sm:p-3 md:p-4 text-white font-medium text-sm sm:text-base">{listing.rank}</td>
                             <td className="p-2 sm:p-3 md:p-4">
                               <div className="flex items-start gap-2 sm:gap-3 max-w-[200px] sm:max-w-md">
@@ -1111,9 +1126,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
                                     href={`https://www.etsy.com/shop/${listing.shop}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-white/70 text-xs hover:text-[#00d4ff] transition-colors cursor-pointer"
+                                    className="group flex items-center gap-1 text-[#00d4ff] text-xs hover:text-[#00c9b7] transition-all cursor-pointer underline decoration-[#00d4ff] decoration-1 underline-offset-1 hover:decoration-[#00c9b7]"
+                                    title={`Cliquer pour ouvrir la boutique ${listing.shop} sur Etsy`}
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    {listing.shop}
+                                    <span>{listing.shop}</span>
+                                    <ArrowUpRight size={10} className="text-[#00d4ff] group-hover:text-[#00c9b7] flex-shrink-0 transition-colors" />
                                   </a>
                                 </div>
                               </div>

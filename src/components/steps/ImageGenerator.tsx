@@ -434,13 +434,20 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               <label className="block text-sm font-bold text-white mb-3">
                 Quantité
               </label>
-              <div className="grid grid-cols-1 gap-2">
-                <button
-                  className="py-2.5 rounded-lg font-semibold text-sm bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg cursor-default"
-                  disabled
-                >
-                  1
-                </button>
+              <div className="grid grid-cols-2 gap-2">
+                {[1, 2].map((qty) => (
+                  <button
+                    key={qty}
+                    onClick={() => setQuantity(qty)}
+                    className={`py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                      quantity === qty
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
+                  >
+                    {qty}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -504,7 +511,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                 ) : (
                   <>
                     <Sparkles size={20} />
-                    GENERATE {quantity} IMAGE
+                    GÉNÉRER {quantity} IMAGE{quantity > 1 ? 'S' : ''}
                   </>
                 )}
               </button>

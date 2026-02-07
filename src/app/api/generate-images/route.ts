@@ -362,7 +362,61 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
       
       try {
         console.log(`[IMAGE GENERATION] Generating image ${index + 1}/${body.quantity} with Nanonbanana...`);
-        console.log(`[IMAGE GENERATION] Prompt length: ${enhancedPrompt.length} chars`);
+        
+        // ⚠️ CRITICAL: Créer un prompt unique pour chaque image avec un point de vue différent
+        // Chaque image doit avoir un angle de vue, une perspective ou un contexte différent
+        let imageSpecificPrompt = enhancedPrompt;
+        
+        if (body.quantity > 1) {
+          // Ajouter des instructions spécifiques selon l'index pour varier le point de vue
+          const viewpointInstructions = [
+            // Image 1 (index 0) : Vue de face / angle frontal
+            `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
+- Use a FRONTAL or STRAIGHT-ON camera angle
+- Show the product from a direct, eye-level perspective
+- The camera should be positioned directly in front of the product
+- Create a balanced, centered composition`,
+            
+            // Image 2 (index 1) : Vue de côté / angle latéral
+            `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
+- Use a SIDE or ANGULAR camera angle (45-degree angle or side view)
+- Show the product from a different perspective than the first image
+- The camera should be positioned at an angle (left or right side)
+- Create a dynamic, slightly off-center composition with depth
+- Show the product from a different angle to highlight different features`,
+          ];
+          
+          // Ajouter l'instruction de point de vue spécifique
+          if (index < viewpointInstructions.length) {
+            imageSpecificPrompt = `${enhancedPrompt}
+
+${viewpointInstructions[index]}
+
+⚠️ CRITICAL: This image MUST be visually DIFFERENT from the other generated images:
+- Different camera angle and perspective
+- Different background composition and layout
+- Different lighting direction if possible
+- Different depth of field or focus point
+- The product remains IDENTICAL, but everything else should vary`;
+          } else {
+            // Pour plus de 2 images, varier avec d'autres angles
+            const additionalAngles = [
+              `- Use a TOP-DOWN or OVERHEAD camera angle`,
+              `- Use a LOW ANGLE looking up at the product`,
+              `- Use a CLOSE-UP or MACRO perspective`,
+              `- Use a WIDE ANGLE showing more context`,
+            ];
+            const angleIndex = index % additionalAngles.length;
+            imageSpecificPrompt = `${enhancedPrompt}
+
+⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
+${additionalAngles[angleIndex]}
+
+⚠️ CRITICAL: This image MUST be visually DIFFERENT from all other generated images`;
+          }
+        }
+        
+        console.log(`[IMAGE GENERATION] Prompt length: ${imageSpecificPrompt.length} chars`);
         console.log(`[IMAGE GENERATION] Image length: ${imageForAPI.length} chars`);
         console.log(`[IMAGE GENERATION] API Key: ${NANONBANANA_API_KEY.substring(0, 10)}...`);
         
@@ -383,7 +437,7 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
         // Ajouter des paramètres de contrôle si supportés par Nanonbanana
         const requestBody: any = {
           type: 'IMAGETOIAMGE', // Type obligatoire : "TEXTTOIAMGE" ou "IMAGETOIAMGE" (MAJUSCULES)
-          prompt: enhancedPrompt, // Le FIXED_PROMPT qui force à garder le produit identique et modifier le background
+          prompt: imageSpecificPrompt, // Prompt unique pour chaque image avec point de vue différent
           imageUrls: [imageDataUrl], // Tableau d'URLs d'images (ou data URLs en base64)
           image_size: '1:1', // Format selon la documentation (1:1, 16:9, 9:16, etc.)
           numImages: numImagesForNanonbanana, // Nombre d'images à générer (1 maximum - une seule image par analyse)

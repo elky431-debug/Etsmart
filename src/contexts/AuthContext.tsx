@@ -58,15 +58,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((error) => {
-        console.error('Error getting current user:', error);
-        // If refresh token is invalid, clear session and redirect to login
-        if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh')) {
-          signOut().catch(() => {});
+        // If refresh token is invalid, clear session and redirect to login silently
+        if (error?.message?.includes('Refresh Token') || 
+            error?.message?.includes('refresh') ||
+            error?.message?.includes('Invalid Refresh Token') ||
+            error?.code === 'PGRST301') {
+          // Nettoyer silencieusement tous les tokens Supabase
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+            // Nettoyer tous les tokens Supabase du localStorage
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            if (supabaseUrl) {
+              const supabaseKey = 'sb-' + supabaseUrl.split('//')[1]?.split('.')[0] + '-auth-token';
+              localStorage.removeItem(supabaseKey);
+              // Nettoyer aussi toutes les clés qui commencent par 'sb-'
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-')) {
+                  localStorage.removeItem(key);
+                }
+              });
+            }
             sessionStorage.removeItem('etsmart-user-cached');
-            router.push('/login');
+            // Déconnexion silencieuse
+            signOut().catch(() => {});
+            // Rediriger vers la page d'accueil (pas login pour éviter la boucle)
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/' && currentPath !== '/login' && currentPath !== '/register') {
+              router.push('/');
+            }
           }
+        } else {
+          // Autres erreurs : logger seulement
+          console.error('Error getting current user:', error);
         }
         setLoading(false);
       });
