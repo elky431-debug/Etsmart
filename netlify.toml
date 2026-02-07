@@ -1,5 +1,7 @@
 [build]
   command = "npm run build"
+  # Install sharp avec support Linux pour Netlify
+  environment = { NPM_FLAGS = "--include=optional" }
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

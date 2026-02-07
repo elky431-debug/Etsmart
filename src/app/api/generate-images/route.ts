@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import sharp from 'sharp';
+
+// Import sharp avec gestion d'erreur pour Netlify
+let sharp: any;
+try {
+  sharp = require('sharp');
+} catch (error) {
+  console.warn('[IMAGE GENERATION] Sharp not available, will use fallback compression');
+  sharp = null;
+}
 
 // Configuration pour augmenter la limite de taille du body
 export const maxDuration = 120; // 2 minutes max pour la génération
@@ -316,57 +324,63 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
       // Objectif : < 500KB pour éviter les problèmes avec nginx
       // ═══════════════════════════════════════════════════════════════════════════════
       
-      try {
-        // Essayer d'abord avec 512x512 et qualité 70%
-        let compressedBuffer = await sharp(imageBuffer)
-          .resize(512, 512, {
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .jpeg({ quality: 70, mozjpeg: true })
-          .toBuffer();
-        
-        console.log('[IMAGE GENERATION] First compression (512x512, 70%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-        
-        // Si toujours > 500KB, compresser encore plus
-        if (compressedBuffer.length > 500 * 1024) {
-          console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying more aggressive compression...');
-          compressedBuffer = await sharp(imageBuffer)
-            .resize(400, 400, {
+      if (sharp) {
+        try {
+          // Essayer d'abord avec 512x512 et qualité 70%
+          let compressedBuffer = await sharp(imageBuffer)
+            .resize(512, 512, {
               fit: 'inside',
               withoutEnlargement: true,
             })
-            .jpeg({ quality: 60, mozjpeg: true })
+            .jpeg({ quality: 70, mozjpeg: true })
             .toBuffer();
-          console.log('[IMAGE GENERATION] Second compression (400x400, 60%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+          
+          console.log('[IMAGE GENERATION] First compression (512x512, 70%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+          
+          // Si toujours > 500KB, compresser encore plus
+          if (compressedBuffer.length > 500 * 1024) {
+            console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying more aggressive compression...');
+            compressedBuffer = await sharp(imageBuffer)
+              .resize(400, 400, {
+                fit: 'inside',
+                withoutEnlargement: true,
+              })
+              .jpeg({ quality: 60, mozjpeg: true })
+              .toBuffer();
+            console.log('[IMAGE GENERATION] Second compression (400x400, 60%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+          }
+          
+          // Si toujours > 500KB, dernière compression très agressive
+          if (compressedBuffer.length > 500 * 1024) {
+            console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying maximum compression...');
+            compressedBuffer = await sharp(imageBuffer)
+              .resize(300, 300, {
+                fit: 'inside',
+                withoutEnlargement: true,
+              })
+              .jpeg({ quality: 50, mozjpeg: true })
+              .toBuffer();
+            console.log('[IMAGE GENERATION] Maximum compression (300x300, 50%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+          }
+          
+          // Convertir en base64
+          imageForAPI = compressedBuffer.toString('base64');
+          
+          console.log('[IMAGE GENERATION] ✅ Final compressed image size:', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+          console.log('[IMAGE GENERATION] Compression ratio:', ((1 - compressedBuffer.length / imageBuffer.length) * 100).toFixed(1), '%');
+          
+          // Avertir si l'image est encore trop grande
+          if (compressedBuffer.length > 500 * 1024) {
+            console.error('[IMAGE GENERATION] ⚠️ WARNING: Image is still > 500KB after compression!');
+          }
+        } catch (sharpError: any) {
+          console.error('[IMAGE GENERATION] Sharp compression failed, using original base64:', sharpError.message);
+          // Fallback : utiliser l'image originale si la compression échoue
+          imageForAPI = base64Data;
         }
-        
-        // Si toujours > 500KB, dernière compression très agressive
-        if (compressedBuffer.length > 500 * 1024) {
-          console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying maximum compression...');
-          compressedBuffer = await sharp(imageBuffer)
-            .resize(300, 300, {
-              fit: 'inside',
-              withoutEnlargement: true,
-            })
-            .jpeg({ quality: 50, mozjpeg: true })
-            .toBuffer();
-          console.log('[IMAGE GENERATION] Maximum compression (300x300, 50%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-        }
-        
-        // Convertir en base64
-        imageForAPI = compressedBuffer.toString('base64');
-        
-        console.log('[IMAGE GENERATION] ✅ Final compressed image size:', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-        console.log('[IMAGE GENERATION] Compression ratio:', ((1 - compressedBuffer.length / imageBuffer.length) * 100).toFixed(1), '%');
-        
-        // Avertir si l'image est encore trop grande
-        if (compressedBuffer.length > 500 * 1024) {
-          console.error('[IMAGE GENERATION] ⚠️ WARNING: Image is still > 500KB after compression!');
-        }
-      } catch (sharpError: any) {
-        console.error('[IMAGE GENERATION] Sharp compression failed, using original base64:', sharpError.message);
-        // Fallback : utiliser l'image originale si la compression échoue
+      } else {
+        console.warn('[IMAGE GENERATION] ⚠️ Sharp not available, using original image without compression');
+        // Fallback : utiliser l'image originale si sharp n'est pas disponible
         imageForAPI = base64Data;
       }
     } catch (error: any) {
