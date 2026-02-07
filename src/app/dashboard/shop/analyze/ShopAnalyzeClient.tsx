@@ -924,7 +924,7 @@ export default function ShopAnalyzeClient() {
                 <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
                 Statistiques de la Boutique
               </h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <div className="text-sm text-white/70 mb-1">Ventes Totales</div>
                   <div className="text-lg font-bold text-white">{metrics.totalSales.toLocaleString()}</div>
@@ -938,6 +938,36 @@ export default function ShopAnalyzeClient() {
                     })()}
                   </div>
                 </div>
+                <div>
+                  <div className="text-sm text-white/70 mb-1">Prix Moyen du Panier</div>
+                  <div className="text-lg font-bold text-white">
+                    {(() => {
+                      const avgPrice = calculateAveragePrice();
+                      const pricesFromListings = listings.filter((l: any) => l.price > 0 && l.price < 10000).map((l: any) => l.price);
+                      if (pricesFromListings.length > 0) {
+                        return `${avgPrice.toFixed(2)} €`;
+                      }
+                      return 'N/A';
+                    })()}
+                  </div>
+                  {(() => {
+                    const pricesFromListings = listings.filter((l: any) => l.price > 0 && l.price < 10000);
+                    if (pricesFromListings.length > 0) {
+                      return (
+                        <div className="text-xs text-white/50 mt-1">
+                          Basé sur {pricesFromListings.length} listings
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                {hasReliableListingsCount && (
+                  <div>
+                    <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
+                    <div className="text-lg font-bold text-white">{realListingsCount}</div>
+                  </div>
+                )}
               </div>
             </div>
 
