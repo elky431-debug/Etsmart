@@ -257,33 +257,82 @@ export default function ShopAnalyzeClient() {
     return () => clearInterval(interval);
   }, [analyzing]);
 
-  // Calculer les tags les plus utilisés depuis les listings
+  // Calculer les tags les plus utilisés depuis les listings (mots-clés SEO réels)
   const getMostUsedTags = () => {
     if (!analysisData?.rawData?.listings) return [];
     
+    // Mots à exclure (stop words)
+    const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 'throughout', 'despite', 'towards', 'upon', 'concerning', 'to', 'of', 'in', 'on', 'at', 'by', 'a', 'an', 'as', 'is', 'it', 'its', 'or', 'but', 'not', 'be', 'do', 'does', 'did', 'get', 'got', 'gotten', 'make', 'made', 'take', 'took', 'taken', 'go', 'went', 'gone', 'come', 'came', 'see', 'saw', 'seen', 'know', 'knew', 'known', 'think', 'thought', 'say', 'said', 'tell', 'told', 'ask', 'asked', 'work', 'worked', 'try', 'tried', 'use', 'used', 'want', 'wanted', 'need', 'needed', 'feel', 'felt', 'become', 'became', 'leave', 'left', 'put', 'call', 'called', 'find', 'found', 'give', 'gave', 'given', 'keep', 'kept', 'let', 'allow', 'allowed', 'show', 'showed', 'shown', 'move', 'moved', 'play', 'played', 'run', 'ran', 'live', 'lived', 'believe', 'believed', 'bring', 'brought', 'happen', 'happened', 'write', 'wrote', 'written', 'sit', 'sat', 'stand', 'stood', 'lose', 'lost', 'pay', 'paid', 'meet', 'met', 'include', 'included', 'continue', 'continued', 'set', 'lead', 'led', 'understand', 'understood', 'watch', 'watched', 'follow', 'followed', 'stop', 'stopped', 'create', 'created', 'speak', 'spoke', 'spoken', 'read', 'read', 'spend', 'spent', 'grow', 'grew', 'grown', 'open', 'opened', 'walk', 'walked', 'win', 'won', 'offer', 'offered', 'remember', 'remembered', 'love', 'loved', 'consider', 'considered', 'appear', 'appeared', 'buy', 'bought', 'wait', 'waited', 'serve', 'served', 'die', 'died', 'send', 'sent', 'build', 'built', 'stay', 'stayed', 'fall', 'fell', 'fallen', 'cut', 'cut', 'reach', 'reached', 'kill', 'killed', 'raise', 'raised', 'pass', 'passed', 'sell', 'sold', 'decide', 'decided', 'return', 'returned', 'explain', 'explained', 'develop', 'developed', 'carry', 'carried', 'break', 'broke', 'broken', 'receive', 'received', 'agree', 'agreed', 'support', 'supported', 'hit', 'hit', 'produce', 'produced', 'eat', 'ate', 'eaten', 'cover', 'covered', 'catch', 'caught', 'draw', 'drew', 'drawn', 'choose', 'chose', 'chosen']);
+    
     const tagCounts: { [key: string]: number } = {};
+    const allWords: string[] = [];
+    
     analysisData.rawData.listings.forEach(listing => {
-      // Extraire les tags depuis le titre (mots-clés communs)
-      const words = listing.title.toLowerCase().split(/\s+/);
+      // Extraire les mots-clés SEO depuis le titre (mots de 4+ caractères, pas des stop words)
+      const words = listing.title
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ') // Remplacer la ponctuation par des espaces
+        .split(/\s+/)
+        .filter(word => word.length >= 4 && !stopWords.has(word) && !/^\d+$/.test(word)); // Filtrer les mots courts, stop words et nombres purs
+      
       words.forEach(word => {
-        if (word.length > 3) {
-          tagCounts[word] = (tagCounts[word] || 0) + 1;
-        }
+        tagCounts[word] = (tagCounts[word] || 0) + 1;
+        allWords.push(word);
       });
     });
     
+    // Utiliser aussi les patterns de l'analyse AI si disponibles
+    if (analysisData.analysis?.listingsAnalysis?.patterns) {
+      analysisData.analysis.listingsAnalysis.patterns.forEach(pattern => {
+        const words = pattern.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
+        words.forEach(word => {
+          tagCounts[word] = (tagCounts[word] || 0) + 1;
+        });
+      });
+    }
+    
     return Object.entries(tagCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 15)
       .map(([tag, count]) => ({
-        tag: tag.charAt(0).toUpperCase() + tag.slice(1),
+        tag: tag.charAt(0).toUpperCase() + tag.slice(1).replace(/\b\w/g, l => l.toUpperCase()),
         count,
         percentage: Math.round((count / analysisData.rawData.listings.length) * 100)
       }));
   };
 
-  // Calculer les scores pour chaque listing
-  const calculateListingScores = (listing: ShopListing) => {
+  // Estimer les ventes mensuelles et revenus
+  const estimateMonthlyMetrics = () => {
+    if (!analysisData?.rawData?.listings || analysisData.rawData.listings.length === 0) {
+      return { monthlySales: 0, monthlyRevenue: 0 };
+    }
+
+    const listings = analysisData.rawData.listings;
+    const totalSales = listings.reduce((sum, listing) => sum + (listing.sales || 0), 0);
+    const totalRevenue = listings.reduce((sum, listing) => sum + (listing.price * (listing.sales || 0)), 0);
+    
+    // Si on a l'âge de la boutique, calculer la moyenne mensuelle
+    if (analysisData.rawData.shopAge) {
+      const currentYear = new Date().getFullYear();
+      const shopYear = parseInt(analysisData.rawData.shopAge);
+      const yearsActive = Math.max(1, currentYear - shopYear);
+      const monthsActive = yearsActive * 12;
+      
+      return {
+        monthlySales: Math.round(totalSales / monthsActive),
+        monthlyRevenue: totalRevenue / monthsActive
+      };
+    }
+    
+    // Sinon, estimation basée sur les ventes récentes (supposons que 30% des ventes sont récentes)
+    return {
+      monthlySales: Math.round(totalSales * 0.3),
+      monthlyRevenue: totalRevenue * 0.3
+    };
+  };
+
+  // Calculer les scores pour chaque listing avec conseils
+  const calculateListingScores = (listing: ShopListing, index: number) => {
     const scores = {
       title: 0,
       tags: 0,
@@ -293,35 +342,126 @@ export default function ShopAnalyzeClient() {
       description: 0
     };
 
-    // Score Title (basé sur la longueur et les mots-clés)
-    const titleLength = listing.title.length;
-    if (titleLength >= 50 && titleLength <= 140) scores.title = 100;
-    else if (titleLength >= 40 && titleLength < 50) scores.title = 90;
-    else if (titleLength >= 30 && titleLength < 40) scores.title = 80;
-    else if (titleLength >= 20 && titleLength < 30) scores.title = 70;
-    else scores.title = 60;
+    const feedback = {
+      title: [] as string[],
+      tags: [] as string[],
+      images: [] as string[],
+      video: [] as string[],
+      materials: [] as string[],
+      description: [] as string[]
+    };
 
-    // Score Tags (estimé basé sur les mots dans le titre)
+    // Score Title (basé sur la longueur, mots-clés, structure)
+    const titleLength = listing.title.length;
     const wordCount = listing.title.split(/\s+/).length;
-    if (wordCount >= 10) scores.tags = 90;
-    else if (wordCount >= 8) scores.tags = 85;
-    else if (wordCount >= 6) scores.tags = 75;
-    else scores.tags = 60;
+    const hasNumbers = /\d/.test(listing.title);
+    const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(listing.title);
+    
+    if (titleLength >= 50 && titleLength <= 140 && wordCount >= 8) {
+      scores.title = 100;
+      feedback.title.push('Titre de longueur optimale pour le SEO');
+      feedback.title.push('Nombre de mots-clés parfait pour la recherche');
+    } else if (titleLength >= 40 && titleLength < 50 && wordCount >= 6) {
+      scores.title = 90;
+      feedback.title.push('Titre bien optimisé mais pourrait être plus long');
+      if (wordCount < 8) feedback.title.push('Ajoutez 2-3 mots-clés supplémentaires');
+    } else if (titleLength >= 30 && titleLength < 40) {
+      scores.title = 75;
+      feedback.title.push('Titre trop court pour le SEO Etsy');
+      feedback.title.push('Ajoutez 10-20 caractères avec des mots-clés pertinents');
+    } else if (titleLength < 30) {
+      scores.title = 60;
+      feedback.title.push('Titre beaucoup trop court');
+      feedback.title.push('Minimum 40 caractères recommandé pour Etsy');
+    } else if (titleLength > 140) {
+      scores.title = 85;
+      feedback.title.push('Titre trop long, risque d\'être tronqué');
+      feedback.title.push('Réduisez à 140 caractères maximum');
+    }
+
+    if (!hasNumbers && listing.price > 0) {
+      feedback.title.push('Considérez ajouter le prix ou des dimensions dans le titre');
+    }
+    if (hasSpecialChars) {
+      feedback.title.push('Évitez les caractères spéciaux dans le titre');
+    }
+
+    // Score Tags (basé sur la diversité des mots-clés dans le titre)
+    const uniqueWords = new Set(listing.title.toLowerCase().split(/\s+/).filter(w => w.length >= 4));
+    if (uniqueWords.size >= 10) {
+      scores.tags = 95;
+      feedback.tags.push('Excellent nombre de mots-clés uniques');
+    } else if (uniqueWords.size >= 8) {
+      scores.tags = 85;
+      feedback.tags.push('Bon nombre de mots-clés, ajoutez 2-3 tags supplémentaires');
+    } else if (uniqueWords.size >= 6) {
+      scores.tags = 75;
+      feedback.tags.push('Nombre de mots-clés moyen');
+      feedback.tags.push('Ajoutez 4-5 tags pour améliorer la visibilité');
+    } else {
+      scores.tags = 60;
+      feedback.tags.push('Pas assez de mots-clés dans le titre');
+      feedback.tags.push('Ajoutez des tags spécifiques à votre niche');
+    }
 
     // Score Images
-    if (listing.images && listing.images.length >= 5) scores.images = 100;
-    else if (listing.images && listing.images.length >= 3) scores.images = 80;
-    else if (listing.images && listing.images.length >= 1) scores.images = 60;
-    else scores.images = 40;
+    if (listing.images && listing.images.length >= 10) {
+      scores.images = 100;
+      feedback.images.push('Excellent nombre d\'images (10+)');
+      feedback.images.push('Les clients aiment voir le produit sous tous les angles');
+    } else if (listing.images && listing.images.length >= 5) {
+      scores.images = 90;
+      feedback.images.push('Bon nombre d\'images');
+      feedback.images.push('Ajoutez 2-3 images supplémentaires pour montrer les détails');
+    } else if (listing.images && listing.images.length >= 3) {
+      scores.images = 75;
+      feedback.images.push('Nombre d\'images correct mais peut être amélioré');
+      feedback.images.push('Minimum 5 images recommandé pour Etsy');
+    } else if (listing.images && listing.images.length >= 1) {
+      scores.images = 60;
+      feedback.images.push('Pas assez d\'images');
+      feedback.images.push('Ajoutez au minimum 3-5 images de qualité');
+    } else {
+      scores.images = 40;
+      feedback.images.push('Aucune image détectée');
+      feedback.images.push('CRITIQUE: Ajoutez immédiatement des images de qualité');
+    }
 
-    // Score Video (on ne peut pas le détecter facilement, donc on met une valeur moyenne)
-    scores.video = 70;
+    // Score Video (estimation basée sur les performances)
+    if (listing.sales && listing.sales > 50) {
+      scores.video = 90;
+      feedback.video.push('Probablement une vidéo présente (ventes élevées)');
+    } else if (listing.sales && listing.sales > 20) {
+      scores.video = 75;
+      feedback.video.push('Vidéo recommandée pour augmenter les conversions');
+    } else {
+      scores.video = 60;
+      feedback.video.push('Ajoutez une vidéo produit pour augmenter les ventes de 30%+');
+      feedback.video.push('Les listings avec vidéo se vendent mieux sur Etsy');
+    }
 
-    // Score Materials (on ne peut pas le détecter, donc valeur moyenne)
-    scores.materials = 75;
+    // Score Materials (estimation)
+    if (listing.title.toLowerCase().includes('handmade') || listing.title.toLowerCase().includes('handcrafted')) {
+      scores.materials = 85;
+      feedback.materials.push('Mention "handmade" détectée (bon pour Etsy)');
+    } else {
+      scores.materials = 70;
+      feedback.materials.push('Considérez mentionner les matériaux dans le titre');
+      feedback.materials.push('Les clients aiment savoir ce dont est fait le produit');
+    }
 
-    // Score Description (on ne peut pas le détecter, donc valeur moyenne)
-    scores.description = 80;
+    // Score Description (estimation basée sur les performances)
+    if (listing.sales && listing.sales > 30 && listing.reviews && listing.reviews > 5) {
+      scores.description = 90;
+      feedback.description.push('Description probablement bien optimisée (bonnes ventes)');
+    } else if (listing.sales && listing.sales > 10) {
+      scores.description = 75;
+      feedback.description.push('Description correcte mais peut être améliorée');
+    } else {
+      scores.description = 65;
+      feedback.description.push('Améliorez la description avec des détails produits');
+      feedback.description.push('Ajoutez des informations sur l\'utilisation, les dimensions, etc.');
+    }
 
     const totalScore = (scores.title + scores.tags + scores.images + scores.video + scores.materials + scores.description) / 6;
     
@@ -335,8 +475,27 @@ export default function ShopAnalyzeClient() {
     else if (totalScore >= 70) grade = 'B-';
     else if (totalScore >= 65) grade = 'C+';
     else if (totalScore >= 60) grade = 'C';
+    else grade = 'D';
 
-    return { ...scores, total: Math.round(totalScore), grade };
+    // Conseils généraux basés sur les performances
+    const generalTips: string[] = [];
+    if (listing.sales && listing.sales > 50) {
+      generalTips.push('⭐ Best-seller: Ce listing fonctionne très bien, analysez pourquoi');
+    } else if (listing.sales && listing.sales > 20) {
+      generalTips.push('✅ Bonnes performances: Ce listing a du potentiel');
+    } else if (listing.sales && listing.sales > 5) {
+      generalTips.push('⚠️ Performances moyennes: Améliorations possibles');
+    } else {
+      generalTips.push('🔴 Faibles ventes: Ce listing a besoin d\'optimisation urgente');
+    }
+
+    if (listing.rating && listing.rating >= 4.5) {
+      generalTips.push('👍 Excellente note client, continuez dans cette direction');
+    } else if (listing.rating && listing.rating < 4) {
+      generalTips.push('⚠️ Note basse, vérifiez les retours clients');
+    }
+
+    return { ...scores, total: Math.round(totalScore), grade, feedback, generalTips };
   };
 
   if (analyzing) {
@@ -519,44 +678,62 @@ export default function ShopAnalyzeClient() {
         {activeTab === 'overview' ? (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-5 h-5 text-[#00d4ff]" />
-                  <span className="text-sm text-white/70">Ventes Mensuelles</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {Math.round(metrics.monthlyRevenue / (listings[0]?.price || 1)) || 0}
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  {((metrics.monthlyRevenue / (listings[0]?.price || 1)) / 30).toFixed(2)} par jour
-                </div>
-              </div>
+            {(() => {
+              const estimated = estimateMonthlyMetrics();
+              const avgPrice = listings.length > 0 
+                ? listings.reduce((sum, l) => sum + l.price, 0) / listings.length 
+                : 0;
+              const monthlySales = estimated.monthlySales || Math.round(estimated.monthlyRevenue / avgPrice) || 0;
+              const monthlyRevenue = estimated.monthlyRevenue || (monthlySales * avgPrice);
+              
+              // Calculer le percentile de ventes
+              let salesPercentile = '20%+';
+              if (metrics.totalSales > 5000) salesPercentile = '60%+';
+              else if (metrics.totalSales > 2000) salesPercentile = '50%+';
+              else if (metrics.totalSales > 1000) salesPercentile = '40%+';
+              else if (metrics.totalSales > 500) salesPercentile = '30%+';
+              
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-5 h-5 text-[#00d4ff]" />
+                      <span className="text-sm text-white/70">Ventes Mensuelles</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {monthlySales.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-white/50 mt-1">
+                      {(monthlySales / 30).toFixed(1)} par jour
+                    </div>
+                  </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="w-5 h-5 text-[#00c9b7]" />
-                  <span className="text-sm text-white/70">Revenu Mensuel</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {metrics.monthlyRevenue > 0 ? `${metrics.monthlyRevenue.toFixed(2)} €` : 'N/A'}
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  {metrics.monthlyRevenue > 0 ? `${(metrics.monthlyRevenue / 30).toFixed(2)} € par jour` : 'Données non disponibles'}
-                </div>
-              </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-5 h-5 text-[#00c9b7]" />
+                      <span className="text-sm text-white/70">Revenu Mensuel Estimé</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {monthlyRevenue > 0 ? `${monthlyRevenue.toFixed(2)} €` : '0 €'}
+                    </div>
+                    <div className="text-xs text-white/50 mt-1">
+                      {monthlyRevenue > 0 ? `${(monthlyRevenue / 30).toFixed(2)} € par jour` : 'Estimation basée sur les données disponibles'}
+                    </div>
+                  </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="w-5 h-5 text-purple-400" />
-                  <span className="text-sm text-white/70">Plus de ventes que</span>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 className="w-5 h-5 text-purple-400" />
+                      <span className="text-sm text-white/70">Plus de ventes que</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {salesPercentile}
+                    </div>
+                    <div className="text-xs text-white/50 mt-1">des boutiques Etsy</div>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-white">
-                  {metrics.totalSales > 1000 ? '40%+' : metrics.totalSales > 500 ? '30%+' : '20%+'}
-                </div>
-                <div className="text-xs text-white/50 mt-1">des boutiques</div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Most Used Tags */}
             {mostUsedTags.length > 0 && (
@@ -620,6 +797,151 @@ export default function ShopAnalyzeClient() {
                     <p className="text-white/70 leading-relaxed">{analysisData.analysis.overview}</p>
                   </div>
                 )}
+
+                {/* Ce qui marche / Ce qui ne marche pas */}
+                {(() => {
+                  const bestListings = listings
+                    .filter(l => l.sales && l.sales > 10)
+                    .sort((a, b) => (b.sales || 0) - (a.sales || 0))
+                    .slice(0, 5);
+                  
+                  const worstListings = listings
+                    .filter(l => !l.sales || l.sales <= 5)
+                    .slice(0, 5);
+
+                  const commonBestPatterns: string[] = [];
+                  const commonWorstPatterns: string[] = [];
+
+                  if (bestListings.length > 0) {
+                    // Analyser les patterns des best-sellers
+                    const bestTitles = bestListings.map(l => l.title.toLowerCase());
+                    const bestWords = new Set<string>();
+                    bestTitles.forEach(title => {
+                      title.split(/\s+/).forEach(word => {
+                        if (word.length >= 4) bestWords.add(word);
+                      });
+                    });
+                    
+                    // Trouver les mots communs dans les best-sellers
+                    bestWords.forEach(word => {
+                      const count = bestTitles.filter(t => t.includes(word)).length;
+                      if (count >= 3) {
+                        commonBestPatterns.push(word);
+                      }
+                    });
+
+                    // Analyser les prix moyens des best-sellers
+                    const avgBestPrice = bestListings.reduce((sum, l) => sum + l.price, 0) / bestListings.length;
+                    if (avgBestPrice > 0) {
+                      commonBestPatterns.push(`Prix moyen: ${avgBestPrice.toFixed(2)}€`);
+                    }
+                  }
+
+                  if (worstListings.length > 0) {
+                    // Analyser les patterns des listings peu performants
+                    const worstTitles = worstListings.map(l => l.title.toLowerCase());
+                    const avgWorstPrice = worstListings.reduce((sum, l) => sum + l.price, 0) / worstListings.length;
+                    if (avgWorstPrice > 0) {
+                      commonWorstPatterns.push(`Prix moyen: ${avgWorstPrice.toFixed(2)}€`);
+                    }
+                  }
+
+                  return (
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                      <div className="bg-gradient-to-br from-green-500/10 to-green-400/5 border border-green-500/20 rounded-xl p-6">
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-green-400" />
+                          Ce qui Marche ({bestListings.length} listings performants)
+                        </h3>
+                        {bestListings.length > 0 ? (
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-white/70 mb-2">Best-sellers identifiés:</p>
+                              <ul className="space-y-2">
+                                {bestListings.map((listing, idx) => (
+                                  <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
+                                    <span className="text-green-400 mt-1">✓</span>
+                                    <div className="flex-1">
+                                      <div className="font-medium">{listing.title.substring(0, 60)}...</div>
+                                      <div className="text-xs text-white/60">
+                                        {listing.sales} ventes • {listing.price.toFixed(2)}€
+                                        {listing.rating && ` • ${listing.rating.toFixed(1)}★`}
+                                      </div>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            {commonBestPatterns.length > 0 && (
+                              <div>
+                                <p className="text-sm text-white/70 mb-2">Patterns communs:</p>
+                                <ul className="space-y-1">
+                                  {commonBestPatterns.slice(0, 5).map((pattern, idx) => (
+                                    <li key={idx} className="text-xs text-white/60">• {pattern}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <div className="bg-green-500/10 rounded-lg p-3">
+                              <p className="text-xs text-green-300 font-medium">💡 Conseil:</p>
+                              <p className="text-xs text-white/70 mt-1">
+                                Analysez ces listings pour comprendre ce qui fonctionne. Répétez ces patterns dans vos nouveaux listings.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-white/70">Pas assez de données pour identifier les best-sellers</p>
+                        )}
+                      </div>
+
+                      <div className="bg-gradient-to-br from-red-500/10 to-red-400/5 border border-red-500/20 rounded-xl p-6">
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-400" />
+                          Ce qui ne Marche Pas ({worstListings.length} listings peu performants)
+                        </h3>
+                        {worstListings.length > 0 ? (
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-white/70 mb-2">Listings à améliorer:</p>
+                              <ul className="space-y-2">
+                                {worstListings.map((listing, idx) => (
+                                  <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
+                                    <span className="text-red-400 mt-1">⚠</span>
+                                    <div className="flex-1">
+                                      <div className="font-medium">{listing.title.substring(0, 60)}...</div>
+                                      <div className="text-xs text-white/60">
+                                        {listing.sales || 0} ventes • {listing.price.toFixed(2)}€
+                                        {listing.rating && ` • ${listing.rating.toFixed(1)}★`}
+                                      </div>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            {commonWorstPatterns.length > 0 && (
+                              <div>
+                                <p className="text-sm text-white/70 mb-2">Problèmes identifiés:</p>
+                                <ul className="space-y-1">
+                                  {commonWorstPatterns.slice(0, 5).map((pattern, idx) => (
+                                    <li key={idx} className="text-xs text-white/60">• {pattern}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <div className="bg-red-500/10 rounded-lg p-3">
+                              <p className="text-xs text-red-300 font-medium">💡 Action:</p>
+                              <p className="text-xs text-white/70 mt-1">
+                                Optimisez ces listings: améliorez les titres, ajoutez des images, ajustez les prix. Ce sont vos opportunités de croissance.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-white/70">Tous les listings semblent performants</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Strengths & Weaknesses */}
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -695,7 +1017,7 @@ export default function ShopAnalyzeClient() {
               </div>
             ) : (
               listings.map((listing, idx) => {
-                const scores = calculateListingScores(listing);
+                const scores = calculateListingScores(listing, idx);
                 const gradeColors: { [key: string]: string } = {
                   'A+': 'text-green-400',
                   'A': 'text-green-400',
@@ -704,7 +1026,8 @@ export default function ShopAnalyzeClient() {
                   'B': 'text-blue-400',
                   'B-': 'text-yellow-400',
                   'C+': 'text-yellow-400',
-                  'C': 'text-orange-400'
+                  'C': 'text-orange-400',
+                  'D': 'text-red-400'
                 };
 
                 return (
@@ -757,7 +1080,16 @@ export default function ShopAnalyzeClient() {
                         </div>
 
                         {/* Performance Metrics */}
-                        <div className="space-y-2">
+                        <div className="space-y-3">
+                          {/* Conseils généraux */}
+                          {scores.generalTips && scores.generalTips.length > 0 && (
+                            <div className="bg-white/5 rounded-lg p-3 mb-2">
+                              {scores.generalTips.map((tip, tipIdx) => (
+                                <div key={tipIdx} className="text-xs text-white/70 mb-1">{tip}</div>
+                              ))}
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
                               <FileText className="w-4 h-4" />
@@ -775,6 +1107,13 @@ export default function ShopAnalyzeClient() {
                               <span className="text-sm text-white/70 w-12 text-right">{scores.title}/100</span>
                             </div>
                           </div>
+                          {scores.feedback.title.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.title.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -792,7 +1131,14 @@ export default function ShopAnalyzeClient() {
                               </div>
                               <span className="text-sm text-white/70 w-12 text-right">{scores.tags}/100</span>
                             </div>
-            </div>
+                          </div>
+                          {scores.feedback.tags.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.tags.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -807,10 +1153,17 @@ export default function ShopAnalyzeClient() {
                                   }`}
                                   style={{ width: `${scores.images}%` }}
                                 />
-              </div>
+                              </div>
                               <span className="text-sm text-white/70 w-12 text-right">{scores.images}/100</span>
-            </div>
-          </div>
+                            </div>
+                          </div>
+                          {scores.feedback.images.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.images.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -828,7 +1181,14 @@ export default function ShopAnalyzeClient() {
                               </div>
                               <span className="text-sm text-white/70 w-12 text-right">{scores.video}/100</span>
                             </div>
-          </div>
+                          </div>
+                          {scores.feedback.video.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.video.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -846,7 +1206,14 @@ export default function ShopAnalyzeClient() {
                               </div>
                               <span className="text-sm text-white/70 w-12 text-right">{scores.materials}/100</span>
                             </div>
-          </div>
+                          </div>
+                          {scores.feedback.materials.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.materials.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -865,6 +1232,13 @@ export default function ShopAnalyzeClient() {
                               <span className="text-sm text-white/70 w-12 text-right">{scores.description}/100</span>
                             </div>
                           </div>
+                          {scores.feedback.description.length > 0 && (
+                            <div className="ml-6 text-xs text-white/50 space-y-1">
+                              {scores.feedback.description.map((fb, fbIdx) => (
+                                <div key={fbIdx}>• {fb}</div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
