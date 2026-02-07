@@ -335,12 +335,18 @@ export default function ShopAnalyzeClient() {
   const calculateAveragePrice = () => {
     const rawData = analysisData?.rawData;
     
-    // Calculer le prix moyen depuis les listings réels scrapés
+    // Calculer le prix moyen depuis les listings réels scrapés (uniquement ceux avec prix > 0)
     if (rawData?.listings && rawData.listings.length > 0) {
-      const prices = rawData.listings.map((l: any) => l.price).filter((p: number) => p > 0);
+      const prices = rawData.listings
+        .map((l: any) => l.price)
+        .filter((p: number) => p > 0 && p < 10000); // Filtrer les prix valides (entre 0 et 10000€)
+      
       if (prices.length > 0) {
         const avgPrice = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
+        console.log(`[Shop Analyze] Prix moyen calculé depuis ${prices.length} listings: ${avgPrice.toFixed(2)}€`);
         return avgPrice;
+      } else {
+        console.log(`[Shop Analyze] Aucun prix valide trouvé dans les ${rawData.listings.length} listings scrapés`);
       }
     }
     
@@ -369,12 +375,23 @@ export default function ShopAnalyzeClient() {
     const metrics = analysisData?.analysis?.metrics;
     const totalSales = metrics?.totalSales || rawData?.salesCount || 0;
     
-    if (totalSales === 0) return 0;
+    if (totalSales === 0) {
+      console.log('[Shop Analyze] Pas de ventes totales disponibles');
+      return 0;
+    }
 
     const avgPrice = calculateAveragePrice();
     
+    if (avgPrice === 0) {
+      console.warn('[Shop Analyze] Prix moyen = 0, impossible de calculer le revenu total');
+      return 0;
+    }
+    
     // Revenu total = prix moyen × ventes totales
-    return totalSales * avgPrice;
+    const totalRevenue = totalSales * avgPrice;
+    console.log(`[Shop Analyze] Revenu total calculé: ${totalSales} ventes × ${avgPrice.toFixed(2)}€ = ${totalRevenue.toFixed(2)}€`);
+    
+    return totalRevenue;
   };
 
   // Estimer les ventes mensuelles et revenus de manière réaliste
@@ -809,11 +826,21 @@ export default function ShopAnalyzeClient() {
             {/* Key Metrics */}
             {(() => {
               const estimated = estimateMonthlyMetrics();
-              const avgPrice = listings.length > 0 
-                ? listings.reduce((sum, l) => sum + l.price, 0) / listings.length 
-                : 0;
-              const monthlySales = estimated.monthlySales || Math.round(estimated.monthlyRevenue / avgPrice) || 0;
-              const monthlyRevenue = estimated.monthlyRevenue || (monthlySales * avgPrice);
+              const avgPrice = calculateAveragePrice();
+              
+              // Vérifier si on a des données fiables
+              const hasReliablePrice = avgPrice > 0;
+              const hasListings = listings.length > 0;
+              const pricesFromListings = listings.filter((l: any) => l.price > 0 && l.price < 10000).map((l: any) => l.price);
+              const hasValidPrices = pricesFromListings.length > 0;
+              
+              // Afficher un avertissement si les données ne sont pas fiables
+              if (!hasValidPrices && hasListings) {
+                console.warn(`[Shop Analyze] ${listings.length} listings scrapés mais aucun prix valide trouvé`);
+              }
+              
+              const monthlySales = estimated.monthlySales;
+              const monthlyRevenue = estimated.monthlyRevenue;
               
               // Calculer le percentile de ventes
               let salesPercentile = '20%+';
@@ -835,6 +862,9 @@ export default function ShopAnalyzeClient() {
                     <div className="text-xs text-white/50 mt-1">
                       {(monthlySales / 30).toFixed(1)} par jour
                     </div>
+                    {!hasValidPrices && hasListings && (
+                      <div className="text-xs text-amber-400 mt-1">⚠ Estimation (prix non scrapés)</div>
+                    )}
                   </div>
 
                   <div className="bg-white/5 border border-white/10 rounded-xl p-6">
@@ -846,8 +876,11 @@ export default function ShopAnalyzeClient() {
                       {monthlyRevenue > 0 ? `${monthlyRevenue.toFixed(2)} €` : '0 €'}
                     </div>
                     <div className="text-xs text-white/50 mt-1">
-                      {monthlyRevenue > 0 ? `${(monthlyRevenue / 30).toFixed(2)} € par jour` : 'Estimation basée sur les données disponibles'}
+                      {monthlyRevenue > 0 ? `${(monthlyRevenue / 30).toFixed(2)} € par jour` : 'Données insuffisantes'}
                     </div>
+                    {!hasValidPrices && hasListings && (
+                      <div className="text-xs text-amber-400 mt-1">⚠ Estimation (prix non scrapés)</div>
+                    )}
                   </div>
 
                   <div className="bg-white/5 border border-white/10 rounded-xl p-6">

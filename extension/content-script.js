@@ -347,12 +347,40 @@ async function analyzeCurrentShop() {
                     listingLink?.getAttribute('aria-label')?.trim() ||
                     card.querySelector('h2, h3, [class*="title"]')?.textContent?.trim() ||
                     'Produit sans titre';
-                // Extraire le prix
-                const priceElement = card.querySelector('[class*="price"], .currency-value, [data-price]') ||
-                    card.closest('.listing')?.querySelector('[class*="price"]');
-                const priceText = priceElement?.textContent?.trim() || '';
-                const priceMatch = priceText.match(/(\d+[,.]?\d*)/);
-                const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : 0;
+                // Extraire le prix - plusieurs méthodes
+                let price = 0;
+                // Méthode 1: Chercher dans les éléments avec classe price
+                const priceElement = card.querySelector('[class*="price"], .currency-value, [data-price], [class*="currency"]') ||
+                    card.closest('.listing')?.querySelector('[class*="price"], [class*="currency"]') ||
+                    card.querySelector('span[class*="currency"], span[class*="price"]');
+                
+                if (priceElement) {
+                    const priceText = priceElement.textContent?.trim() || priceElement.getAttribute('data-price') || '';
+                    // Chercher un nombre avec décimales (ex: 16.98, 25,99)
+                    const priceMatch = priceText.match(/(\d{1,3}(?:[.,]\d{2})?)/);
+                    if (priceMatch) {
+                        price = parseFloat(priceMatch[1].replace(',', '.'));
+                    }
+                }
+                
+                // Méthode 2: Si pas trouvé, chercher dans tout le texte de la carte
+                if (price === 0) {
+                    const cardText = card.textContent || '';
+                    // Chercher des patterns de prix (€, $, etc.)
+                    const pricePatterns = [
+                        /(?:€|EUR|\$|USD)\s*(\d{1,3}(?:[.,]\d{2})?)/i,
+                        /(\d{1,3}(?:[.,]\d{2})?)\s*(?:€|EUR|\$|USD)/i,
+                        /price[:\s]*(\d{1,3}(?:[.,]\d{2})?)/i
+                    ];
+                    
+                    for (const pattern of pricePatterns) {
+                        const match = cardText.match(pattern);
+                        if (match) {
+                            price = parseFloat(match[1].replace(',', '.'));
+                            if (price > 0 && price < 10000) break; // Prix raisonnable
+                        }
+                    }
+                }
                 // Extraire les ventes du listing
                 const listingSalesText = card.textContent || '';
                 const listingSalesMatch = listingSalesText.match(/(\d+)\s*ventes?/i) ||
@@ -404,17 +432,52 @@ async function analyzeCurrentShop() {
                 }
             }
         }
-        // Extraire le nombre total de listings depuis la page
-        // Chercher "Search all X items" ou similaire
-        const searchAllText = document.body.textContent || '';
-        const searchAllMatch = searchAllText.match(/search\s+all\s+(\d+)\s+items?/i) ||
-                               searchAllText.match(/(\d+)\s+items?/i);
-        if (searchAllMatch) {
-            const totalListings = parseInt(searchAllMatch[1]);
-            if (totalListings > 0) {
-                shopData.listingsCount = totalListings;
-                console.log(`[Etsmart] Nombre total de listings détecté: ${totalListings}`);
+        // Extraire le nombre total de listings depuis la page - plusieurs méthodes
+        let totalListings = null;
+        
+        // Méthode 1: Chercher "Search all X items" dans les inputs/buttons
+        const searchInput = document.querySelector('input[placeholder*="Search"], input[aria-label*="Search"]');
+        if (searchInput) {
+            const placeholder = searchInput.getAttribute('placeholder') || searchInput.getAttribute('aria-label') || '';
+            const match = placeholder.match(/(\d+)\s+items?/i);
+            if (match) {
+                totalListings = parseInt(match[1]);
             }
+        }
+        
+        // Méthode 2: Chercher dans le texte de la page
+        if (!totalListings) {
+            const searchAllText = document.body.textContent || '';
+            const searchAllMatch = searchAllText.match(/search\s+all\s+(\d+)\s+items?/i) ||
+                                   searchAllText.match(/all\s+(\d+)\s+items?/i) ||
+                                   searchAllText.match(/(\d+)\s+items?\s+available/i);
+            if (searchAllMatch) {
+                totalListings = parseInt(searchAllMatch[1]);
+            }
+        }
+        
+        // Méthode 3: Chercher dans les éléments de navigation/pagination
+        if (!totalListings) {
+            const navElements = document.querySelectorAll('[class*="count"], [class*="total"], [data-count]');
+            for (const el of Array.from(navElements)) {
+                const text = el.textContent || el.getAttribute('data-count') || '';
+                const match = text.match(/(\d+)/);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    // Si le nombre est raisonnable (entre 1 et 10000)
+                    if (num > 0 && num <= 10000 && num > shopData.listings.length) {
+                        totalListings = num;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (totalListings && totalListings > 0) {
+            shopData.listingsCount = totalListings;
+            console.log(`[Etsmart] Nombre total de listings détecté: ${totalListings}`);
+        } else {
+            console.log(`[Etsmart] Impossible de détecter le nombre total de listings`);
         }
         
         // Extraire la description de la boutique
