@@ -307,20 +307,72 @@ async function analyzeCurrentShop() {
         shopData.shopName = shopNameElement?.textContent?.trim() ||
             document.title.replace(' | Etsy', '').trim() ||
             'Boutique inconnue';
-        // Extraire les ventes totales
-        const salesText = document.body.textContent || '';
-        const salesMatch = salesText.match(/(\d{1,3}(?:\s?\d{3})*)\s*ventes?/i) ||
-            salesText.match(/(\d{1,3}(?:,\d{3})*)\s*sales?/i);
-        shopData.salesCount = salesMatch ? parseInt(salesMatch[1].replace(/[\s,]/g, '')) : undefined;
+        // Extraire les ventes totales - plusieurs méthodes pour gérer différents formats
+        let salesCount = undefined;
+        
+        // Méthode 1: Chercher dans les éléments spécifiques de la page shop
+        const shopInfoElements = document.querySelectorAll('[class*="shop"], [class*="seller"], [data-shop]');
+        for (const el of Array.from(shopInfoElements)) {
+            const text = el.textContent || '';
+            // Chercher "54.5k sales" ou "54,5k sales" ou "54,500 sales"
+            const match = text.match(/(\d{1,3}(?:[.,]\d+)?)\s*k\s*sales?/i) ||
+                         text.match(/(\d{1,3}(?:[.,]\d{3})*)\s*sales?/i);
+            if (match) {
+                let num = match[1].replace(/,/g, '.');
+                if (text.toLowerCase().includes('k')) {
+                    // Convertir "54.5k" en 54500
+                    salesCount = Math.round(parseFloat(num) * 1000);
+                } else {
+                    // Format normal "54,500" ou "54500"
+                    salesCount = parseInt(num.replace(/\./g, '').replace(/,/g, ''));
+                }
+                if (salesCount > 0) break;
+            }
+        }
+        
+        // Méthode 2: Chercher dans tout le body si pas trouvé
+        if (!salesCount) {
+            const salesText = document.body.textContent || '';
+            // Chercher "54.5k sales" ou "54,5k sales"
+            const kMatch = salesText.match(/(\d{1,3}(?:[.,]\d+)?)\s*k\s*sales?/i);
+            if (kMatch) {
+                let num = kMatch[1].replace(/,/g, '.');
+                salesCount = Math.round(parseFloat(num) * 1000);
+            } else {
+                // Format normal avec virgules/points
+                const normalMatch = salesText.match(/(\d{1,3}(?:[.,]\d{3})*)\s*sales?/i);
+                if (normalMatch) {
+                    salesCount = parseInt(normalMatch[1].replace(/[\s,]/g, '').replace(/\./g, ''));
+                }
+            }
+        }
+        
+        shopData.salesCount = salesCount;
+        console.log(`[Etsmart] Ventes totales détectées: ${salesCount || 'N/A'}`);
         // Extraire la note moyenne
         const ratingElement = document.querySelector('[aria-label*="étoile"], [aria-label*="star"], .rating, [class*="rating"]');
         const ratingText = ratingElement?.getAttribute('aria-label') || ratingElement?.textContent || '';
         const ratingMatch = ratingText.match(/(\d[,.]\d+)/);
         shopData.rating = ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.')) : undefined;
-        // Extraire le nombre d'avis
-        const reviewMatch = salesText.match(/(\d{1,3}(?:\s?\d{3})*)\s*avis/i) ||
-            salesText.match(/(\d{1,3}(?:,\d{3})*)\s*reviews?/i);
-        shopData.reviewCount = reviewMatch ? parseInt(reviewMatch[1].replace(/[\s,]/g, '')) : undefined;
+        // Extraire le nombre d'avis - gérer les formats "15.5k" aussi
+        let reviewCount = undefined;
+        const reviewText = document.body.textContent || '';
+        
+        // Chercher "15.5k reviews" ou "15,5k reviews"
+        const kReviewMatch = reviewText.match(/(\d{1,3}(?:[.,]\d+)?)\s*k\s*reviews?/i);
+        if (kReviewMatch) {
+            let num = kReviewMatch[1].replace(/,/g, '.');
+            reviewCount = Math.round(parseFloat(num) * 1000);
+        } else {
+            // Format normal
+            const reviewMatch = reviewText.match(/(\d{1,3}(?:[.,]\d{3})*)\s*reviews?/i);
+            if (reviewMatch) {
+                reviewCount = parseInt(reviewMatch[1].replace(/[\s,]/g, '').replace(/\./g, ''));
+            }
+        }
+        
+        shopData.reviewCount = reviewCount;
+        console.log(`[Etsmart] Nombre d'avis détecté: ${reviewCount || 'N/A'}`);
         // Extraire l'âge de la boutique
         const ageMatch = salesText.match(/depuis\s+(\d{4})/i) ||
             salesText.match(/depuis\s+(\d+)\s*ans?/i) ||
