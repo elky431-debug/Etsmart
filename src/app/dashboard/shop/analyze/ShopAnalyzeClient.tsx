@@ -937,7 +937,7 @@ export default function ShopAnalyzeClient() {
                 <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
                 Statistiques de la Boutique
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <div className="text-sm text-white/70 mb-1">Ventes Totales</div>
                   <div className="text-lg font-bold text-white">{metrics.totalSales.toLocaleString()}</div>
@@ -975,12 +975,6 @@ export default function ShopAnalyzeClient() {
                     return null;
                   })()}
                 </div>
-                {hasReliableListingsCount && (
-                  <div>
-                    <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
-                    <div className="text-lg font-bold text-white">{realListingsCount}</div>
-                  </div>
-                )}
               </div>
             </div>
 
