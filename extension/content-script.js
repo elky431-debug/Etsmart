@@ -456,15 +456,20 @@ async function analyzeCurrentShop() {
                         images.push(imgSrc);
                     }
                 }
-                shopData.listings.push({
-                    title,
-                    url: listingUrl,
-                    price,
-                    sales: listingSales,
-                    reviews: listingReviews,
-                    rating: listingRating,
-                    images
-                });
+                // Ignorer les listings gratuits (prix = 0 ou très bas < 1€)
+                if (price > 0 && price >= 1) {
+                    shopData.listings.push({
+                        title,
+                        url: listingUrl,
+                        price,
+                        sales: listingSales,
+                        reviews: listingReviews,
+                        rating: listingRating,
+                        images
+                    });
+                } else {
+                    console.log(`[Etsmart] Listing gratuit ignoré: ${title} (prix: ${price})`);
+                }
             }
             catch (err) {
                 console.log('[Etsmart] Erreur extraction listing:', err);
