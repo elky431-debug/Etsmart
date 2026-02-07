@@ -5,6 +5,8 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
+export const maxDuration = 60; // 60 secondes max pour Vercel
+
 export async function POST(request: NextRequest) {
   try {
     if (!openai) {
@@ -149,22 +151,45 @@ IMPORTANT:
 - Utilise les données réelles fournies, notamment le revenu total calculé: ${totalRevenue.toFixed(2)}€
 - Les tags optimisés doivent être spécifiques à la niche de cette boutique (pas génériques)`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-2024-11-20',
-      messages: [
-        {
-          role: 'system',
-          content: 'Tu es un expert e-commerce spécialisé dans l\'analyse de boutiques Etsy. Tu réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 6000,
-      response_format: { type: 'json_object' },
-    });
+    // Timeout pour l'appel OpenAI (50 secondes max)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000);
+
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: 'gpt-4o-2024-11-20',
+        messages: [
+          {
+            role: 'system',
+            content: 'Tu es un expert e-commerce spécialisé dans l\'analyse de boutiques Etsy. Tu réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 6000,
+        response_format: { type: 'json_object' },
+      }, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (openaiError: any) {
+      clearTimeout(timeoutId);
+      if (openaiError.name === 'AbortError' || openaiError.message?.includes('timeout')) {
+        console.error('[Shop Analyze] Timeout OpenAI');
+        return NextResponse.json(
+          {
+            error: 'Timeout',
+            message: 'L\'analyse prend trop de temps. Veuillez réessayer.',
+          },
+          { status: 504 }
+        );
+      }
+      throw openaiError;
+    }
 
     const analysisText = completion.choices[0]?.message?.content;
     if (!analysisText) {
@@ -193,12 +218,29 @@ IMPORTANT:
     });
   } catch (error: any) {
     console.error('[Shop Analyze] Erreur:', error);
+    console.error('[Shop Analyze] Stack:', error.stack);
+    
+    // Gérer les différents types d'erreurs
+    let errorMessage = 'Une erreur est survenue lors de l\'analyse';
+    let statusCode = 500;
+    
+    if (error.message?.includes('timeout') || error.message?.includes('terminated')) {
+      errorMessage = 'L\'analyse a pris trop de temps. Veuillez réessayer.';
+      statusCode = 504;
+    } else if (error.message?.includes('rate limit')) {
+      errorMessage = 'Trop de requêtes. Veuillez patienter quelques instants.';
+      statusCode = 429;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
       {
         error: 'Erreur serveur',
-        message: error.message || 'Une erreur est survenue lors de l\'analyse',
+        message: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

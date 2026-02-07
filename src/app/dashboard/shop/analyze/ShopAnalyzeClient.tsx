@@ -221,8 +221,21 @@ export default function ShopAnalyzeClient() {
     if (!storedData) {
       const errorParam = searchParams.get('import');
       if (errorParam === 'error') {
-        const errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
-        setError(decodeURIComponent(errorMessage));
+        let errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
+        try {
+          // Essayer de parser le message JSON si c'est un objet
+          const decoded = decodeURIComponent(errorMessage);
+          if (decoded.startsWith('{')) {
+            const errorObj = JSON.parse(decoded);
+            errorMessage = errorObj.message || errorObj.error || errorMessage;
+          } else {
+            errorMessage = decoded;
+          }
+        } catch (e) {
+          // Si ce n'est pas du JSON, utiliser le message tel quel
+          errorMessage = decodeURIComponent(errorMessage);
+        }
+        setError(errorMessage);
         setLoading(false);
       } else if (!analyzingParam) {
         setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
