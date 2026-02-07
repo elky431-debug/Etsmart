@@ -262,11 +262,31 @@ export default function CompetitorsClient() {
     if (!analyzing) return;
     setAnalyzingProgress(0);
     let progress = 0;
+    const startTime = Date.now();
+    const expectedDuration = 25000; // 25 secondes total
+    
     const interval = setInterval(() => {
-      const increment = Math.random() * 6 + 3;
-      progress = Math.min(95, progress + increment);
-      setAnalyzingProgress(progress);
-    }, 600);
+      const elapsed = Date.now() - startTime;
+      const timeRatio = elapsed / expectedDuration;
+      
+      // Progression plus lente : reste longtemps à 95%
+      if (timeRatio < 0.2) {
+        // 0-20% du temps : monte rapidement à 30%
+        progress = Math.min(30, progress + Math.random() * 4 + 2);
+      } else if (timeRatio < 0.6) {
+        // 20-60% du temps : monte lentement à 70%
+        progress = Math.min(70, progress + Math.random() * 2 + 1);
+      } else if (timeRatio < 0.95) {
+        // 60-95% du temps : monte très lentement à 95%
+        progress = Math.min(95, progress + Math.random() * 0.8 + 0.3);
+      } else {
+        // Derniers 5% : reste à 95% jusqu'à la fin
+        progress = 95;
+      }
+      
+      setAnalyzingProgress(Math.min(95, progress));
+    }, 400); // Vérifie toutes les 400ms
+    
     return () => clearInterval(interval);
   }, [analyzing]);
 

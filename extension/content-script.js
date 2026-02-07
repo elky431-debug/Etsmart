@@ -404,10 +404,23 @@ async function analyzeCurrentShop() {
                 }
             }
         }
+        // Extraire le nombre total de listings depuis la page
+        // Chercher "Search all X items" ou similaire
+        const searchAllText = document.body.textContent || '';
+        const searchAllMatch = searchAllText.match(/search\s+all\s+(\d+)\s+items?/i) ||
+                               searchAllText.match(/(\d+)\s+items?/i);
+        if (searchAllMatch) {
+            const totalListings = parseInt(searchAllMatch[1]);
+            if (totalListings > 0) {
+                shopData.listingsCount = totalListings;
+                console.log(`[Etsmart] Nombre total de listings détecté: ${totalListings}`);
+            }
+        }
+        
         // Extraire la description de la boutique
         const descriptionElement = document.querySelector('.shop-description, [class*="description"], .shop-about');
         shopData.description = descriptionElement?.textContent?.trim() || undefined;
-        logPersistent(`Données de boutique extraites - Nombre de listings: ${shopData.listings.length} - Ventes: ${shopData.salesCount || 0} - Revenu: ${shopData.totalRevenue || 0}`);
+        logPersistent(`Données de boutique extraites - Nombre de listings scrapés: ${shopData.listings.length} - Total détecté: ${shopData.listingsCount || 'N/A'} - Ventes: ${shopData.salesCount || 0} - Revenu: ${shopData.totalRevenue || 0}`);
         // Envoyer les données au background script
         chrome.runtime.sendMessage({
             type: 'ANALYZE_SHOP',

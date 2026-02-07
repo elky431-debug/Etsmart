@@ -249,11 +249,31 @@ export default function ShopAnalyzeClient() {
     if (!analyzing) return;
     setAnalyzingProgress(0);
     let progress = 0;
+    const startTime = Date.now();
+    const expectedDuration = 25000; // 25 secondes total
+    
     const interval = setInterval(() => {
-      const increment = Math.random() * 6 + 3;
-      progress = Math.min(95, progress + increment);
-      setAnalyzingProgress(progress);
-    }, 600);
+      const elapsed = Date.now() - startTime;
+      const timeRatio = elapsed / expectedDuration;
+      
+      // Progression plus lente : reste longtemps à 95%
+      if (timeRatio < 0.2) {
+        // 0-20% du temps : monte rapidement à 30%
+        progress = Math.min(30, progress + Math.random() * 4 + 2);
+      } else if (timeRatio < 0.6) {
+        // 20-60% du temps : monte lentement à 70%
+        progress = Math.min(70, progress + Math.random() * 2 + 1);
+      } else if (timeRatio < 0.95) {
+        // 60-95% du temps : monte très lentement à 95%
+        progress = Math.min(95, progress + Math.random() * 0.8 + 0.3);
+      } else {
+        // Derniers 5% : reste à 95% jusqu'à la fin
+        progress = 95;
+      }
+      
+      setAnalyzingProgress(Math.min(95, progress));
+    }, 400); // Vérifie toutes les 400ms
+    
     return () => clearInterval(interval);
   }, [analyzing]);
 
@@ -674,11 +694,13 @@ export default function ShopAnalyzeClient() {
   }
 
   const shop = analysisData.analysis || analysisData.rawData;
-  // Utiliser le nombre réel de listings depuis les données (peut être différent du nombre scrapé)
-  const realListingsCount = analysisData.analysis?.metrics?.listingsCount || 
-                           analysisData.rawData?.listingsCount || 
-                           analysisData.rawData?.listings?.length || 
-                           0;
+  // Utiliser le nombre réel de listings depuis les données
+  // Si listingsCount n'est pas disponible ou semble incorrect, ne pas l'afficher
+  const realListingsCount = analysisData.rawData?.listingsCount || 
+                           analysisData.analysis?.metrics?.listingsCount;
+  
+  // Vérifier si le nombre de listings est fiable (doit être > 0 et cohérent)
+  const hasReliableListingsCount = realListingsCount && realListingsCount > 0;
   
   const metrics = analysisData.analysis?.metrics || {
     totalSales: analysisData.rawData?.salesCount || 0,
@@ -764,7 +786,7 @@ export default function ShopAnalyzeClient() {
           </div>
           </div>
 
-        {/* Tabs */}
+            {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 border-b border-white/10">
           <button
             onClick={() => setActiveTab('overview')}
@@ -776,16 +798,18 @@ export default function ShopAnalyzeClient() {
           >
             Overview
           </button>
-          <button
-            onClick={() => setActiveTab('listings')}
-            className={`px-4 py-2 font-medium text-sm transition-colors ${
-              activeTab === 'listings'
-                ? 'text-white border-b-2 border-[#00d4ff]'
-                : 'text-white/70 hover:text-white'
-            }`}
-          >
-            Listings ({listings.length})
-          </button>
+          {listings.length > 0 && (
+            <button
+              onClick={() => setActiveTab('listings')}
+              className={`px-4 py-2 font-medium text-sm transition-colors ${
+                activeTab === 'listings'
+                  ? 'text-white border-b-2 border-[#00d4ff]'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              Listings ({listings.length})
+            </button>
+          )}
         </div>
 
         {activeTab === 'overview' ? (
@@ -875,7 +899,7 @@ export default function ShopAnalyzeClient() {
                 <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
                 Statistiques de la Boutique
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className={`grid gap-4 ${hasReliableListingsCount ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
                 <div>
                   <div className="text-sm text-white/70 mb-1">Ventes Totales</div>
                   <div className="text-lg font-bold text-white">{metrics.totalSales.toLocaleString()}</div>
@@ -889,16 +913,20 @@ export default function ShopAnalyzeClient() {
                     })()}
                   </div>
                 </div>
-                <div>
-                  <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
-                  <div className="text-lg font-bold text-white">{metrics.listingsCount}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-white/70 mb-1">Ventes par Listing</div>
-                  <div className="text-lg font-bold text-white">
-                    {metrics.listingsCount > 0 ? (metrics.totalSales / metrics.listingsCount).toFixed(1) : '0'}
-                  </div>
-                </div>
+                {hasReliableListingsCount && (
+                  <>
+                    <div>
+                      <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
+                      <div className="text-lg font-bold text-white">{realListingsCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-white/70 mb-1">Ventes par Listing</div>
+                      <div className="text-lg font-bold text-white">
+                        {realListingsCount > 0 ? (metrics.totalSales / realListingsCount).toFixed(1) : '0'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
