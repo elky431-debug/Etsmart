@@ -259,39 +259,92 @@ export default function ShopAnalyzeClient() {
 
   // Calculer les tags les plus utilisés depuis les listings (mots-clés SEO réels)
   const getMostUsedTags = () => {
-    if (!analysisData?.rawData?.listings) return [];
+    if (!analysisData?.rawData?.listings || analysisData.rawData.listings.length === 0) {
+      // Si pas de listings, extraire depuis le nom de la boutique et l'analyse
+      const tags: string[] = [];
+      const shopName = (analysisData?.rawData?.shopName || '').toLowerCase();
+      
+      // Mots-clés communs pour Etsy
+      if (shopName.includes('suncatcher') || shopName.includes('sun')) tags.push('Suncatcher');
+      if (shopName.includes('handmade') || shopName.includes('hand')) tags.push('Handmade');
+      if (shopName.includes('decor') || shopName.includes('decoration')) tags.push('Decoration');
+      if (shopName.includes('gift')) tags.push('Gift');
+      if (shopName.includes('personalized') || shopName.includes('personal')) tags.push('Personalized');
+      if (shopName.includes('custom')) tags.push('Custom');
+      if (shopName.includes('art')) tags.push('Art');
+      if (shopName.includes('glass') || shopName.includes('stained')) tags.push('Stained Glass');
+      
+      // Utiliser les patterns de l'analyse AI
+      if (analysisData?.analysis?.listingsAnalysis?.patterns) {
+        analysisData.analysis.listingsAnalysis.patterns.forEach(pattern => {
+          const words = pattern.toLowerCase().split(/\s+/).filter(w => w.length >= 4);
+          words.forEach(word => {
+            if (!tags.some(t => t.toLowerCase() === word)) {
+              tags.push(word.charAt(0).toUpperCase() + word.slice(1));
+            }
+          });
+        });
+      }
+      
+      return tags.slice(0, 10).map(tag => ({ tag, count: 1, percentage: 100 }));
+    }
     
-    // Mots à exclure (stop words)
-    const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 'throughout', 'despite', 'towards', 'upon', 'concerning', 'to', 'of', 'in', 'on', 'at', 'by', 'a', 'an', 'as', 'is', 'it', 'its', 'or', 'but', 'not', 'be', 'do', 'does', 'did', 'get', 'got', 'gotten', 'make', 'made', 'take', 'took', 'taken', 'go', 'went', 'gone', 'come', 'came', 'see', 'saw', 'seen', 'know', 'knew', 'known', 'think', 'thought', 'say', 'said', 'tell', 'told', 'ask', 'asked', 'work', 'worked', 'try', 'tried', 'use', 'used', 'want', 'wanted', 'need', 'needed', 'feel', 'felt', 'become', 'became', 'leave', 'left', 'put', 'call', 'called', 'find', 'found', 'give', 'gave', 'given', 'keep', 'kept', 'let', 'allow', 'allowed', 'show', 'showed', 'shown', 'move', 'moved', 'play', 'played', 'run', 'ran', 'live', 'lived', 'believe', 'believed', 'bring', 'brought', 'happen', 'happened', 'write', 'wrote', 'written', 'sit', 'sat', 'stand', 'stood', 'lose', 'lost', 'pay', 'paid', 'meet', 'met', 'include', 'included', 'continue', 'continued', 'set', 'lead', 'led', 'understand', 'understood', 'watch', 'watched', 'follow', 'followed', 'stop', 'stopped', 'create', 'created', 'speak', 'spoke', 'spoken', 'read', 'read', 'spend', 'spent', 'grow', 'grew', 'grown', 'open', 'opened', 'walk', 'walked', 'win', 'won', 'offer', 'offered', 'remember', 'remembered', 'love', 'loved', 'consider', 'considered', 'appear', 'appeared', 'buy', 'bought', 'wait', 'waited', 'serve', 'served', 'die', 'died', 'send', 'sent', 'build', 'built', 'stay', 'stayed', 'fall', 'fell', 'fallen', 'cut', 'cut', 'reach', 'reached', 'kill', 'killed', 'raise', 'raised', 'pass', 'passed', 'sell', 'sold', 'decide', 'decided', 'return', 'returned', 'explain', 'explained', 'develop', 'developed', 'carry', 'carried', 'break', 'broke', 'broken', 'receive', 'received', 'agree', 'agreed', 'support', 'supported', 'hit', 'hit', 'produce', 'produced', 'eat', 'ate', 'eaten', 'cover', 'covered', 'catch', 'caught', 'draw', 'drew', 'drawn', 'choose', 'chose', 'chosen']);
+    // Mots à exclure (stop words + mots non pertinents)
+    const stopWords = new Set([
+      'the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'was', 'were', 
+      'been', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 
+      'must', 'shall', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 
+      'throughout', 'despite', 'towards', 'upon', 'concerning', 'to', 'of', 'in', 'on', 'at', 
+      'by', 'a', 'an', 'as', 'is', 'it', 'its', 'or', 'but', 'not', 'be', 'do', 'does', 'did',
+      // Mots non pertinents pour les tags
+      'price', 'sale', 'original', 'off', 'loading', 'personalized', 'memorial', 'style', 'gift',
+      'window', 'stained', 'glass', 'acrylic', 'hanging', 'decor', 'suncatcher'
+    ]);
     
     const tagCounts: { [key: string]: number } = {};
-    const allWords: string[] = [];
     
     analysisData.rawData.listings.forEach(listing => {
-      // Extraire les mots-clés SEO depuis le titre (mots de 4+ caractères, pas des stop words)
+      // Extraire les mots-clés SEO depuis le titre
       const words = listing.title
         .toLowerCase()
-        .replace(/[^\w\s]/g, ' ') // Remplacer la ponctuation par des espaces
+        .replace(/[^\w\s]/g, ' ') // Remplacer la ponctuation
+        .replace(/\$\d+\.?\d*/g, '') // Enlever les prix
+        .replace(/\d+%/g, '') // Enlever les pourcentages
+        .replace(/\b(price|sale|original|off|loading)\b/gi, '') // Enlever les mots non pertinents
         .split(/\s+/)
-        .filter(word => word.length >= 4 && !stopWords.has(word) && !/^\d+$/.test(word)); // Filtrer les mots courts, stop words et nombres purs
+        .filter(word => 
+          word.length >= 4 && 
+          !stopWords.has(word) && 
+          !/^\d+$/.test(word) && // Pas de nombres purs
+          !word.match(/^\$/) && // Pas de prix
+          word !== 'price' && word !== 'sale' && word !== 'original' && word !== 'off' && word !== 'loading'
+        );
       
       words.forEach(word => {
-        tagCounts[word] = (tagCounts[word] || 0) + 1;
-        allWords.push(word);
+        if (word.length >= 4 && word.length <= 20) { // Limiter la longueur
+          tagCounts[word] = (tagCounts[word] || 0) + 1;
+        }
       });
     });
     
     // Utiliser aussi les patterns de l'analyse AI si disponibles
     if (analysisData.analysis?.listingsAnalysis?.patterns) {
       analysisData.analysis.listingsAnalysis.patterns.forEach(pattern => {
-        const words = pattern.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
+        const words = pattern.toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length >= 4 && !stopWords.has(w));
         words.forEach(word => {
-          tagCounts[word] = (tagCounts[word] || 0) + 1;
+          if (word.length >= 4 && word.length <= 20) {
+            tagCounts[word] = (tagCounts[word] || 0) + 1;
+          }
         });
       });
     }
     
-    return Object.entries(tagCounts)
+    // Filtrer les tags qui apparaissent dans moins de 2 listings (pas assez représentatif)
+    const filteredTags = Object.entries(tagCounts)
+      .filter(([tag, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 15)
       .map(([tag, count]) => ({
@@ -299,35 +352,101 @@ export default function ShopAnalyzeClient() {
         count,
         percentage: Math.round((count / analysisData.rawData.listings.length) * 100)
       }));
+    
+    return filteredTags;
   };
 
-  // Estimer les ventes mensuelles et revenus
+  // Estimer les ventes mensuelles et revenus de manière intelligente
   const estimateMonthlyMetrics = () => {
-    if (!analysisData?.rawData?.listings || analysisData.rawData.listings.length === 0) {
-      return { monthlySales: 0, monthlyRevenue: 0 };
-    }
-
-    const listings = analysisData.rawData.listings;
-    const totalSales = listings.reduce((sum, listing) => sum + (listing.sales || 0), 0);
-    const totalRevenue = listings.reduce((sum, listing) => sum + (listing.price * (listing.sales || 0)), 0);
+    const rawData = analysisData?.rawData;
+    const metrics = analysisData?.analysis?.metrics;
     
-    // Si on a l'âge de la boutique, calculer la moyenne mensuelle
-    if (analysisData.rawData.shopAge) {
-      const currentYear = new Date().getFullYear();
-      const shopYear = parseInt(analysisData.rawData.shopAge);
-      const yearsActive = Math.max(1, currentYear - shopYear);
-      const monthsActive = yearsActive * 12;
+    // Utiliser les données de l'analyse AI si disponibles
+    if (metrics?.monthlyRevenue && metrics.monthlyRevenue > 0) {
+      const monthlySales = metrics.monthlyRevenue > 0 && rawData?.listings?.[0]?.price
+        ? Math.round(metrics.monthlyRevenue / rawData.listings[0].price)
+        : Math.round(metrics.totalSales / 12);
       
       return {
-        monthlySales: Math.round(totalSales / monthsActive),
-        monthlyRevenue: totalRevenue / monthsActive
+        monthlySales: monthlySales || Math.round(metrics.totalSales / 12),
+        monthlyRevenue: metrics.monthlyRevenue
       };
     }
+
+    // Si on a les ventes totales, estimer intelligemment
+    const totalSales = metrics?.totalSales || rawData?.salesCount || 0;
+    const listingsCount = metrics?.listingsCount || rawData?.listings?.length || 1;
     
-    // Sinon, estimation basée sur les ventes récentes (supposons que 30% des ventes sont récentes)
+    if (totalSales === 0) {
+      // Estimation pour une nouvelle boutique
+      return {
+        monthlySales: 0,
+        monthlyRevenue: 0
+      };
+    }
+
+    // Calculer le prix moyen estimé
+    let avgPrice = 0;
+    if (rawData?.listings && rawData.listings.length > 0) {
+      const prices = rawData.listings.map(l => l.price).filter(p => p > 0);
+      if (prices.length > 0) {
+        avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      }
+    }
+    
+    // Si pas de prix moyen, estimer basé sur la niche (suncatchers, décorations = 15-25€)
+    if (avgPrice === 0) {
+      const shopName = (rawData?.shopName || '').toLowerCase();
+      if (shopName.includes('suncatcher') || shopName.includes('decor') || shopName.includes('ornament')) {
+        avgPrice = 18; // Prix moyen pour suncatchers
+      } else if (shopName.includes('jewelry') || shopName.includes('bijou')) {
+        avgPrice = 25;
+      } else if (shopName.includes('art') || shopName.includes('print')) {
+        avgPrice = 15;
+      } else {
+        avgPrice = 20; // Prix moyen général Etsy
+      }
+    }
+
+    // Estimation basée sur l'âge de la boutique
+    let monthsActive = 12; // Par défaut 1 an
+    if (rawData?.shopAge) {
+      const currentYear = new Date().getFullYear();
+      const shopYear = parseInt(rawData.shopAge);
+      if (!isNaN(shopYear) && shopYear > 2000 && shopYear <= currentYear) {
+        const yearsActive = Math.max(1, currentYear - shopYear);
+        monthsActive = yearsActive * 12;
+      }
+    }
+
+    // Calculer les ventes mensuelles
+    // Si la boutique est récente (< 2 ans), on privilégie les ventes récentes (40% des ventes)
+    // Si la boutique est ancienne, on fait une moyenne (ventes totales / mois actifs)
+    let monthlySales = 0;
+    if (monthsActive <= 24) {
+      // Boutique récente : 40% des ventes sont récentes
+      monthlySales = Math.round(totalSales * 0.4 / 12);
+    } else {
+      // Boutique ancienne : moyenne sur toute la période
+      monthlySales = Math.round(totalSales / monthsActive);
+    }
+    
+    // Ajuster selon le nombre de listings (plus de listings = plus de ventes potentielles)
+    const salesPerListing = totalSales / listingsCount;
+    if (salesPerListing > 50) {
+      // Boutique performante : augmenter l'estimation mensuelle
+      monthlySales = Math.round(monthlySales * 1.2);
+    } else if (salesPerListing < 20) {
+      // Boutique moins performante : réduire légèrement
+      monthlySales = Math.round(monthlySales * 0.9);
+    }
+
+    // Calculer le revenu mensuel
+    const monthlyRevenue = monthlySales * avgPrice;
+
     return {
-      monthlySales: Math.round(totalSales * 0.3),
-      monthlyRevenue: totalRevenue * 0.3
+      monthlySales: Math.max(0, monthlySales),
+      monthlyRevenue: Math.max(0, monthlyRevenue)
     };
   };
 
@@ -768,8 +887,16 @@ export default function ShopAnalyzeClient() {
                   <div className="text-lg font-bold text-white">{metrics.totalSales.toLocaleString()}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-white/70 mb-1">Revenu Total</div>
-                  <div className="text-lg font-bold text-white">{metrics.totalRevenue > 0 ? `${metrics.totalRevenue.toFixed(2)} €` : 'N/A'}</div>
+                  <div className="text-sm text-white/70 mb-1">Revenu Total Estimé</div>
+                  <div className="text-lg font-bold text-white">
+                    {(() => {
+                      const estimated = estimateMonthlyMetrics();
+                      const totalRevenue = estimated.monthlyRevenue > 0 
+                        ? estimated.monthlyRevenue * 12 
+                        : (metrics.totalSales || 0) * 18; // Estimation: prix moyen 18€
+                      return totalRevenue > 0 ? `${totalRevenue.toFixed(2)} €` : 'N/A';
+                    })()}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-white/70 mb-1">Listings Actifs</div>
@@ -798,8 +925,16 @@ export default function ShopAnalyzeClient() {
                   </div>
                 )}
 
-                {/* Ce qui marche / Ce qui ne marche pas */}
+                {/* Ce qui marche / Ce qui ne marche pas - Analyse globale */}
                 {(() => {
+                  // Analyse basée sur les données globales disponibles
+                  const totalSales = metrics.totalSales || 0;
+                  const listingsCount = metrics.listingsCount || listings.length || 1;
+                  const salesPerListing = totalSales / listingsCount;
+                  const avgPrice = listings.length > 0 
+                    ? listings.reduce((sum, l) => sum + l.price, 0) / listings.length 
+                    : 18; // Estimation par défaut
+                  
                   const bestListings = listings
                     .filter(l => l.sales && l.sales > 10)
                     .sort((a, b) => (b.sales || 0) - (a.sales || 0))
@@ -809,41 +944,75 @@ export default function ShopAnalyzeClient() {
                     .filter(l => !l.sales || l.sales <= 5)
                     .slice(0, 5);
 
-                  const commonBestPatterns: string[] = [];
-                  const commonWorstPatterns: string[] = [];
+                  const whatWorks: string[] = [];
+                  const whatDoesntWork: string[] = [];
+                  const recommendations: string[] = [];
 
-                  if (bestListings.length > 0) {
-                    // Analyser les patterns des best-sellers
-                    const bestTitles = bestListings.map(l => l.title.toLowerCase());
-                    const bestWords = new Set<string>();
-                    bestTitles.forEach(title => {
-                      title.split(/\s+/).forEach(word => {
-                        if (word.length >= 4) bestWords.add(word);
-                      });
-                    });
-                    
-                    // Trouver les mots communs dans les best-sellers
-                    bestWords.forEach(word => {
-                      const count = bestTitles.filter(t => t.includes(word)).length;
-                      if (count >= 3) {
-                        commonBestPatterns.push(word);
-                      }
-                    });
-
-                    // Analyser les prix moyens des best-sellers
-                    const avgBestPrice = bestListings.reduce((sum, l) => sum + l.price, 0) / bestListings.length;
-                    if (avgBestPrice > 0) {
-                      commonBestPatterns.push(`Prix moyen: ${avgBestPrice.toFixed(2)}€`);
-                    }
+                  // Analyser ce qui marche
+                  if (salesPerListing > 50) {
+                    whatWorks.push(`Excellent ratio ventes/listings (${salesPerListing.toFixed(1)} ventes par listing)`);
+                    whatWorks.push('La boutique a des produits qui se vendent bien');
+                  } else if (salesPerListing > 30) {
+                    whatWorks.push(`Bon ratio ventes/listings (${salesPerListing.toFixed(1)} ventes par listing)`);
                   }
 
-                  if (worstListings.length > 0) {
-                    // Analyser les patterns des listings peu performants
-                    const worstTitles = worstListings.map(l => l.title.toLowerCase());
-                    const avgWorstPrice = worstListings.reduce((sum, l) => sum + l.price, 0) / worstListings.length;
-                    if (avgWorstPrice > 0) {
-                      commonWorstPatterns.push(`Prix moyen: ${avgWorstPrice.toFixed(2)}€`);
-                    }
+                  if (metrics.rating && metrics.rating >= 4.5) {
+                    whatWorks.push(`Excellente note client (${metrics.rating.toFixed(1)}/5)`);
+                    whatWorks.push('Satisfaction client élevée = meilleure visibilité Etsy');
+                  } else if (metrics.rating && metrics.rating >= 4.0) {
+                    whatWorks.push(`Bonne note client (${metrics.rating.toFixed(1)}/5)`);
+                  }
+
+                  if (listingsCount >= 20) {
+                    whatWorks.push(`Large gamme de produits (${listingsCount} listings)`);
+                    whatWorks.push('Plus de choix = plus de chances de ventes');
+                  } else if (listingsCount >= 10) {
+                    whatWorks.push(`Gamme de produits correcte (${listingsCount} listings)`);
+                  }
+
+                  if (totalSales > 1000) {
+                    whatWorks.push(`Volume de ventes élevé (${totalSales.toLocaleString()} ventes totales)`);
+                    whatWorks.push('Preuve sociale importante pour les nouveaux clients');
+                  } else if (totalSales > 500) {
+                    whatWorks.push(`Volume de ventes correct (${totalSales.toLocaleString()} ventes)`);
+                  }
+
+                  // Analyser ce qui ne marche pas
+                  if (salesPerListing < 20 && totalSales > 0) {
+                    whatDoesntWork.push(`Ratio ventes/listings faible (${salesPerListing.toFixed(1)} ventes par listing)`);
+                    whatDoesntWork.push('Certains listings ne se vendent pas assez');
+                    recommendations.push('Optimisez les listings peu performants ou retirez-les');
+                  }
+
+                  if (metrics.rating && metrics.rating < 4.0) {
+                    whatDoesntWork.push(`Note client à améliorer (${metrics.rating.toFixed(1)}/5)`);
+                    whatDoesntWork.push('Les notes basses réduisent la visibilité sur Etsy');
+                    recommendations.push('Améliorez la qualité des produits et le service client');
+                  }
+
+                  if (listingsCount < 10) {
+                    whatDoesntWork.push(`Gamme de produits limitée (${listingsCount} listings)`);
+                    whatDoesntWork.push('Moins de chances d\'être trouvé par les clients');
+                    recommendations.push('Ajoutez 10-15 listings supplémentaires pour augmenter la visibilité');
+                  }
+
+                  if (totalSales === 0) {
+                    whatDoesntWork.push('Aucune vente enregistrée');
+                    whatDoesntWork.push('La boutique a besoin d\'optimisation urgente');
+                    recommendations.push('Revoyez complètement la stratégie: prix, images, descriptions, tags');
+                  }
+
+                  // Patterns depuis l'analyse AI
+                  if (analysisData.analysis?.listingsAnalysis?.patterns) {
+                    analysisData.analysis.listingsAnalysis.patterns.slice(0, 3).forEach(pattern => {
+                      whatWorks.push(`Pattern observé: ${pattern}`);
+                    });
+                  }
+
+                  if (analysisData.analysis?.listingsAnalysis?.opportunities) {
+                    analysisData.analysis.listingsAnalysis.opportunities.slice(0, 3).forEach(opp => {
+                      whatDoesntWork.push(`Opportunité: ${opp}`);
+                    });
                   }
 
                   return (
@@ -851,92 +1020,82 @@ export default function ShopAnalyzeClient() {
                       <div className="bg-gradient-to-br from-green-500/10 to-green-400/5 border border-green-500/20 rounded-xl p-6">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-green-400" />
-                          Ce qui Marche ({bestListings.length} listings performants)
+                          Ce qui Marche
                         </h3>
-                        {bestListings.length > 0 ? (
+                        {whatWorks.length > 0 ? (
                           <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-white/70 mb-2">Best-sellers identifiés:</p>
-                              <ul className="space-y-2">
-                                {bestListings.map((listing, idx) => (
-                                  <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
-                                    <span className="text-green-400 mt-1">✓</span>
-                                    <div className="flex-1">
-                                      <div className="font-medium">{listing.title.substring(0, 60)}...</div>
-                                      <div className="text-xs text-white/60">
-                                        {listing.sales} ventes • {listing.price.toFixed(2)}€
-                                        {listing.rating && ` • ${listing.rating.toFixed(1)}★`}
-                                      </div>
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            {commonBestPatterns.length > 0 && (
-                              <div>
-                                <p className="text-sm text-white/70 mb-2">Patterns communs:</p>
+                            <ul className="space-y-2">
+                              {whatWorks.map((item, idx) => (
+                                <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
+                                  <span className="text-green-400 mt-1">✓</span>
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            {bestListings.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-green-500/20">
+                                <p className="text-xs text-white/70 mb-2">Best-sellers identifiés ({bestListings.length}):</p>
                                 <ul className="space-y-1">
-                                  {commonBestPatterns.slice(0, 5).map((pattern, idx) => (
-                                    <li key={idx} className="text-xs text-white/60">• {pattern}</li>
+                                  {bestListings.map((listing, idx) => (
+                                    <li key={idx} className="text-xs text-white/60">
+                                      • {listing.title.substring(0, 50)}... ({listing.sales} ventes)
+                                    </li>
                                   ))}
                                 </ul>
                               </div>
                             )}
-                            <div className="bg-green-500/10 rounded-lg p-3">
-                              <p className="text-xs text-green-300 font-medium">💡 Conseil:</p>
+                            <div className="bg-green-500/10 rounded-lg p-3 mt-4">
+                              <p className="text-xs text-green-300 font-medium">💡 Analyse:</p>
                               <p className="text-xs text-white/70 mt-1">
-                                Analysez ces listings pour comprendre ce qui fonctionne. Répétez ces patterns dans vos nouveaux listings.
+                                Ces points forts sont vos avantages concurrentiels. Maintenez et renforcez ces aspects.
                               </p>
                             </div>
                           </div>
                         ) : (
-                          <p className="text-sm text-white/70">Pas assez de données pour identifier les best-sellers</p>
+                          <p className="text-sm text-white/70">Analyse en cours...</p>
                         )}
                       </div>
 
                       <div className="bg-gradient-to-br from-red-500/10 to-red-400/5 border border-red-500/20 rounded-xl p-6">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                           <AlertCircle className="w-5 h-5 text-red-400" />
-                          Ce qui ne Marche Pas ({worstListings.length} listings peu performants)
+                          Ce qui ne Marche Pas
                         </h3>
-                        {worstListings.length > 0 ? (
+                        {whatDoesntWork.length > 0 ? (
                           <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-white/70 mb-2">Listings à améliorer:</p>
-                              <ul className="space-y-2">
-                                {worstListings.map((listing, idx) => (
-                                  <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
-                                    <span className="text-red-400 mt-1">⚠</span>
-                                    <div className="flex-1">
-                                      <div className="font-medium">{listing.title.substring(0, 60)}...</div>
-                                      <div className="text-xs text-white/60">
-                                        {listing.sales || 0} ventes • {listing.price.toFixed(2)}€
-                                        {listing.rating && ` • ${listing.rating.toFixed(1)}★`}
-                                      </div>
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            {commonWorstPatterns.length > 0 && (
-                              <div>
-                                <p className="text-sm text-white/70 mb-2">Problèmes identifiés:</p>
+                            <ul className="space-y-2">
+                              {whatDoesntWork.map((item, idx) => (
+                                <li key={idx} className="text-sm text-white/90 flex items-start gap-2">
+                                  <span className="text-red-400 mt-1">⚠</span>
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            {worstListings.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-red-500/20">
+                                <p className="text-xs text-white/70 mb-2">Listings à améliorer ({worstListings.length}):</p>
                                 <ul className="space-y-1">
-                                  {commonWorstPatterns.slice(0, 5).map((pattern, idx) => (
-                                    <li key={idx} className="text-xs text-white/60">• {pattern}</li>
+                                  {worstListings.slice(0, 3).map((listing, idx) => (
+                                    <li key={idx} className="text-xs text-white/60">
+                                      • {listing.title.substring(0, 50)}... ({listing.sales || 0} ventes)
+                                    </li>
                                   ))}
                                 </ul>
                               </div>
                             )}
-                            <div className="bg-red-500/10 rounded-lg p-3">
-                              <p className="text-xs text-red-300 font-medium">💡 Action:</p>
-                              <p className="text-xs text-white/70 mt-1">
-                                Optimisez ces listings: améliorez les titres, ajoutez des images, ajustez les prix. Ce sont vos opportunités de croissance.
-                              </p>
-                            </div>
+                            {recommendations.length > 0 && (
+                              <div className="bg-red-500/10 rounded-lg p-3 mt-4">
+                                <p className="text-xs text-red-300 font-medium">💡 Actions Recommandées:</p>
+                                <ul className="mt-2 space-y-1">
+                                  {recommendations.map((rec, idx) => (
+                                    <li key={idx} className="text-xs text-white/70">• {rec}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <p className="text-sm text-white/70">Tous les listings semblent performants</p>
+                          <p className="text-sm text-white/70">Aucun problème majeur identifié</p>
                         )}
                       </div>
                     </div>
@@ -1052,7 +1211,7 @@ export default function ShopAnalyzeClient() {
                         <div className={`absolute top-2 left-2 text-3xl font-bold ${gradeColors[scores.grade] || 'text-white'}`}>
                           {scores.grade}
                         </div>
-                      </div>
+            </div>
 
                       {/* Listing Details */}
                       <div className="flex-1">
@@ -1070,14 +1229,14 @@ export default function ShopAnalyzeClient() {
                               Voir le listing
                               <ExternalLink size={14} />
                             </a>
-                          </div>
+              </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-white">{listing.price.toFixed(2)} €</div>
                             {listing.sales && (
                               <div className="text-sm text-white/70">{listing.sales} ventes</div>
                             )}
-                          </div>
-                        </div>
+            </div>
+          </div>
 
                         {/* Performance Metrics */}
                         <div className="space-y-3">
@@ -1187,7 +1346,7 @@ export default function ShopAnalyzeClient() {
                               {scores.feedback.video.map((fb, fbIdx) => (
                                 <div key={fbIdx}>• {fb}</div>
                               ))}
-                            </div>
+          </div>
                           )}
 
                           <div className="flex items-center justify-between">
@@ -1212,7 +1371,7 @@ export default function ShopAnalyzeClient() {
                               {scores.feedback.materials.map((fb, fbIdx) => (
                                 <div key={fbIdx}>• {fb}</div>
                               ))}
-                            </div>
+          </div>
                           )}
 
                           <div className="flex items-center justify-between">
