@@ -503,17 +503,19 @@ ${additionalAngles[angleIndex]}
         
         // ⚠️ Paramètres pour forcer la modification du background
         // Ajouter des paramètres de contrôle si supportés par Nanonbanana
+        // Limiter la taille du prompt si trop long (certaines APIs ont des limites)
+        const maxPromptLength = 2000; // Limite de sécurité
+        const finalPrompt = imageSpecificPrompt.length > maxPromptLength 
+          ? imageSpecificPrompt.substring(0, maxPromptLength) + '...'
+          : imageSpecificPrompt;
+        
         const requestBody: any = {
           type: 'IMAGETOIAMGE', // Type obligatoire : "TEXTTOIAMGE" ou "IMAGETOIAMGE" (MAJUSCULES)
-          prompt: imageSpecificPrompt, // Prompt unique pour chaque image avec point de vue différent
+          prompt: finalPrompt, // Prompt unique pour chaque image avec point de vue différent (limité si trop long)
           imageUrls: [imageDataUrl], // Tableau d'URLs d'images (ou data URLs en base64)
-          image_size: '1:1', // Format selon la documentation (1:1, 16:9, 9:16, etc.)
-          numImages: numImagesForNanonbanana, // Nombre d'images à générer (1 maximum - une seule image par analyse)
-          callBackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/nanonbanana-callback`, // URL de callback obligatoire
-          // Paramètres optionnels pour forcer la modification (si supportés)
-          // strength: 0.7, // Force de modification (0.0 = identique, 1.0 = complètement différent) - peut-être supporté
-          // guidance_scale: 7.5, // Guidance du prompt (plus élevé = suit plus le prompt) - peut-être supporté
-          // waterMark: optionnel, on ne l'utilise pas pour l'instant
+          image_size: body.aspectRatio === '1:1' ? '1:1' : body.aspectRatio === '16:9' ? '16:9' : body.aspectRatio === '9:16' ? '9:16' : '1:1', // Format selon la documentation
+          numImages: 1, // Toujours 1 image par requête (on fait plusieurs requêtes si quantity > 1)
+          callBackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://etsmart.app'}/api/nanonbanana-callback`, // URL de callback obligatoire
         };
         
         console.log('[IMAGE GENERATION] Request body prepared (without image):', JSON.stringify({ ...requestBody, prompt: '[PROMPT]', imageUrls: '[IMAGE_URLS]' }));
@@ -640,7 +642,9 @@ ${additionalAngles[angleIndex]}
           } else if (nanonbananaResponse.status === 413) {
             errorMsg = `HTTP 413: Image trop volumineuse. L'image a été compressée mais reste trop grande. Réduisez la taille de l'image source.`;
           } else if (nanonbananaResponse.status === 500) {
-            errorMsg = `Erreur serveur Nanonbanana (500). Le service peut être temporairement indisponible.`;
+            // Extraire le message d'erreur de Nanonbanana si disponible
+            const serverError = errorData.error?.message || errorData.message || errorData.msg || 'Server exception';
+            errorMsg = `Nanonbanana API error (code 500): ${serverError}, please try again later or contact customer service`;
           }
           
           throw new Error(errorMsg);
