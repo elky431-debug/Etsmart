@@ -202,31 +202,39 @@ export async function POST(request: NextRequest) {
     // ⚠️ PRÉPARER L'IMAGE UPLOADÉE (pour référence future si nécessaire)
     let imageInput: string;
     
-    // Convertir l'image en format data URL si nécessaire
-    if (body.sourceImage.startsWith('data:image/')) {
-      imageInput = body.sourceImage;
-      console.log('[IMAGE GENERATION] ✅ Image déjà en format data URL');
-    } else if (body.sourceImage.startsWith('http://') || body.sourceImage.startsWith('https://')) {
-      imageInput = body.sourceImage;
-      console.log('[IMAGE GENERATION] ✅ Image en format URL HTTP');
-    } else {
-      // Sinon, on assume que c'est du base64 et on le convertit en data URL
-      imageInput = body.sourceImage.includes('base64') 
-        ? body.sourceImage 
-        : `data:image/jpeg;base64,${body.sourceImage}`;
-      console.log('[IMAGE GENERATION] ✅ Image convertie en data URL');
-    }
-    
-    // Vérifier que l'image n'est pas vide
-    if (!imageInput || imageInput.length < 100) {
-      console.error('[IMAGE GENERATION] ❌ Image trop petite ou vide');
+    try {
+      // Convertir l'image en format data URL si nécessaire
+      if (body.sourceImage.startsWith('data:image/')) {
+        imageInput = body.sourceImage;
+        console.log('[IMAGE GENERATION] ✅ Image déjà en format data URL');
+      } else if (body.sourceImage.startsWith('http://') || body.sourceImage.startsWith('https://')) {
+        imageInput = body.sourceImage;
+        console.log('[IMAGE GENERATION] ✅ Image en format URL HTTP');
+      } else {
+        // Sinon, on assume que c'est du base64 et on le convertit en data URL
+        imageInput = body.sourceImage.includes('base64') 
+          ? body.sourceImage 
+          : `data:image/jpeg;base64,${body.sourceImage}`;
+        console.log('[IMAGE GENERATION] ✅ Image convertie en data URL');
+      }
+      
+      // Vérifier que l'image n'est pas vide
+      if (!imageInput || imageInput.length < 100) {
+        console.error('[IMAGE GENERATION] ❌ Image trop petite ou vide');
+        return NextResponse.json(
+          { error: 'Image invalide ou trop petite' },
+          { status: 400 }
+        );
+      }
+      
+      console.log('[IMAGE GENERATION] ✅ Image uploadée préparée (length):', imageInput.length);
+    } catch (imageError: any) {
+      console.error('[IMAGE GENERATION] ❌ Erreur lors de la préparation de l\'image:', imageError);
       return NextResponse.json(
-        { error: 'Image invalide ou trop petite' },
+        { error: `Erreur lors de la préparation de l'image: ${imageError.message || 'Erreur inconnue'}` },
         { status: 400 }
       );
     }
-    
-    console.log('[IMAGE GENERATION] ✅ Image uploadée préparée (length):', imageInput.length);
     
     // ⚠️ CONSTRUIRE LE PROMPT avec FIXED_PROMPT
     // ═══════════════════════════════════════════════════════════════════════════════
@@ -448,9 +456,10 @@ ${additionalAngles[angleIndex]}
           // waterMark: optionnel, on ne l'utilise pas pour l'instant
         };
         
-        console.log('[IMAGE GENERATION] Request body prepared (without image):', JSON.stringify({ ...requestBody, image: '[BASE64_IMAGE]' }));
+        console.log('[IMAGE GENERATION] Request body prepared (without image):', JSON.stringify({ ...requestBody, prompt: '[PROMPT]', imageUrls: '[IMAGE_URLS]' }));
         console.log('[IMAGE GENERATION] Image length:', imageForAPI.length, 'chars');
-        console.log('[IMAGE GENERATION] Prompt:', enhancedPrompt.substring(0, 300) + '...');
+        console.log('[IMAGE GENERATION] Prompt length:', imageSpecificPrompt.length, 'chars');
+        console.log('[IMAGE GENERATION] Prompt preview:', imageSpecificPrompt.substring(0, 300) + '...');
         
         // Endpoints selon la documentation officielle : https://docs.nanobananaapi.ai
         // L'endpoint officiel est : /api/v1/nanobanana/generate
