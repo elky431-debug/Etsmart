@@ -257,135 +257,69 @@ export default function ShopAnalyzeClient() {
     return () => clearInterval(interval);
   }, [analyzing]);
 
-  // Calculer les tags les plus utilisés depuis les listings (mots-clés SEO réels)
+  // Extraire les tags optimisés pour le type de boutique
   const getMostUsedTags = () => {
-    if (!analysisData?.rawData?.listings || analysisData.rawData.listings.length === 0) {
-      // Si pas de listings, extraire depuis le nom de la boutique et l'analyse
-      const tags: string[] = [];
-      const shopName = (analysisData?.rawData?.shopName || '').toLowerCase();
-      
-      // Mots-clés communs pour Etsy
-      if (shopName.includes('suncatcher') || shopName.includes('sun')) tags.push('Suncatcher');
-      if (shopName.includes('handmade') || shopName.includes('hand')) tags.push('Handmade');
-      if (shopName.includes('decor') || shopName.includes('decoration')) tags.push('Decoration');
-      if (shopName.includes('gift')) tags.push('Gift');
-      if (shopName.includes('personalized') || shopName.includes('personal')) tags.push('Personalized');
-      if (shopName.includes('custom')) tags.push('Custom');
-      if (shopName.includes('art')) tags.push('Art');
-      if (shopName.includes('glass') || shopName.includes('stained')) tags.push('Stained Glass');
-      
-      // Utiliser les patterns de l'analyse AI
-      if (analysisData?.analysis?.listingsAnalysis?.patterns) {
-        analysisData.analysis.listingsAnalysis.patterns.forEach(pattern => {
-          const words = pattern.toLowerCase().split(/\s+/).filter(w => w.length >= 4);
-          words.forEach(word => {
-            if (!tags.some(t => t.toLowerCase() === word)) {
-              tags.push(word.charAt(0).toUpperCase() + word.slice(1));
-            }
-          });
-        });
-      }
-      
-      return tags.slice(0, 10).map(tag => ({ tag, count: 1, percentage: 100 }));
+    // Utiliser les tags optimisés depuis l'analyse AI si disponibles
+    if (analysisData?.analysis?.optimizedTags && analysisData.analysis.optimizedTags.length > 0) {
+      return analysisData.analysis.optimizedTags.map((tag: string, idx: number) => ({
+        tag: tag.charAt(0).toUpperCase() + tag.slice(1),
+        count: 1,
+        percentage: 100 - (idx * 5) // Décroissant de 100% à ...
+      }));
     }
+
+    // Sinon, générer des tags basés sur le type de boutique détecté
+    const shopName = (analysisData?.rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
+    const listings = analysisData?.rawData?.listings || [];
+    const titles = listings.map(l => l.title.toLowerCase()).join(' ');
     
-    // Mots à exclure (stop words + mots non pertinents)
-    const stopWords = new Set([
-      'the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'was', 'were', 
-      'been', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 
-      'must', 'shall', 'about', 'into', 'through', 'during', 'including', 'against', 'among', 
-      'throughout', 'despite', 'towards', 'upon', 'concerning', 'to', 'of', 'in', 'on', 'at', 
-      'by', 'a', 'an', 'as', 'is', 'it', 'its', 'or', 'but', 'not', 'be', 'do', 'does', 'did',
-      // Mots non pertinents pour les tags
-      'price', 'sale', 'original', 'off', 'loading', 'personalized', 'memorial', 'style', 'gift',
-      'window', 'stained', 'glass', 'acrylic', 'hanging', 'decor', 'suncatcher'
-    ]);
+    // Détecter le type de boutique
+    let nicheTags: string[] = [];
     
-    const tagCounts: { [key: string]: number } = {};
-    
-    analysisData.rawData.listings.forEach(listing => {
-      // Extraire les mots-clés SEO depuis le titre
-      const words = listing.title
-        .toLowerCase()
-        .replace(/[^\w\s]/g, ' ') // Remplacer la ponctuation
-        .replace(/\$\d+\.?\d*/g, '') // Enlever les prix
-        .replace(/\d+%/g, '') // Enlever les pourcentages
-        .replace(/\b(price|sale|original|off|loading)\b/gi, '') // Enlever les mots non pertinents
-        .split(/\s+/)
-        .filter(word => 
-          word.length >= 4 && 
-          !stopWords.has(word) && 
-          !/^\d+$/.test(word) && // Pas de nombres purs
-          !word.match(/^\$/) && // Pas de prix
-          word !== 'price' && word !== 'sale' && word !== 'original' && word !== 'off' && word !== 'loading'
-        );
-      
-      words.forEach(word => {
-        if (word.length >= 4 && word.length <= 20) { // Limiter la longueur
-          tagCounts[word] = (tagCounts[word] || 0) + 1;
-        }
-      });
-    });
-    
-    // Utiliser aussi les patterns de l'analyse AI si disponibles
-    if (analysisData.analysis?.listingsAnalysis?.patterns) {
-      analysisData.analysis.listingsAnalysis.patterns.forEach(pattern => {
-        const words = pattern.toLowerCase()
-          .replace(/[^\w\s]/g, ' ')
-          .split(/\s+/)
-          .filter(w => w.length >= 4 && !stopWords.has(w));
+    if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
+      nicheTags = ['Acrylic Suncatcher', 'Window Hanging', 'Stained Glass Style', 'Home Decor', 'Gift', 'Personalized', 'Custom', 'Handmade', 'Window Decor', 'Wall Hanging'];
+    } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry') || titles.includes('necklace') || titles.includes('bracelet')) {
+      nicheTags = ['Handmade Jewelry', 'Unique Design', 'Gift', 'Custom', 'Personalized', 'Artisan', 'Quality', 'Fashion', 'Accessories', 'Trendy'];
+    } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print') || titles.includes('art')) {
+      nicheTags = ['Art Print', 'Wall Art', 'Home Decor', 'Gift', 'Unique', 'Handmade', 'Custom', 'Personalized', 'Modern', 'Decorative'];
+    } else if (shopName.includes('home') || shopName.includes('decor') || titles.includes('home decor')) {
+      nicheTags = ['Home Decor', 'Interior Design', 'Gift', 'Unique', 'Handmade', 'Custom', 'Modern', 'Stylish', 'Decorative', 'Wall Decor'];
+    } else if (shopName.includes('gift') || titles.includes('gift')) {
+      nicheTags = ['Gift', 'Unique', 'Handmade', 'Custom', 'Personalized', 'Special', 'Thoughtful', 'Memorable', 'Quality', 'Premium'];
+    } else {
+      // Tags génériques Etsy
+      nicheTags = ['Handmade', 'Unique', 'Gift', 'Custom', 'Personalized', 'Quality', 'Artisan', 'Special', 'Original', 'Premium'];
+    }
+
+    // Ajouter des tags spécifiques depuis les patterns de l'analyse
+    if (analysisData?.analysis?.listingsAnalysis?.patterns) {
+      analysisData.analysis.listingsAnalysis.patterns.slice(0, 5).forEach(pattern => {
+        const words = pattern.split(/\s+/).filter(w => w.length >= 4 && w.length <= 15);
         words.forEach(word => {
-          if (word.length >= 4 && word.length <= 20) {
-            tagCounts[word] = (tagCounts[word] || 0) + 1;
+          const capitalized = word.charAt(0).toUpperCase() + word.slice(1);
+          if (!nicheTags.some(t => t.toLowerCase() === word.toLowerCase())) {
+            nicheTags.push(capitalized);
           }
         });
       });
     }
-    
-    // Filtrer les tags qui apparaissent dans moins de 2 listings (pas assez représentatif)
-    const filteredTags = Object.entries(tagCounts)
-      .filter(([tag, count]) => count >= 2)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([tag, count]) => ({
-        tag: tag.charAt(0).toUpperCase() + tag.slice(1).replace(/\b\w/g, l => l.toUpperCase()),
-        count,
-        percentage: Math.round((count / analysisData.rawData.listings.length) * 100)
-      }));
-    
-    return filteredTags;
+
+    return nicheTags.slice(0, 15).map((tag, idx) => ({
+      tag,
+      count: 1,
+      percentage: Math.max(20, 100 - (idx * 6))
+    }));
   };
 
-  // Estimer les ventes mensuelles et revenus de manière intelligente
-  const estimateMonthlyMetrics = () => {
+  // Calculer le revenu total réaliste : prix moyen × ventes totales
+  const calculateTotalRevenue = () => {
     const rawData = analysisData?.rawData;
     const metrics = analysisData?.analysis?.metrics;
-    
-    // Utiliser les données de l'analyse AI si disponibles
-    if (metrics?.monthlyRevenue && metrics.monthlyRevenue > 0) {
-      const monthlySales = metrics.monthlyRevenue > 0 && rawData?.listings?.[0]?.price
-        ? Math.round(metrics.monthlyRevenue / rawData.listings[0].price)
-        : Math.round(metrics.totalSales / 12);
-      
-      return {
-        monthlySales: monthlySales || Math.round(metrics.totalSales / 12),
-        monthlyRevenue: metrics.monthlyRevenue
-      };
-    }
-
-    // Si on a les ventes totales, estimer intelligemment
     const totalSales = metrics?.totalSales || rawData?.salesCount || 0;
-    const listingsCount = metrics?.listingsCount || rawData?.listings?.length || 1;
     
-    if (totalSales === 0) {
-      // Estimation pour une nouvelle boutique
-      return {
-        monthlySales: 0,
-        monthlyRevenue: 0
-      };
-    }
+    if (totalSales === 0) return 0;
 
-    // Calculer le prix moyen estimé
+    // Calculer le prix moyen depuis les listings réels
     let avgPrice = 0;
     if (rawData?.listings && rawData.listings.length > 0) {
       const prices = rawData.listings.map(l => l.price).filter(p => p > 0);
@@ -394,51 +328,102 @@ export default function ShopAnalyzeClient() {
       }
     }
     
-    // Si pas de prix moyen, estimer basé sur la niche (suncatchers, décorations = 15-25€)
+    // Si pas de prix moyen depuis les listings, estimer selon la niche
     if (avgPrice === 0) {
-      const shopName = (rawData?.shopName || '').toLowerCase();
-      if (shopName.includes('suncatcher') || shopName.includes('decor') || shopName.includes('ornament')) {
-        avgPrice = 18; // Prix moyen pour suncatchers
-      } else if (shopName.includes('jewelry') || shopName.includes('bijou')) {
-        avgPrice = 25;
-      } else if (shopName.includes('art') || shopName.includes('print')) {
-        avgPrice = 15;
+      const shopName = (rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
+      const titles = (rawData?.listings || []).map(l => l.title.toLowerCase()).join(' ');
+      
+      if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
+        avgPrice = 18; // Suncatchers
+      } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry')) {
+        avgPrice = 28; // Jewelry
+      } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print')) {
+        avgPrice = 15; // Art prints
+      } else if (shopName.includes('home') || shopName.includes('decor')) {
+        avgPrice = 22; // Home decor
       } else {
-        avgPrice = 20; // Prix moyen général Etsy
+        avgPrice = 20; // Général Etsy
+      }
+    }
+
+    // Revenu total = prix moyen × ventes totales
+    return totalSales * avgPrice;
+  };
+
+  // Estimer les ventes mensuelles et revenus de manière intelligente
+  const estimateMonthlyMetrics = () => {
+    const rawData = analysisData?.rawData;
+    const metrics = analysisData?.analysis?.metrics;
+    const totalSales = metrics?.totalSales || rawData?.salesCount || 0;
+    
+    if (totalSales === 0) {
+      return { monthlySales: 0, monthlyRevenue: 0 };
+    }
+
+    // Calculer le prix moyen (même logique que calculateTotalRevenue)
+    let avgPrice = 0;
+    if (rawData?.listings && rawData.listings.length > 0) {
+      const prices = rawData.listings.map(l => l.price).filter(p => p > 0);
+      if (prices.length > 0) {
+        avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      }
+    }
+    
+    if (avgPrice === 0) {
+      const shopName = (rawData?.shopName || analysisData?.shop?.name || '').toLowerCase();
+      const titles = (rawData?.listings || []).map(l => l.title.toLowerCase()).join(' ');
+      
+      if (shopName.includes('suncatcher') || titles.includes('suncatcher')) {
+        avgPrice = 18;
+      } else if (shopName.includes('jewelry') || shopName.includes('bijou') || titles.includes('jewelry')) {
+        avgPrice = 28;
+      } else if (shopName.includes('art') || shopName.includes('print') || titles.includes('print')) {
+        avgPrice = 15;
+      } else if (shopName.includes('home') || shopName.includes('decor')) {
+        avgPrice = 22;
+      } else {
+        avgPrice = 20;
       }
     }
 
     // Estimation basée sur l'âge de la boutique
-    let monthsActive = 12; // Par défaut 1 an
+    let monthsActive = 12;
     if (rawData?.shopAge) {
       const currentYear = new Date().getFullYear();
       const shopYear = parseInt(rawData.shopAge);
       if (!isNaN(shopYear) && shopYear > 2000 && shopYear <= currentYear) {
         const yearsActive = Math.max(1, currentYear - shopYear);
         monthsActive = yearsActive * 12;
+      } else {
+        // Si l'âge est en format "7 months" ou similaire
+        const ageText = rawData.shopAge.toLowerCase();
+        const monthsMatch = ageText.match(/(\d+)\s*month/i);
+        if (monthsMatch) {
+          monthsActive = parseInt(monthsMatch[1]);
+        }
       }
     }
 
     // Calculer les ventes mensuelles
-    // Si la boutique est récente (< 2 ans), on privilégie les ventes récentes (40% des ventes)
-    // Si la boutique est ancienne, on fait une moyenne (ventes totales / mois actifs)
     let monthlySales = 0;
-    if (monthsActive <= 24) {
+    if (monthsActive <= 12) {
+      // Boutique très récente : 50% des ventes sont récentes
+      monthlySales = Math.round(totalSales * 0.5 / Math.max(1, monthsActive));
+    } else if (monthsActive <= 24) {
       // Boutique récente : 40% des ventes sont récentes
       monthlySales = Math.round(totalSales * 0.4 / 12);
     } else {
-      // Boutique ancienne : moyenne sur toute la période
-      monthlySales = Math.round(totalSales / monthsActive);
+      // Boutique ancienne : moyenne sur toute la période avec pondération récente
+      monthlySales = Math.round(totalSales / monthsActive * 1.3); // +30% pour favoriser les ventes récentes
     }
     
-    // Ajuster selon le nombre de listings (plus de listings = plus de ventes potentielles)
+    // Ajuster selon les performances
+    const listingsCount = metrics?.listingsCount || rawData?.listings?.length || 1;
     const salesPerListing = totalSales / listingsCount;
     if (salesPerListing > 50) {
-      // Boutique performante : augmenter l'estimation mensuelle
-      monthlySales = Math.round(monthlySales * 1.2);
+      monthlySales = Math.round(monthlySales * 1.15);
     } else if (salesPerListing < 20) {
-      // Boutique moins performante : réduire légèrement
-      monthlySales = Math.round(monthlySales * 0.9);
+      monthlySales = Math.round(monthlySales * 0.95);
     }
 
     // Calculer le revenu mensuel
@@ -689,14 +674,23 @@ export default function ShopAnalyzeClient() {
   }
 
   const shop = analysisData.analysis || analysisData.rawData;
+  // Utiliser le nombre réel de listings depuis les données (peut être différent du nombre scrapé)
+  const realListingsCount = analysisData.analysis?.metrics?.listingsCount || 
+                           analysisData.rawData?.listingsCount || 
+                           analysisData.rawData?.listings?.length || 
+                           0;
+  
   const metrics = analysisData.analysis?.metrics || {
     totalSales: analysisData.rawData?.salesCount || 0,
-    totalRevenue: analysisData.rawData?.totalRevenue || 0,
-    monthlyRevenue: analysisData.rawData?.monthlyRevenue || 0,
+    totalRevenue: calculateTotalRevenue(),
+    monthlyRevenue: estimateMonthlyMetrics().monthlyRevenue,
     rating: analysisData.rawData?.rating || 0,
     reviewCount: analysisData.rawData?.reviewCount || 0,
     shopAge: analysisData.rawData?.shopAge || 'Inconnu',
-    listingsCount: analysisData.rawData?.listings?.length || 0
+    listingsCount: realListingsCount,
+    averagePrice: analysisData.rawData?.listings && analysisData.rawData.listings.length > 0
+      ? analysisData.rawData.listings.reduce((sum: number, l: any) => sum + (l.price || 0), 0) / analysisData.rawData.listings.filter((l: any) => l.price > 0).length
+      : 0
   };
 
   const mostUsedTags = getMostUsedTags();
@@ -890,10 +884,7 @@ export default function ShopAnalyzeClient() {
                   <div className="text-sm text-white/70 mb-1">Revenu Total Estimé</div>
                   <div className="text-lg font-bold text-white">
                     {(() => {
-                      const estimated = estimateMonthlyMetrics();
-                      const totalRevenue = estimated.monthlyRevenue > 0 
-                        ? estimated.monthlyRevenue * 12 
-                        : (metrics.totalSales || 0) * 18; // Estimation: prix moyen 18€
+                      const totalRevenue = calculateTotalRevenue();
                       return totalRevenue > 0 ? `${totalRevenue.toFixed(2)} €` : 'N/A';
                     })()}
                   </div>
