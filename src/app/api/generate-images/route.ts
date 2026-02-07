@@ -297,71 +297,117 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
         }
       }
       
+      // Vérifier que base64Data existe
+      if (!base64Data || base64Data.length < 100) {
+        throw new Error('Image data is too small or invalid');
+      }
+      
       // Convertir base64 en Buffer
-      const imageBuffer = Buffer.from(base64Data, 'base64');
-      console.log('[IMAGE GENERATION] Original image size:', (imageBuffer.length / 1024).toFixed(2), 'KB');
+      let imageBuffer: Buffer;
+      try {
+        imageBuffer = Buffer.from(base64Data, 'base64');
+        console.log('[IMAGE GENERATION] Original image size:', (imageBuffer.length / 1024).toFixed(2), 'KB');
+      } catch (bufferError: any) {
+        console.error('[IMAGE GENERATION] Error creating buffer:', bufferError);
+        throw new Error(`Invalid base64 image data: ${bufferError.message}`);
+      }
       
       // ⚠️ COMPRESSION AGRESSIVE pour éviter l'erreur 413
       // Objectif : < 500KB pour éviter les problèmes avec nginx
       // ═══════════════════════════════════════════════════════════════════════════════
       
-      // Essayer d'abord avec 512x512 et qualité 70%
-      let compressedBuffer = await sharp(imageBuffer)
-        .resize(512, 512, {
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality: 70, mozjpeg: true })
-        .toBuffer();
-      
-      console.log('[IMAGE GENERATION] First compression (512x512, 70%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-      
-      // Si toujours > 500KB, compresser encore plus
-      if (compressedBuffer.length > 500 * 1024) {
-        console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying more aggressive compression...');
-        compressedBuffer = await sharp(imageBuffer)
-          .resize(400, 400, {
+      try {
+        // Essayer d'abord avec 512x512 et qualité 70%
+        let compressedBuffer = await sharp(imageBuffer)
+          .resize(512, 512, {
             fit: 'inside',
             withoutEnlargement: true,
           })
-          .jpeg({ quality: 60, mozjpeg: true })
+          .jpeg({ quality: 70, mozjpeg: true })
           .toBuffer();
-        console.log('[IMAGE GENERATION] Second compression (400x400, 60%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+        
+        console.log('[IMAGE GENERATION] First compression (512x512, 70%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+        
+        // Si toujours > 500KB, compresser encore plus
+        if (compressedBuffer.length > 500 * 1024) {
+          console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying more aggressive compression...');
+          compressedBuffer = await sharp(imageBuffer)
+            .resize(400, 400, {
+              fit: 'inside',
+              withoutEnlargement: true,
+            })
+            .jpeg({ quality: 60, mozjpeg: true })
+            .toBuffer();
+          console.log('[IMAGE GENERATION] Second compression (400x400, 60%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+        }
+        
+        // Si toujours > 500KB, dernière compression très agressive
+        if (compressedBuffer.length > 500 * 1024) {
+          console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying maximum compression...');
+          compressedBuffer = await sharp(imageBuffer)
+            .resize(300, 300, {
+              fit: 'inside',
+              withoutEnlargement: true,
+            })
+            .jpeg({ quality: 50, mozjpeg: true })
+            .toBuffer();
+          console.log('[IMAGE GENERATION] Maximum compression (300x300, 50%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+        }
+        
+        // Convertir en base64
+        imageForAPI = compressedBuffer.toString('base64');
+        
+        console.log('[IMAGE GENERATION] ✅ Final compressed image size:', (compressedBuffer.length / 1024).toFixed(2), 'KB');
+        console.log('[IMAGE GENERATION] Compression ratio:', ((1 - compressedBuffer.length / imageBuffer.length) * 100).toFixed(1), '%');
+        
+        // Avertir si l'image est encore trop grande
+        if (compressedBuffer.length > 500 * 1024) {
+          console.error('[IMAGE GENERATION] ⚠️ WARNING: Image is still > 500KB after compression!');
+        }
+      } catch (sharpError: any) {
+        console.error('[IMAGE GENERATION] Sharp compression failed, using original base64:', sharpError.message);
+        // Fallback : utiliser l'image originale si la compression échoue
+        imageForAPI = base64Data;
       }
-      
-      // Si toujours > 500KB, dernière compression très agressive
-      if (compressedBuffer.length > 500 * 1024) {
-        console.warn('[IMAGE GENERATION] ⚠️ Image still > 500KB, applying maximum compression...');
-        compressedBuffer = await sharp(imageBuffer)
-          .resize(300, 300, {
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .jpeg({ quality: 50, mozjpeg: true })
-          .toBuffer();
-        console.log('[IMAGE GENERATION] Maximum compression (300x300, 50%):', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-      }
-      
-      // Convertir en base64
-      imageForAPI = compressedBuffer.toString('base64');
-      
-      console.log('[IMAGE GENERATION] ✅ Final compressed image size:', (compressedBuffer.length / 1024).toFixed(2), 'KB');
-      console.log('[IMAGE GENERATION] Compression ratio:', ((1 - compressedBuffer.length / imageBuffer.length) * 100).toFixed(1), '%');
-      
-      // Avertir si l'image est encore trop grande
-      if (compressedBuffer.length > 500 * 1024) {
-        console.error('[IMAGE GENERATION] ⚠️ WARNING: Image is still > 500KB after compression!');
-      }
-    } catch (error) {
-      console.error('[IMAGE GENERATION] Error compressing image, using original:', error);
-      // Fallback : utiliser l'image originale si la compression échoue
-      imageForAPI = imageInput;
-      if (imageForAPI.startsWith('data:image/')) {
-        const parts = imageForAPI.split(',');
+    } catch (error: any) {
+      console.error('[IMAGE GENERATION] Error processing image, using fallback:', error);
+      // Fallback final : utiliser l'image originale si tout échoue
+      if (imageInput && imageInput.startsWith('data:image/')) {
+        const parts = imageInput.split(',');
         if (parts.length > 1) {
           imageForAPI = parts[1];
+        } else {
+          imageForAPI = imageInput;
         }
+      } else {
+        imageForAPI = imageInput || '';
       }
+      
+      if (!imageForAPI || imageForAPI.length < 100) {
+        console.error('[IMAGE GENERATION] ❌ Cannot recover image data');
+        return NextResponse.json(
+          { error: 'Erreur lors de la préparation de l\'image. Veuillez réessayer avec une autre image.' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Vérifier que enhancedPrompt est défini
+    if (!enhancedPrompt) {
+      console.error('[IMAGE GENERATION] ❌ enhancedPrompt is not defined');
+      return NextResponse.json(
+        { error: 'Erreur lors de la construction du prompt' },
+        { status: 500 }
+      );
+    }
+    
+    // Vérifier que imageForAPI est défini
+    if (!imageForAPI || imageForAPI.length < 100) {
+      console.error('[IMAGE GENERATION] ❌ imageForAPI is not defined or too small');
+      return NextResponse.json(
+        { error: 'Erreur lors de la préparation de l\'image' },
+        { status: 500 }
+      );
     }
     
     const generationPromises = Array.from({ length: body.quantity }, async (_, index) => {
@@ -373,7 +419,7 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
         
         // ⚠️ CRITICAL: Créer un prompt unique pour chaque image avec un point de vue différent
         // Chaque image doit avoir un angle de vue, une perspective ou un contexte différent
-        let imageSpecificPrompt = enhancedPrompt;
+        let imageSpecificPrompt = enhancedPrompt || '';
         
         if (body.quantity > 1) {
           // Ajouter des instructions spécifiques selon l'index pour varier le point de vue
