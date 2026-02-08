@@ -578,7 +578,18 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
        - ⚠️ Si tu génères un score de moins de 7.0 pour un produit bébé/naissance, ton analyse sera automatiquement rejetée et corrigée
        - ⚠️ Cette règle s'applique à TOUS les produits pour bébés et naissances sans exception
     
-    c) SACS (bag, bags, sac, sacs, handbag, purse, tote, backpack, shoulder bag, crossbody, clutch, wallet, messenger bag, duffel, suitcase, briefcase):
+    c) MASQUES HALLOWEEN (halloween mask, masque halloween):
+       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être STRICTEMENT INFÉRIEUR à 4/10
+       - ⚠️ STRICTEMENT INFÉRIEUR signifie: le score DOIT être < 4.0 (pas égal, pas supérieur)
+       - Le score DOIT être entre 1.0 et 3.99 inclusivement (jamais 4.0 ou plus)
+       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
+       - Même si tous les autres facteurs suggèrent un score élevé, pour les masques Halloween le score DOIT rester STRICTEMENT < 4
+       - Exemples de scores VALIDES: 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.9, 3.99 (tous < 4.0)
+       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 4.0, 4.1, 5.0, 10.0, etc. (tous >= 4.0)
+       - ⚠️ Si tu génères un score de 4.0 ou plus pour un masque Halloween, ton analyse sera automatiquement rejetée et corrigée
+       - ⚠️ Cette règle s'applique à TOUS les masques Halloween sans exception, quelle que soit leur qualité apparente
+    
+    d) SACS (bag, bags, sac, sacs, handbag, purse, tote, backpack, shoulder bag, crossbody, clutch, wallet, messenger bag, duffel, suitcase, briefcase):
        - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être EXACTEMENT 4/10
        - ⚠️ EXACTEMENT signifie: le score DOIT être = 4.0 (jamais différent)
        - Le score DOIT être exactement 4.0 (jamais moins, jamais plus)
@@ -589,10 +600,23 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
        - ⚠️ Si tu génères un score différent de 4.0 pour un sac, ton analyse sera automatiquement rejetée et corrigée
        - ⚠️ Cette règle s'applique à TOUS les sacs sans exception, quelle que soit leur qualité apparente
     
+    e) TOUS LES AUTRES PRODUITS (sauf bijoux, masques Halloween, sacs):
+       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être AU MINIMUM 4/10
+       - ⚠️ AU MINIMUM signifie: le score DOIT être >= 4.0 (jamais inférieur)
+       - Le score DOIT être entre 4.0 et 95 (jamais moins de 4)
+       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée
+       - Même si l'analyse suggère un score inférieur à 4, pour tous les autres produits le score DOIT être >= 4
+       - Exemples de scores VALIDES: 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 95.0
+       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.9, 3.5, 3.0, 2.0, 1.0, etc. (tous < 4.0)
+       - ⚠️ Si tu génères un score de moins de 4.0 pour un produit qui n'est pas un bijou, un masque Halloween ou un sac, ton analyse sera automatiquement rejetée et corrigée
+       - ⚠️ Cette règle s'applique à TOUS les autres produits sans exception
+    
     ⚠️ PRIORITÉ DES RÈGLES:
     - Si le produit est un bijou → appliquer la règle a) (score < 3)
-    - Si le produit est un sac ET n'est pas un bijou → appliquer la règle c) (score = 4)
-    - Si le produit est pour bébés ET n'est pas un bijou/sac → appliquer la règle b) (score >= 7)
+    - Si le produit est un masque Halloween ET n'est pas un bijou → appliquer la règle c) (score < 4)
+    - Si le produit est un sac ET n'est pas un bijou/masque Halloween → appliquer la règle d) (score = 4)
+    - Si le produit est pour bébés ET n'est pas un bijou/masque Halloween/sac → appliquer la règle b) (score >= 7)
+    - Pour tous les autres produits → appliquer la règle e) (score >= 4)
     - Ces règles sont OBLIGATOIRES et doivent être respectées même si l'analyse suggère un autre score
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -611,7 +635,7 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
   "estimatedShippingCost": nombre,
   "supplierPriceReasoning": "justification courte de l'estimation",
   "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
-  "confidenceScore": nombre entre 30 et 95 (⚠️ OBLIGATION: pour bijoux: STRICTEMENT < 3.0 | pour sacs: EXACTEMENT 4.0 | pour bébés/naissance: >= 7.0),
+  "confidenceScore": nombre entre 30 et 95 (⚠️ OBLIGATION: pour bijoux: STRICTEMENT < 3.0 | pour masques Halloween: STRICTEMENT < 4.0 | pour sacs: EXACTEMENT 4.0 | pour bébés/naissance: >= 7.0 | pour tous les autres: >= 4.0),
   "scoreJustification": "2-3 phrases expliquant pourquoi ce score, points forts et faibles",
   "estimatedCompetitors": nombre,
   "competitorEstimationReasoning": "justification courte de l'estimation",
@@ -1333,6 +1357,11 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
         productDescription.includes('newborn') || productDescription.includes('nouveau-né') ||
         productDescription.includes('toddler') || productDescription.includes('bambin');
     
+    // Détecter les masques Halloween
+    const isHalloweenMask = nicheLower.includes('halloween') || nicheLower.includes('halloween mask') ||
+        productDescription.includes('halloween mask') || productDescription.includes('masque halloween') ||
+        productDescription.includes('halloween') && productDescription.includes('mask');
+    
     // ⚠️ RÈGLE SPÉCIALE: Niches avec score minimum de 8
     const highScoreNiches = [
       'seagrass',
@@ -1361,9 +1390,21 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
     else if (isJewelry && analysis.confidenceScore >= 3.0) {
       analysis.confidenceScore = 2.99; // Forcer strictement < 3
     }
+    // ⚠️ RÈGLE SPÉCIALE: Tous les masques Halloween doivent avoir un score strictement < 4
+    else if (isHalloweenMask && analysis.confidenceScore >= 4.0) {
+      analysis.confidenceScore = 3.99; // Forcer strictement < 4
+    }
+    // ⚠️ RÈGLE SPÉCIALE: Tous les sacs doivent avoir un score exactement = 4
+    else if (isBag) {
+      analysis.confidenceScore = 4.0; // Forcer exactement 4
+    }
     // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
     else if (isBaby && analysis.confidenceScore < 7.0) {
       analysis.confidenceScore = 7.0; // Forcer minimum 7
+    }
+    // ⚠️ RÈGLE SPÉCIALE: Pour tous les autres produits, minimum 4
+    else if (analysis.confidenceScore < 4.0) {
+      analysis.confidenceScore = 4.0; // Forcer minimum 4 pour tous les autres
     }
     
     const responseTime = Date.now() - openaiStartTime;

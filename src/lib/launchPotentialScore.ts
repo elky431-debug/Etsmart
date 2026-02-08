@@ -184,6 +184,34 @@ function isBag(
 }
 
 /**
+ * RÈGLE ABSOLUE: Détecte les masques Halloween (obligation stricte < 4/10)
+ * Cette fonction détecte n'importe quel masque Halloween
+ */
+function isHalloweenMask(
+  niche: string,
+  productType: string,
+  productTitle: string,
+  productVisualDescription?: string
+): boolean {
+  const nicheLower = niche.toLowerCase();
+  const typeLower = productType.toLowerCase();
+  const titleLower = productTitle.toLowerCase();
+  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  
+  // Vérifier si c'est un masque Halloween (niche ou type)
+  const isHalloweenNiche = nicheLower.includes('halloween') || nicheLower.includes('halloween mask');
+  const halloweenMaskTypes = [
+    'halloween mask', 'masque halloween', 'halloween', 'mask'
+  ];
+  const isHalloweenType = (typeLower.includes('halloween') || titleLower.includes('halloween') || 
+                          descriptionLower.includes('halloween')) &&
+                          (typeLower.includes('mask') || titleLower.includes('mask') || 
+                           descriptionLower.includes('mask') || descriptionLower.includes('masque'));
+  
+  return isHalloweenNiche || isHalloweenType;
+}
+
+/**
  * RÈGLE SPÉCIALE: Détecte les bijoux génériques sans spécificité hors normes
  * Si c'est un bijou générique, la note sera forcée à < 3
  */
@@ -598,6 +626,14 @@ export function calculateLaunchPotentialScore(
     'florida vacation'
   ];
   
+  // ⚠️ RÈGLE SPÉCIALE: Détecter les masques Halloween
+  const isHalloweenMaskProduct = isHalloweenMask(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
   // ⚠️ RÈGLE SPÉCIALE: La niche seagrass doit avoir un score de 10
   if (nicheLower === 'seagrass') {
     score = 10.0; // Forcer score de 10
@@ -614,13 +650,26 @@ export function calculateLaunchPotentialScore(
       score = 2.99; // Forcer strictement < 3
     }
   }
+  // ⚠️ RÈGLE SPÉCIALE: Tous les masques Halloween doivent avoir un score strictement < 4
+  else if (isHalloweenMaskProduct) {
+    if (score >= 4.0) {
+      score = 3.99; // Forcer strictement < 4
+    }
+  }
+  // ⚠️ RÈGLE SPÉCIALE: Tous les sacs doivent avoir un score exactement = 4
+  else if (isBagProduct) {
+    score = 4.0; // Forcer exactement 4
+  }
   // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
   else if (isBabyProduct) {
     if (score < 7.0) {
       score = 7.0; // Forcer minimum 7
     }
   }
-  
+  // ⚠️ RÈGLE SPÉCIALE: Pour tous les autres produits, minimum 4
+  else if (score < 4.0) {
+    score = 4.0; // Forcer minimum 4 pour tous les autres
+  }
   
   
   // Déterminer la tranche et le verdict
