@@ -449,10 +449,13 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - LOGIQUE COHÉRENTE):
-    - ⚠️ IMPORTANT: Le score doit être COHÉRENT, JUSTIFIÉ et VARIÉ selon les caractéristiques du produit
-    - ⚠️ CRITIQUE: Ne JAMAIS retourner toujours le même score (30). Le score DOIT varier selon les caractéristiques du produit
-    - Attribue un score de confiance entre 30 et 95 selon cette logique STRICTE:
+10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - LOGIQUE COHÉRENTE ET OBJECTIVE):
+    - ⚠️ OBLIGATION ABSOLUE: Tu DOIS être OBJECTIF et VARIÉ dans tes scores
+    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner le même score pour différents produits
+    - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE reflétant ses caractéristiques RÉELLES
+    - ⚠️ CRITIQUE: Si tu analyses 10 produits différents, tu DOIS générer 10 scores DIFFÉRENTS
+    - ⚠️ NE PAS utiliser de scores "par défaut" ou "moyens" - utilise les données RÉELLES du produit
+    - Attribue un score de confiance entre 30 et 95 selon cette logique STRICTE et OBJECTIVE:
     
     ⚠️ MÉTHODE DE CALCUL OBLIGATOIRE (suivre cette méthode étape par étape):
     
@@ -484,12 +487,20 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
     - Ajoute les points de chaque étape (ÉTAPE 1 + ÉTAPE 2 + ÉTAPE 3 + ÉTAPE 4)
     - Score final = min(95, max(30, score_calculé))
     
-    ⚠️ CRITIQUE: Le score DOIT VARIER selon les caractéristiques réelles du produit analysé
-    - Ne JAMAIS retourner toujours le même score (30, 23, etc.) pour tous les produits
-    - Chaque produit est unique et doit avoir un score reflétant ses caractéristiques spécifiques
-    - Si tu analyses 10 produits différents, tu DOIS générer 10 scores différents (ou au moins variés)
-    - Utilise les données réelles du produit (concurrence estimée, qualité, marges, saturation) pour calculer un score unique
-    - Le score doit être COHÉRENT avec les données que tu as analysées, pas un nombre fixe
+    ⚠️ OBLIGATION ABSOLUE - VARIATION DES SCORES:
+    - ⚠️ INTERDICTION: Ne JAMAIS retourner le même score pour différents produits
+    - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE calculé à partir de ses données RÉELLES
+    - ⚠️ MÉTHODE OBLIGATOIRE: 
+      1. Analyse les données RÉELLES du produit (concurrence, qualité, marges, saturation)
+      2. Calcule le score ÉTAPE PAR ÉTAPE selon la méthode ci-dessus
+      3. Ne saute JAMAIS les étapes de calcul
+      4. Utilise les valeurs EXACTES que tu as estimées, pas des valeurs par défaut
+    - ⚠️ EXEMPLE INTERDIT: Ne JAMAIS faire "50 + 12 + 20 + 8 + 6 = 96" pour tous les produits
+    - ⚠️ EXEMPLE CORRECT: 
+      * Produit A: 50 + 25 (unique) + 40 (faible concurrence) + 20 (bonnes marges) + 10 (non saturé) = 145 → 95
+      * Produit B: 50 + 5 (générique) + 3 (forte concurrence) + 3 (faibles marges) + 2 (saturé) = 63 → 63
+      * Produit C: 50 + 15 (différencié) + 20 (concurrence modérée) + 8 (marges acceptables) + 6 (concurrentiel) = 99 → 95
+    - ⚠️ Le score DOIT refléter la RÉALITÉ du produit analysé, pas une moyenne ou un score par défaut
     
     ⚠️ EXEMPLES CONCRETS DE SCORING (utiliser ces exemples comme référence):
     - Produit unique/personnalisé, concurrence très faible (< 20), bonnes marges (> 40%), marché non saturé:

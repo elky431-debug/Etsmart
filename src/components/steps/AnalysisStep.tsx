@@ -599,9 +599,10 @@ export function AnalysisStep() {
     // Vérifier si on a des analyses dans le store (signe que l'analyse est terminée)
     const hasAnalyses = useStore.getState().analyses.length > 0;
     
-    // Si on a des analyses ET que la progression est à 100%, passer à l'étape 4 IMMÉDIATEMENT
-    if (hasAnalyses && progress >= 100 && !isAnalyzing) {
-      console.log('✅ [AnalysisStep] Analyse terminée (analyses présentes) - passage IMMÉDIAT à l\'étape 4');
+    // ⚠️ CRITIQUE: Ne passer à l'étape 4 QUE si la progression est EXACTEMENT à 100%
+    // Ne pas afficher les résultats avant que la barre soit complète
+    if (hasAnalyses && progress >= 100 && !isAnalyzing && analysisComplete) {
+      console.log('✅ [AnalysisStep] Analyse terminée (analyses présentes + progression 100%) - passage à l\'étape 4');
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
       // Transition immédiate sans délai pour éviter les conflits
@@ -619,12 +620,12 @@ export function AnalysisStep() {
       const hasMinimumTime = elapsed >= MINIMUM_DURATION;
       
       // On redirige si :
-      // 1. Les 20 secondes minimum sont écoulées
-      // 2. L'analyse est terminée OU on a des analyses
-      // 3. La progression est à 100%
+      // 1. Les 30 secondes minimum sont écoulées
+      // 2. L'analyse est terminée ET on a des analyses
+      // 3. La progression est EXACTEMENT à 100% (pas avant)
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
-      if (hasMinimumTime && (analysisComplete || hasAnalysesCheck) && progress >= 100 && !isAnalyzing) {
-        console.log('✅ [AnalysisStep] Analyse terminée (timing) - passage à l\'étape 4');
+      if (hasMinimumTime && analysisComplete && hasAnalysesCheck && progress >= 100 && !isAnalyzing) {
+        console.log('✅ [AnalysisStep] Analyse terminée (timing + progression 100%) - passage à l\'étape 4');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         setStep(4);
@@ -634,12 +635,12 @@ export function AnalysisStep() {
     // Vérifier toutes les 100ms
     const interval = setInterval(checkCompletion, 100);
     
-    // ⚠️ FALLBACK: Forcer la transition après 30 secondes si on a des analyses
+    // ⚠️ FALLBACK: Forcer la transition après 30 secondes si on a des analyses ET progression à 100%
     const forceTransitionTimeout = setTimeout(() => {
       if (currentStep !== 3) return;
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
-      if (progress >= 100 && hasAnalysesCheck) {
-        console.warn('⚠️ [AnalysisStep] Force transition après 30s - l\'analyse est terminée');
+      if (progress >= 100 && hasAnalysesCheck && analysisComplete) {
+        console.warn('⚠️ [AnalysisStep] Force transition après 30s - l\'analyse est terminée + progression 100%');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         setStep(4);

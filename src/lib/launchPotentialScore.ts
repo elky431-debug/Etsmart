@@ -356,12 +356,16 @@ function calculateScoreFromMatrix(
   
   const range = matrix[nicheSaturation][productSpecificity][competitionDensity];
   
-  // Calculer le score moyen avec ajustement selon signaux secondaires
-  const baseScore = (range.min + range.max) / 2;
+  // Calculer le score avec variation aléatoire dans la plage pour éviter les scores identiques
+  // Utiliser un hash basé sur les inputs pour avoir une variation déterministe mais variée
+  const inputHash = `${competitionDensity}-${nicheSaturation}-${productSpecificity}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const variation = (inputHash % 100) / 100; // Variation entre 0 et 1
+  const rangeSize = range.max - range.min;
+  const baseScore = range.min + (rangeSize * variation * 0.7 + rangeSize * 0.3); // 70% variation, 30% vers le milieu
   
   // Ajustements fins basés sur les combinaisons favorables/défavorables
   // Logique: Récompenser les bonnes combinaisons, pénaliser modérément les mauvaises
-  let adjustment = 0.3; // Bonus de base pour être généreux
+  let adjustment = 0.2; // Bonus réduit pour permettre plus de variation
   
   // Combinaisons très favorables (faible saturation + haute spécificité + faible concurrence)
   if (nicheSaturation === 'low' && productSpecificity === 'high' && competitionDensity === 'low') {
