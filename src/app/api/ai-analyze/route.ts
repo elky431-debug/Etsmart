@@ -484,6 +484,13 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
     - Ajoute les points de chaque étape (ÉTAPE 1 + ÉTAPE 2 + ÉTAPE 3 + ÉTAPE 4)
     - Score final = min(95, max(30, score_calculé))
     
+    ⚠️ CRITIQUE: Le score DOIT VARIER selon les caractéristiques réelles du produit analysé
+    - Ne JAMAIS retourner toujours le même score (30, 23, etc.) pour tous les produits
+    - Chaque produit est unique et doit avoir un score reflétant ses caractéristiques spécifiques
+    - Si tu analyses 10 produits différents, tu DOIS générer 10 scores différents (ou au moins variés)
+    - Utilise les données réelles du produit (concurrence estimée, qualité, marges, saturation) pour calculer un score unique
+    - Le score doit être COHÉRENT avec les données que tu as analysées, pas un nombre fixe
+    
     ⚠️ EXEMPLES CONCRETS DE SCORING (utiliser ces exemples comme référence):
     - Produit unique/personnalisé, concurrence très faible (< 20), bonnes marges (> 40%), marché non saturé:
       → Base 50 + Qualité 25 + Concurrence 40 + Marges 20 + Saturation 10 = 145 → Score final = 95
@@ -1404,85 +1411,44 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       }
     }
     
-    // ⚠️ CORRECTION POST-TRAITEMENT: Recalculer le score si l'IA a retourné un score trop bas ou toujours 30
-    // Si le score est 30 (minimum) ou trop bas pour les produits normaux, recalculer basé sur les caractéristiques réelles
+    // ⚠️ CORRECTION POST-TRAITEMENT: Ajuster le score uniquement si l'IA a retourné un score suspect (toujours 30 ou très bas)
+    // Ne pas remplacer systématiquement le score de l'IA, seulement corriger les cas évidents d'erreur
     if (!isJewelry && !isBag && !isBaby) {
+      const originalScore = analysis.confidenceScore;
       const competitors = analysis.estimatedCompetitors || 50;
       const saturation = analysis.saturationLevel || 'concurrentiel';
-      const productDescription = (analysis.productVisualDescription || '').toLowerCase();
       
-      // Détecter la qualité du produit
-      const isUniqueProduct = productDescription.includes('personalized') || 
-                              productDescription.includes('custom') || 
-                              productDescription.includes('unique') ||
-                              productDescription.includes('handmade') ||
-                              productDescription.includes('artisan');
-      const isGenericProduct = !isUniqueProduct && (
-        productDescription.includes('simple') || 
-        productDescription.includes('basic') ||
-        productDescription.includes('standard')
-      );
-      
-      // Recalculer le score basé sur les caractéristiques réelles
-      let recalculatedScore = 50; // Base
-      
-      // Qualité du produit (30%)
-      if (isUniqueProduct) {
-        recalculatedScore += 20; // Produit unique
-      } else if (isGenericProduct) {
-        recalculatedScore += 5; // Produit générique
+      // Seulement ajuster si le score est suspect (exactement 30, ou entre 30-35 de manière répétitive)
+      // Si le score est dans une plage raisonnable (35-95), le garder tel quel
+      if (originalScore >= 35 && originalScore <= 95) {
+        // Score dans une plage acceptable, le garder tel quel
+        console.log(`✅ Score original acceptable (${originalScore}), conservé tel quel`);
+      } else if (originalScore < 35) {
+        // Score trop bas, ajuster légèrement selon la concurrence
+        console.log(`⚠️ Score original suspect (${originalScore}), ajustement léger selon la concurrence`);
+        
+        let adjustedScore = originalScore;
+        
+        // Ajustement minimal basé uniquement sur la concurrence (facteur le plus fiable)
+        if (competitors < 20) {
+          adjustedScore = Math.max(60, originalScore + 30); // Faible concurrence = score minimum 60
+        } else if (competitors < 40) {
+          adjustedScore = Math.max(50, originalScore + 20); // Concurrence faible = score minimum 50
+        } else if (competitors < 70) {
+          adjustedScore = Math.max(45, originalScore + 15); // Concurrence modérée = score minimum 45
+        } else if (competitors < 100) {
+          adjustedScore = Math.max(40, originalScore + 10); // Concurrence élevée = score minimum 40
+        } else {
+          adjustedScore = Math.max(35, originalScore + 5); // Très forte concurrence = score minimum 35
+        }
+        
+        // Limiter entre 35 et 95
+        analysis.confidenceScore = Math.min(95, Math.max(35, adjustedScore));
+        console.log(`✅ Score ajusté: ${analysis.confidenceScore} (original: ${originalScore}, concurrents: ${competitors})`);
       } else {
-        recalculatedScore += 12; // Produit standard
-      }
-      
-      // Concurrence (40% - le plus important)
-      if (competitors < 20) {
-        recalculatedScore += 38; // Concurrence très faible
-      } else if (competitors < 40) {
-        recalculatedScore += 30; // Concurrence faible
-      } else if (competitors < 70) {
-        recalculatedScore += 20; // Concurrence modérée
-      } else if (competitors < 100) {
-        recalculatedScore += 10; // Concurrence élevée
-      } else {
-        recalculatedScore += 3; // Concurrence très élevée
-      }
-      
-      // Marges (20%) - estimer basé sur le prix
-      const estimatedMargin = ((productPrice - (analysis.estimatedSupplierPrice || productPrice * 0.7)) / productPrice) * 100;
-      if (estimatedMargin > 50) {
-        recalculatedScore += 18; // Marges excellentes
-      } else if (estimatedMargin > 30) {
-        recalculatedScore += 13; // Marges bonnes
-      } else if (estimatedMargin > 20) {
-        recalculatedScore += 8; // Marges acceptables
-      } else {
-        recalculatedScore += 3; // Marges faibles
-      }
-      
-      // Saturation (10%)
-      if (saturation === 'non_sature') {
-        recalculatedScore += 9; // Marché non saturé
-      } else if (saturation === 'concurrentiel') {
-        recalculatedScore += 6; // Marché concurrentiel
-      } else {
-        recalculatedScore += 2; // Marché saturé
-      }
-      
-      // Limiter entre 30 et 95
-      recalculatedScore = Math.min(95, Math.max(30, recalculatedScore));
-      
-      // Si le score original est 30 (minimum) ou très proche, utiliser le score recalculé
-      // Sinon, utiliser une moyenne pondérée pour éviter les changements trop brusques
-      const originalScore = analysis.confidenceScore;
-      if (originalScore <= 35) {
-        console.log(`⚠️ Score original trop bas (${originalScore}), utilisation du score recalculé (${recalculatedScore})`);
-        analysis.confidenceScore = recalculatedScore;
-      } else {
-        // Moyenne pondérée: 70% score original, 30% score recalculé
-        const weightedScore = originalScore * 0.7 + recalculatedScore * 0.3;
-        analysis.confidenceScore = Math.min(95, Math.max(30, Math.round(weightedScore)));
-        console.log(`✅ Score ajusté avec moyenne pondérée: ${analysis.confidenceScore} (original: ${originalScore}, recalculé: ${recalculatedScore})`);
+        // Score > 95, limiter à 95
+        analysis.confidenceScore = 95;
+        console.log(`⚠️ Score trop élevé (${originalScore}), limité à 95`);
       }
     }
     
