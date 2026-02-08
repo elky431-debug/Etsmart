@@ -68,14 +68,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY_MISSING', message: 'OpenAI API key is not configured' },
-        { status: 500 }
-      );
-    }
-
-    const prompt = `You are an expert Etsy copywriter. Generate a comprehensive, detailed product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
+    // ⚠️ PROMPT 1: Description (ancien prompt - celui qui était parfait)
+    const descriptionPrompt = `You are an expert Etsy copywriter. Generate a comprehensive, detailed product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
 
 CRITICAL RULES:
 - The description must be in ENGLISH ONLY
@@ -84,7 +78,7 @@ CRITICAL RULES:
 - Avoid promises of "fast shipping"
 - Avoid trademarked brand names
 - Keep it generic and legally safe
-- MUST include at least 3 emojis strategically placed throughout the description (use relevant emojis that enhance the message)
+- MUST include at least 8-12 emojis strategically placed throughout the description (use relevant emojis that enhance the message - more emojis make it more engaging and attractive)
 - Warm, human, natural tone
 - The description must be ready to copy-paste directly into Etsy
 - Make it LONG and DETAILED - aim for 300-500 words minimum
@@ -104,8 +98,8 @@ REQUIRED STRUCTURE (follow exactly - expand each section with details):
    - Capture attention immediately
    - Speak directly to emotion or main need
    - Use vivid, engaging language
-   - Include 1 emoji here
-   - Example: "Looking for a meaningful gift that truly shows how much you care? ✨ This beautiful piece is designed to create lasting memories and bring joy to your loved ones."
+   - Include 2-3 emojis here
+   - Example: "Looking for a meaningful gift that truly shows how much you care? ✨ This beautiful piece is designed to create lasting memories and bring joy to your loved ones. 💝"
 
 2. CLEAR PRODUCT PRESENTATION (3-4 sentences)
    - Explain in detail what it is
@@ -119,7 +113,7 @@ REQUIRED STRUCTURE (follow exactly - expand each section with details):
    - Explain why each feature matters to the buyer
    - Connect features to real-world benefits
    - Use bullet points with "-" for clarity
-   - Include 1 emoji in this section
+   - Include 2-3 emojis in this section
 
 4. WHY PEOPLE BUY IT (FOR / BECAUSE) (3-4 sentences)
    - Connect with real purchase motivation
@@ -139,14 +133,14 @@ REQUIRED STRUCTURE (follow exactly - expand each section with details):
    - Mention perceived quality, ease of use, attention to detail
    - Describe durability, finish, and overall quality
    - DO NOT mention "handmade" if it's not true
-   - Include 1 emoji here
+   - Include 2-3 emojis here
 
-7. USAGE & CARE (2-3 sentences)
+8. USAGE & CARE (2-3 sentences)
    - How to use the product
    - Care instructions if relevant
    - Tips for getting the most out of it
 
-8. SOFT CALL-TO-ACTION (Etsy-friendly) (1-2 sentences)
+9. SOFT CALL-TO-ACTION (Etsy-friendly) (1-2 sentences)
    - Encourage purchase without aggressiveness
    - Create urgency in a gentle way
    - Example: "Add it to your cart and create a meaningful moment today. Perfect for yourself or as a thoughtful gift that will be cherished for years to come."
@@ -158,10 +152,60 @@ OUTPUT FORMAT:
 - Use proper paragraph breaks for readability
 - Use bullet points with "-" for features/benefits sections
 - Minimum 300 words, aim for 400-500 words
-- MUST include at least 3 emojis (strategically placed, relevant to content)
+- MUST include at least 8-12 emojis (strategically placed, relevant to content - more emojis make it more engaging and attractive)
 - Make it comprehensive, detailed, and engaging
 
 Generate the description now:`;
+
+    // ⚠️ PROMPT 2: Titre, Tags et Matériaux (nouveau prompt)
+    const titleTagsMaterialsPrompt = `Tu es un expert en SEO Etsy et en rédaction de fiches produits optimisées. J'ai une boutique Etsy en dropshipping spécialisée dans ${niche || '[TA NICHE]'}
+
+À chaque fois que je te donnerai :
+• Un nom de produit AliExpress
+• Sa description
+• Et éventuellement des mots-clés pertinents ou une fiche concurrent
+
+Ta mission est de générer pour moi :
+1. Un titre optimisé SEO (clairement en rapport avec les mots-clés, sans spam, mais efficace pour le référencement).
+2. Une liste de 13 tags Etsy, chacun de maximum 20 caractères, séparés par des virgules, optimisés pour mon SEO Etsy afin que je puisse les copier-coller directement.
+3. Une liste de matériaux utilisés dans le produit, séparés par DES VIRGULES (c'est super important pour pouvoir tout copier-coller d'un coup). Génère les matériaux que tu peux identifier, idéalement 2-4 matériaux si possible.
+
+Règles importantes :
+• Mets toujours les tags sur une seule ligne séparés par des virgules.
+• Les matériaux doivent être en anglais, séparés par DES VIRGULES (exemple: "stainless steel, wood, leather, ceramic")
+• Les matériaux doivent être des noms simples, pas de descriptions, pas de phrases
+• Le texte doit être en anglais.
+• Le style doit rester naturel et vendeur, pas trop "robotique" ni bourré de mots-clés.
+
+PRODUCT INFORMATION:
+- Product name/description: ${productVisualDescription}
+- Niche: ${niche}
+${positioning ? `- Positioning: ${positioning}` : ''}
+${recommendedPrice ? `- Recommended price: $${recommendedPrice}` : ''}
+
+OUTPUT FORMAT (JSON):
+Return a JSON object with this exact structure:
+{
+  "title": "SEO optimized title (130-140 characters, natural and keyword-rich - make it as LONG as possible)",
+  "tags": "tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13",
+  "materials": "material1, material2, material3, material4"
+}
+
+IMPORTANT FOR MATERIALS:
+- Materials must be separated by COMMAS (not spaces, not two spaces, exactly COMMAS)
+- Example: "stainless steel, wood, leather, ceramic"
+- Only material names in English, no descriptions, no sentences
+- If materials are not clearly visible, infer from the product description
+- Ideal: 2-4 materials if possible, but not mandatory
+
+CRITICAL REQUIREMENTS:
+- The title must be 130-140 characters (as LONG as possible, close to the 140 character limit), SEO optimized, natural and keyword-rich
+- You MUST provide exactly 13 tags, each maximum 20 characters, separated by commas on a single line
+- Materials must be provided separately, separated by COMMAS (not spaces, exactly COMMAS) - this is CRITICAL for copy-paste functionality
+- All text must be in English
+- Keep the style natural and seller-friendly, not robotic or keyword-stuffed
+
+Generate the title, tags and materials now:`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     
@@ -172,7 +216,8 @@ Generate the description now:`;
       );
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // ⚠️ APPEL 1: Générer la description avec l'ancien prompt (celui qui était parfait)
+    const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -187,33 +232,164 @@ Generate the description now:`;
           },
           {
             role: 'user',
-            content: prompt,
+            content: descriptionPrompt,
           },
         ],
         temperature: 0.7,
-        max_tokens: 2000, // Augmenté pour permettre des descriptions longues et détaillées
+        max_tokens: 2000,
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'parse_failed' }));
-      console.error('OpenAI error:', response.status, errorData);
+    if (!descriptionResponse.ok) {
+      const errorData = await descriptionResponse.json().catch(() => ({ error: 'parse_failed' }));
+      console.error('OpenAI error (description):', descriptionResponse.status, errorData);
       
       let message = 'Error generating description';
-      if (response.status === 401) {
+      if (descriptionResponse.status === 401) {
         message = 'Invalid OpenAI API key';
-      } else if (response.status === 429) {
+      } else if (descriptionResponse.status === 429) {
         message = 'OpenAI API quota exceeded. Please try again later.';
       }
       
       return NextResponse.json(
         { error: 'OPENAI_ERROR', message },
-        { status: response.status }
+        { status: descriptionResponse.status }
       );
     }
 
-    const data = await response.json();
-    const description = data.choices[0]?.message?.content?.trim();
+    const descriptionData = await descriptionResponse.json();
+    const description = descriptionData.choices[0]?.message?.content?.trim();
+
+    if (!description) {
+      return NextResponse.json(
+        { error: 'NO_DESCRIPTION_GENERATED', message: 'Failed to generate description' },
+        { status: 500 }
+      );
+    }
+
+    // ⚠️ APPEL 2: Générer le titre, les tags et les matériaux avec le nouveau prompt
+    const titleTagsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert in Etsy SEO and optimized product listing creation.',
+          },
+          {
+            role: 'user',
+            content: titleTagsMaterialsPrompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!titleTagsResponse.ok) {
+      const errorData = await titleTagsResponse.json().catch(() => ({ error: 'parse_failed' }));
+      console.error('OpenAI error (title/tags/materials):', titleTagsResponse.status, errorData);
+      
+      // Si l'erreur est sur le titre/tags/matériaux, on retourne quand même la description
+      console.warn('[DESCRIPTION GENERATION] Failed to generate title/tags/materials, but description was generated successfully');
+    }
+
+    let title = '';
+    let tags: string[] = [];
+    let materials: string[] = [];
+
+    if (titleTagsResponse.ok) {
+      const titleTagsResponseData = await titleTagsResponse.json();
+      const titleTagsContent = titleTagsResponseData.choices[0]?.message?.content?.trim();
+
+      if (titleTagsContent) {
+        try {
+          // Try to parse as JSON
+          const parsedTitleTagsData = JSON.parse(titleTagsContent);
+          title = parsedTitleTagsData.title || '';
+          const tagsString = parsedTitleTagsData.tags || '';
+          const materialsString = parsedTitleTagsData.materials || '';
+          
+          // Parse tags from comma-separated string
+          tags = tagsString
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t && t.length <= 20)
+            .slice(0, 13); // Ensure max 13 tags
+
+          // Parse materials from comma-separated string
+          if (materialsString) {
+            materials = materialsString
+              .split(',') // Split by commas
+              .map(m => m.trim())
+              .filter(m => m && m.length > 0);
+          }
+        } catch (parseError) {
+          // If not JSON, try to extract from text format
+          console.warn('[DESCRIPTION GENERATION] Title/tags/materials response is not JSON, trying to extract from text...');
+          
+          const titleMatch = titleTagsContent.match(/title["']?\s*[:=]\s*["']([^"']+)["']/i) || 
+                           titleTagsContent.match(/TITLE:\s*(.+?)(?:\n|TAGS|MATERIALS)/i);
+          const tagsMatch = titleTagsContent.match(/tags["']?\s*[:=]\s*["']([^"']+)["']/i) || 
+                          titleTagsContent.match(/TAGS:\s*(.+?)(?:\n|MATERIALS|$)/i);
+          const materialsMatch = titleTagsContent.match(/materials["']?\s*[:=]\s*["']([^"']+)["']/i) || 
+                                titleTagsContent.match(/MATERIALS:\s*(.+?)$/i);
+          
+          title = titleMatch?.[1]?.trim() || '';
+          const tagsString = tagsMatch?.[1]?.trim() || '';
+          const materialsString = materialsMatch?.[1]?.trim() || '';
+          
+          tags = tagsString
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t && t.length <= 20)
+            .slice(0, 13);
+
+          if (materialsString) {
+            materials = materialsString
+              .split(',') // Split by commas
+              .map(m => m.trim())
+              .filter(m => m && m.length > 0);
+          }
+        }
+      }
+    }
+    
+    // Si pas de matériaux générés, inférer depuis la description du produit (optionnel)
+    if (materials.length === 0) {
+      const productDesc = productVisualDescription?.toLowerCase() || '';
+      let inferredMaterials: string[] = [];
+      
+      if (productDesc.includes('metal') || productDesc.includes('steel') || productDesc.includes('gold') || productDesc.includes('silver') || productDesc.includes('brass') || productDesc.includes('copper')) {
+        inferredMaterials.push('metal');
+      }
+      if (productDesc.includes('wood') || productDesc.includes('wooden') || productDesc.includes('timber')) {
+        inferredMaterials.push('wood');
+      }
+      if (productDesc.includes('leather')) {
+        inferredMaterials.push('leather');
+      }
+      if (productDesc.includes('ceramic') || productDesc.includes('porcelain')) {
+        inferredMaterials.push('ceramic');
+      }
+      if (productDesc.includes('fabric') || productDesc.includes('cotton') || productDesc.includes('textile') || productDesc.includes('cloth')) {
+        inferredMaterials.push('fabric');
+      }
+      if (productDesc.includes('glass')) {
+        inferredMaterials.push('glass');
+      }
+      if (productDesc.includes('plastic') || productDesc.includes('pvc')) {
+        inferredMaterials.push('plastic');
+      }
+      
+      materials = inferredMaterials;
+      console.log('[DESCRIPTION GENERATION] ⚠️ No materials generated, inferred from product description:', materials);
+    }
 
     if (!description) {
       return NextResponse.json(
@@ -244,8 +420,6 @@ Generate the description now:`;
         });
         
         // ⚠️ CRITICAL: Verify the value was stored correctly by reading it back immediately
-        const { supabase } = await import('@/lib/supabase-admin');
-        const { createSupabaseAdminClient } = await import('@/lib/supabase-admin');
         const adminSupabase = createSupabaseAdminClient();
         const { data: verifyUser, error: verifyError } = await adminSupabase
           .from('users')
@@ -273,9 +447,12 @@ Generate the description now:`;
       console.log('[DESCRIPTION GENERATION] ⚠️ Credit deduction skipped (will be done in image generation)');
     }
 
-    // Return description AND updated quota info so client can verify
+    // Return title, description, tags, materials AND updated quota info so client can verify
     return NextResponse.json({ 
+      title: title || null,
       description,
+      tags: tags.length > 0 ? tags : null,
+      materials: materials.length > 0 ? materials.join(', ') : null, // Join with commas and space
       quotaUpdated: !skipCreditDeduction,
       // Include quota info if available
       ...(quotaResult && !skipCreditDeduction && quotaResult.success ? {
