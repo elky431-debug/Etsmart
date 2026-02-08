@@ -5,7 +5,7 @@
 echo "📦 Création du package de l'extension..."
 
 # Nom du package
-PACKAGE_NAME="etsmart-extension-v1.0.1.zip"
+PACKAGE_NAME="etsmart-extension-v1.0.4.zip"
 TEMP_DIR="package-temp"
 
 # Créer un dossier temporaire

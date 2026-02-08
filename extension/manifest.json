@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Etsmart - Analyseur de Boutiques Etsy",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Scrape et analyse les boutiques Etsy pour Etsmart",
   "permissions": [
     "tabs",
