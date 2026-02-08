@@ -1752,10 +1752,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       }
                       
                       // Si l'utilisateur a un abonnement, démarrer une nouvelle analyse
-                      const { reset, setStep } = useStore.getState();
-                      reset(); // Réinitialiser complètement le store
-                      setStep(1); // Démarrer à l'étape 1
-                      router.push('/analyze'); // Naviguer vers la page d'analyse
+                      const { reset } = useStore.getState();
+                      reset(); // Réinitialiser complètement le store (inclut setStep à 1)
+                      // Utiliser setTimeout pour s'assurer que le reset est appliqué avant la navigation
+                      setTimeout(() => {
+                        router.push('/analyze'); // Naviguer vers la page d'analyse
+                      }, 100);
                     }}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}

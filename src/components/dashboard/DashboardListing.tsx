@@ -74,6 +74,23 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
           
           const currentNicheValue = selectedNiche === 'custom' ? customNiche : (selectedNiche || analysis.niche || '');
           
+          // ⚠️ CRITICAL: Utiliser la description visuelle du produit analysé par l'IA
+          // C'est la source la plus fiable car elle décrit exactement ce que l'IA a vu dans l'image
+          const productDescription = analysis.verdict?.productVisualDescription || 
+                                    analysis.product?.title || 
+                                    '';
+          
+          if (!productDescription) {
+            console.error('[DashboardListing] No product description available for listing generation');
+            setIsGeneratingDescription(false);
+            return;
+          }
+          
+          console.log('[DashboardListing] Generating listing with product description:', productDescription);
+          console.log('[DashboardListing] Full product description length:', productDescription.length);
+          console.log('[DashboardListing] Analysis verdict productVisualDescription:', analysis.verdict?.productVisualDescription);
+          console.log('[DashboardListing] Analysis product title:', analysis.product?.title);
+          
           const response = await fetch('/api/generate-etsy-description', {
             method: 'POST',
             headers: {
@@ -81,7 +98,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
               'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-              productVisualDescription: analysis.verdict?.productVisualDescription || analysis.product?.title || '',
+              productVisualDescription: productDescription,
               niche: currentNicheValue,
               positioning: analysis.marketing?.strategic?.positioning?.mainPositioning,
               psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,

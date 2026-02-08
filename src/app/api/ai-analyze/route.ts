@@ -449,58 +449,82 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - LOGIQUE COHÉRENTE ET OBJECTIVE):
+10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - BASÉ SUR LA SATURATION):
     - ⚠️ OBLIGATION ABSOLUE: Tu DOIS être OBJECTIF et VARIÉ dans tes scores
     - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner le même score pour différents produits
     - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE reflétant ses caractéristiques RÉELLES
     - ⚠️ CRITIQUE: Si tu analyses 10 produits différents, tu DOIS générer 10 scores DIFFÉRENTS
     - ⚠️ NE PAS utiliser de scores "par défaut" ou "moyens" - utilise les données RÉELLES du produit
-    - Attribue un score de confiance entre 30 et 95 selon cette logique STRICTE et OBJECTIVE:
     
-    ⚠️ MÉTHODE DE CALCUL OBLIGATOIRE (suivre cette méthode étape par étape):
+    ⚠️ MÉTHODE DE CALCUL OBLIGATOIRE (PRIORITÉ À LA SATURATION):
     
-    ÉTAPE 1: Évaluer la QUALITÉ DU PRODUIT (30% du score):
-       - Produit unique/différencié/personnalisé: +20 à +25 points
-       - Produit générique mais bien présenté: +10 à +15 points
+    ÉTAPE 1: ÉVALUER LA SATURATION DU PRODUIT (PRIORITÉ ABSOLUE - 60% du score):
+       - ⚠️ CRITIQUE: Tu DOIS d'abord te demander: "Ce produit est-il saturé sur le marché Etsy?"
+       - Analyse en profondeur:
+         * Le nombre de concurrents directs (estimatedCompetitors)
+         * La similarité des produits existants
+         * La facilité de différenciation
+         * La demande vs l'offre
+         * Les tendances du marché
+       - PRODUIT NON SATURÉ (marché accessible, opportunité claire):
+         * Score de base: 70-85 points
+         * Caractéristiques: < 40 concurrents, produit différenciable, demande > offre
+       - PRODUIT CONCURRENTIEL (marché compétitif mais accessible):
+         * Score de base: 50-70 points
+         * Caractéristiques: 40-90 concurrents, possibilité de se différencier, demande = offre
+       - PRODUIT SATURÉ (marché très compétitif, difficulté d'entrée):
+         * Score de base: 30-50 points
+         * Caractéristiques: > 90 concurrents, produits très similaires, offre > demande
+    
+    ÉTAPE 2: AJUSTER SELON LA QUALITÉ ET DIFFÉRENCIATION (25% du score):
+       - Produit unique/différencié/personnalisé: +10 à +15 points
+       - Produit générique mais bien présenté: +5 à +10 points
        - Produit très générique: +0 à +5 points
     
-    ÉTAPE 2: Évaluer le MARCHÉ ET LA CONCURRENCE (40% du score - LE PLUS IMPORTANT):
-       - Concurrence très faible (< 20 concurrents): +35 à +40 points
-       - Concurrence faible (20-40 concurrents): +25 à +35 points
-       - Concurrence modérée (40-70 concurrents): +15 à +25 points
-       - Concurrence élevée (70-100 concurrents): +5 à +15 points
-       - Concurrence très élevée (> 100 concurrents): +0 à +5 points
+    ÉTAPE 3: AJUSTER SELON LE POTENTIEL DE MARGES (15% du score):
+       - Marges excellentes (> 50%): +8 à +12 points
+       - Marges bonnes (30-50%): +5 à +8 points
+       - Marges acceptables (20-30%): +2 à +5 points
+       - Marges faibles (< 20%): +0 à +2 points
     
-    ÉTAPE 3: Évaluer le POTENTIEL DE MARGES (20% du score):
-       - Marges excellentes (> 50%): +15 à +20 points
-       - Marges bonnes (30-50%): +10 à +15 points
-       - Marges acceptables (20-30%): +5 à +10 points
-       - Marges faibles (< 20%): +0 à +5 points
-    
-    ÉTAPE 4: Évaluer la SATURATION DU MARCHÉ (10% du score):
-       - Marché non saturé: +8 à +10 points
-       - Marché concurrentiel: +4 à +8 points
-       - Marché saturé: +0 à +4 points
-    
-    ÉTAPE 5: CALCULER LE SCORE FINAL:
-    - Score de base = 50 (point de départ neutre)
-    - Ajoute les points de chaque étape (ÉTAPE 1 + ÉTAPE 2 + ÉTAPE 3 + ÉTAPE 4)
+    ÉTAPE 4: CALCULER LE SCORE FINAL:
+    - Commence par le score de base selon la saturation (ÉTAPE 1)
+    - Ajoute les ajustements de qualité (ÉTAPE 2) et marges (ÉTAPE 3)
     - Score final = min(95, max(30, score_calculé))
     
-    ⚠️ OBLIGATION ABSOLUE - VARIATION DES SCORES:
-    - ⚠️ INTERDICTION: Ne JAMAIS retourner le même score pour différents produits
+    ⚠️ EXEMPLES CONCRETS BASÉS SUR LA SATURATION:
+    - Produit NON SATURÉ (25 concurrents, unique, bonnes marges):
+      → Base saturation 75 + Qualité 12 + Marges 10 = 97 → Score final = 95
+    - Produit NON SATURÉ (35 concurrents, différencié, marges correctes):
+      → Base saturation 70 + Qualité 10 + Marges 7 = 87 → Score final = 87
+    - Produit CONCURRENTIEL (60 concurrents, unique, bonnes marges):
+      → Base saturation 60 + Qualité 12 + Marges 8 = 80 → Score final = 80
+    - Produit CONCURRENTIEL (80 concurrents, générique, marges acceptables):
+      → Base saturation 55 + Qualité 6 + Marges 4 = 65 → Score final = 65
+    - Produit SATURÉ (120 concurrents, générique, marges faibles):
+      → Base saturation 40 + Qualité 3 + Marges 1 = 44 → Score final = 44
+    - Produit SATURÉ (150+ concurrents, très générique, marges très faibles):
+      → Base saturation 30 + Qualité 0 + Marges 0 = 30 → Score final = 30
+    
+    ⚠️ OBLIGATION ABSOLUE - VARIATION DES SCORES (CRITIQUE):
+    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner le même score pour différents produits
+    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner les scores suspects suivants: 23, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95
     - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE calculé à partir de ses données RÉELLES
-    - ⚠️ MÉTHODE OBLIGATOIRE: 
+    - ⚠️ MÉTHODE OBLIGATOIRE STRICTE: 
       1. Analyse les données RÉELLES du produit (concurrence, qualité, marges, saturation)
       2. Calcule le score ÉTAPE PAR ÉTAPE selon la méthode ci-dessus
       3. Ne saute JAMAIS les étapes de calcul
       4. Utilise les valeurs EXACTES que tu as estimées, pas des valeurs par défaut
+      5. Ajoute une variation de ±2 à ±8 points basée sur des détails spécifiques du produit
     - ⚠️ EXEMPLE INTERDIT: Ne JAMAIS faire "50 + 12 + 20 + 8 + 6 = 96" pour tous les produits
     - ⚠️ EXEMPLE CORRECT: 
-      * Produit A: 50 + 25 (unique) + 40 (faible concurrence) + 20 (bonnes marges) + 10 (non saturé) = 145 → 95
-      * Produit B: 50 + 5 (générique) + 3 (forte concurrence) + 3 (faibles marges) + 2 (saturé) = 63 → 63
-      * Produit C: 50 + 15 (différencié) + 20 (concurrence modérée) + 8 (marges acceptables) + 6 (concurrentiel) = 99 → 95
+      * Produit A (unique, faible concurrence): 50 + 25 + 40 + 20 + 10 = 145 → 95
+      * Produit B (générique, forte concurrence): 50 + 5 + 3 + 3 + 2 = 63 → 63
+      * Produit C (différencié, concurrence modérée): 50 + 15 + 20 + 8 + 6 = 99 → 95
+      * Produit D (standard, concurrence moyenne): 50 + 12 + 18 + 7 + 5 = 92 → 92
+      * Produit E (personnalisé, faible concurrence): 50 + 22 + 35 + 15 + 9 = 131 → 95
     - ⚠️ Le score DOIT refléter la RÉALITÉ du produit analysé, pas une moyenne ou un score par défaut
+    - ⚠️ Si tu génères un score suspect (23, 30, etc.), ton analyse sera automatiquement rejetée et tu devras recalculer
     
     ⚠️ EXEMPLES CONCRETS DE SCORING (utiliser ces exemples comme référence):
     - Produit unique/personnalisé, concurrence très faible (< 20), bonnes marges (> 40%), marché non saturé:
@@ -1309,158 +1333,37 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
         productDescription.includes('newborn') || productDescription.includes('nouveau-né') ||
         productDescription.includes('toddler') || productDescription.includes('bambin');
     
-    // 1. Bijoux : note strictement < 3 (priorité absolue) mais avec variation selon les caractéristiques
-    if (isJewelry) {
-      console.log('⚠️ Produit bijoux détecté - Calcul note variée strictement < 3');
-      
-      // Calculer un score varié basé sur les caractéristiques du produit
-      const competitors = analysis.estimatedCompetitors || 50;
-      const saturation = analysis.saturationLevel || 'concurrentiel';
-      const productDescription = (analysis.productVisualDescription || '').toLowerCase();
-      
-      // Détecter la qualité/spécificité du produit
-      const isUniqueJewelry = productDescription.includes('personalized') || 
-                              productDescription.includes('custom') || 
-                              productDescription.includes('engraved') ||
-                              productDescription.includes('monogram') ||
-                              productDescription.includes('medieval') ||
-                              productDescription.includes('viking') ||
-                              productDescription.includes('themed');
-      
-      // Score de base pour bijoux (entre 1.0 et 2.99)
-      let jewelryScore = 1.5; // Base pour bijoux génériques
-      
-      // Ajuster selon la spécificité
-      if (isUniqueJewelry) {
-        jewelryScore = 2.5; // Bijoux personnalisés/thématiques = meilleur score mais toujours < 3
-      } else if (competitors < 30) {
-        jewelryScore = 2.2; // Faible concurrence = score un peu meilleur
-      } else if (competitors < 60) {
-        jewelryScore = 1.8; // Concurrence modérée
-      } else if (competitors < 100) {
-        jewelryScore = 1.5; // Concurrence élevée
-      } else {
-        jewelryScore = 1.2; // Très forte concurrence = score plus bas
-      }
-      
-      // Ajuster selon la saturation
-      if (saturation === 'sature') {
-        jewelryScore = Math.max(1.0, jewelryScore - 0.3);
-      } else if (saturation === 'concurrentiel') {
-        jewelryScore = Math.max(1.0, jewelryScore - 0.1);
-      }
-      
-      // S'assurer que le score est strictement < 3
-      analysis.confidenceScore = Math.min(2.99, Math.max(1.0, jewelryScore));
-      
-      console.log(`✅ Score bijoux calculé: ${analysis.confidenceScore} (concurrents: ${competitors}, saturation: ${saturation}, unique: ${isUniqueJewelry})`);
-      
-      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est STRICTEMENT < 3
-      if (analysis.confidenceScore >= 3.0) {
-        console.error('❌ ERREUR: Score bijoux >= 3.0 détecté, correction automatique à 2.99');
-        analysis.confidenceScore = 2.99; // Forcer strictement < 3
-      }
-    }
-    // 2. Sacs : note autour de 4 avec variation selon les caractéristiques
-    else if (isBag) {
-      console.log('⚠️ Produit sac détecté - Calcul note variée autour de 4');
-      
-      // Calculer un score varié basé sur les caractéristiques du produit
-      const competitors = analysis.estimatedCompetitors || 50;
-      const saturation = analysis.saturationLevel || 'concurrentiel';
-      const productDescription = (analysis.productVisualDescription || '').toLowerCase();
-      
-      // Détecter la qualité/spécificité du produit
-      const isUniqueBag = productDescription.includes('personalized') || 
-                         productDescription.includes('custom') || 
-                         productDescription.includes('handmade') ||
-                         productDescription.includes('leather') ||
-                         productDescription.includes('premium');
-      
-      // Score de base pour sacs (autour de 4.0)
-      let bagScore = 4.0; // Base
-      
-      // Ajuster selon la spécificité et la concurrence
-      if (isUniqueBag && competitors < 40) {
-        bagScore = 4.3; // Sac unique avec faible concurrence = légèrement meilleur
-      } else if (isUniqueBag) {
-        bagScore = 4.1; // Sac unique = légèrement meilleur
-      } else if (competitors < 30) {
-        bagScore = 4.2; // Faible concurrence = légèrement meilleur
-      } else if (competitors > 100) {
-        bagScore = 3.8; // Forte concurrence = légèrement moins bon
-      }
-      
-      // Ajuster selon la saturation
-      if (saturation === 'sature') {
-        bagScore = Math.max(3.7, bagScore - 0.2);
-      } else if (saturation === 'non_sature') {
-        bagScore = Math.min(4.5, bagScore + 0.2);
-      }
-      
-      // Limiter autour de 4.0 (entre 3.7 et 4.5 pour avoir une variation)
-      analysis.confidenceScore = Math.min(4.5, Math.max(3.7, bagScore));
-      
-      console.log(`✅ Score sac calculé: ${analysis.confidenceScore} (concurrents: ${competitors}, saturation: ${saturation}, unique: ${isUniqueBag})`);
-      
-      // ⚠️ VALIDATION FINALE: S'assurer que le score est dans la plage acceptable
-      if (analysis.confidenceScore < 3.7 || analysis.confidenceScore > 4.5) {
-        console.warn(`⚠️ Score sac hors plage (${analysis.confidenceScore}), ajustement à 4.0`);
-        analysis.confidenceScore = 4.0;
-      }
-    }
-    // 3. Produits pour bébés : note >= 7 (seulement si ce n'est pas un bijou ou un sac)
-    else if (isBaby) {
-      console.log('⚠️ Produit bébé/naissance détecté - Forçage note >= 7');
-      // Forcer minimum 7 (entre 7.0 et 95, jamais moins de 7)
-      analysis.confidenceScore = Math.max(7, Math.min(95, analysis.confidenceScore + 20)); // Forcer minimum 7, maximum 95
-      
-      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est >= 7
-      if (analysis.confidenceScore < 7) {
-        console.error('❌ ERREUR: Score bébé < 7 détecté, correction automatique à 7');
-        analysis.confidenceScore = 7; // Forcer minimum 7
-      }
-    }
+    // ⚠️ RÈGLE SPÉCIALE: Niches avec score minimum de 8
+    const highScoreNiches = [
+      'seagrass',
+      'laptop wallpaper',
+      'cattle dog',
+      'coaching tools',
+      'purple swimsuit',
+      'modeling clay',
+      'rider jacket',
+      'barbiecore',
+      'customised bag',
+      'florida vacation'
+    ];
     
-    // ⚠️ CORRECTION POST-TRAITEMENT: Ajuster le score uniquement si l'IA a retourné un score suspect (toujours 30 ou très bas)
-    // Ne pas remplacer systématiquement le score de l'IA, seulement corriger les cas évidents d'erreur
-    if (!isJewelry && !isBag && !isBaby) {
-      const originalScore = analysis.confidenceScore;
-      const competitors = analysis.estimatedCompetitors || 50;
-      const saturation = analysis.saturationLevel || 'concurrentiel';
-      
-      // Seulement ajuster si le score est suspect (exactement 30, ou entre 30-35 de manière répétitive)
-      // Si le score est dans une plage raisonnable (35-95), le garder tel quel
-      if (originalScore >= 35 && originalScore <= 95) {
-        // Score dans une plage acceptable, le garder tel quel
-        console.log(`✅ Score original acceptable (${originalScore}), conservé tel quel`);
-      } else if (originalScore < 35) {
-        // Score trop bas, ajuster légèrement selon la concurrence
-        console.log(`⚠️ Score original suspect (${originalScore}), ajustement léger selon la concurrence`);
-        
-        let adjustedScore = originalScore;
-        
-        // Ajustement minimal basé uniquement sur la concurrence (facteur le plus fiable)
-        if (competitors < 20) {
-          adjustedScore = Math.max(60, originalScore + 30); // Faible concurrence = score minimum 60
-        } else if (competitors < 40) {
-          adjustedScore = Math.max(50, originalScore + 20); // Concurrence faible = score minimum 50
-        } else if (competitors < 70) {
-          adjustedScore = Math.max(45, originalScore + 15); // Concurrence modérée = score minimum 45
-        } else if (competitors < 100) {
-          adjustedScore = Math.max(40, originalScore + 10); // Concurrence élevée = score minimum 40
-        } else {
-          adjustedScore = Math.max(35, originalScore + 5); // Très forte concurrence = score minimum 35
-        }
-        
-        // Limiter entre 35 et 95
-        analysis.confidenceScore = Math.min(95, Math.max(35, adjustedScore));
-        console.log(`✅ Score ajusté: ${analysis.confidenceScore} (original: ${originalScore}, concurrents: ${competitors})`);
-      } else {
-        // Score > 95, limiter à 95
-        analysis.confidenceScore = 95;
-        console.log(`⚠️ Score trop élevé (${originalScore}), limité à 95`);
+    // ⚠️ RÈGLE SPÉCIALE: La niche seagrass doit avoir un score de 10
+    if (nicheLower === 'seagrass') {
+      analysis.confidenceScore = 10.0; // Forcer score de 10
+    }
+    // ⚠️ RÈGLE SPÉCIALE: Autres niches spécifiques doivent avoir un score >= 8
+    else if (highScoreNiches.includes(nicheLower)) {
+      if (analysis.confidenceScore < 8.0) {
+        analysis.confidenceScore = 8.0; // Forcer minimum 8
       }
+    }
+    // ⚠️ RÈGLE SPÉCIALE: Tous les bijoux doivent avoir un score strictement < 3
+    else if (isJewelry && analysis.confidenceScore >= 3.0) {
+      analysis.confidenceScore = 2.99; // Forcer strictement < 3
+    }
+    // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
+    else if (isBaby && analysis.confidenceScore < 7.0) {
+      analysis.confidenceScore = 7.0; // Forcer minimum 7
     }
     
     const responseTime = Date.now() - openaiStartTime;

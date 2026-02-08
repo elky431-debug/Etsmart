@@ -1,7 +1,13 @@
 [build]
   command = "npm run build"
+  publish = ".next"
   # Install sharp avec support Linux pour Netlify
   environment = { NPM_FLAGS = "--include=optional" }
+
+# Configuration pour le déploiement automatique
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_VERSION = "10"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -15,3 +21,13 @@
 [functions]
   # Configuration pour les fonctions Netlify (si utilisées)
   # Le timeout est configuré dans le code à 45s pour éviter le timeout Netlify (50s)
+
+# Configuration pour le déploiement continu
+# Netlify déploiera automatiquement à chaque push sur la branche main
+[context.production]
+  command = "npm run build"
+  publish = ".next"
+
+[context.branch-deploy]
+  command = "npm run build"
+  publish = ".next"

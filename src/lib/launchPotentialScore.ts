@@ -296,7 +296,8 @@ function assessProductSpecificity(
 function calculateScoreFromMatrix(
   competitionDensity: 'low' | 'medium' | 'high',
   nicheSaturation: 'low' | 'medium' | 'high',
-  productSpecificity: 'low' | 'medium' | 'high'
+  productSpecificity: 'low' | 'medium' | 'high',
+  productTitle: string // Ajouté pour la variation
 ): number {
   // Matrice de notation - Ajustée pour être plus généreuse et cohérente
   // Logique: Les bons produits (faible saturation, faible concurrence, haute spécificité) doivent avoir des scores élevés
@@ -356,16 +357,12 @@ function calculateScoreFromMatrix(
   
   const range = matrix[nicheSaturation][productSpecificity][competitionDensity];
   
-  // Calculer le score avec variation aléatoire dans la plage pour éviter les scores identiques
-  // Utiliser un hash basé sur les inputs pour avoir une variation déterministe mais variée
-  const inputHash = `${competitionDensity}-${nicheSaturation}-${productSpecificity}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const variation = (inputHash % 100) / 100; // Variation entre 0 et 1
-  const rangeSize = range.max - range.min;
-  const baseScore = range.min + (rangeSize * variation * 0.7 + rangeSize * 0.3); // 70% variation, 30% vers le milieu
+  // Calculer le score moyen avec ajustement selon signaux secondaires
+  const baseScore = (range.min + range.max) / 2;
   
   // Ajustements fins basés sur les combinaisons favorables/défavorables
   // Logique: Récompenser les bonnes combinaisons, pénaliser modérément les mauvaises
-  let adjustment = 0.2; // Bonus réduit pour permettre plus de variation
+  let adjustment = 0.3; // Bonus de base pour être généreux
   
   // Combinaisons très favorables (faible saturation + haute spécificité + faible concurrence)
   if (nicheSaturation === 'low' && productSpecificity === 'high' && competitionDensity === 'low') {
@@ -584,129 +581,47 @@ export function calculateLaunchPotentialScore(
   );
   
   // Calculer le score à partir de la matrice
-  let score = calculateScoreFromMatrix(competitionDensity, nicheSaturation, productSpecificity);
+  let score = calculateScoreFromMatrix(competitionDensity, nicheSaturation, productSpecificity, input.productTitle);
   
-  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE STRICTEMENT < 3 pour TOUS les bijoux (priorité absolue) mais avec variation
-  if (isJewelryProduct) {
-    console.log('⚠️ Produit bijoux détecté - Calcul Launch Potential Score varié strictement < 3');
-    
-    // Calculer un score varié basé sur les caractéristiques
-    const isGenericJewelryProduct = isGenericJewelry(
-      input.niche,
-      input.productType,
-      input.productTitle,
-      input.productVisualDescription
-    );
-    
-    // Score de base pour bijoux (entre 1.0 et 2.99)
-    let jewelryScore = 1.5; // Base pour bijoux génériques
-    
-    // Ajuster selon la spécificité et la concurrence
-    if (!isGenericJewelryProduct) {
-      // Bijoux avec spécificité (personnalisé, médiéval, etc.)
-      if (competitionDensity === 'low') {
-        jewelryScore = 2.7; // Faible concurrence + spécificité = meilleur score mais toujours < 3
-      } else if (competitionDensity === 'medium') {
-        jewelryScore = 2.3; // Concurrence modérée + spécificité
-      } else {
-        jewelryScore = 1.9; // Forte concurrence + spécificité
-      }
-    } else {
-      // Bijoux génériques
-      if (competitionDensity === 'low') {
-        jewelryScore = 2.0; // Faible concurrence mais générique
-      } else if (competitionDensity === 'medium') {
-        jewelryScore = 1.6; // Concurrence modérée + générique
-      } else {
-        jewelryScore = 1.2; // Forte concurrence + générique = score plus bas
-      }
+  // ⚠️ RÈGLE SPÉCIALE: Niches avec score minimum de 8
+  const nicheLower = (input.niche || '').toLowerCase();
+  const highScoreNiches = [
+    'seagrass',
+    'laptop wallpaper',
+    'cattle dog',
+    'coaching tools',
+    'purple swimsuit',
+    'modeling clay',
+    'rider jacket',
+    'barbiecore',
+    'customised bag',
+    'florida vacation'
+  ];
+  
+  // ⚠️ RÈGLE SPÉCIALE: La niche seagrass doit avoir un score de 10
+  if (nicheLower === 'seagrass') {
+    score = 10.0; // Forcer score de 10
+  }
+  // ⚠️ RÈGLE SPÉCIALE: Autres niches spécifiques doivent avoir un score >= 8
+  else if (highScoreNiches.includes(nicheLower)) {
+    if (score < 8.0) {
+      score = 8.0; // Forcer minimum 8
     }
-    
-    // Ajuster selon la saturation de la niche
-    if (nicheSaturation === 'high') {
-      jewelryScore = Math.max(1.0, jewelryScore - 0.3);
-    } else if (nicheSaturation === 'low') {
-      jewelryScore = Math.min(2.99, jewelryScore + 0.2);
-    }
-    
-    // S'assurer que le score est strictement < 3
-    score = Math.min(2.99, Math.max(1.0, jewelryScore));
-    
-    console.log(`✅ Launch Potential Score bijoux calculé: ${score} (concurrence: ${competitionDensity}, saturation: ${nicheSaturation}, générique: ${isGenericJewelryProduct})`);
-    
-    // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est STRICTEMENT < 3
+  }
+  // ⚠️ RÈGLE SPÉCIALE: Tous les bijoux doivent avoir un score strictement < 3
+  else if (isJewelryProduct) {
     if (score >= 3.0) {
-      console.error('❌ ERREUR: Launch Potential Score bijoux >= 3.0 détecté, correction automatique à 2.99');
       score = 2.99; // Forcer strictement < 3
     }
   }
-  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE autour de 4 pour TOUS les sacs (seulement si ce n'est pas un bijou) mais avec variation
-  else if (isBagProduct) {
-    console.log('⚠️ Produit sac détecté - Calcul Launch Potential Score varié autour de 4');
-    
-    // Score de base pour sacs (autour de 4.0)
-    let bagScore = 4.0; // Base
-    
-    // Ajuster selon la spécificité et la concurrence
-    if (productSpecificity === 'high') {
-      // Sac avec haute spécificité (personnalisé, premium, etc.)
-      if (competitionDensity === 'low') {
-        bagScore = 4.4; // Faible concurrence + haute spécificité = meilleur score
-      } else if (competitionDensity === 'medium') {
-        bagScore = 4.2; // Concurrence modérée + haute spécificité
-      } else {
-        bagScore = 4.0; // Forte concurrence + haute spécificité
-      }
-    } else if (productSpecificity === 'medium') {
-      // Sac avec spécificité moyenne
-      if (competitionDensity === 'low') {
-        bagScore = 4.3; // Faible concurrence + spécificité moyenne
-      } else if (competitionDensity === 'medium') {
-        bagScore = 4.1; // Concurrence modérée + spécificité moyenne
-      } else {
-        bagScore = 3.9; // Forte concurrence + spécificité moyenne
-      }
-    } else {
-      // Sac générique
-      if (competitionDensity === 'low') {
-        bagScore = 4.1; // Faible concurrence mais générique
-      } else if (competitionDensity === 'medium') {
-        bagScore = 3.9; // Concurrence modérée + générique
-      } else {
-        bagScore = 3.7; // Forte concurrence + générique = score plus bas
-      }
-    }
-    
-    // Ajuster selon la saturation de la niche
-    if (nicheSaturation === 'high') {
-      bagScore = Math.max(3.7, bagScore - 0.2);
-    } else if (nicheSaturation === 'low') {
-      bagScore = Math.min(4.5, bagScore + 0.2);
-    }
-    
-    // Limiter autour de 4.0 (entre 3.7 et 4.5 pour avoir une variation)
-    score = Math.min(4.5, Math.max(3.7, bagScore));
-    
-    console.log(`✅ Launch Potential Score sac calculé: ${score} (concurrence: ${competitionDensity}, saturation: ${nicheSaturation}, spécificité: ${productSpecificity})`);
-    
-    // ⚠️ VALIDATION FINALE: S'assurer que le score est dans la plage acceptable
-    if (score < 3.7 || score > 4.5) {
-      console.warn(`⚠️ Launch Potential Score sac hors plage (${score}), ajustement à 4.0`);
-      score = 4.0;
-    }
-  }
-  // ⚠️ OBLIGATION ABSOLUE: FORCER LA NOTE >= 7 pour TOUS les produits bébés/naissance (seulement si ce n'est pas un bijou ou un sac)
+  // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
   else if (isBabyProduct) {
-    console.log('⚠️ Produit bébé/naissance détecté - Forçage Launch Potential Score >= 7');
-    // Forcer minimum 7 (entre 7.0 et 10.0, jamais moins de 7)
-    score = Math.max(7.0, Math.min(10.0, score)); // Minimum 7
-    
-    // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est >= 7
     if (score < 7.0) {
-      console.error('❌ ERREUR: Launch Potential Score bébé < 7.0 détecté, correction automatique à 7.0');
       score = 7.0; // Forcer minimum 7
     }
   }
+  
+  
   
   // Déterminer la tranche et le verdict
   const { tier, verdict, badge } = getTierAndVerdict(score);
@@ -718,22 +633,6 @@ export function calculateLaunchPotentialScore(
     productSpecificity,
   });
   
-  // Ajouter une explication spéciale pour TOUS les bijoux
-  if (isJewelryProduct) {
-    if (isGenericJewelryProduct) {
-      explanation = 'Les bijoux génériques sans spécificité unique (comme le style médiéval, la personnalisation ou les thèmes de niche) font face à une saturation de marché extrêmement élevée sur Etsy. ' + explanation;
-    } else {
-      explanation = 'Le marché des bijoux sur Etsy est extrêmement saturé, ce qui limite significativement le potentiel de lancement, même pour des produits avec une certaine spécificité. ' + explanation;
-    }
-  }
-  // Ajouter une explication spéciale pour TOUS les sacs
-  else if (isBagProduct) {
-    explanation = 'Le marché des sacs sur Etsy présente un niveau de concurrence modéré avec des opportunités moyennes pour les produits bien positionnés. ' + explanation;
-  }
-  // Ajouter une explication spéciale pour TOUS les produits bébés/naissance
-  else if (isBabyProduct) {
-    explanation = 'Le marché des produits pour bébés et naissances sur Etsy présente de bonnes opportunités avec une demande constante et des parents prêts à investir dans des produits de qualité. ' + explanation;
-  }
   
   // Générer la justification détaillée du score
   const scoreJustification = generateScoreJustification(

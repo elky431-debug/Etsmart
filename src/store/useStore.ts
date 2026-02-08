@@ -42,11 +42,13 @@ export const useStore = create<AppState & AppActions>()(
       setStep: (step) => {
         const state = get();
         // ⚠️ PROTECTION ABSOLUE: Ne JAMAIS permettre de passer de l'étape 4 à l'étape 1 si on a des analyses
+        // SAUF si on vient de faire un reset (analyses.length === 0)
         if (state.currentStep === 4 && state.analyses.length > 0 && step === 1) {
           console.warn('[Store] ⚠️ BLOQUÉ: Tentative de réinitialisation depuis l\'étape 4 avec analyses - IGNORÉ');
           return; // Bloquer la réinitialisation
         }
         // ⚠️ PROTECTION: Ne JAMAIS permettre de passer à une étape inférieure si on a des analyses
+        // SAUF si on vient de faire un reset (analyses.length === 0)
         if (state.analyses.length > 0 && step < 4 && step !== state.currentStep) {
           console.warn('[Store] ⚠️ BLOQUÉ: Tentative de passer à l\'étape', step, 'alors qu\'on a des analyses - FORCAGE vers étape 4');
           set({ currentStep: 4 }); // Forcer l'étape 4
@@ -124,7 +126,8 @@ export const useStore = create<AppState & AppActions>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('analysis-state');
         }
-        set(initialState);
+        // Réinitialiser complètement, y compris l'étape à 1
+        set({ ...initialState, currentStep: 1 });
       },
     }),
     {

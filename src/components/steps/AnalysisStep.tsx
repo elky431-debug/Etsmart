@@ -187,15 +187,33 @@ export function AnalysisStep() {
     if (currentStep !== 3) return;
 
     const hasAnalyses = analyses.length > 0;
-    if ((analysisComplete || hasAnalyses) && progress >= 100) {
-      console.log('✅ [AnalysisStep] Transition vers étape 4 déclenchée (premier useEffect)');
+    // ⚠️ OBLIGATION ABSOLUE: Attendre que progress soit EXACTEMENT à 100 (pas juste >= 100)
+    // Vérification stricte: progress doit être >= 100 ET analysisComplete ET hasAnalyses ET !isAnalyzing
+    const progressRounded = Math.round(progress);
+    // ⚠️ FORCER: Ne transitionner QUE si progress est vraiment à 100 (arrondi)
+    if (progressRounded < 100) {
+      // Bloquer toute transition si progress < 100
+      return;
+    }
+    
+    // ⚠️ VÉRIFICATION FINALE: Toutes les conditions doivent être remplies
+    if (progressRounded >= 100 && analysisComplete && hasAnalyses && !isAnalyzing) {
+      console.log('✅ [AnalysisStep] Transition vers étape 4 déclenchée (progress EXACTEMENT 100% + analyse complète)');
       transitionDoneRef.current = true;
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
       // Transition immédiate sans délai pour éviter les conflits
       setStep(4);
+    } else {
+      // Log pour déboguer pourquoi la transition est bloquée
+      console.log('⚠️ [AnalysisStep] Transition bloquée:', {
+        progressRounded,
+        analysisComplete,
+        hasAnalyses,
+        isAnalyzing
+      });
     }
-  }, [analysisComplete, analyses.length, progress, currentStep, setStep, setGlobalIsAnalyzing]);
+  }, [analysisComplete, analyses.length, progress, currentStep, setStep, setGlobalIsAnalyzing, isAnalyzing]);
 
   
 
@@ -390,12 +408,12 @@ export function AnalysisStep() {
         addAnalysis(analysis);
         setCompletedProducts(prev => [...prev, product.id]);
         
-        // ⚠️ CRITICAL: Forcer IMMÉDIATEMENT la transition vers l'étape 4 après l'ajout de l'analyse
-        // Ne pas attendre les useEffect, transitionner directement
-        console.log('✅ [AnalysisStep] Analyse ajoutée au store - FORCAGE IMMÉDIAT vers étape 4');
+        // ⚠️ CRITICAL: Ne pas forcer la transition ici - laisser les useEffect gérer la transition
+        // La transition se fera uniquement quand progress >= 100 ET analysisComplete
+        console.log('✅ [AnalysisStep] Analyse ajoutée au store - en attente de progression 100%');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
-        setStep(4); // Transition FORCÉE vers l'étape 4
+        // Ne pas appeler setStep(4) ici - attendre que progress >= 100
         
         // ⚠️ CRITICAL: Refresh subscription to update credit count
         // Wait a bit for database to sync, then refresh
@@ -582,8 +600,17 @@ export function AnalysisStep() {
     
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTimeRef.current;
-      const progressPercent = Math.min(100, (elapsed / MINIMUM_DURATION) * 100);
-      setProgress(progressPercent);
+      // ⚠️ CRITIQUE: Calculer progress strictement basé sur le temps écoulé
+      // Progress atteint 100 seulement quand MINIMUM_DURATION est complètement écoulé
+      let finalProgress;
+      if (elapsed >= MINIMUM_DURATION) {
+        // Une fois MINIMUM_DURATION écoulé, progress = 100
+        finalProgress = 100;
+      } else {
+        // Avant MINIMUM_DURATION, progress = (elapsed / MINIMUM_DURATION) * 100, mais jamais 100
+        finalProgress = Math.min(99.99, (elapsed / MINIMUM_DURATION) * 100);
+      }
+      setProgress(finalProgress);
     }, 50); // Mise à jour toutes les 50ms pour une animation fluide
     
     return () => clearInterval(interval);
@@ -599,15 +626,30 @@ export function AnalysisStep() {
     // Vérifier si on a des analyses dans le store (signe que l'analyse est terminée)
     const hasAnalyses = useStore.getState().analyses.length > 0;
     
-    // ⚠️ CRITIQUE: Ne passer à l'étape 4 QUE si la progression est EXACTEMENT à 100%
+    // ⚠️ OBLIGATION ABSOLUE: Ne passer à l'étape 4 QUE si la progression est EXACTEMENT à 100%
     // Ne pas afficher les résultats avant que la barre soit complète
-    if (hasAnalyses && progress >= 100 && !isAnalyzing && analysisComplete) {
-      console.log('✅ [AnalysisStep] Analyse terminée (analyses présentes + progression 100%) - passage à l\'étape 4');
+    const progressRounded = Math.round(progress);
+    // ⚠️ FORCER: Bloquer toute transition si progress < 100
+    if (progressRounded < 100) {
+      console.log('⚠️ [AnalysisStep] Transition bloquée - progression:', progressRounded, '% (attente 100%)');
+      return;
+    }
+    
+    // ⚠️ VÉRIFICATION FINALE: Toutes les conditions doivent être remplies
+    if (hasAnalyses && progressRounded >= 100 && !isAnalyzing && analysisComplete) {
+      console.log('✅ [AnalysisStep] Analyse terminée (analyses présentes + progression EXACTEMENT 100%) - passage à l\'étape 4');
       setIsAnalyzing(false);
       setGlobalIsAnalyzing(false);
       // Transition immédiate sans délai pour éviter les conflits
       setStep(4);
       return;
+    } else {
+      console.log('⚠️ [AnalysisStep] Transition bloquée - conditions non remplies:', {
+        hasAnalyses,
+        progressRounded,
+        isAnalyzing,
+        analysisComplete
+      });
     }
     
     // Sinon, vérifier avec le système de timing
@@ -622,10 +664,18 @@ export function AnalysisStep() {
       // On redirige si :
       // 1. Les 30 secondes minimum sont écoulées
       // 2. L'analyse est terminée ET on a des analyses
-      // 3. La progression est EXACTEMENT à 100% (pas avant)
+      // 3. La progression est EXACTEMENT à 100% (pas avant) - OBLIGATION ABSOLUE
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
-      if (hasMinimumTime && analysisComplete && hasAnalysesCheck && progress >= 100 && !isAnalyzing) {
-        console.log('✅ [AnalysisStep] Analyse terminée (timing + progression 100%) - passage à l\'étape 4');
+      const progressRounded = Math.round(progress);
+      
+      // ⚠️ FORCER: Bloquer toute transition si progress < 100
+      if (progressRounded < 100) {
+        return; // Ne pas transitionner si progress n'est pas à 100%
+      }
+      
+      // ⚠️ OBLIGATION: Vérifier que progress est vraiment >= 100 (arrondi) ET toutes les autres conditions
+      if (hasMinimumTime && analysisComplete && hasAnalysesCheck && progressRounded >= 100 && !isAnalyzing) {
+        console.log('✅ [AnalysisStep] Analyse terminée (timing + progression EXACTEMENT 100%) - passage à l\'étape 4');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         setStep(4);
@@ -635,15 +685,31 @@ export function AnalysisStep() {
     // Vérifier toutes les 100ms
     const interval = setInterval(checkCompletion, 100);
     
-    // ⚠️ FALLBACK: Forcer la transition après 30 secondes si on a des analyses ET progression à 100%
+    // ⚠️ FALLBACK: Forcer la transition après 30 secondes UNIQUEMENT si progression EXACTEMENT à 100%
     const forceTransitionTimeout = setTimeout(() => {
       if (currentStep !== 3) return;
       const hasAnalysesCheck = useStore.getState().analyses.length > 0;
-      if (progress >= 100 && hasAnalysesCheck && analysisComplete) {
-        console.warn('⚠️ [AnalysisStep] Force transition après 30s - l\'analyse est terminée + progression 100%');
+      const progressRounded = Math.round(progress);
+      
+      // ⚠️ OBLIGATION ABSOLUE: Ne forcer la transition QUE si progress est EXACTEMENT à 100
+      if (progressRounded < 100) {
+        console.warn('⚠️ [AnalysisStep] Transition FORCÉE bloquée - progression:', progressRounded, '% (attente 100%)');
+        return; // Bloquer si progress n'est pas à 100%
+      }
+      
+      // ⚠️ VÉRIFICATION FINALE: Toutes les conditions doivent être remplies
+      if (progressRounded >= 100 && hasAnalysesCheck && analysisComplete && !isAnalyzing) {
+        console.warn('⚠️ [AnalysisStep] Force transition après 30s - l\'analyse est terminée + progression EXACTEMENT 100%');
         setIsAnalyzing(false);
         setGlobalIsAnalyzing(false);
         setStep(4);
+      } else {
+        console.warn('⚠️ [AnalysisStep] Transition FORCÉE bloquée - conditions non remplies:', {
+          progressRounded,
+          hasAnalysesCheck,
+          analysisComplete,
+          isAnalyzing
+        });
       }
     }, 30000); // 30 secondes maximum
     

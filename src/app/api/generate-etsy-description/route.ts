@@ -46,6 +46,18 @@ export async function POST(request: NextRequest) {
       skipCreditDeduction = true, // ⚠️ CHANGÉ: Par défaut true car les crédits sont déjà déduits lors du parsing de l'image
     } = body;
 
+    // ⚠️ CRITICAL VALIDATION: Vérifier que productVisualDescription est présent et non vide
+    if (!productVisualDescription || productVisualDescription.trim().length === 0) {
+      console.error('[DESCRIPTION GENERATION] ❌ productVisualDescription is missing or empty');
+      return NextResponse.json(
+        { error: 'MISSING_PRODUCT_DESCRIPTION', message: 'Product visual description is required and cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    // Log pour déboguer
+    console.log('[DESCRIPTION GENERATION] Product visual description received:', productVisualDescription.substring(0, 200) + '...');
+
     // ⚠️ CRITICAL: Check subscription status and quota before allowing generation
     // (sauf si skipCreditDeduction est true, auquel cas les crédits ont déjà été déduits lors du parsing)
     if (!skipCreditDeduction) {
@@ -68,12 +80,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ⚠️ CRITICAL: Log the product visual description for debugging
+    console.log('[DESCRIPTION GENERATION] Full product visual description:', productVisualDescription);
+    console.log('[DESCRIPTION GENERATION] Product visual description length:', productVisualDescription.length);
+    
     // ⚠️ PROMPT 1: Description (ancien prompt - celui qui était parfait)
     const descriptionPrompt = `You are an expert Etsy copywriter. Generate a comprehensive, detailed product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
 
+⚠️⚠️⚠️ CRITICAL RULE - READ THIS FIRST ⚠️⚠️⚠️
+You MUST generate a description that matches EXACTLY the product described in the "PRODUCT VISUAL DESCRIPTION" below.
+- If the product is a WATCH → describe a WATCH
+- If the product is a BABY ITEM → describe a BABY ITEM  
+- If the product is JEWELRY → describe JEWELRY
+- If the product is a MASK → describe a MASK
+- DO NOT invent a different product type
+- DO NOT use generic descriptions
+- DO NOT ignore the product visual description
+
+PRODUCT VISUAL DESCRIPTION (THIS IS YOUR ONLY SOURCE - USE IT EXACTLY):
+${productVisualDescription}
+
 CRITICAL RULES:
 - The description must be in ENGLISH ONLY
+- You MUST describe EXACTLY what is in the product visual description above
 - Do NOT use the AliExpress supplier title as a source
+- Do NOT invent features, materials, or characteristics not mentioned in the product visual description
 - Avoid any mention of dropshipping
 - Avoid promises of "fast shipping"
 - Avoid trademarked brand names
@@ -85,12 +116,15 @@ CRITICAL RULES:
 - Be descriptive, engaging, and comprehensive
 
 PRODUCT INFORMATION:
-- Product description: ${productVisualDescription}
+- Product visual description: ${productVisualDescription}
 - Niche: ${niche}
 - Positioning: ${positioning || 'Not specified'}
 - Recommended price: $${recommendedPrice}
 ${psychologicalTriggers ? `- Psychological triggers: ${psychologicalTriggers.map((t: any) => t.trigger).join(', ')}` : ''}
 ${buyerMirror ? `- Buyer mirror effect: ${buyerMirror}` : ''}
+
+⚠️⚠️⚠️ FINAL REMINDER ⚠️⚠️⚠️
+Your description MUST describe the EXACT product type mentioned in the product visual description. If the product visual description says "watch", you MUST write about a watch. If it says "baby cradle", you MUST write about a baby cradle. Do NOT write about something else.
 
 REQUIRED STRUCTURE (follow exactly - expand each section with details):
 
@@ -158,30 +192,50 @@ OUTPUT FORMAT:
 Generate the description now:`;
 
     // ⚠️ PROMPT 2: Titre, Tags et Matériaux (nouveau prompt)
-    const titleTagsMaterialsPrompt = `Tu es un expert en SEO Etsy et en rédaction de fiches produits optimisées. J'ai une boutique Etsy en dropshipping spécialisée dans ${niche || '[TA NICHE]'}
+    const titleTagsMaterialsPrompt = `You are an expert Etsy SEO and product listing copywriter. I have an Etsy dropshipping store specialized in ${niche || '[YOUR NICHE]'}
 
-À chaque fois que je te donnerai :
-• Un nom de produit AliExpress
-• Sa description
-• Et éventuellement des mots-clés pertinents ou une fiche concurrent
+⚠️⚠️⚠️ CRITICAL RULE - READ THIS FIRST ⚠️⚠️⚠️
+You MUST generate a title, tags, and materials that match EXACTLY the product described in the "PRODUCT VISUAL DESCRIPTION" below.
+- If the product is a WATCH → generate watch-related title, tags, and materials
+- If the product is a BABY ITEM → generate baby-related title, tags, and materials
+- If the product is JEWELRY → generate jewelry-related title, tags, and materials
+- If the product is a MASK → generate mask-related title, tags, and materials
+- DO NOT invent a different product type
+- DO NOT use generic content
+- DO NOT ignore the product visual description
 
-Ta mission est de générer pour moi :
-1. Un titre optimisé SEO (clairement en rapport avec les mots-clés, sans spam, mais efficace pour le référencement).
-2. Une liste de 13 tags Etsy, chacun de maximum 20 caractères, séparés par des virgules, optimisés pour mon SEO Etsy afin que je puisse les copier-coller directement.
-3. Une liste de matériaux utilisés dans le produit, séparés par DES VIRGULES (c'est super important pour pouvoir tout copier-coller d'un coup). Génère les matériaux que tu peux identifier, idéalement 2-4 matériaux si possible.
+PRODUCT VISUAL DESCRIPTION (THIS IS YOUR ONLY SOURCE - USE IT EXACTLY):
+${productVisualDescription}
 
-Règles importantes :
-• Mets toujours les tags sur une seule ligne séparés par des virgules.
-• Les matériaux doivent être en anglais, séparés par DES VIRGULES (exemple: "stainless steel, wood, leather, ceramic")
-• Les matériaux doivent être des noms simples, pas de descriptions, pas de phrases
-• Le texte doit être en anglais.
-• Le style doit rester naturel et vendeur, pas trop "robotique" ni bourré de mots-clés.
+⚠️⚠️⚠️ ABSOLUTE REQUIREMENTS:
+- You MUST generate content that matches EXACTLY what is described in the product visual description above
+- Do NOT add features, materials, or characteristics that are not mentioned
+- If the product visual description says "watch", generate watch-related content
+- If the product visual description says "baby cradle", generate baby cradle-related content
+- If the product visual description says "necklace", generate necklace-related content
+- Match the product type, materials, and features described above EXACTLY
+
+Your mission is to generate for me:
+1. A SEO optimized title (clearly related to the product described above, without keyword stuffing, but effective for SEO).
+2. A list of 13 Etsy tags, each maximum 20 characters, separated by commas, optimized for my Etsy SEO so I can copy-paste them directly.
+3. A list of materials used in the product (based ONLY on what is mentioned in the product description above), separated by COMMAS (this is super important for copy-paste functionality). Generate only the materials you can identify from the description, ideally 2-4 materials if possible.
+
+Important rules:
+• Always put tags on a single line separated by commas.
+• Materials must be in English, separated by COMMAS (example: "stainless steel, wood, leather, ceramic")
+• Materials must be simple names, no descriptions, no sentences
+• All text must be in English.
+• The style must remain natural and seller-friendly, not too "robotic" or keyword-stuffed.
+• You MUST match the product type and characteristics described in the product visual description above EXACTLY
 
 PRODUCT INFORMATION:
-- Product name/description: ${productVisualDescription}
+- Product visual description: ${productVisualDescription}
 - Niche: ${niche}
 ${positioning ? `- Positioning: ${positioning}` : ''}
 ${recommendedPrice ? `- Recommended price: $${recommendedPrice}` : ''}
+
+⚠️⚠️⚠️ FINAL REMINDER ⚠️⚠️⚠️
+Your title, tags, and materials MUST describe the EXACT product type mentioned in the product visual description. If the product visual description says "watch", you MUST generate watch-related content. If it says "baby cradle", you MUST generate baby cradle-related content. Do NOT generate content for a different product.
 
 OUTPUT FORMAT (JSON):
 Return a JSON object with this exact structure:
