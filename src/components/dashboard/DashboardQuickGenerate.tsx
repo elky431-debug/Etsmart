@@ -14,7 +14,8 @@ import {
   Check,
   Hash,
   Package,
-  Zap
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -474,15 +475,34 @@ export function DashboardQuickGenerate() {
                   <>
                     <Sparkles size={20} />
                     GÉNÉRER LE LISTING ET LES IMAGES
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">2 crédits</span>
                   </>
                 )}
               </button>
               {!isGenerating && (hasGenerated || (generatedImages.length > 0 && listingData)) && (
-                <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <p className="text-xs text-center text-amber-400 font-medium">
-                    ⚠️ Il n'est plus possible de générer un nouveau listing et de nouvelles images sur cette page.
-                  </p>
-                </div>
+                <button
+                  onClick={() => {
+                    // Reset tout l'état pour permettre une nouvelle génération
+                    setHasGenerated(false);
+                    setGeneratedImages([]);
+                    setListingData(null);
+                    setSourceImagePreview(null);
+                    setError(null);
+                    // Nettoyer sessionStorage
+                    if (typeof window !== 'undefined') {
+                      Object.keys(sessionStorage).forEach(key => {
+                        if (key.startsWith('etsmart-quick-generate-')) {
+                          sessionStorage.removeItem(key);
+                        }
+                      });
+                    }
+                  }}
+                  className="w-full mt-3 py-3 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <RotateCcw size={18} />
+                  Nouvelle génération
+                  <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">2 crédits</span>
+                </button>
               )}
             </div>
           </div>

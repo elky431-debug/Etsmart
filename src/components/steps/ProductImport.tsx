@@ -406,6 +406,15 @@ export function ProductImport() {
           >
             Prenez une capture d'écran de la page produit AliExpress/Alibaba et nous extrairons automatiquement toutes les informations
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border border-[#00d4ff]/30"
+          >
+            <Zap size={14} className="text-[#00d4ff]" />
+            <span className="text-xs font-semibold text-white/80">2 crédits par analyse et simulation</span>
+          </motion.div>
         </motion.div>
 
         {/* Image Upload Section */}
