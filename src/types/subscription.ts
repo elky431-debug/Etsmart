@@ -1,6 +1,6 @@
 // Etsmart Subscription Types - Updated per requirements
 
-export type PlanId = 'FREE' | 'SMART' | 'PRO' | 'SCALE';
+export type PlanId = 'FREE' | 'SMART' | 'PRO' | 'SCALE' | 'INFINITY';
 
 export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'past_due';
 
@@ -60,11 +60,13 @@ export interface PlanFeature {
 }
 
 // Plan quotas per plan type (as per requirements)
+// -1 means unlimited
 export const PLAN_QUOTAS: Record<PlanId, number> = {
   FREE: 0,
-  SMART: 30,
-  PRO: 60,
-  SCALE: 100,
+  SMART: 60,
+  PRO: 120,
+  SCALE: 200,
+  INFINITY: -1, // -1 means unlimited
 };
 
 // Plan prices per plan type (as per requirements)
@@ -72,7 +74,8 @@ export const PLAN_PRICES: Record<PlanId, number> = {
   FREE: 0,
   SMART: 19.99,
   PRO: 29.99,
-  SCALE: 49.99,
+  SCALE: 59.99,
+  INFINITY: 219.99,
 };
 
 // Stripe Price IDs for each plan (PRODUCTION - All in EUR)
@@ -80,22 +83,22 @@ export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
   SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
   PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
-  SCALE: 'price_1SuZZdCn17QPHnzEHKehuq0O', // Etsmart Scale - €49.99/month
+  SCALE: null, // Etsmart Scale - €59.99/month (Price ID to be updated)
+  INFINITY: 'price_1SyzZ0Cn17QPHnzEuRynPNzi', // Etsmart Infinity - Unlimited credits
 };
 
 // All plans have access to all features - only difference is number of analyses per month
 const ALL_FEATURES: PlanFeature[] = [
-  { id: 'competition_analysis', name: 'Analyse concurrence & saturation', available: true },
-  { id: 'basic_simulation', name: 'Simulation de lancement simplifiée', available: true },
-  { id: 'full_simulation', name: 'Simulation de lancement complète', available: true },
-  { id: 'advanced_simulation', name: 'Simulation avancée (risque/effort)', available: true },
-  { id: 'full_product_sheet', name: 'Fiche produit complète', available: true },
-  { id: 'advanced_marketing', name: 'Marketing avancé', available: true },
-  { id: 'tiktok_ideas', name: 'Idées TikTok & canal publicitaire', available: true },
-  { id: 'ad_prompt', name: 'Prompt IA pour image publicitaire', available: true },
-  { id: 'extended_market', name: 'Analyse de marché étendue', available: true },
-  { id: 'advanced_history', name: 'Organisation avancée de l\'historique', available: true },
-  { id: 'beta_features', name: 'Accès anticipé aux nouvelles fonctionnalités (bêta)', available: true },
+  { id: 'analyse_simulation', name: 'Analyse IA & simulation de lancement', available: true },
+  { id: 'competitors', name: 'Espionnage des boutiques concurrentes', available: true },
+  { id: 'history', name: 'Historique complet de vos analyses', available: true },
+  { id: 'quick_generate', name: 'Génération rapide listing + images', available: true },
+  { id: 'listing', name: 'Création de listings optimisés SEO', available: true },
+  { id: 'images', name: 'Génération d\'images produit par IA', available: true },
+  { id: 'prompt_universel', name: 'Prompt universel pour vos visuels', available: true },
+  { id: 'top_sellers', name: 'Découverte des top sellers Etsy', available: true },
+  { id: 'trends', name: 'Tendances Etsy en temps réel', available: true },
+  { id: 'niche_finder', name: 'Recherche de niches rentables', available: true },
 ];
 
 // Plan features configuration - all plans have the same features
@@ -104,6 +107,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeature[]> = {
   SMART: ALL_FEATURES,
   PRO: ALL_FEATURES,
   SCALE: ALL_FEATURES,
+  INFINITY: ALL_FEATURES,
 };
 
 // Plan definitions
@@ -114,7 +118,7 @@ export const PLANS: Plan[] = [
     description: 'Parfait pour les vendeurs qui veulent tester des produits sérieusement. Toutes les fonctionnalités incluses.',
     price: 19.99,
     currency: 'EUR',
-    analysesPerMonth: 30,
+    analysesPerMonth: 60,
     features: PLAN_FEATURES.SMART,
     stripePriceId: STRIPE_PRICE_IDS.SMART || undefined,
   },
@@ -124,7 +128,7 @@ export const PLANS: Plan[] = [
     description: 'Idéal pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalités incluses.',
     price: 29.99,
     currency: 'EUR',
-    analysesPerMonth: 60,
+    analysesPerMonth: 120,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
     popular: true,
@@ -133,11 +137,21 @@ export const PLANS: Plan[] = [
     id: 'SCALE',
     name: 'Etsmart Scale',
     description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
-    price: 49.99,
+    price: 59.99,
     currency: 'EUR',
-    analysesPerMonth: 100,
+    analysesPerMonth: 200,
     features: PLAN_FEATURES.SCALE,
     stripePriceId: STRIPE_PRICE_IDS.SCALE || undefined,
+  },
+  {
+    id: 'INFINITY',
+    name: 'Etsmart Infinity',
+    description: 'Pour les professionnels qui ont besoin de crédits illimités. Toutes les fonctionnalités incluses.',
+    price: 219.99,
+    currency: 'EUR',
+    analysesPerMonth: -1, // -1 means unlimited
+    features: PLAN_FEATURES.INFINITY,
+    stripePriceId: STRIPE_PRICE_IDS.INFINITY || undefined,
   },
 ];
 
@@ -173,5 +187,13 @@ export function getUpgradeSuggestion(currentPlan: PlanId): PlanId | null {
   if (currentPlan === 'FREE') return 'SMART';
   if (currentPlan === 'SMART') return 'PRO';
   if (currentPlan === 'PRO') return 'SCALE';
-  return null;
+  if (currentPlan === 'SCALE') return 'INFINITY';
+  return null; // INFINITY is the highest plan
+}
+
+/**
+ * Check if a plan has unlimited credits
+ */
+export function isUnlimitedPlan(planId: PlanId): boolean {
+  return planId === 'INFINITY' || PLAN_QUOTAS[planId] === -1;
 }

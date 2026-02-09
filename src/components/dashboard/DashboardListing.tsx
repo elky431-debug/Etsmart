@@ -104,7 +104,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
               psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
               buyerMirror: undefined,
               recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
-              skipCreditDeduction: true,
+              skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation
             }),
           });
 
@@ -199,7 +199,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
           psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
           buyerMirror: undefined, // buyerMirror not available in current structure
           recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
-          skipCreditDeduction: true, // ⚠️ CRITICAL: true = les crédits sont déjà déduits lors du parsing de l'image (0.5 crédit)
+          skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation (independent from analysis)
         }),
       });
 

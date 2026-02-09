@@ -71,10 +71,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if user has enough quota (0.5 credit needed)
-      if (quotaInfo.remaining < 0.5) {
+      // Check if user has enough quota (1 credit needed)
+      if (quotaInfo.remaining < 1.0) {
         return NextResponse.json(
-          { error: 'QUOTA_EXCEEDED', message: 'Insufficient quota. You need 0.5 credit to generate a description.' },
+          { error: 'QUOTA_EXCEEDED', message: 'Insufficient quota. You need 1 credit to generate a description.' },
           { status: 403 }
         );
       }
@@ -216,7 +216,7 @@ ${productVisualDescription}
 - Match the product type, materials, and features described above EXACTLY
 
 Your mission is to generate for me:
-1. A SEO optimized title (clearly related to the product described above, without keyword stuffing, but effective for SEO).
+1. A SEO optimized title (clearly related to the product described above, without keyword stuffing, but effective for SEO). ⚠️ The title MUST be at LEAST 100 characters long (minimum 100, ideally 120-140). If the title is under 100 characters, ADD more relevant keywords until it reaches at least 100 characters.
 2. A list of 13 Etsy tags, each maximum 20 characters, separated by commas, optimized for my Etsy SEO so I can copy-paste them directly.
 3. A list of materials used in the product (based ONLY on what is mentioned in the product description above), separated by COMMAS (this is super important for copy-paste functionality). Generate only the materials you can identify from the description, ideally 2-4 materials if possible.
 
@@ -240,7 +240,7 @@ Your title, tags, and materials MUST describe the EXACT product type mentioned i
 OUTPUT FORMAT (JSON):
 Return a JSON object with this exact structure:
 {
-  "title": "SEO optimized title (130-140 characters, natural and keyword-rich - make it as LONG as possible)",
+  "title": "SEO optimized title (MINIMUM 100 characters, ideally 120-140 characters, natural and keyword-rich - NEVER under 100 characters)",
   "tags": "tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13",
   "materials": "material1, material2, material3, material4"
 }
@@ -253,7 +253,7 @@ IMPORTANT FOR MATERIALS:
 - Ideal: 2-4 materials if possible, but not mandatory
 
 CRITICAL REQUIREMENTS:
-- The title must be 130-140 characters (as LONG as possible, close to the 140 character limit), SEO optimized, natural and keyword-rich
+- The title MUST be at LEAST 100 characters long (MINIMUM 100, ideally 120-140 characters). If it is under 100 characters, you MUST add more relevant SEO keywords to make it longer. NEVER generate a title shorter than 100 characters.
 - You MUST provide exactly 13 tags, each maximum 20 characters, separated by commas on a single line
 - Materials must be provided separately, separated by COMMAS (not spaces, exactly COMMAS) - this is CRITICAL for copy-paste functionality
 - All text must be in English
@@ -414,6 +414,91 @@ Generate the title, tags and materials now:`;
       }
     }
     
+    // ⚠️ VALIDATION TITRE SEO : minimum 100 caractères obligatoire
+    if (title && title.length < 100) {
+      console.log(`[DESCRIPTION GENERATION] ⚠️ Title too short (${title.length} chars), enriching to reach 100+ chars...`);
+      
+      // Tentative de régénération avec un prompt encore plus strict
+      try {
+        const enrichTitleResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an Etsy SEO title expert. You MUST return a JSON object with a single "title" field. The title MUST be between 100 and 140 characters. Count every character carefully.',
+              },
+              {
+                role: 'user',
+                content: `The following Etsy SEO title is TOO SHORT (only ${title.length} characters). You MUST expand it to be between 100 and 140 characters by adding relevant SEO keywords, product features, materials, use cases, or gift occasion keywords. Do NOT change the product type.
+
+CURRENT SHORT TITLE: "${title}"
+
+PRODUCT DESCRIPTION: ${productVisualDescription}
+NICHE: ${niche}
+
+RULES:
+- The new title MUST be between 100 and 140 characters (count carefully!)
+- Keep the original product type and key terms
+- Add relevant Etsy SEO keywords like: gift idea, unique, handmade style, home decor, personalized, modern, vintage, etc.
+- Make it natural and seller-friendly
+- English only
+
+Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
+              },
+            ],
+            temperature: 0.8,
+            max_tokens: 300,
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (enrichTitleResponse.ok) {
+          const enrichData = await enrichTitleResponse.json();
+          const enrichContent = enrichData.choices[0]?.message?.content?.trim();
+          if (enrichContent) {
+            const enrichParsed = JSON.parse(enrichContent);
+            if (enrichParsed.title && enrichParsed.title.length >= 100) {
+              console.log(`[DESCRIPTION GENERATION] ✅ Title enriched: ${enrichParsed.title.length} chars (was ${title.length})`);
+              title = enrichParsed.title;
+            } else if (enrichParsed.title && enrichParsed.title.length > title.length) {
+              // Mieux que l'original même si < 100
+              console.log(`[DESCRIPTION GENERATION] ⚠️ Title partially enriched: ${enrichParsed.title.length} chars (was ${title.length})`);
+              title = enrichParsed.title;
+            }
+          }
+        }
+      } catch (enrichError) {
+        console.error('[DESCRIPTION GENERATION] ⚠️ Title enrichment failed:', enrichError);
+      }
+
+      // Dernier recours : ajouter des mots-clés manuellement si toujours trop court
+      if (title.length < 100) {
+        const seoSuffixes = [
+          ' - Perfect Gift Idea for Any Occasion',
+          ' - Unique Handcrafted Home Decor',
+          ' - Modern Design Stylish Aesthetic',
+          ' - Premium Quality Elegant Finish',
+          ' - Trending Bestseller Must Have',
+          ' - Great Birthday Christmas Gift',
+        ];
+        for (const suffix of seoSuffixes) {
+          if (title.length + suffix.length <= 140 && title.length < 100) {
+            title = title + suffix;
+            console.log(`[DESCRIPTION GENERATION] ✅ Title padded with suffix: ${title.length} chars`);
+            break;
+          }
+        }
+      }
+      
+      console.log(`[DESCRIPTION GENERATION] Final title length: ${title.length} chars`);
+    }
+    
     // Si pas de matériaux générés, inférer depuis la description du produit (optionnel)
     if (materials.length === 0) {
       const productDesc = productVisualDescription?.toLowerCase() || '';
@@ -453,25 +538,31 @@ Generate the title, tags and materials now:`;
     }
 
     // ⚠️ CRITICAL: Increment quota AFTER successful generation
-    // Listing generation costs 0.5 credit (independent from image generation)
-    // Sauf si skipCreditDeduction est true (les crédits seront déduits dans generate-images)
+    // Listing generation costs 1 credit (independent from image generation)
+    // ⚠️ MANDATORY: Always deduct 1 credit for listing generation (skipCreditDeduction is only for quick generation)
     let quotaResult: { success: boolean; used: number; quota: number; remaining: number; error?: string } | null = null;
     
-    if (!skipCreditDeduction) {
+    if (skipCreditDeduction) {
+      console.log('[DESCRIPTION GENERATION] ⚠️ Credit deduction skipped (will be done in quick generation)');
+    } else {
       const { incrementAnalysisCount } = await import('@/lib/subscription-quota');
-      console.log('[DESCRIPTION GENERATION] ⚠️ About to decrement 0.5 credit for listing generation (user:', user.id, ')');
-      quotaResult = await incrementAnalysisCount(user.id, 0.5);
-      if (!quotaResult.success) {
-        console.error('❌ [DESCRIPTION GENERATION] Failed to decrement quota:', quotaResult.error);
-        // Generation already completed, but quota wasn't incremented
-        // This is logged but doesn't block the response
-      } else {
-        console.log('✅ [DESCRIPTION GENERATION] Quota decremented successfully:', {
-          used: quotaResult.used,
-          quota: quotaResult.quota,
-          remaining: quotaResult.remaining,
-          amount: 0.5,
-        });
+      console.log('[DESCRIPTION GENERATION] ⚠️ MANDATORY: About to decrement 1 credit for listing generation (user:', user.id, ')');
+      
+      try {
+        quotaResult = await incrementAnalysisCount(user.id, 1.0);
+        if (!quotaResult.success) {
+          console.error('❌ [DESCRIPTION GENERATION] CRITICAL: Failed to decrement quota:', quotaResult.error);
+          console.error('[DESCRIPTION GENERATION] Quota result details:', JSON.stringify(quotaResult, null, 2));
+          // ⚠️ CRITICAL: If quota deduction fails, throw error to prevent free usage
+          throw new Error(`Failed to deduct 1.0 credit: ${quotaResult.error || 'Unknown error'}`);
+        } else {
+          console.log('✅ [DESCRIPTION GENERATION] Quota decremented successfully:', {
+            used: quotaResult.used,
+            quota: quotaResult.quota,
+            remaining: quotaResult.remaining,
+            amount: 1.0,
+          });
+        }
         
         // ⚠️ CRITICAL: Verify the value was stored correctly by reading it back immediately
         const adminSupabase = createSupabaseAdminClient();
@@ -487,7 +578,7 @@ Generate the title, tags and materials now:`;
             : parseFloat(String(verifyUser.analysis_used_this_month)) || 0;
           console.log('✅ [DESCRIPTION GENERATION] Verified stored value in DB:', storedValue);
           
-          if (Math.abs(storedValue - quotaResult.used) > 0.01) {
+          if (quotaResult && Math.abs(storedValue - quotaResult.used) > 0.01) {
             console.error('❌ [DESCRIPTION GENERATION] WARNING: Stored value differs from expected:', {
               expected: quotaResult.used,
               stored: storedValue,
@@ -496,9 +587,19 @@ Generate the title, tags and materials now:`;
         } else {
           console.warn('⚠️ [DESCRIPTION GENERATION] Could not verify stored value:', verifyError);
         }
+      } catch (quotaError: any) {
+        console.error(`❌ [DESCRIPTION GENERATION] CRITICAL ERROR: Failed to deduct credits:`, quotaError.message);
+        console.error(`[DESCRIPTION GENERATION] Error stack:`, quotaError.stack);
+        // ⚠️ CRITICAL: Return error if credits cannot be deducted
+        return NextResponse.json(
+          { 
+            error: 'QUOTA_DEDUCTION_FAILED',
+            message: `Failed to deduct 1.0 credit after listing generation: ${quotaError.message}. Please contact support.`,
+            description: description, // Return description anyway but log the error
+          },
+          { status: 500 }
+        );
       }
-    } else {
-      console.log('[DESCRIPTION GENERATION] ⚠️ Credit deduction skipped (will be done in image generation)');
     }
 
     // Return title, description, tags, materials AND updated quota info so client can verify

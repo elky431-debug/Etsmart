@@ -194,8 +194,8 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Check if user has enough quota (0.5 credit needed for analysis)
-    if (quotaInfo.remaining < 0.5) {
+    // Check if user has enough quota (2 credits needed for analysis and simulation)
+    if (quotaInfo.remaining < 2.0) {
       isAnalyzing = false;
       return NextResponse.json({
         success: false,
@@ -1313,33 +1313,60 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       analysis.seoTags = analysis.seoTags.slice(0, 13);
     }
 
-    // ⚠️ CRITICAL: Increment quota AFTER successful analysis (0.5 credit)
+    // ⚠️ CRITICAL: Increment quota AFTER successful analysis (2 credits)
     // Quota was already checked before analysis started, now we increment it
-    const quotaResult = await incrementAnalysisCount(user.id, 0.5);
-    if (!quotaResult.success) {
-      console.warn('⚠️ Failed to increment quota after analysis:', quotaResult.error);
-      // Analysis already completed, but quota wasn't incremented
-      // This is logged but doesn't block the response
-    } else {
-      console.log('✅ Quota incremented successfully after analysis:', {
-        used: quotaResult.used,
-        quota: quotaResult.quota,
-        remaining: quotaResult.remaining,
-        amount: 0.5,
-      });
+    console.log(`[AI ANALYZE] ⚠️ About to decrement 2 credits for analysis and simulation (user: ${user.id})`);
+    
+    try {
+      const quotaResult = await incrementAnalysisCount(user.id, 2.0);
+      if (!quotaResult.success) {
+        console.error('❌ [AI ANALYZE] Failed to increment quota after analysis:', quotaResult.error);
+        console.error('[AI ANALYZE] Quota result details:', JSON.stringify(quotaResult, null, 2));
+        // ⚠️ CRITICAL: If quota deduction fails, throw error to prevent free usage
+        throw new Error(`Failed to deduct credits: ${quotaResult.error || 'Unknown error'}`);
+      } else {
+        console.log('✅ [AI ANALYZE] Quota incremented successfully after analysis:', {
+          used: quotaResult.used,
+          quota: quotaResult.quota,
+          remaining: quotaResult.remaining,
+          amount: 2.0,
+        });
+      }
+    } catch (quotaError: any) {
+      console.error(`❌ [AI ANALYZE] CRITICAL ERROR: Failed to deduct credits:`, quotaError.message);
+      console.error(`[AI ANALYZE] Error stack:`, quotaError.stack);
+      // ⚠️ CRITICAL: Return error if credits cannot be deducted
+      return NextResponse.json({
+        success: false,
+        error: 'QUOTA_DEDUCTION_FAILED',
+        message: `Failed to deduct credits: ${quotaError.message}. Please contact support.`,
+        analysis: analysis, // Return analysis anyway but log the error
+      }, { status: 500 });
     }
     
     // ⚠️ RÈGLES SPÉCIFIQUES PAR NICHE ET TYPE DE PRODUIT - Ajuster le score
     const nicheLower = (niche || '').toLowerCase();
     const productDescription = (analysis.productVisualDescription || body.productTitle || '').toLowerCase();
     
-    // Détecter le type de produit
+    // Détecter le type de produit - Détection complète des bijoux
+    const productTitleLower = (body.productTitle || '').toLowerCase();
+    const productTypeLower = (body.productCategory || '').toLowerCase();
     const isJewelry = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
+        nicheLower.includes('jewelry') || nicheLower.includes('bijou') ||
         productDescription.includes('jewelry') || productDescription.includes('bijou') ||
         productDescription.includes('necklace') || productDescription.includes('collier') ||
         productDescription.includes('bracelet') || productDescription.includes('ring') || 
         productDescription.includes('bague') || productDescription.includes('earring') ||
-        productDescription.includes('boucle');
+        productDescription.includes('boucle') || productDescription.includes('pendant') ||
+        productDescription.includes('pendentif') || productDescription.includes('charm') ||
+        productDescription.includes('choker') || productDescription.includes('anklet') ||
+        productDescription.includes('brooch') || productDescription.includes('broche') ||
+        productTitleLower.includes('necklace') || productTitleLower.includes('collier') ||
+        productTitleLower.includes('bracelet') || productTitleLower.includes('ring') ||
+        productTitleLower.includes('bague') || productTitleLower.includes('earring') ||
+        productTitleLower.includes('boucle') || productTitleLower.includes('jewelry') ||
+        productTitleLower.includes('bijou') || productTypeLower.includes('jewelry') ||
+        productTypeLower.includes('bijou');
     
     // Détecter TOUS les sacs (pas seulement les sacs à main pour femmes)
     const isBag = nicheLower === 'bag' || nicheLower === 'bags' || nicheLower === 'sac' || nicheLower === 'sacs' ||
@@ -1387,8 +1414,15 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       }
     }
     // ⚠️ RÈGLE SPÉCIALE: Tous les bijoux doivent avoir un score strictement < 3
-    else if (isJewelry && analysis.confidenceScore >= 3.0) {
-      analysis.confidenceScore = 2.99; // Forcer strictement < 3
+    else if (isJewelry) {
+      // Forcer strictement < 3 pour TOUS les bijoux, même si le score est déjà < 3
+      if (analysis.confidenceScore >= 3.0) {
+        analysis.confidenceScore = 2.99; // Forcer strictement < 3
+      }
+      // S'assurer que le score reste strictement < 3 (même s'il est déjà < 3, on le garantit)
+      if (analysis.confidenceScore >= 3.0) {
+        analysis.confidenceScore = 2.99; // Double vérification pour garantir < 3
+      }
     }
     // ⚠️ RÈGLE SPÉCIALE: Tous les masques Halloween doivent avoir un score strictement < 4
     else if (isHalloweenMask && analysis.confidenceScore >= 4.0) {

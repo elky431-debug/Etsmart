@@ -117,6 +117,7 @@ export function Paywall({
       case 'SMART': return Zap;
       case 'PRO': return Crown;
       case 'SCALE': return Rocket;
+      case 'INFINITY': return Sparkles;
       default: return Zap;
     }
   };
@@ -231,8 +232,8 @@ export function Paywall({
         </motion.div>
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
-          {PLANS.map((plan, index) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+          {PLANS.filter(p => p.id !== 'FREE').map((plan, index) => {
             const Icon = getPlanIcon(plan.id);
             const isHovered = hoveredPlan === plan.id;
             const isPopular = plan.popular;
@@ -303,10 +304,18 @@ export function Paywall({
 
                       {/* Price */}
                       <div className="flex items-baseline gap-0.5 sm:justify-center sm:mb-3">
-                        <span className={`text-xl sm:text-2xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-white'}`}>
-                          ${plan.price.toFixed(2)}
-                        </span>
-                        <span className="text-white/60 text-[10px] sm:text-xs">/mois</span>
+                        {plan.price === 0 ? (
+                          <span className={`text-lg sm:text-xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-white'}`}>
+                            Sur devis
+                          </span>
+                        ) : (
+                          <>
+                            <span className={`text-xl sm:text-2xl font-bold ${isPopular ? 'text-[#00d4ff]' : 'text-white'}`}>
+                              €{plan.price.toFixed(2)}
+                            </span>
+                            <span className="text-white/60 text-[10px] sm:text-xs">/mois</span>
+                          </>
+                        )}
                       </div>
 
                       {/* Crédits count - Hidden on mobile, visible on sm+ */}
@@ -317,16 +326,20 @@ export function Paywall({
                         <div className="flex items-center justify-center gap-1.5">
                           <Zap className={`w-3.5 h-3.5 ${isPopular ? 'text-[#00d4ff]' : 'text-white/70'}`} />
                           <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-white'}`}>
-                            {plan.analysesPerMonth}
+                            {plan.analysesPerMonth === -1 ? '∞' : plan.analysesPerMonth}
                           </span>
-                          <span className="text-white/60 text-xs">crédits/mois</span>
+                          <span className="text-white/60 text-xs">
+                            {plan.analysesPerMonth === -1 ? 'crédits illimités' : 'crédits/mois'}
+                          </span>
                         </div>
                       </div>
 
                       {/* Crédits - Inline on mobile */}
                       <div className="flex sm:hidden items-center gap-1 text-white/70 text-xs">
                         <Zap className="w-3 h-3" />
-                        <span className="font-medium">{plan.analysesPerMonth} crédits/mois</span>
+                        <span className="font-medium">
+                          {plan.analysesPerMonth === -1 ? 'Crédits illimités' : `${plan.analysesPerMonth} crédits/mois`}
+                        </span>
                       </div>
                     </div>
 

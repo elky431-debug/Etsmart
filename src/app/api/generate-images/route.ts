@@ -145,10 +145,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ⚠️ CRITICAL: Image generation is now INDEPENDENT from listing
-    // We ALWAYS generate only the image (0.5 credit), regardless of skipListingGeneration value
+    // We ALWAYS generate only the image (1 credit), regardless of skipListingGeneration value
     // The listing must be generated separately in the "Listing" tab
     // This allows users to generate images without needing a listing first
-    const creditNeeded = 0.5; // Always 0.5 credit for image generation only
+    const creditNeeded = 1.0; // Always 1 credit for image generation only
     
     // Check if user has enough quota
     if (quotaInfo.remaining < creditNeeded) {
@@ -959,23 +959,69 @@ ${additionalAngles[angleIndex]}
     }
 
     // ⚠️ CRITICAL: Increment quota AFTER successful generation
-    // Image generation is INDEPENDENT - always 0.5 credit for image only
+    // Image generation is INDEPENDENT - always 1 credit for image only
     // Listing must be generated separately in the "Listing" tab
-    const creditAmount = 0.5; // Always 0.5 credit for image generation only
-    console.log(`[IMAGE GENERATION] ⚠️ About to decrement ${creditAmount} credit(s) for user:`, user.id, '(image only - independent from listing)');
-    const quotaResult = await incrementAnalysisCount(user.id, creditAmount);
-    if (!quotaResult.success) {
-      console.error(`❌ [IMAGE GENERATION] Failed to decrement quota (${creditAmount} credit):`, quotaResult.error);
-      // Generation already completed, but quota wasn't incremented
-      // This is logged but doesn't block the response
+    // ⚠️ MANDATORY: Deduct 1 credit if at least one image was generated successfully
+    if (successfulImages.length > 0) {
+      const creditAmount = 1.0; // Always 1 credit for image generation only
+      console.log(`[IMAGE GENERATION] ⚠️ MANDATORY: About to decrement ${creditAmount} credit(s) for user:`, user.id, `(${successfulImages.length} image(s) generated successfully)`);
+      
+      try {
+        const quotaResult = await incrementAnalysisCount(user.id, creditAmount);
+        if (!quotaResult.success) {
+          console.error(`❌ [IMAGE GENERATION] CRITICAL: Failed to decrement quota (${creditAmount} credit):`, quotaResult.error);
+          console.error(`[IMAGE GENERATION] Quota result details:`, JSON.stringify(quotaResult, null, 2));
+          // ⚠️ CRITICAL: If quota deduction fails, throw error to prevent free usage
+          throw new Error(`Failed to deduct credits: ${quotaResult.error || 'Unknown error'}`);
+        } else {
+          console.log(`✅ [IMAGE GENERATION] Quota decremented successfully (${creditAmount} credit):`, {
+            used: quotaResult.used,
+            quota: quotaResult.quota,
+            remaining: quotaResult.remaining,
+            amount: creditAmount,
+            breakdown: 'image only (1 credit) - independent from listing',
+          });
+          
+          // ⚠️ CRITICAL: Verify the value was stored correctly by reading it back immediately
+          const { createSupabaseAdminClient } = await import('@/lib/supabase-admin');
+          const adminSupabase = createSupabaseAdminClient();
+          const { data: verifyUser, error: verifyError } = await adminSupabase
+            .from('users')
+            .select('analysis_used_this_month')
+            .eq('id', user.id)
+            .single();
+          
+          if (!verifyError && verifyUser) {
+            const storedValue = typeof verifyUser.analysis_used_this_month === 'number' 
+              ? verifyUser.analysis_used_this_month 
+              : parseFloat(String(verifyUser.analysis_used_this_month)) || 0;
+            console.log('✅ [IMAGE GENERATION] Verified stored value in DB:', storedValue);
+            
+            if (Math.abs(storedValue - quotaResult.used) > 0.01) {
+              console.error('❌ [IMAGE GENERATION] WARNING: Stored value differs from expected:', {
+                expected: quotaResult.used,
+                stored: storedValue,
+              });
+            }
+          } else {
+            console.warn('⚠️ [IMAGE GENERATION] Could not verify stored value:', verifyError);
+          }
+        }
+      } catch (quotaError: any) {
+        console.error(`❌ [IMAGE GENERATION] CRITICAL ERROR: Failed to deduct credits:`, quotaError.message);
+        console.error(`[IMAGE GENERATION] Error stack:`, quotaError.stack);
+        // ⚠️ CRITICAL: Return error if credits cannot be deducted
+        return NextResponse.json(
+          { 
+            error: 'QUOTA_DEDUCTION_FAILED',
+            message: `Failed to deduct 1.0 credit after image generation: ${quotaError.message}. Please contact support.`,
+            images: successfulImages, // Return images anyway but log the error
+          },
+          { status: 500 }
+        );
+      }
     } else {
-      console.log(`✅ [IMAGE GENERATION] Quota decremented successfully (${creditAmount} credit):`, {
-        used: quotaResult.used,
-        quota: quotaResult.quota,
-        remaining: quotaResult.remaining,
-        amount: creditAmount,
-        breakdown: 'image only (0.5) - independent from listing',
-      });
+      console.error(`[IMAGE GENERATION] ❌ CRITICAL: No successful images generated - cannot deduct credits`);
     }
 
     return NextResponse.json({

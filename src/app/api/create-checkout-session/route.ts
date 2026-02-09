@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Validate plan ID (case-insensitive)
     const normalizedPlanId = planId.toUpperCase() as PlanId;
-    if (!['SMART', 'PRO', 'SCALE'].includes(normalizedPlanId)) {
+    if (!['SMART', 'PRO', 'SCALE', 'INFINITY'].includes(normalizedPlanId)) {
       return NextResponse.json(
         { error: 'Invalid plan ID' },
         { status: 400 }
@@ -76,7 +76,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Stripe Price ID for the plan
-    const priceId = getStripePriceId(normalizedPlanId);
+    let priceId = getStripePriceId(normalizedPlanId);
+    
+    // If price ID is not configured, try to find it from Stripe API
+    if (!priceId && stripe) {
+      try {
+        const expectedPrice = normalizedPlanId === 'SMART' ? 19.99 :
+                             normalizedPlanId === 'PRO' ? 29.99 :
+                             normalizedPlanId === 'SCALE' ? 59.99 :
+                             normalizedPlanId === 'INFINITY' ? 219.99 : null;
+        
+        if (expectedPrice) {
+          const prices = await stripe.prices.list({
+            limit: 100,
+            active: true,
+          });
+          
+          const matchingPrice = prices.data.find(p => {
+            const amount = p.unit_amount ? p.unit_amount / 100 : 0;
+            return Math.abs(amount - expectedPrice) < 0.01 && 
+                   p.recurring?.interval === 'month' &&
+                   p.recurring?.interval_count === 1;
+          });
+          
+          if (matchingPrice) {
+            priceId = matchingPrice.id;
+            console.log(`[Checkout] Auto-detected Price ID for ${normalizedPlanId}: ${priceId}`);
+          }
+        }
+      } catch (e) {
+        console.warn(`[Checkout] Failed to auto-detect Price ID for ${normalizedPlanId}:`, e);
+      }
+    }
+    
     if (!priceId) {
       return NextResponse.json(
         { 

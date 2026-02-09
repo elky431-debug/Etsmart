@@ -444,7 +444,7 @@ export function ListingProductImport({ onProductImported, mode = 'listing' }: Li
           <div className="flex items-center justify-center gap-2 text-[#00d4ff] mb-8">
             <Zap size={18} />
             <span className="text-sm font-medium">
-              {mode === 'images' ? '0.5 crédit par génération d\'images' : '0.5 crédit par génération de listing'}
+              {mode === 'images' ? '1 crédit par génération d\'images' : '1 crédit par génération de listing'}
             </span>
           </div>
         </div>

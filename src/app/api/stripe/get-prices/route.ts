@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
     // Trouver les prix correspondant aux plans Etsmart
     const smartPrice = monthlyPrices.find(p => Math.abs(p.amount - 19.99) < 0.01);
     const proPrice = monthlyPrices.find(p => Math.abs(p.amount - 29.99) < 0.01);
-    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 49.99) < 0.01); // Updated to €49.99
+    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 59.99) < 0.01); // Updated to €59.99
+    const infinityPrice = monthlyPrices.find(p => p.id === 'price_1SyzZ0Cn17QPHnzEuRynPNzi'); // Etsmart Infinity
 
     return NextResponse.json({
       success: true,
@@ -55,11 +56,19 @@ export async function GET(request: NextRequest) {
         SMART: smartPrice?.id || null,
         PRO: proPrice?.id || null,
         SCALE: scalePrice?.id || null,
+        INFINITY: infinityPrice?.id || null,
       },
       current: {
         SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
         PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
-        SCALE: 'price_1SuZZdCn17QPHnzEHKehuq0O', // Etsmart Scale - €49.99/month
+        SCALE: null, // Etsmart Scale - €59.99/month (Price ID to be updated)
+        INFINITY: 'price_1SyzZ0Cn17QPHnzEuRynPNzi', // Etsmart Infinity - Unlimited credits
+      },
+      prices: {
+        SMART: smartPrice?.amount || 19.99,
+        PRO: proPrice?.amount || 29.99,
+        SCALE: scalePrice?.amount || 59.99,
+        INFINITY: infinityPrice?.amount || 0,
       },
     });
   } catch (error: any) {

@@ -38,18 +38,26 @@ export default function AnalyzePage() {
     // Marquer comme vérifié
     setHasCheckedSubscription(true);
 
-    // Si pas d'abonnement actif, rediriger vers la section subscription
+    // Si pas d'abonnement actif, rediriger vers le dashboard (qui affiche le paywall)
     if (!hasActiveSubscription) {
-      console.log('[AnalyzePage] Pas d\'abonnement actif, redirection vers subscription');
-      router.push('/dashboard?section=subscription');
+      console.log('[AnalyzePage] Pas d\'abonnement actif, redirection vers le dashboard (paywall)');
+      router.push('/dashboard');
     } else {
       console.log('[AnalyzePage] Abonnement actif détecté, accès autorisé');
     }
   }, [user, loading, subscriptionLoading, hasActiveSubscription, hasCheckedSubscription, router]);
 
-  // ⚠️ CRITICAL: SUPPRIMÉ COMPLÈTEMENT - Ne JAMAIS réinitialiser automatiquement l'étape
-  // La transition vers l'étape 4 est gérée UNIQUEMENT par AnalysisStep
-  // AUCUN useEffect ne doit interférer avec les transitions d'étapes
+  // ⚠️ CRITICAL: Au montage, si on est à l'étape 1 ou 2 (nouvelle analyse),
+  // s'assurer que les anciens produits et analyses sont bien nettoyés
+  useEffect(() => {
+    if (currentStep <= 2 && analyses.length === 0) {
+      const state = useStore.getState();
+      if (state.products.length > 0) {
+        console.log('[AnalyzePage] ⚠️ Stale products detected at step', currentStep, '- clearing...');
+        useStore.getState().reset();
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Afficher un loader pendant le chargement
   if (loading || subscriptionLoading || !user) {

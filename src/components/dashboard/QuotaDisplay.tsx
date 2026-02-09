@@ -83,20 +83,29 @@ export function QuotaDisplay() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / {subscription.quota} utilisées
+            {subscription.quota === -1 
+              ? `${subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} utilisées (illimité)`
+              : `${subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)} / ${subscription.quota} utilisées`}
           </span>
           <span className={`text-sm font-semibold ${textColor}`}>
-            {subscription.remaining % 1 === 0 ? subscription.remaining : subscription.remaining.toFixed(1)} restantes
+            {subscription.quota === -1 
+              ? 'Illimité'
+              : `${subscription.remaining % 1 === 0 ? subscription.remaining : subscription.remaining.toFixed(1)} restantes`}
           </span>
         </div>
-        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${quotaPercentage}%` }}
-            transition={{ duration: 0.5 }}
-            className={`h-full ${progressColor} rounded-full`}
-          />
-        </div>
+        {subscription.quota !== -1 && (
+          <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${quotaPercentage}%` }}
+              transition={{ duration: 0.5 }}
+              className={`h-full ${progressColor} rounded-full`}
+            />
+          </div>
+        )}
+        {subscription.quota === -1 && (
+          <div className="h-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-full" />
+        )}
       </div>
 
       {/* Warning or Upgrade CTA */}

@@ -179,9 +179,9 @@ export function DashboardImage({ analysis }: DashboardImageProps) {
           analysis={analysis} 
           hasListing={false}
           // ⚠️ CRITICAL: Image generation is completely independent from listing
-          // - Images can be generated without a listing → 0.5 crédit
-          // - Listing can be generated separately in the "Listing" section → 0.5 crédit
-          // - Each generation costs 0.5 credit independently
+          // - Images can be generated without a listing → 1 crédit
+          // - Listing can be generated separately in the "Listing" section → 1 crédit
+          // - Each generation costs 1 credit independently
         />
       </div>
     </div>

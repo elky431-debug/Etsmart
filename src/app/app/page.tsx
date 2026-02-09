@@ -9,39 +9,42 @@ export default function AppPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   
-  // 🔒 Protect this page - redirects blocked (no pricing page)
-  const { isLoading: subscriptionLoading } = useSubscriptionProtection();
+  // 🔒 Check subscription status
+  const { isLoading: subscriptionLoading, isActive } = useSubscriptionProtection();
 
-  // ⚠️ CRITICAL: Rediriger automatiquement vers la page d'analyse pour démarrer le processus
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // Attendre que le chargement soit terminé avant de rediriger
+    // Wait for loading to finish
     if (loading || subscriptionLoading) return;
     
-    // Si l'utilisateur est connecté, rediriger vers la page d'analyse pour démarrer le processus
-    if (user) {
-      console.log('[AppPage] Redirecting to analyze page to start analysis process');
-      router.push('/analyze');
+    // No user → login
+    if (!user) {
+      router.push('/login');
       return;
     }
-    
-    // Si pas d'utilisateur, rediriger vers login
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, subscriptionLoading, router]);
 
-  // ⚠️ CRITICAL: Afficher un loader pendant la redirection
+    // User connected but no subscription → dashboard (shows paywall)
+    if (!isActive) {
+      console.log('[AppPage] No active subscription, redirecting to dashboard (paywall)');
+      router.push('/dashboard');
+      return;
+    }
+
+    // User connected with subscription → analyze
+    console.log('[AppPage] Active subscription, redirecting to analyze page');
+    router.push('/analyze');
+  }, [user, loading, subscriptionLoading, isActive, router]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="text-center px-4">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-12 sm:h-12 border-b-2 border-[#00d4ff]"></div>
-        <p className="mt-4 text-sm sm:text-base text-slate-600">
+        <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#00d4ff]"></div>
+        <p className="mt-4 text-sm text-white/60">
           {loading || subscriptionLoading 
             ? 'Chargement...' 
             : user 
-              ? 'Redirection vers Analyse et Simulation...' 
+              ? 'Redirection...' 
               : 'Redirection vers la connexion...'}
         </p>
       </div>

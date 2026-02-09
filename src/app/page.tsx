@@ -22,6 +22,7 @@ import { Logo } from '@/components/ui/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
+import { PLANS } from '@/types/subscription';
 
 // Composant d'animation pour les sections
 function AnimatedSection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -376,12 +377,20 @@ export default function HomePage() {
             </div>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
-            {[
-              { id: 'SMART', name: 'Smart', price: '€19.99', period: '/mois', features: ['30 analyses / mois', 'Toutes les fonctionnalités'] },
-              { id: 'PRO', name: 'Pro', price: '€29.99', period: '/mois', features: ['60 analyses / mois', 'Toutes les fonctionnalités'], popular: true },
-              { id: 'SCALE', name: 'Scale', price: '€49.99', period: '/mois', features: ['100 analyses / mois', 'Toutes les fonctionnalités'] },
-            ].map((plan, index) => {
+          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {PLANS.filter(p => p.id !== 'FREE').map((plan, index) => {
+              // Format features for display - show all real features
+              const creditLine = plan.analysesPerMonth === -1 
+                ? 'Crédits illimités'
+                : `${plan.analysesPerMonth} crédits / mois`;
+              const features = [
+                creditLine,
+                ...plan.features.map(f => f.name),
+              ];
+              
+              // Format price for display
+              const displayPrice = plan.price === 0 ? 'Sur devis' : `€${plan.price.toFixed(2)}`;
+              const displayPeriod = plan.price === 0 ? '' : '/mois';
               const handleSubscribe = async () => {
                 // Si l'utilisateur n'est pas connecté, rediriger vers login
                 if (!user) {
@@ -411,7 +420,7 @@ export default function HomePage() {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                      planId: plan.id,
+                      planId: plan.id as string,
                       userId: user.id,
                       userEmail: user.email,
                     }),
@@ -443,13 +452,13 @@ export default function HomePage() {
                       plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
                     }`}
                   >
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">{plan.name}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">{plan.name.replace('Etsmart ', '')}</h3>
                     <div className="flex items-baseline gap-2 mb-3 sm:mb-4">
-                      <span className="text-3xl sm:text-4xl font-bold text-white">{plan.price}</span>
-                      <span className="text-white/60 text-sm sm:text-base">{plan.period}</span>
+                      <span className="text-3xl sm:text-4xl font-bold text-white">{displayPrice}</span>
+                      <span className="text-white/60 text-sm sm:text-base">{displayPeriod}</span>
                     </div>
                     <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
-                      {plan.features.map((feature) => (
+                      {features.map((feature) => (
                         <li key={feature} className="flex items-center gap-2 text-white/80 text-xs sm:text-sm">
                           <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7] flex-shrink-0" />
                           <span>{feature}</span>
@@ -459,8 +468,10 @@ export default function HomePage() {
                     <button 
                       onClick={handleSubscribe}
                       disabled={loadingPlan === plan.id}
-                      className="w-full py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90" 
-                      style={{
+                      className={`w-full py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90 ${
+                        plan.popular ? 'border-[#00d4ff]' : ''
+                      }`}
+                      style={plan.popular ? {} : {
                         borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                         borderImageSlice: 1,
                       }}

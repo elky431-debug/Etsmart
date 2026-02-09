@@ -39,7 +39,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
+// Protection is handled by dashboard/layout.tsx
 import { useSubscription } from '@/hooks/useSubscription';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,13 +52,14 @@ import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysi
 import { DashboardAnalysisSimulation } from '@/components/dashboard/DashboardAnalysisSimulation';
 import { DashboardListing } from '@/components/dashboard/DashboardListing';
 import { DashboardImage } from '@/components/dashboard/DashboardImage';
+import { DashboardQuickGenerate } from '@/components/dashboard/DashboardQuickGenerate';
 import { ListingImagesScreen } from '@/components/dashboard/ListingImagesScreen';
 import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
-import { Paywall } from '@/components/paywall/Paywall';
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder';
+// Paywall is now handled by dashboard/layout.tsx
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'quick-generate' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder';
 
 interface MenuItem {
   id: DashboardSection;
@@ -77,13 +78,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
   
-  // 🔒 Protect this page - redirects blocked (no pricing page)
-  const subscriptionProtection = useSubscriptionProtection();
-  // ⚠️ CRITICAL: Utiliser useSubscription pour obtenir le statut RÉEL de l'abonnement
-  // useSubscriptionProtection assume parfois un abonnement actif pour éviter les bugs, donc on utilise useSubscription
-  const { subscription, loading: subscriptionLoadingFromHook, hasActiveSubscription: realHasActiveSubscription } = useSubscription();
-  const hasActiveSubscription = subscriptionProtection.isActive;
-  const subscriptionLoading = subscriptionProtection.isLoading || subscriptionLoadingFromHook;
+  // 🔒 Protection is handled by dashboard/layout.tsx
+  // Only use useSubscription for data (quota display, credit checks, etc.)
+  const { subscription, loading: subscriptionLoading, hasActiveSubscription, refreshSubscription } = useSubscription();
   
   // Cache pour éviter les rechargements inutiles
   const lastLoadTimeRef = useRef<number>(0);
@@ -100,7 +97,7 @@ export default function DashboardPage() {
     try {
       const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
       // Ne jamais utiliser 'history' comme section par défaut au refresh
-      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
         setActiveSection(lastSection);
       }
     } catch (e) {
@@ -194,7 +191,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -202,7 +199,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
@@ -270,11 +267,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+  // Login redirect is handled by dashboard/layout.tsx
 
   useEffect(() => {
     if (user) {
@@ -530,39 +523,9 @@ export default function DashboardPage() {
     }
   };
 
-  // ⚠️ CRITICAL: Toujours afficher le contenu pour éviter l'espace noir au rafraîchissement
-  // Ne retourner null que si on est sûr qu'il n'y a pas d'utilisateur ET que le chargement est terminé
-  if (!user && !loading && !subscriptionLoading) {
-    return null;
-  }
-
-  // ⚠️ CRITICAL: Bloquer l'accès au dashboard si l'utilisateur n'a pas d'abonnement actif
-  // Cette vérification s'applique à TOUS les utilisateurs : nouveaux ET existants sans abonnement
-  // Utiliser useSubscription pour obtenir le statut RÉEL (pas useSubscriptionProtection qui assume parfois un abonnement)
-  if (user && !loading && !subscriptionLoading) {
-    // Vérifier le statut réel depuis useSubscription
-    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
-    const subscriptionStatus = subscription?.status;
-    const periodEnd = subscription?.periodEnd;
-    const now = new Date();
-    const isPeriodValid = periodEnd ? periodEnd > now : false;
-    const isSubscriptionActive = subscriptionStatus === 'active' || (subscription && isPeriodValid);
-    
-    // Si pas d'abonnement OU abonnement non actif, afficher le paywall
-    if (!subscription || !isSubscriptionActive) {
-      console.log('[Dashboard] 🚧 PAYWALL - Pas d\'abonnement actif (user:', user?.id, ')');
-      console.log('[Dashboard] 📊 Subscription:', subscription, 'isSubscriptionActive:', isSubscriptionActive, 'realHasActiveSubscription:', realHasActiveSubscription);
-      return (
-        <div className="min-h-screen w-full relative overflow-hidden bg-black">
-          <Paywall 
-            hasActiveSubscription={false}
-            title="Débloquer l'analyse de produits"
-            message="Choisissez votre plan et commencez à analyser des produits avec l'IA"
-          />
-        </div>
-      );
-    }
-  }
+  // ⚠️ NOTE: La protection par abonnement est gérée par le layout (dashboard/layout.tsx)
+  // Si on arrive ici, c'est que le layout a déjà validé l'accès
+  // Ne JAMAIS retourner null ici car cela démonterait le dashboard et perdrait l'état des onglets
 
   // Fonction pour obtenir le prompt universel
   const getUniversalImagePrompt = (): string => {
@@ -1385,6 +1348,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Composer',
       items: [
+    { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
     { id: 'listing', label: 'Listing', icon: FileText },
     { id: 'images', label: 'Images', icon: Sparkles },
         { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
@@ -1773,6 +1737,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </motion.div>
                       </div>
                       </div>
+          )}
+
+          {activeSection === 'quick-generate' && (
+            <DashboardQuickGenerate />
           )}
 
           {activeSection === 'listing' && selectedAnalysis && (

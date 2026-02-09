@@ -122,9 +122,11 @@ export const useStore = create<AppState & AppActions>()(
       
       reset: () => {
         console.log('[Store] ⚠️ RESET appelé - réinitialisation complète');
-        // Nettoyer aussi localStorage
+        // Nettoyer TOUT le localStorage lié au store
         if (typeof window !== 'undefined') {
           localStorage.removeItem('analysis-state');
+          localStorage.removeItem('etsmart-storage'); // ⚠️ CRITICAL: Supprimer le cache persisté du store
+          console.log('[Store] ✅ localStorage nettoyé (analysis-state + etsmart-storage)');
         }
         // Réinitialiser complètement, y compris l'étape à 1
         set({ ...initialState, currentStep: 1 });

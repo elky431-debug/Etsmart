@@ -309,9 +309,11 @@ export function useSubscription() {
   // Un abonnement est actif si le statut est 'active' OU si la période est encore valide
   const hasActiveSubscription = subscription?.status === 'active' || 
     (subscription && isPeriodValid); // Si la période est valide, l'abonnement est actif (même si cancel_at_period_end)
-  const hasQuota = subscription ? subscription.remaining > 0 : false;
+  const hasQuota = subscription 
+    ? (subscription.quota === -1 || subscription.remaining > 0) // Unlimited or has remaining
+    : false;
   const canAnalyze = hasActiveSubscription && hasQuota;
-  const quotaPercentage = subscription && subscription.quota > 0
+  const quotaPercentage = subscription && subscription.quota > 0 && subscription.quota !== -1
     ? (subscription.used / subscription.quota) * 100
     : 0;
   const requiresUpgrade = subscription?.requiresUpgrade;
