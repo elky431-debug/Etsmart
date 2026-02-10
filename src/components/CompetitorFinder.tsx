@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink, Sparkles, Clock } from 'lucide-react';
+import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
 import { niches } from '@/lib/niches';
 
-const EXTENSION_ID = 'YOUR_EXTENSION_ID'; // À remplacer par l'ID réel après installation
+// ID réel de l'extension publiée sur le Chrome Web Store
+const EXTENSION_ID = 'daenliioilkcdiaagbpieblmphfpgfff';
+const CHROME_WEB_STORE_URL =
+  'https://chromewebstore.google.com/detail/etsmart-analyseur-de-bout/daenliioilkcdiaagbpieblmphfpgfff';
 const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://etsmart.app';
 
 interface CompetitorFinderProps {
@@ -123,8 +126,8 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
 
   return (
     <div className="relative w-full max-w-2xl mx-auto p-6 sm:p-8 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-lg">
-      {/* Contenu avec flou */}
-      <div className="blur-sm pointer-events-none select-none">
+      {/* Contenu principal (plus de flou / coming soon) */}
+      <div className="select-none">
         <div className="text-center mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
             Trouver les boutiques dominantes
@@ -219,19 +222,27 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
         </div>
       )}
 
-      {/* Tutoriel installation extension */}
+      {/* Tutoriel installation extension via Chrome Web Store */}
       {!extensionDetected && !manualMode && extensionChecked && (
         <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
           <h3 className="text-sm font-semibold text-slate-900 mb-2">
-            Comment installer l'extension
+            Installer l'extension Etsmart
           </h3>
-          <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
-            <li>Ouvrez Chrome et allez dans <code className="bg-slate-200 px-1 rounded">chrome://extensions/</code></li>
-            <li>Activez le "Mode développeur" (en haut à droite)</li>
-            <li>Cliquez sur "Charger l'extension non empaquetée"</li>
-            <li>Sélectionnez le dossier <code className="bg-slate-200 px-1 rounded">extension/</code> du projet</li>
-            <li>Rechargez cette page</li>
-          </ol>
+          <p className="text-xs text-slate-600 mb-3">
+            Pour activer l&apos;import automatique, installez l&apos;extension gratuite depuis le Chrome Web Store.
+          </p>
+          <a
+            href={CHROME_WEB_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-slate-900 transition-colors"
+          >
+            Installer l&apos;extension sur Chrome
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Une fois installée, rechargez cette page pour que Etsmart détecte automatiquement l&apos;extension.
+          </p>
         </div>
       )}
 
@@ -263,31 +274,10 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
         )}
       </button>
 
-        {/* Info */}
+      {/* Info */}
         <p className="mt-4 text-xs text-slate-500 text-center">
           L'extension va ouvrir Etsy, scraper les boutiques et les analyser automatiquement avec l'IA
         </p>
-      </div>
-
-      {/* Overlay avec message "Arrive très bientôt" */}
-      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-2xl sm:rounded-3xl z-10">
-        <div className="text-center p-8 max-w-md">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] mb-6 shadow-lg shadow-[#00d4ff]/30">
-            <Sparkles className="w-10 h-10 text-white" />
-          </div>
-          <h3 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-            Arrive très bientôt
-          </h3>
-          <p className="text-white/80 text-sm sm:text-base mb-4">
-            Cette fonctionnalité sera disponible dès que l'extension Chrome sera publiée sur le Chrome Web Store.
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-full backdrop-blur-sm">
-            <Clock className="w-4 h-4 text-[#00d4ff]" />
-            <span className="text-sm font-medium text-white">
-              Disponible prochainement
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
