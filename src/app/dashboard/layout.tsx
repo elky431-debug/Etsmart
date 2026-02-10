@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -11,20 +11,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const subscriptionProtection = useSubscriptionProtection();
   const { subscription, loading: subLoading, hasActiveSubscription } = useSubscription();
 
-  // ⚠️ CRITICAL: Track if we've completed the initial check
-  // After the first successful check, NEVER show the loader again
+  // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
+  // This ensures a re-render happens when the check completes
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  // Once the subscription was confirmed active in this session, remember it
   // This prevents the dashboard from unmounting/remounting on credit refresh
-  const hasCompletedInitialCheck = useRef(false);
   const [wasActiveOnce, setWasActiveOnce] = useState(false);
 
   const isLoading = authLoading || subscriptionProtection.isLoading || subLoading;
-
-  // Once subscription is confirmed active, remember it
-  useEffect(() => {
-    if (!isLoading && !hasCompletedInitialCheck.current) {
-      hasCompletedInitialCheck.current = true;
-    }
-  }, [isLoading]);
 
   // Check if subscription is active
   const subscriptionStatus = subscription?.status;
@@ -34,6 +28,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSubscriptionActive = subscriptionStatus === 'active' || (subscription && isPeriodValid);
   const isReallyActive = (isSubscriptionActive && hasActiveSubscription) || subscriptionProtection.isActive;
 
+  // Mark the initial check as done (uses state → triggers re-render)
+  useEffect(() => {
+    if (!isLoading && !initialCheckDone) {
+      setInitialCheckDone(true);
+    }
+  }, [isLoading, initialCheckDone]);
+
   // Remember that the user was active at least once in this session
   useEffect(() => {
     if (isReallyActive && !wasActiveOnce) {
@@ -41,9 +42,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isReallyActive, wasActiveOnce]);
 
-  // ⚠️ ONLY show loader on the VERY FIRST load, before we know anything
-  // After that, NEVER unmount the dashboard (to preserve tab state)
-  if (isLoading && !hasCompletedInitialCheck.current && !wasActiveOnce) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // RENDER LOGIC - ORDER MATTERS!
+  // The DEFAULT is paywall/loading, children only show when EXPLICITLY active
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // 1. Still loading (initial check not done yet) → show spinner
+  if (!initialCheckDone) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center px-4">
@@ -54,7 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // ⚠️ Not logged in → redirect handled by useSubscriptionProtection
+  // 2. Not logged in → redirect (handled by useSubscriptionProtection)
   if (!user && !authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -66,20 +71,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // ⚠️ No active subscription AND initial check is done AND was never active
-  // Show paywall only if we're SURE the user has no subscription
-  if (!isReallyActive && hasCompletedInitialCheck.current && !wasActiveOnce && !isLoading) {
-    return (
-      <div className="min-h-screen w-full relative overflow-hidden bg-black">
-        <Paywall
-          hasActiveSubscription={false}
-          title="Abonnement requis"
-          message="Choisissez votre plan pour accéder au dashboard et commencer à analyser des produits"
-        />
-      </div>
-    );
+  // 3. ✅ Subscription is active (or was active before in this session) → show dashboard
+  //    The wasActiveOnce check prevents remounting when credits refresh
+  if (isReallyActive || wasActiveOnce) {
+    return <>{children}</>;
   }
 
-  // ✅ Show dashboard content (either active subscription or was active before refresh)
-  return <>{children}</>;
+  // 4. ⚠️ DEFAULT: No active subscription → show paywall
+  //    This is the SAFE default - paywall shows unless we explicitly confirmed active
+  return (
+    <div className="min-h-screen w-full relative overflow-hidden bg-black">
+      <Paywall
+        hasActiveSubscription={false}
+        title="Abonnement requis"
+        message="Choisissez votre plan pour accéder au dashboard et commencer à analyser des produits"
+      />
+    </div>
+  );
 }
