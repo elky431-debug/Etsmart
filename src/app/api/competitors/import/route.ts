@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Configuration Vercel : timeout de 60 secondes
+export const maxDuration = 60;
+
 interface ShopData {
   shopUrl: string;
   shopName: string;
@@ -225,30 +228,51 @@ IMPORTANT:
 - Sois TRÈS DÉTAILLÉ dans toutes les sections (minimum de phrases/points respectés)
 - Évite les généralités, sois SPÉCIFIQUE et ACTIONNABLE`;
 
-    // Appel à OpenAI GPT-4o
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-2024-11-20',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tu es un expert e-commerce et analyse concurrentielle spécialisé dans Etsy. Tu analyses objectivement les boutiques et fournis des insights stratégiques détaillés en français. Tu réponds UNIQUEMENT en JSON valide.',
+    // Appel à OpenAI GPT-4o avec timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 secondes pour laisser une marge
+
+    let openaiResponse;
+    try {
+      openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-2024-11-20',
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un expert e-commerce et analyse concurrentielle spécialisé dans Etsy. Tu analyses objectivement les boutiques et fournis des insights stratégiques détaillés en français. Tu réponds UNIQUEMENT en JSON valide.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 6000,
+          response_format: { type: 'json_object' },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError' || fetchError.message?.includes('timeout')) {
+        console.error('[Competitors Import] ❌ Timeout OpenAI (50s)');
+        return NextResponse.json(
+          { 
+            error: 'Timeout',
+            message: 'L\'analyse prend trop de temps. Veuillez réessayer avec moins de boutiques ou patienter quelques instants.',
           },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 6000,
-        response_format: { type: 'json_object' },
-      }),
-    });
+          { status: 504 }
+        );
+      }
+      throw fetchError;
+    }
 
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({}));

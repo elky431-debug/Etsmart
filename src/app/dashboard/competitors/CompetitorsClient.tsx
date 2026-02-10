@@ -181,9 +181,21 @@ export default function CompetitorsClient() {
         setLoading(false);
       }, 60000);
 
+      // Écouter les erreurs d'analyse
+      const handleAnalysisError = (event: CustomEvent) => {
+        const errorData = event.detail;
+        console.error('[Competitors] Erreur d\'analyse reçue:', errorData);
+        setError(errorData.message || 'Erreur lors de l\'analyse');
+        setAnalyzing(false);
+        setLoading(false);
+      };
+
+      window.addEventListener('competitorAnalysisError', handleAnalysisError as EventListener);
+
       return () => {
         clearTimeout(timeout);
         window.removeEventListener('competitorAnalysisReady', handleAnalysisReady as EventListener);
+        window.removeEventListener('competitorAnalysisError', handleAnalysisError as EventListener);
         window.removeEventListener('storage', handleStorageChange);
       };
     }

@@ -50,9 +50,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const apiBaseUrl = (result.apiBaseUrl && typeof result.apiBaseUrl === 'string' && !result.apiBaseUrl.includes('localhost')) ? result.apiBaseUrl : API_BASE_URL;
                 // Si c'est une analyse de boutique, utiliser l'URL de boutique
                 const isShopAnalysis = message.shopUrl || message.niche === 'Analyse boutique';
-                const analyzingUrl = isShopAnalysis && message.shopUrl
-                    ? `${apiBaseUrl}/dashboard/shop/analyze?analyzing=true&shop=${encodeURIComponent(message.shopUrl)}`
-                    : `${apiBaseUrl}/dashboard/competitors?analyzing=true&niche=${encodeURIComponent(message.niche || 'Import manuel')}`;
+                // Pour les testeurs Google, utiliser la page secrète de test
+                const useTestPage = message.useTestPage || false;
+                const analyzingUrl = useTestPage
+                    ? `${apiBaseUrl}/test-extension?analyzing=true`
+                    : isShopAnalysis && message.shopUrl
+                        ? `${apiBaseUrl}/dashboard/shop/analyze?analyzing=true&shop=${encodeURIComponent(message.shopUrl)}`
+                        : `${apiBaseUrl}/dashboard/competitors?analyzing=true&niche=${encodeURIComponent(message.niche || 'Import manuel')}`;
                 // Vérifier si l'onglet existe encore
                 if (tabId && typeof tabId === 'number') {
                     try {
@@ -192,9 +196,13 @@ async function analyzeSingleShop(shopData) {
         }
         // Récupérer l'URL de l'API depuis le storage (ignorer localhost)
         const apiBaseUrl = (storage.apiBaseUrl && typeof storage.apiBaseUrl === 'string' && !storage.apiBaseUrl.includes('localhost')) ? storage.apiBaseUrl : API_BASE_URL;
+        // Pour les testeurs Google, utiliser la page secrète de test
+        const useTestPage = shopData.useTestPage || false;
         // Créer un nouvel onglet si nécessaire
         if (!resultsTabId) {
-            const analyzingUrl = `${apiBaseUrl}/dashboard/shop/analyze?analyzing=true&shop=${encodeURIComponent(shopData.shopUrl)}`;
+            const analyzingUrl = useTestPage
+                ? `${apiBaseUrl}/test-extension?analyzing=true&shop=${encodeURIComponent(shopData.shopUrl)}`
+                : `${apiBaseUrl}/dashboard/shop/analyze?analyzing=true&shop=${encodeURIComponent(shopData.shopUrl)}`;
             const newTab = await chrome.tabs.create({ url: analyzingUrl, active: true });
             resultsTabId = newTab.id;
             if (resultsTabId) {
@@ -242,13 +250,19 @@ async function analyzeSingleShop(shopData) {
                     },
                     args: [result]
                 });
-                const resultsUrl = `${apiBaseUrl}/dashboard/shop/analyze?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`;
+                const useTestPage = shopData.useTestPage || false;
+                const resultsUrl = useTestPage
+                    ? `${apiBaseUrl}/test-extension?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`
+                    : `${apiBaseUrl}/dashboard/shop/analyze?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`;
                 await chrome.tabs.update(resultsTabId, { url: resultsUrl });
                 await chrome.storage.local.remove(['analyzingTabId']);
             }
             catch (scriptError) {
                 console.log('[Etsmart Background] Erreur injection script:', scriptError);
-                const resultsUrl = `${apiBaseUrl}/dashboard/shop/analyze?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`;
+                const useTestPage = shopData.useTestPage || false;
+                const resultsUrl = useTestPage
+                    ? `${apiBaseUrl}/test-extension?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`
+                    : `${apiBaseUrl}/dashboard/shop/analyze?shop=${encodeURIComponent(shopData.shopUrl)}&import=done&timestamp=${Date.now()}`;
                 await chrome.tabs.update(resultsTabId, { url: resultsUrl });
             }
         }
@@ -281,7 +295,11 @@ async function sendToAPI(niche, shops, searchUrl) {
         }
         // Si pas d'onglet valide, en créer un nouveau
         if (!resultsTabId) {
-            const analyzingUrl = `${apiBaseUrl}/dashboard/competitors?analyzing=true&niche=${encodeURIComponent(niche)}`;
+            // Pour les testeurs Google, utiliser la page secrète de test
+            const useTestPage = shops && shops.length > 0 && shops[0].useTestPage || false;
+            const analyzingUrl = useTestPage
+                ? `${apiBaseUrl}/test-extension?analyzing=true&niche=${encodeURIComponent(niche)}`
+                : `${apiBaseUrl}/dashboard/competitors?analyzing=true&niche=${encodeURIComponent(niche)}`;
             const newTab = await chrome.tabs.create({ url: analyzingUrl, active: true });
             resultsTabId = newTab.id;
         }
@@ -298,13 +316,37 @@ async function sendToAPI(niche, shops, searchUrl) {
             }),
         });
         if (!response.ok) {
-            const errorText = await response.text();
-            console.log('[Etsmart Background] Erreur API:', response.status, errorText);
-            // Mettre à jour l'onglet avec l'erreur
+            let errorMessage = 'Erreur lors de l\'analyse';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+                // Si c'est un timeout, message spécifique
+                if (response.status === 504 || errorMessage.includes('timeout') || errorMessage.includes('trop de temps')) {
+                    errorMessage = 'L\'analyse prend plus de temps que prévu. L\'analyse continue en arrière-plan, veuillez patienter...';
+                }
+            } catch (e) {
+                const errorText = await response.text().catch(() => 'Erreur inconnue');
+                errorMessage = errorText.length > 200 ? 'Erreur lors de l\'analyse' : errorText;
+            }
+            console.log('[Etsmart Background] Erreur API:', response.status, errorMessage);
+            // Mettre à jour l'onglet avec l'erreur (rester sur la page d'analyse, ne pas rediriger)
             if (resultsTabId) {
                 await waitForTabComplete(resultsTabId);
-                await chrome.tabs.update(resultsTabId, {
-                    url: `${apiBaseUrl}/dashboard/competitors?import=error&message=${encodeURIComponent(errorText)}`
+                await chrome.scripting.executeScript({
+                    target: { tabId: resultsTabId },
+                    func: (message) => {
+                        try {
+                            // Afficher l'erreur dans la page sans rediriger
+                            const errorEvent = new CustomEvent('competitorAnalysisError', { 
+                                detail: { message } 
+                            });
+                            window.dispatchEvent(errorEvent);
+                            console.log('[Etsmart] Erreur affichée:', message);
+                        } catch (err) {
+                            console.error('[Etsmart] Erreur affichage erreur:', err);
+                        }
+                    },
+                    args: [errorMessage]
                 });
             }
             return;
@@ -336,7 +378,10 @@ async function sendToAPI(niche, shops, searchUrl) {
                 // Attendre un peu pour que le script s'exécute
                 await new Promise(resolve => setTimeout(resolve, 500));
                 // Mettre à jour l'URL pour afficher les résultats
-                const resultsUrl = `${apiBaseUrl}/dashboard/competitors?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`;
+                const useTestPage = shops && shops.length > 0 && shops[0].useTestPage || false;
+                const resultsUrl = useTestPage
+                    ? `${apiBaseUrl}/test-extension?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`
+                    : `${apiBaseUrl}/dashboard/competitors?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`;
                 await chrome.tabs.update(resultsTabId, { url: resultsUrl });
                 // Nettoyer le storage
                 await chrome.storage.local.remove(['analyzingTabId']);
@@ -344,7 +389,10 @@ async function sendToAPI(niche, shops, searchUrl) {
             catch (scriptError) {
                 console.log('[Etsmart Background] Erreur injection script:', scriptError);
                 // Fallback : mettre à jour l'URL avec les données en paramètre (limité)
-                const resultsUrl = `${apiBaseUrl}/dashboard/competitors?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`;
+                const useTestPage = shops && shops.length > 0 && shops[0].useTestPage || false;
+                const resultsUrl = useTestPage
+                    ? `${apiBaseUrl}/test-extension?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`
+                    : `${apiBaseUrl}/dashboard/competitors?niche=${encodeURIComponent(niche)}&import=done&timestamp=${Date.now()}`;
                 await chrome.tabs.update(resultsTabId, { url: resultsUrl });
             }
         }
