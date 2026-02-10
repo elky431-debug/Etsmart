@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -10,6 +11,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading: authLoading } = useAuth();
   const subscriptionProtection = useSubscriptionProtection();
   const { subscription, loading: subLoading, hasActiveSubscription } = useSubscription();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Vérifier si on est sur une page d'analyse en cours (extension)
+  const isAnalyzingPage = pathname?.includes('/competitors') && searchParams?.get('analyzing') === 'true';
+  const isShopAnalyzingPage = pathname?.includes('/shop/analyze') && searchParams?.get('analyzing') === 'true';
+  const isTestPage = pathname?.includes('/test-extension');
+  const shouldBypassProtection = isAnalyzingPage || isShopAnalyzingPage || isTestPage;
 
   // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
   // This ensures a re-render happens when the check completes
@@ -46,6 +55,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // RENDER LOGIC - ORDER MATTERS!
   // The DEFAULT is paywall/loading, children only show when EXPLICITLY active
   // ═══════════════════════════════════════════════════════════════════════
+
+  // 0. ⚠️ BYPASS: Pages d'analyse en cours (extension) → toujours afficher
+  //    Ces pages doivent s'afficher même sans abonnement vérifié pour permettre l'analyse
+  if (shouldBypassProtection) {
+    return <>{children}</>;
+  }
 
   // 1. Still loading (initial check not done yet) → show spinner
   if (!initialCheckDone) {
