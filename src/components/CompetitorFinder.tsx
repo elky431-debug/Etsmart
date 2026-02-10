@@ -126,8 +126,8 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
 
   return (
     <div className="relative w-full max-w-2xl mx-auto p-6 sm:p-8 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-lg">
-      {/* Contenu principal (plus de flou / coming soon) */}
-      <div className="select-none">
+      {/* Contenu principal */}
+      <div>
         <div className="text-center mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
             Trouver les boutiques dominantes
