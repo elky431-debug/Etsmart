@@ -50,30 +50,40 @@ export default function CompetitorsClient() {
       // L'analyse est terminée, vérifier immédiatement le storage
       console.log('[Competitors] Import terminé, recherche immédiate des données...');
       
-      const stored = localStorage.getItem('competitorAnalysis') || sessionStorage.getItem('competitorAnalysis');
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          const storedNiche = (data.niche || '').toLowerCase().trim();
-          const requestedNiche = niche.toLowerCase().trim();
-          const nicheMatches = !requestedNiche || storedNiche === requestedNiche;
-          
-          if (nicheMatches) {
-            console.log('[Competitors] Données trouvées après import:', data);
-            setAnalysisData(data);
-            sessionStorage.setItem('competitorAnalysis', stored);
-            localStorage.setItem('competitorAnalysis', stored);
-            setAnalyzing(false);
-            setLoading(false);
-            // Nettoyer l'URL sans recharger la page
-            const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(data.niche || niche)}`;
-            window.history.replaceState({}, '', cleanUrl);
-            return;
+      // Vérifier plusieurs fois avec un délai pour s'assurer que les données sont bien sauvegardées
+      const checkForData = (attempt = 0) => {
+        const stored = localStorage.getItem('competitorAnalysis') || sessionStorage.getItem('competitorAnalysis');
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            const storedNiche = (data.niche || '').toLowerCase().trim();
+            const requestedNiche = niche.toLowerCase().trim();
+            const nicheMatches = !requestedNiche || storedNiche === requestedNiche;
+            
+            if (nicheMatches) {
+              console.log('[Competitors] Données trouvées après import:', data);
+              setAnalysisData(data);
+              sessionStorage.setItem('competitorAnalysis', stored);
+              localStorage.setItem('competitorAnalysis', stored);
+              setAnalyzing(false);
+              setLoading(false);
+              // Nettoyer l'URL sans recharger la page
+              const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(data.niche || niche)}`;
+              window.history.replaceState({}, '', cleanUrl);
+              return true;
+            }
+          } catch (err) {
+            console.error('[Competitors] Erreur parsing:', err);
           }
-        } catch (err) {
-          console.error('[Competitors] Erreur parsing:', err);
         }
-      }
+        // Si pas de données et qu'on n'a pas encore essayé 3 fois, réessayer
+        if (attempt < 3) {
+          setTimeout(() => checkForData(attempt + 1), 500);
+        }
+        return false;
+      };
+      
+      checkForData();
     }
 
     // Si on est en mode "analyse en cours"
@@ -248,10 +258,19 @@ export default function CompetitorsClient() {
         console.error('[Competitors] Erreur depuis URL:', errorMessage);
         setError(decodeURIComponent(errorMessage));
         setLoading(false);
-      } else if (!analyzingParam) {
-        // Pas d'analyse en cours et pas de données = pas d'analyse disponible
-        setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
-        setLoading(false);
+      } else if (!analyzingParam && !importParam) {
+        // Pas d'analyse en cours, pas d'import terminé, et pas de données = pas d'analyse disponible
+        // Mais attendre un peu avant d'afficher l'erreur pour laisser le temps aux données d'arriver
+        const timeoutId = setTimeout(() => {
+          // Vérifier à nouveau si des données sont arrivées entre-temps
+          const recheck = sessionStorage.getItem('competitorAnalysis') || localStorage.getItem('competitorAnalysis');
+          if (!recheck) {
+            setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
+            setLoading(false);
+          }
+        }, 2000); // Attendre 2 secondes avant d'afficher l'erreur
+        
+        return () => clearTimeout(timeoutId);
       }
     }
 
@@ -356,18 +375,26 @@ export default function CompetitorsClient() {
     );
   }
 
-  if (error || !analysisData) {
+  // Ne pas afficher d'erreur si on est en train d'analyser
+  if ((error || !analysisData) && !analyzing && !loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl shadow-lg p-8 text-center">
           <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Erreur</h2>
           <p className="text-white/70 mb-6">{error || 'Aucune analyse disponible'}</p>
-          <Link href="/dashboard">
-            <button className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-full">
-              Retour au tableau de bord
-            </button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/dashboard?section=competitors">
+              <button className="px-6 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-full hover:opacity-90 transition-opacity">
+                Réessayer
+              </button>
+            </Link>
+            <Link href="/dashboard">
+              <button className="px-6 py-3 bg-white/10 border border-white/20 text-white font-semibold rounded-full hover:bg-white/20 transition-colors">
+                Retour au tableau de bord
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     );
