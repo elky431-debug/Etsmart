@@ -183,13 +183,14 @@ export default function CompetitorsClient() {
       
       window.addEventListener('storage', handleStorageChange);
 
-      // Timeout de sécurité (60 secondes)
+      // Timeout de sécurité (120 secondes = 2 minutes) - l'analyse peut prendre du temps
       const timeout = setTimeout(() => {
-        console.error('[Competitors] Timeout - Aucune donnée reçue après 60 secondes');
-        setError('L\'analyse prend plus de temps que prévu. Vérifiez les logs du serveur et réessayez.');
-        setAnalyzing(false);
-        setLoading(false);
-      }, 60000);
+        console.error('[Competitors] Timeout - Aucune donnée reçue après 120 secondes');
+        // Ne pas arrêter l'analyse, juste afficher un message informatif
+        setError('L\'analyse prend plus de temps que prévu. L\'analyse continue en arrière-plan, veuillez patienter...');
+        // Garder analyzing à true pour continuer à afficher le loader
+        // Ne pas mettre setAnalyzing(false) ni setLoading(false) pour que l'utilisateur voie que ça continue
+      }, 120000); // 2 minutes au lieu de 60 secondes
 
       // Écouter les erreurs d'analyse
       const handleAnalysisError = (event: CustomEvent) => {
@@ -376,6 +377,21 @@ export default function CompetitorsClient() {
   }
 
   // Ne pas afficher d'erreur si on est en train d'analyser
+  // Si on a une erreur mais qu'on est toujours en train d'analyser, afficher le loader avec le message
+  if (error && analyzing) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl shadow-lg p-8 text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#00d4ff] border-t-transparent mx-auto mb-6"></div>
+          <h2 className="text-xl font-bold text-white mb-2">Analyse en cours</h2>
+          <p className="text-white/70 mb-4">{error}</p>
+          <p className="text-sm text-white/50">L'analyse continue en arrière-plan. Cette page se mettra à jour automatiquement quand les résultats seront prêts.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Afficher l'erreur seulement si on n'est plus en train d'analyser
   if ((error || !analysisData) && !analyzing && !loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
