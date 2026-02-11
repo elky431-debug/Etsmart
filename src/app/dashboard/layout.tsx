@@ -8,9 +8,6 @@ import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
 import { Paywall } from '@/components/paywall/Paywall';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
-  const subscriptionProtection = useSubscriptionProtection();
-  const { subscription, loading: subLoading, hasActiveSubscription } = useSubscription();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   
@@ -22,6 +19,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isTestPage = pathname?.includes('/test-extension');
   // Pour les pages d'analyse, bypasser TOUTE vérification d'abonnement (même sans paramètre analyzing)
   const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
+  
+  // ⚠️ CRITICAL: Ne pas appeler les hooks de protection si on bypass
+  // Cela évite toute redirection ou vérification
+  const { user, loading: authLoading } = useAuth();
+  const subscriptionProtection = shouldBypassProtection ? { isActive: true, isLoading: false, plan: null, cancelAtPeriodEnd: false, currentPeriodEnd: null } : useSubscriptionProtection();
+  const { subscription, loading: subLoading, hasActiveSubscription } = shouldBypassProtection ? { subscription: null, loading: false, hasActiveSubscription: true } : useSubscription();
 
   // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
   // This ensures a re-render happens when the check completes
