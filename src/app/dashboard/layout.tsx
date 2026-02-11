@@ -14,11 +14,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const searchParams = useSearchParams();
   
-  // Vérifier si on est sur une page d'analyse en cours (extension)
-  const isAnalyzingPage = pathname?.includes('/competitors') && searchParams?.get('analyzing') === 'true';
-  const isShopAnalyzingPage = pathname?.includes('/shop/analyze') && searchParams?.get('analyzing') === 'true';
+  // Vérifier si on est sur une page d'analyse (extension) - BYPASS COMPLET
+  // Ces pages doivent être accessibles SANS AUCUNE vérification d'abonnement
+  // car l'extension est publiée et ne peut pas être modifiée
+  const isCompetitorsPage = pathname?.includes('/competitors');
+  const isShopAnalyzePage = pathname?.includes('/shop/analyze');
   const isTestPage = pathname?.includes('/test-extension');
-  const shouldBypassProtection = isAnalyzingPage || isShopAnalyzingPage || isTestPage;
+  // Pour les pages d'analyse, bypasser TOUTE vérification d'abonnement (même sans paramètre analyzing)
+  const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
 
   // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
   // This ensures a re-render happens when the check completes
@@ -56,8 +59,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // The DEFAULT is paywall/loading, children only show when EXPLICITLY active
   // ═══════════════════════════════════════════════════════════════════════
 
-  // 0. ⚠️ BYPASS: Pages d'analyse en cours (extension) → toujours afficher
-  //    Ces pages doivent s'afficher même sans abonnement vérifié pour permettre l'analyse
+  // 0. ⚠️ BYPASS COMPLET: Pages d'analyse (extension) → afficher DIRECTEMENT
+  //    Aucune vérification d'abonnement, aucun loading, rien du tout
+  //    Ces pages doivent s'afficher immédiatement pour permettre l'analyse
   if (shouldBypassProtection) {
     return <>{children}</>;
   }
