@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -26,9 +26,18 @@ interface SubscriptionStatus {
 export function useSubscriptionProtection(): SubscriptionStatus {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  
+  // Vérifier si on est sur une page d'analyse (extension) - BYPASS COMPLET
+  // Ces pages ne doivent JAMAIS rediriger, même si l'utilisateur n'est pas connecté
+  const isCompetitorsPage = pathname?.includes('/competitors');
+  const isShopAnalyzePage = pathname?.includes('/shop/analyze');
+  const isTestPage = pathname?.includes('/test-extension');
+  const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
+  
   const [status, setStatus] = useState<SubscriptionStatus>({
-    isActive: false,
-    isLoading: true,
+    isActive: shouldBypassProtection ? true : false, // Forcer isActive à true pour pages analyse
+    isLoading: shouldBypassProtection ? false : true, // Pas de loading pour pages analyse
     plan: null,
     cancelAtPeriodEnd: false,
     currentPeriodEnd: null,
@@ -37,6 +46,11 @@ export function useSubscriptionProtection(): SubscriptionStatus {
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    // Si on bypass, ne rien faire du tout
+    if (shouldBypassProtection) {
+      return;
+    }
+    
     mountedRef.current = true;
     
     const checkSubscription = async () => {
@@ -45,7 +59,7 @@ export function useSubscriptionProtection(): SubscriptionStatus {
         return;
       }
 
-      // If no user, redirect to login
+      // If no user, redirect to login (SEULEMENT si pas de bypass)
       if (!user) {
         if (mountedRef.current) {
           setStatus(prev => ({ ...prev, isLoading: false, isActive: false }));
@@ -182,7 +196,18 @@ export function useSubscriptionProtection(): SubscriptionStatus {
     return () => {
       mountedRef.current = false;
     };
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, shouldBypassProtection]);
+
+  // Si on bypass, retourner un statut qui indique que tout est OK
+  if (shouldBypassProtection) {
+    return {
+      isActive: true,
+      isLoading: false,
+      plan: null,
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: null,
+    };
+  }
 
   return status;
 }
