@@ -33,15 +33,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // This prevents the dashboard from unmounting/remounting on credit refresh
   const [wasActiveOnce, setWasActiveOnce] = useState(false);
 
-  const isLoading = authLoading || subscriptionProtection.isLoading || subLoading;
+  const isLoading = shouldBypassProtection ? false : (authLoading || effectiveProtection.isLoading || effectiveSubscription.loading);
 
-  // Check if subscription is active
-  const subscriptionStatus = subscription?.status;
-  const periodEnd = subscription?.periodEnd;
+  // Check if subscription is active (ignoré si on bypass)
+  const subscriptionStatus = effectiveSubscription.subscription?.status;
+  const periodEnd = effectiveSubscription.subscription?.periodEnd;
   const now = new Date();
   const isPeriodValid = periodEnd ? periodEnd > now : false;
-  const isSubscriptionActive = subscriptionStatus === 'active' || (subscription && isPeriodValid);
-  const isReallyActive = (isSubscriptionActive && hasActiveSubscription) || subscriptionProtection.isActive;
+  const isSubscriptionActive = subscriptionStatus === 'active' || (effectiveSubscription.subscription && isPeriodValid);
+  const isReallyActive = shouldBypassProtection ? true : ((isSubscriptionActive && effectiveSubscription.hasActiveSubscription) || effectiveProtection.isActive);
 
   // Mark the initial check as done (uses state → triggers re-render)
   useEffect(() => {
