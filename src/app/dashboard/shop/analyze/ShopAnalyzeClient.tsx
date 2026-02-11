@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
   Store, 
@@ -23,10 +23,12 @@ import {
   Image as ImageIcon,
   Video,
   FileText,
-  Package
+  Package,
+  Coins
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
+import { supabase } from '@/lib/supabase';
 
 interface ShopListing {
   title: string;
@@ -99,7 +101,52 @@ export default function ShopAnalyzeClient() {
     importDone: searchParams.get('import'),
   });
   const dataLoadedRef = useRef(false);
+  const creditsDeductedRef = useRef(false);
+  const [creditsError, setCreditsError] = useState<string | null>(null);
   const shopUrl = analysisData?.shop?.url || initialParamsRef.current.shopUrl;
+
+  // 💰 Deduct 2 credits when analysis data is received
+  const deductCredits = useCallback(async () => {
+    if (creditsDeductedRef.current) return;
+    creditsDeductedRef.current = true;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        console.warn('[Shop Analyze] No auth token, skipping credit deduction');
+        return;
+      }
+      
+      console.log('[Shop Analyze] Déduction de 2 crédits...');
+      const response = await fetch('/api/deduct-credits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: 2,
+          reason: 'shop_analysis',
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('[Shop Analyze] ❌ Erreur déduction crédits:', result);
+        if (result.error === 'QUOTA_EXCEEDED') {
+          setCreditsError('Vous n\'avez pas assez de crédits pour cette analyse. Veuillez upgrader votre plan.');
+        }
+        return;
+      }
+      
+      console.log(`[Shop Analyze] ✅ 2 crédits déduits. Utilisés: ${result.used}/${result.quota}`);
+    } catch (err) {
+      console.error('[Shop Analyze] Erreur lors de la déduction des crédits:', err);
+    }
+  }, []);
 
   useEffect(() => {
     const { shopUrl: initialShopUrl, analyzing: analyzingParam, importDone: importParam } = initialParamsRef.current;
@@ -283,6 +330,13 @@ export default function ShopAnalyzeClient() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // ⚠️ Run ONCE on mount
+
+  // 💰 Deduct 2 credits when analysis data is first received
+  useEffect(() => {
+    if (analysisData && !creditsDeductedRef.current) {
+      deductCredits();
+    }
+  }, [analysisData, deductCredits]);
 
   useEffect(() => {
     if (!analyzing) return;
@@ -676,6 +730,10 @@ export default function ShopAnalyzeClient() {
         <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl shadow-lg p-8 text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#00d4ff] border-t-transparent mx-auto mb-6"></div>
           <h2 className="text-2xl font-bold text-white mb-3">Analyse en cours</h2>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium mb-3">
+            <Coins size={14} />
+            2 crédits
+          </div>
           <p className="text-white/70 mb-2">
             Analyse de la boutique : <span className="font-semibold text-[#00d4ff]">{shopUrl.split('/shop/')[1]?.split('?')[0] || 'Etsy'}</span>
           </p>
@@ -787,6 +845,13 @@ export default function ShopAnalyzeClient() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Credits warning */}
+        {creditsError && (
+          <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-sm text-center">
+            ⚠️ {creditsError}
+          </div>
+        )}
+
         {/* Shop Header */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

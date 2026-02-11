@@ -135,6 +135,9 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
           <p className="text-slate-600 text-sm sm:text-base">
             Analysez automatiquement les meilleures boutiques Etsy de votre niche
           </p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium mt-3">
+            2 crédits par analyse
+          </div>
         </div>
 
         {/* Formulaire */}
