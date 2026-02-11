@@ -35,6 +35,11 @@ export function useSubscriptionProtection(): SubscriptionStatus {
   const isTestPage = pathname?.includes('/test-extension');
   const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
   
+  // Log pour debug
+  if (shouldBypassProtection) {
+    console.log('[SubscriptionProtection] 🚫 BYPASS activé pour:', pathname);
+  }
+  
   const [status, setStatus] = useState<SubscriptionStatus>({
     isActive: shouldBypassProtection ? true : false, // Forcer isActive à true pour pages analyse
     isLoading: shouldBypassProtection ? false : true, // Pas de loading pour pages analyse
