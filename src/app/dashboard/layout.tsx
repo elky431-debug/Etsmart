@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useSubscriptionProtection } from '@/hooks/useSubscriptionProtection';
@@ -9,21 +9,12 @@ import { Paywall } from '@/components/paywall/Paywall';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   
   // Vérifier si on est sur une page d'analyse (extension) - BYPASS COMPLET
-  // Ces pages doivent être accessibles SANS AUCUNE vérification d'abonnement
-  // car l'extension est publiée et ne peut pas être modifiée
   const isCompetitorsPage = pathname?.includes('/competitors');
   const isShopAnalyzePage = pathname?.includes('/shop/analyze');
   const isTestPage = pathname?.includes('/test-extension');
-  // Pour les pages d'analyse, bypasser TOUTE vérification d'abonnement (même sans paramètre analyzing)
   const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
-  
-  // #region agent log
-  console.log('[DEBUG] Layout render - pathname check', {pathname, isCompetitorsPage, isShopAnalyzePage, isTestPage, shouldBypassProtection});
-  fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:21',message:'Layout render - pathname check',data:{pathname,isCompetitorsPage,isShopAnalyzePage,isTestPage,shouldBypassProtection},timestamp:Date.now(),runId:'debug1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   // ⚠️ CRITICAL: Toujours appeler les hooks (règle React), mais ignorer leurs résultats si on bypass
   const { user, loading: authLoading } = useAuth();
@@ -75,13 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // ═══════════════════════════════════════════════════════════════════════
 
   // 0. ⚠️ BYPASS COMPLET: Pages d'analyse (extension) → afficher DIRECTEMENT
-  //    Aucune vérification d'abonnement, aucun loading, rien du tout
-  //    Ces pages doivent s'afficher immédiatement pour permettre l'analyse
   if (shouldBypassProtection) {
-    // #region agent log
-    console.log('[DEBUG] ✅ BYPASS ACTIVÉ - retour children', {pathname, shouldBypassProtection});
-    fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:75',message:'BYPASS ACTIVÉ - retour children',data:{pathname,shouldBypassProtection},timestamp:Date.now(),runId:'debug1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return <>{children}</>;
   }
 
@@ -117,10 +102,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // 4. ⚠️ DEFAULT: No active subscription → show paywall
   //    This is the SAFE default - paywall shows unless we explicitly confirmed active
-  // #region agent log
-  console.error('[DEBUG] ❌ PAYWALL AFFICHÉ - valeurs:', {pathname, shouldBypassProtection, isReallyActive, wasActiveOnce, initialCheckDone, user: !!user, authLoading, effectiveProtection: effectiveProtection.isActive, effectiveSubscription: effectiveSubscription.hasActiveSubscription, subscriptionProtection: subscriptionProtection.isActive, subscriptionHasActive: hasActiveSubscription});
-  fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:111',message:'PAYWALL AFFICHÉ',data:{pathname,shouldBypassProtection,isReallyActive,wasActiveOnce,initialCheckDone,user:!!user,authLoading,effectiveProtection:effectiveProtection.isActive,effectiveSubscription:effectiveSubscription.hasActiveSubscription},timestamp:Date.now(),runId:'debug1',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   return (
     <div className="min-h-screen w-full relative overflow-hidden bg-black">
       <Paywall

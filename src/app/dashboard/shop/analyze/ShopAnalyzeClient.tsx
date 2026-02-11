@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Store, 
   ArrowLeft, 
@@ -85,35 +85,58 @@ interface ShopAnalysisData {
 
 export default function ShopAnalyzeClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [analysisData, setAnalysisData] = useState<ShopAnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingProgress, setAnalyzingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'listings'>('overview');
-  const shopUrl = searchParams.get('shop') || '';
-  const analyzingParam = searchParams.get('analyzing');
-  const importParam = searchParams.get('import');
+  
+  // ⚠️ CRITICAL: Read URL params ONCE at mount and store in ref
+  const initialParamsRef = useRef({
+    shopUrl: searchParams.get('shop') || '',
+    analyzing: searchParams.get('analyzing'),
+    importDone: searchParams.get('import'),
+  });
+  const dataLoadedRef = useRef(false);
+  const shopUrl = analysisData?.shop?.url || initialParamsRef.current.shopUrl;
 
   useEffect(() => {
-    // Vérifier d'abord si on a déjà des données (import=done)
+    const { shopUrl: initialShopUrl, analyzing: analyzingParam, importDone: importParam } = initialParamsRef.current;
+    
+    // ════════════════════════════════════════════════════════════════
+    // CASE 1: import=done → Load data from storage
+    // ════════════════════════════════════════════════════════════════
     if (importParam === 'done') {
-      const stored = localStorage.getItem('shopAnalysis') || sessionStorage.getItem('shopAnalysis');
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          setAnalysisData(data);
-          setAnalyzing(false);
-          setLoading(false);
-          return;
-        } catch (err) {
-          console.error('[Shop Analyze] Erreur parsing:', err);
+      const checkForData = (attempt = 0) => {
+        if (dataLoadedRef.current) return;
+        const stored = localStorage.getItem('shopAnalysis') || sessionStorage.getItem('shopAnalysis');
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            dataLoadedRef.current = true;
+            setAnalysisData(data);
+            setAnalyzing(false);
+            setLoading(false);
+            return;
+          } catch (err) {
+            console.error('[Shop Analyze] Erreur parsing:', err);
+          }
         }
-      }
+        if (attempt < 5) {
+          setTimeout(() => checkForData(attempt + 1), 500 + attempt * 200);
+        } else {
+          setError('Les données d\'analyse n\'ont pas été trouvées.');
+          setLoading(false);
+        }
+      };
+      checkForData();
+      return; // ⚠️ Stop here
     }
 
-    // Si on est en mode "analyse en cours"
+    // ════════════════════════════════════════════════════════════════
+    // CASE 2: analyzing=true → Wait for analysis completion
+    // ════════════════════════════════════════════════════════════════
     if (analyzingParam === 'true') {
       try {
         sessionStorage.removeItem('shopAnalysis');
@@ -124,139 +147,142 @@ export default function ShopAnalyzeClient() {
       setAnalyzing(true);
       setLoading(false);
       
-      // Écouter l'événement quand l'analyse est prête
       const handleAnalysisReady = (event: CustomEvent) => {
+        if (dataLoadedRef.current) return;
         const data = event.detail;
-        console.log('[Shop Analyze] Événement shopAnalysisReady reçu:', data);
+        console.log('[Shop Analyze] ✅ Événement shopAnalysisReady reçu');
+        dataLoadedRef.current = true;
         setAnalysisData(data);
         sessionStorage.setItem('shopAnalysis', JSON.stringify(data));
         localStorage.setItem('shopAnalysis', JSON.stringify(data));
         setAnalyzing(false);
         setLoading(false);
-        const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
-        window.history.replaceState({}, '', cleanUrl);
       };
-
       window.addEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
 
-      // Vérifier localStorage une fois au démarrage
-      const checkStorageOnce = () => {
-        const stored = localStorage.getItem('shopAnalysis');
-        const storedSession = sessionStorage.getItem('shopAnalysis');
-        
-        if (stored) {
-          try {
-            const data = JSON.parse(stored);
-            if (data.shop?.url === shopUrl || data.analysis?.shopUrl === shopUrl) {
-              setAnalysisData(data);
-              sessionStorage.setItem('shopAnalysis', stored);
-              setAnalyzing(false);
-              setLoading(false);
-              const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
-              window.history.replaceState({}, '', cleanUrl);
-              return true;
-            }
-          } catch (err) {
-            console.error('[Shop Analyze] Erreur parsing localStorage:', err);
+      // Check if data already exists
+      const stored = localStorage.getItem('shopAnalysis') || sessionStorage.getItem('shopAnalysis');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data.shop?.url === initialShopUrl || data.analysis?.shopUrl === initialShopUrl) {
+            dataLoadedRef.current = true;
+            setAnalysisData(data);
+            sessionStorage.setItem('shopAnalysis', stored);
+            setAnalyzing(false);
+            setLoading(false);
+            return;
           }
+        } catch (err) {
+          console.error('[Shop Analyze] Erreur parsing localStorage:', err);
         }
-        
-        if (storedSession) {
-          try {
-            const data = JSON.parse(storedSession);
-            if (data.shop?.url === shopUrl || data.analysis?.shopUrl === shopUrl) {
-              setAnalysisData(data);
-              setAnalyzing(false);
-              setLoading(false);
-              const cleanUrl = `/dashboard/shop/analyze?shop=${encodeURIComponent(shopUrl)}`;
-              window.history.replaceState({}, '', cleanUrl);
-              return true;
-            }
-          } catch (err) {
-            console.error('[Shop Analyze] Erreur parsing sessionStorage:', err);
-          }
-        }
-        return false;
-      };
-      
-      if (checkStorageOnce()) {
-        return;
       }
 
-      // Timeout de sécurité (60 secondes)
+      // Poll localStorage as backup
+      const pollInterval = setInterval(() => {
+        if (dataLoadedRef.current) { clearInterval(pollInterval); return; }
+        const polled = localStorage.getItem('shopAnalysis') || sessionStorage.getItem('shopAnalysis');
+        if (polled) {
+          try {
+            const data = JSON.parse(polled);
+            dataLoadedRef.current = true;
+            setAnalysisData(data);
+            setAnalyzing(false);
+            setLoading(false);
+            clearInterval(pollInterval);
+          } catch (err) { /* ignore */ }
+        }
+      }, 2000);
+
       const timeout = setTimeout(() => {
-        console.error('[Shop Analyze] Timeout - Aucune donnée reçue après 60 secondes');
-        setError('L\'analyse prend plus de temps que prévu. Vérifiez les logs du serveur et réessayez.');
-        setAnalyzing(false);
-        setLoading(false);
-      }, 60000);
+        if (!dataLoadedRef.current) {
+          setError('L\'analyse prend plus de temps que prévu. Vérifiez les logs du serveur et réessayez.');
+          setAnalyzing(false);
+          setLoading(false);
+        }
+      }, 120000);
 
       return () => {
         clearTimeout(timeout);
+        clearInterval(pollInterval);
         window.removeEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
       };
     }
 
-    // Récupérer les données depuis sessionStorage ou localStorage
-    let storedData = sessionStorage.getItem('shopAnalysis');
-    if (!storedData) {
-      storedData = localStorage.getItem('shopAnalysis');
-    }
-    
+    // ════════════════════════════════════════════════════════════════
+    // CASE 3: No special params → Load existing data
+    // ════════════════════════════════════════════════════════════════
+    const storedData = sessionStorage.getItem('shopAnalysis') || localStorage.getItem('shopAnalysis');
     if (storedData) {
       try {
         const data = JSON.parse(storedData);
+        dataLoadedRef.current = true;
         setAnalysisData(data);
         setLoading(false);
         return;
       } catch (err) {
-        console.error('[Shop Analyze] Erreur parsing données:', err);
         setError('Erreur lors du chargement des données');
         setLoading(false);
         return;
       }
     }
     
-    // Si pas de données
-    if (!storedData) {
-      const errorParam = searchParams.get('import');
-      if (errorParam === 'error') {
-        let errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
-        try {
-          // Essayer de parser le message JSON si c'est un objet
-          const decoded = decodeURIComponent(errorMessage);
-          if (decoded.startsWith('{')) {
-            const errorObj = JSON.parse(decoded);
-            errorMessage = errorObj.message || errorObj.error || errorMessage;
-          } else {
-            errorMessage = decoded;
-          }
-        } catch (e) {
-          // Si ce n'est pas du JSON, utiliser le message tel quel
-          errorMessage = decodeURIComponent(errorMessage);
+    // Check for error params
+    const errorParam = searchParams.get('import');
+    if (errorParam === 'error') {
+      let errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
+      try {
+        const decoded = decodeURIComponent(errorMessage);
+        if (decoded.startsWith('{')) {
+          const errorObj = JSON.parse(decoded);
+          errorMessage = errorObj.message || errorObj.error || errorMessage;
+        } else {
+          errorMessage = decoded;
         }
-        setError(errorMessage);
-        setLoading(false);
-      } else if (!analyzingParam) {
+      } catch (e) {
+        errorMessage = decodeURIComponent(errorMessage);
+      }
+      setError(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    // No data at all
+    const timeoutId = setTimeout(() => {
+      if (dataLoadedRef.current) return;
+      const lastCheck = sessionStorage.getItem('shopAnalysis') || localStorage.getItem('shopAnalysis');
+      if (lastCheck) {
+        try {
+          const data = JSON.parse(lastCheck);
+          dataLoadedRef.current = true;
+          setAnalysisData(data);
+          setLoading(false);
+        } catch (e) {
+          setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
+          setLoading(false);
+        }
+      } else {
         setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
         setLoading(false);
       }
-    }
+    }, 3000);
 
-    // Écouter les événements de nouvelles analyses
     const handleAnalysisReady = (event: CustomEvent) => {
+      if (dataLoadedRef.current) return;
       const data = event.detail;
+      dataLoadedRef.current = true;
       setAnalysisData(data);
       sessionStorage.setItem('shopAnalysis', JSON.stringify(data));
       setLoading(false);
     };
-
     window.addEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
 
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('shopAnalysisReady', handleAnalysisReady as EventListener);
     };
-  }, [analyzingParam, shopUrl, importParam, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ⚠️ Run ONCE on mount
 
   useEffect(() => {
     if (!analyzing) return;

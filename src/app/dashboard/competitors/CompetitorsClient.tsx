@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ExternalLink, TrendingUp, Target, Zap, Shield, Lightbulb, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
@@ -33,62 +33,96 @@ interface AnalysisData {
 
 export default function CompetitorsClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingProgress, setAnalyzingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const niche = searchParams.get('niche') || '';
-  const analyzingParam = searchParams.get('analyzing');
-  const storageKey = searchParams.get('key') || '';
+  
+  // ⚠️ CRITICAL: Read URL params ONCE at mount and store in refs
+  // This prevents re-running the effect when replaceState changes the URL
+  const initialParamsRef = useRef({
+    niche: searchParams.get('niche') || '',
+    analyzing: searchParams.get('analyzing'),
+    importDone: searchParams.get('import'),
+    key: searchParams.get('key') || '',
+  });
+  
+  // Track if we already loaded data to prevent re-processing
+  const dataLoadedRef = useRef(false);
+  
+  // Expose niche for the UI (use the latest from analysisData or initial params)
+  const niche = analysisData?.niche || initialParamsRef.current.niche;
 
-  useEffect(() => {
-    // Vérifier d'abord si on a déjà des données (import=done)
-    const importParam = searchParams.get('import');
-    if (importParam === 'done') {
-      // L'analyse est terminée, vérifier immédiatement le storage
-      console.log('[Competitors] Import terminé, recherche immédiate des données...');
+  // Helper to find analysis data in storage
+  const findDataInStorage = useCallback((requestedNiche: string): AnalysisData | null => {
+    const stored = localStorage.getItem('competitorAnalysis') || sessionStorage.getItem('competitorAnalysis');
+    if (!stored) return null;
+    
+    try {
+      const data = JSON.parse(stored);
+      const storedNiche = (data.niche || '').toLowerCase().trim();
+      const normalizedRequest = requestedNiche.toLowerCase().trim();
+      const nicheMatches = !normalizedRequest || storedNiche === normalizedRequest;
       
-      // Vérifier plusieurs fois avec un délai pour s'assurer que les données sont bien sauvegardées
+      if (nicheMatches) {
+        // Ensure both storages have the data
+        sessionStorage.setItem('competitorAnalysis', stored);
+        localStorage.setItem('competitorAnalysis', stored);
+        return data;
+      }
+    } catch (err) {
+      console.error('[Competitors] Erreur parsing storage:', err);
+    }
+    return null;
+  }, []);
+
+  // Main data loading effect — runs ONCE on mount
+  useEffect(() => {
+    const { niche: initialNiche, analyzing: analyzingParam, importDone: importParam } = initialParamsRef.current;
+    
+    // ════════════════════════════════════════════════════════════════
+    // CASE 1: import=done → Data was saved by extension, load it
+    // ════════════════════════════════════════════════════════════════
+    if (importParam === 'done') {
+      console.log('[Competitors] Import terminé, recherche des données...');
+      
       const checkForData = (attempt = 0) => {
-        const stored = localStorage.getItem('competitorAnalysis') || sessionStorage.getItem('competitorAnalysis');
-        if (stored) {
-          try {
-            const data = JSON.parse(stored);
-            const storedNiche = (data.niche || '').toLowerCase().trim();
-            const requestedNiche = niche.toLowerCase().trim();
-            const nicheMatches = !requestedNiche || storedNiche === requestedNiche;
-            
-            if (nicheMatches) {
-              console.log('[Competitors] Données trouvées après import:', data);
-              setAnalysisData(data);
-              sessionStorage.setItem('competitorAnalysis', stored);
-              localStorage.setItem('competitorAnalysis', stored);
-              setAnalyzing(false);
-              setLoading(false);
-              // Nettoyer l'URL sans recharger la page
-              const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(data.niche || niche)}`;
-              window.history.replaceState({}, '', cleanUrl);
-              return true;
-            }
-          } catch (err) {
-            console.error('[Competitors] Erreur parsing:', err);
-          }
+        if (dataLoadedRef.current) return; // Already loaded
+        
+        const data = findDataInStorage(initialNiche);
+        if (data) {
+          console.log('[Competitors] ✅ Données trouvées après import:', data.niche);
+          dataLoadedRef.current = true;
+          setAnalysisData(data);
+          setAnalyzing(false);
+          setLoading(false);
+          // Clean URL without triggering re-renders
+          const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(data.niche || initialNiche)}`;
+          window.history.replaceState({}, '', cleanUrl);
+          return;
         }
-        // Si pas de données et qu'on n'a pas encore essayé 3 fois, réessayer
-        if (attempt < 3) {
-          setTimeout(() => checkForData(attempt + 1), 500);
+        
+        // Retry up to 5 times with increasing delays
+        if (attempt < 5) {
+          setTimeout(() => checkForData(attempt + 1), 500 + attempt * 200);
+        } else {
+          // Final fallback: show error after all retries
+          console.error('[Competitors] ❌ Données introuvables après 5 tentatives');
+          setError('Les données d\'analyse n\'ont pas été trouvées. Veuillez relancer l\'analyse.');
+          setLoading(false);
         }
-        return false;
       };
       
       checkForData();
+      return; // ⚠️ CRITICAL: Stop here, don't fall through to other cases
     }
 
-    // Si on est en mode "analyse en cours"
+    // ════════════════════════════════════════════════════════════════
+    // CASE 2: analyzing=true → Analysis in progress, wait for event
+    // ════════════════════════════════════════════════════════════════
     if (analyzingParam === 'true') {
-      // Nettoyer les anciennes données pour éviter d'afficher une analyse d'une autre niche
+      // Clean old data to avoid showing stale results
       try {
         sessionStorage.removeItem('competitorAnalysis');
         localStorage.removeItem('competitorAnalysis');
@@ -98,197 +132,153 @@ export default function CompetitorsClient() {
       setAnalyzing(true);
       setLoading(false);
       
-      // Écouter l'événement quand l'analyse est prête
+      // Listen for analysis completion event (from extension's injected script)
       const handleAnalysisReady = (event: CustomEvent) => {
+        if (dataLoadedRef.current) return;
         const data = event.detail;
-        console.log('[Competitors] Événement competitorAnalysisReady reçu:', data);
+        console.log('[Competitors] ✅ Événement competitorAnalysisReady reçu');
+        dataLoadedRef.current = true;
         setAnalysisData(data);
         sessionStorage.setItem('competitorAnalysis', JSON.stringify(data));
         localStorage.setItem('competitorAnalysis', JSON.stringify(data));
         setAnalyzing(false);
         setLoading(false);
-        // Nettoyer l'URL sans recharger la page
-        const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(niche)}`;
-        window.history.replaceState({}, '', cleanUrl);
+        // DON'T replaceState here — the extension will navigate the tab
       };
+
+      // Check if data already arrived before we set up the listener
+      const existingData = findDataInStorage(initialNiche);
+      if (existingData) {
+        console.log('[Competitors] ✅ Données déjà en storage pendant l\'analyse');
+        dataLoadedRef.current = true;
+        setAnalysisData(existingData);
+        setAnalyzing(false);
+        setLoading(false);
+        const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(initialNiche)}`;
+        window.history.replaceState({}, '', cleanUrl);
+        return;
+      }
 
       window.addEventListener('competitorAnalysisReady', handleAnalysisReady as EventListener);
 
-      // Vérifier localStorage une seule fois au démarrage
-      const checkStorageOnce = () => {
-        const stored = localStorage.getItem('competitorAnalysis');
-        const storedSession = sessionStorage.getItem('competitorAnalysis');
-        
-        if (stored) {
-          try {
-            const data = JSON.parse(stored);
-            if (data.niche && niche && 
-                data.niche.toLowerCase().trim() === niche.toLowerCase().trim()) {
-              setAnalysisData(data);
-              sessionStorage.setItem('competitorAnalysis', stored);
-              setAnalyzing(false);
-              setLoading(false);
-              const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(niche)}`;
-              window.history.replaceState({}, '', cleanUrl);
-              return true;
-            }
-          } catch (err) {
-            console.error('[Competitors] Erreur parsing localStorage:', err);
-          }
-        }
-        
-        if (storedSession) {
-          try {
-            const data = JSON.parse(storedSession);
-            if (data.niche && niche && 
-                data.niche.toLowerCase().trim() === niche.toLowerCase().trim()) {
-              setAnalysisData(data);
-              setAnalyzing(false);
-              setLoading(false);
-              const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(niche)}`;
-              window.history.replaceState({}, '', cleanUrl);
-              return true;
-            }
-          } catch (err) {
-            console.error('[Competitors] Erreur parsing sessionStorage:', err);
-          }
-        }
-        return false;
-      };
-      
-      // Vérifier une fois au démarrage
-      if (checkStorageOnce()) {
-        return; // Si on a trouvé les données, on s'arrête là
-      }
-
-      // Écouter les changements de storage (si supporté)
+      // Listen for storage changes (cross-tab)
       const handleStorageChange = (e: StorageEvent) => {
+        if (dataLoadedRef.current) return;
         if (e.key === 'competitorAnalysis' && e.newValue) {
           try {
             const data = JSON.parse(e.newValue);
-            if (data.niche && niche && 
-                data.niche.toLowerCase().trim() === niche.toLowerCase().trim()) {
+            const storedNiche = (data.niche || '').toLowerCase().trim();
+            const normalizedNiche = initialNiche.toLowerCase().trim();
+            if (!normalizedNiche || storedNiche === normalizedNiche) {
+              dataLoadedRef.current = true;
               setAnalysisData(data);
               sessionStorage.setItem('competitorAnalysis', e.newValue);
               setAnalyzing(false);
               setLoading(false);
-              const cleanUrl = `/dashboard/competitors?niche=${encodeURIComponent(niche)}`;
-              window.history.replaceState({}, '', cleanUrl);
             }
           } catch (err) {
             console.error('[Competitors] Erreur parsing storage event:', err);
           }
         }
       };
-      
       window.addEventListener('storage', handleStorageChange);
 
-      // Timeout de sécurité (120 secondes = 2 minutes) - l'analyse peut prendre du temps
+      // Safety timeout (2 minutes)
       const timeout = setTimeout(() => {
-        console.error('[Competitors] Timeout - Aucune donnée reçue après 120 secondes');
-        // Ne pas arrêter l'analyse, juste afficher un message informatif
-        setError('L\'analyse prend plus de temps que prévu. L\'analyse continue en arrière-plan, veuillez patienter...');
-        // Garder analyzing à true pour continuer à afficher le loader
-        // Ne pas mettre setAnalyzing(false) ni setLoading(false) pour que l'utilisateur voie que ça continue
-      }, 120000); // 2 minutes au lieu de 60 secondes
+        if (!dataLoadedRef.current) {
+          setError('L\'analyse prend plus de temps que prévu. L\'analyse continue en arrière-plan, veuillez patienter...');
+        }
+      }, 120000);
 
-      // Écouter les erreurs d'analyse
+      // Listen for analysis errors
       const handleAnalysisError = (event: CustomEvent) => {
         const errorData = event.detail;
-        console.error('[Competitors] Erreur d\'analyse reçue:', errorData);
+        console.error('[Competitors] ❌ Erreur d\'analyse:', errorData);
         setError(errorData.message || 'Erreur lors de l\'analyse');
         setAnalyzing(false);
         setLoading(false);
       };
-
       window.addEventListener('competitorAnalysisError', handleAnalysisError as EventListener);
+
+      // Also poll localStorage every 2 seconds as backup
+      const pollInterval = setInterval(() => {
+        if (dataLoadedRef.current) {
+          clearInterval(pollInterval);
+          return;
+        }
+        const data = findDataInStorage(initialNiche);
+        if (data) {
+          console.log('[Competitors] ✅ Données trouvées via polling');
+          dataLoadedRef.current = true;
+          setAnalysisData(data);
+          setAnalyzing(false);
+          setLoading(false);
+          clearInterval(pollInterval);
+        }
+      }, 2000);
 
       return () => {
         clearTimeout(timeout);
+        clearInterval(pollInterval);
         window.removeEventListener('competitorAnalysisReady', handleAnalysisReady as EventListener);
         window.removeEventListener('competitorAnalysisError', handleAnalysisError as EventListener);
         window.removeEventListener('storage', handleStorageChange);
       };
     }
 
-    // Récupérer les données depuis sessionStorage ou localStorage
-    let storedData = sessionStorage.getItem('competitorAnalysis');
-    if (!storedData) {
-      storedData = localStorage.getItem('competitorAnalysis');
-    }
-    
-    if (storedData) {
-      try {
-        const data = JSON.parse(storedData);
-        const storedNiche = (data.niche || '').toLowerCase().trim();
-        const requestedNiche = niche.toLowerCase().trim();
-        const nicheMatches = !requestedNiche || storedNiche === requestedNiche;
-        
-        console.log('[Competitors] Données récupérées depuis storage:', { 
-          niche: data.niche, 
-          shopsCount: data.shopsCount,
-          hasAnalysis: !!data.analysis,
-          nicheMatches
-        });
-        
-        // Si la niche ne correspond pas, ignorer ces données
-        if (!nicheMatches) {
-          console.warn('[Competitors] Niche ne correspond pas, données ignorées:', { 
-            stored: data.niche, 
-            requested: niche 
-          });
-        } else {
-          setAnalysisData(data);
-          setLoading(false);
-          return; // Important : ne pas continuer si on a des données
-        }
-      } catch (err) {
-        console.error('[Competitors] Erreur parsing données:', err);
-        setError('Erreur lors du chargement des données');
-        setLoading(false);
-        return;
-      }
-    }
-    
-    // Si pas de données dans le storage
-    if (!storedData) {
-      // Vérifier les paramètres d'erreur
-      const errorParam = searchParams.get('import');
-      if (errorParam === 'error') {
-        const errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
-        console.error('[Competitors] Erreur depuis URL:', errorMessage);
-        setError(decodeURIComponent(errorMessage));
-        setLoading(false);
-      } else if (!analyzingParam && !importParam) {
-        // Pas d'analyse en cours, pas d'import terminé, et pas de données = pas d'analyse disponible
-        // Mais attendre un peu avant d'afficher l'erreur pour laisser le temps aux données d'arriver
-        const timeoutId = setTimeout(() => {
-          // Vérifier à nouveau si des données sont arrivées entre-temps
-          const recheck = sessionStorage.getItem('competitorAnalysis') || localStorage.getItem('competitorAnalysis');
-          if (!recheck) {
-            setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
-            setLoading(false);
-          }
-        }, 2000); // Attendre 2 secondes avant d'afficher l'erreur
-        
-        return () => clearTimeout(timeoutId);
-      }
+    // ════════════════════════════════════════════════════════════════
+    // CASE 3: No special params → Load existing data from storage
+    // ════════════════════════════════════════════════════════════════
+    const existingData = findDataInStorage(initialNiche);
+    if (existingData) {
+      console.log('[Competitors] ✅ Données chargées depuis le storage');
+      dataLoadedRef.current = true;
+      setAnalysisData(existingData);
+      setLoading(false);
+      return;
     }
 
-    // Écouter les événements de nouvelles analyses
+    // Check for error params
+    const errorParam = searchParams.get('import');
+    if (errorParam === 'error') {
+      const errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
+      setError(decodeURIComponent(errorMessage));
+      setLoading(false);
+      return;
+    }
+
+    // No data and no analysis in progress → wait a bit then show error
+    const timeoutId = setTimeout(() => {
+      if (dataLoadedRef.current) return;
+      // One last check
+      const lastCheck = findDataInStorage(initialNiche);
+      if (lastCheck) {
+        dataLoadedRef.current = true;
+        setAnalysisData(lastCheck);
+        setLoading(false);
+      } else {
+        setError('Aucune analyse disponible. Veuillez lancer une nouvelle analyse.');
+        setLoading(false);
+      }
+    }, 3000);
+
+    // Also listen for late-arriving events
     const handleAnalysisReady = (event: CustomEvent) => {
+      if (dataLoadedRef.current) return;
       const data = event.detail;
+      dataLoadedRef.current = true;
       setAnalysisData(data);
       sessionStorage.setItem('competitorAnalysis', JSON.stringify(data));
       setLoading(false);
     };
-
     window.addEventListener('competitorAnalysisReady', handleAnalysisReady as EventListener);
 
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('competitorAnalysisReady', handleAnalysisReady as EventListener);
     };
-  }, [analyzingParam, storageKey, niche, router, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ⚠️ CRITICAL: Empty deps — run ONCE on mount only
 
   useEffect(() => {
     if (!analyzing) return;
