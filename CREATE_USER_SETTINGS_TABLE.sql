@@ -88,3 +88,4 @@ CREATE POLICY "Users can insert own settings" ON public.user_settings
 
 
 
+

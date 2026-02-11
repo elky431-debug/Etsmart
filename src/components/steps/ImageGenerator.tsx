@@ -591,18 +591,18 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                             loading="lazy"
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => setFullscreenImage(img.url)}
-                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Maximize2 size={16} className="text-white" />
+                              <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
                             </button>
                             <button
                               onClick={() => downloadImage(img.url, index)}
-                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Download size={16} className="text-white" />
+                              <Download size={18} className="text-white sm:w-4 sm:h-4" />
                             </button>
                           </div>
                         </div>
@@ -651,12 +651,24 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               className="max-w-full max-h-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
-            <button
-              onClick={() => setFullscreenImage(null)}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition-colors"
-            >
-              <X size={24} />
-            </button>
+            <div className="absolute top-4 right-4 flex gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const idx = generatedImages.findIndex(img => img.url === fullscreenImage);
+                  downloadImage(fullscreenImage!, idx >= 0 ? idx : 0);
+                }}
+                className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition-colors"
+              >
+                <Download size={22} />
+              </button>
+              <button
+                onClick={() => setFullscreenImage(null)}
+                className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

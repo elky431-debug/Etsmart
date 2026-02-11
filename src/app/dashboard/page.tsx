@@ -1407,8 +1407,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className="group fixed left-0 top-0 h-screen z-40 flex">
+      {/* Sidebar - Hidden on mobile, shown on lg+ */}
+      <aside className="group fixed left-0 top-0 h-screen z-40 hidden lg:flex">
         {/* Sidebar Container */}
         <div className="relative bg-black border-r border-black/20 w-16 group-hover:w-64 transition-all duration-300 ease-in-out overflow-hidden">
           {/* Logo */}
@@ -1544,7 +1544,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
       {/* Mobile Menu */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-white/5 border-b border-white/10 lg:hidden">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10 lg:hidden">
           <div className="flex items-center justify-between p-4">
             <Logo size="sm" showText={true} />
             <button
@@ -1562,7 +1562,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="border-t border-white/10 bg-black/50 backdrop-blur-sm"
+                className="border-t border-white/10 bg-black"
               >
                 <div className="p-4 space-y-6">
                   {/* Catégories */}
