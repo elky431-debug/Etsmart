@@ -119,7 +119,7 @@ export default function ShopAnalyzeClient() {
         return;
       }
       
-      console.log('[Shop Analyze] Déduction de 2 crédits...');
+      console.log('[Shop Analyze] Déduction de 4 crédits...');
       const response = await fetch('/api/deduct-credits', {
         method: 'POST',
         headers: {
@@ -142,7 +142,7 @@ export default function ShopAnalyzeClient() {
         return;
       }
       
-      console.log(`[Shop Analyze] ✅ 2 crédits déduits. Utilisés: ${result.used}/${result.quota}`);
+      console.log(`[Shop Analyze] ✅ 4 crédits déduits. Utilisés: ${result.used}/${result.quota}`);
     } catch (err) {
       console.error('[Shop Analyze] Erreur lors de la déduction des crédits:', err);
     }
@@ -732,7 +732,7 @@ export default function ShopAnalyzeClient() {
           <h2 className="text-2xl font-bold text-white mb-3">Analyse en cours</h2>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium mb-3">
             <Coins size={14} />
-            2 crédits
+            4 crédits
           </div>
           <p className="text-white/70 mb-2">
             Analyse de la boutique : <span className="font-semibold text-[#00d4ff]">{shopUrl.split('/shop/')[1]?.split('?')[0] || 'Etsy'}</span>

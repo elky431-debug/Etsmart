@@ -147,7 +147,7 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
             </p>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/25 text-[#00d4ff] text-sm font-medium mt-4">
               <Coins size={14} />
-              2 crédits par analyse
+              4 crédits par analyse
             </div>
           </div>
 

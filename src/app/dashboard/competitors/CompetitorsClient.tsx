@@ -73,7 +73,7 @@ export default function CompetitorsClient() {
         return;
       }
       
-      console.log('[Competitors] Déduction de 2 crédits...');
+      console.log('[Competitors] Déduction de 4 crédits...');
       const response = await fetch('/api/deduct-credits', {
         method: 'POST',
         headers: {
@@ -96,7 +96,7 @@ export default function CompetitorsClient() {
         return;
       }
       
-      console.log(`[Competitors] ✅ 2 crédits déduits. Utilisés: ${result.used}/${result.quota}`);
+      console.log(`[Competitors] ✅ 4 crédits déduits. Utilisés: ${result.used}/${result.quota}`);
     } catch (err) {
       console.error('[Competitors] Erreur lors de la déduction des crédits:', err);
     }
@@ -375,7 +375,7 @@ export default function CompetitorsClient() {
           <h2 className="text-2xl font-bold text-white mb-3">Analyse en cours</h2>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium mb-3">
             <Coins size={14} />
-            2 crédits
+            4 crédits
           </div>
           <p className="text-white/70 mb-2">
             Analyse de la niche : <span className="font-semibold text-[#00d4ff]">{niche}</span>
