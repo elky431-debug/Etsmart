@@ -39,6 +39,9 @@ export function Paywall({
   }
 
   console.log('[Paywall] ✅ Affichage du paywall - hasActiveSubscription:', hasActiveSubscription);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Paywall.tsx:41',message:'PAYWALL RENDER',data:{hasActiveSubscription,pathname:typeof window!=='undefined'?window.location.pathname:'unknown'},timestamp:Date.now(),runId:'debug1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   // ⚠️ CRITICAL: En localhost, on peut afficher le paywall si pas d'abonnement actif
   // (la vérification hasActiveSubscription a déjà été faite avant)

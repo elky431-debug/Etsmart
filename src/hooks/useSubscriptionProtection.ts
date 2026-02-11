@@ -40,6 +40,11 @@ export function useSubscriptionProtection(): SubscriptionStatus {
     console.log('[SubscriptionProtection] 🚫 BYPASS activé pour:', pathname);
   }
   
+  // #region agent log
+  console.log('[DEBUG] Hook useSubscriptionProtection init', {pathname, shouldBypassProtection, user: !!user, authLoading});
+  fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSubscriptionProtection.ts:43',message:'Hook init - shouldBypassProtection check',data:{pathname,shouldBypassProtection,user:!!user,authLoading},timestamp:Date.now(),runId:'debug1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  
   const [status, setStatus] = useState<SubscriptionStatus>({
     isActive: shouldBypassProtection ? true : false, // Forcer isActive à true pour pages analyse
     isLoading: shouldBypassProtection ? false : true, // Pas de loading pour pages analyse
@@ -51,8 +56,16 @@ export function useSubscriptionProtection(): SubscriptionStatus {
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    // #region agent log
+    console.log('[DEBUG] useSubscriptionProtection useEffect triggered', {pathname, shouldBypassProtection, user: !!user, authLoading});
+    fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSubscriptionProtection.ts:53',message:'useEffect triggered',data:{pathname,shouldBypassProtection,user:!!user,authLoading},timestamp:Date.now(),runId:'debug1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Si on bypass, ne rien faire du tout
     if (shouldBypassProtection) {
+      // #region agent log
+      console.log('[DEBUG] ✅ BYPASS - useEffect return early', {pathname, shouldBypassProtection});
+      fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSubscriptionProtection.ts:55',message:'BYPASS - useEffect return early',data:{pathname,shouldBypassProtection},timestamp:Date.now(),runId:'debug1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return;
     }
     
@@ -66,6 +79,10 @@ export function useSubscriptionProtection(): SubscriptionStatus {
 
       // If no user, redirect to login (SEULEMENT si pas de bypass)
       if (!user) {
+        // #region agent log
+        console.error('[DEBUG] ❌ REDIRECT TO LOGIN', {pathname, shouldBypassProtection, user: !!user});
+        fetch('http://127.0.0.1:7242/ingest/36280d17-3cec-4672-8547-feae1e9f30cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSubscriptionProtection.ts:68',message:'REDIRECT TO LOGIN',data:{pathname,shouldBypassProtection,user:!!user},timestamp:Date.now(),runId:'debug1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         if (mountedRef.current) {
           setStatus(prev => ({ ...prev, isLoading: false, isActive: false }));
           router.push('/login');
