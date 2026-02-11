@@ -213,9 +213,15 @@ export function DashboardQuickGenerate() {
       const data = await response.json();
       console.log('[QUICK GENERATE] Response:', data);
       
-      if (data.error) {
+      if (data.error && !data.success) {
         const details = data.details ? ` Détails: ${Array.isArray(data.details) ? data.details.join(', ') : data.details}` : '';
         throw new Error(`${data.error}${details}`);
+      }
+      
+      // Afficher un warning si les images ont échoué mais le listing est OK
+      if (data.warning) {
+        console.warn('[QUICK GENERATE] Warning:', data.warning);
+        setError(data.warning);
       }
       
       // Mettre à jour les images générées
@@ -267,8 +273,11 @@ export function DashboardQuickGenerate() {
     } catch (error: any) {
       console.error('Error generating listing and images:', error);
       setError(error.message || 'Erreur lors de la génération');
-      setGeneratedImages([]);
-      setListingData(null);
+      // Ne pas effacer les données si on a déjà un listing partiel
+      if (!listingData) {
+        setGeneratedImages([]);
+        setListingData(null);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -508,10 +517,14 @@ export function DashboardQuickGenerate() {
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* Error / Warning Message */}
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/50">
-            <p className="text-sm text-red-400">{error}</p>
+          <div className={`mb-6 p-4 rounded-lg ${
+            listingData 
+              ? 'bg-amber-500/10 border border-amber-500/50' 
+              : 'bg-red-500/10 border border-red-500/50'
+          }`}>
+            <p className={`text-sm ${listingData ? 'text-amber-400' : 'text-red-400'}`}>{error}</p>
           </div>
         )}
 
@@ -687,18 +700,18 @@ export function DashboardQuickGenerate() {
                             loading="lazy"
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => setFullscreenImage(img.url)}
-                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Maximize2 size={16} className="text-white" />
+                              <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
                             </button>
                             <button
                               onClick={() => downloadImage(img.url, index)}
-                              className="w-8 h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
                             >
-                              <Download size={16} className="text-white" />
+                              <Download size={18} className="text-white sm:w-4 sm:h-4" />
                             </button>
                           </div>
                         </div>

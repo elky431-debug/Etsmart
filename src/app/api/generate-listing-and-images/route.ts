@@ -1400,26 +1400,35 @@ ${additionalAngles[angleIndex]}
       }
     }
     
+    // ⚠️ Si les images ont échoué mais le listing est OK, retourner le listing avec un warning
+    // Ne plus bloquer avec une erreur 500 - le listing a de la valeur même sans images
     if (finalImages.length === 0) {
-      console.error('[QUICK GENERATE] ❌ CRITICAL: No images from Nanonbanana after all attempts - THIS IS MANDATORY');
-      return NextResponse.json(
-        { 
-          error: 'IMAGES_GENERATION_FAILED', 
-          message: `Failed to generate images with Nanonbanana after all retry attempts. Error: ${imagesResult.error || 'Unknown error'}. Images are mandatory and must be generated, not source image.`,
-          listing: {
-            title: title || '',
-            description: description || '',
-            tags: tags || [],
-            materials: materials || '',
-          },
-          debug: {
-            imagesResultSuccess: imagesResult.success,
-            imagesResultError: imagesResult.error,
-            imagesCount: images.length,
-          }
+      console.warn('[QUICK GENERATE] ⚠️ No images from Nanonbanana - returning listing only with warning');
+      
+      // Déduire seulement 1 crédit (listing seul) au lieu de 2
+      const listingOnlyCreditNeeded = 1.0;
+      try {
+        const listingQuotaResult = await incrementAnalysisCount(user.id, listingOnlyCreditNeeded);
+        if (listingQuotaResult.success) {
+          console.log(`✅ [QUICK GENERATE] Quota decremented for listing only (${listingOnlyCreditNeeded} credit)`);
+        }
+      } catch (quotaError: any) {
+        console.error('[QUICK GENERATE] Failed to deduct listing-only credits:', quotaError.message);
+      }
+      
+      // Refresh subscription
+      return NextResponse.json({
+        success: true,
+        warning: 'La génération d\'images a échoué. Le listing a été généré avec succès. Vous pouvez réessayer la génération d\'images depuis l\'onglet Images.',
+        listing: {
+          title: title || '',
+          description: description || '',
+          tags: tags || [],
+          materials: materials || '',
         },
-        { status: 500 }
-      );
+        images: [],
+        imagesError: imagesResult.error || 'Image generation failed',
+      });
     }
     
     // ⚠️ VÉRIFIER que les images ne sont PAS l'image source
@@ -1429,20 +1438,11 @@ ${additionalAngles[angleIndex]}
     );
     
     if (sourceImageCheck.length > 0) {
-      console.error('[QUICK GENERATE] ❌ CRITICAL: Some images are source images, not from Nanonbanana!');
-      console.error('[QUICK GENERATE] Source image check:', sourceImageCheck);
-      return NextResponse.json(
-        { 
-          error: 'SOURCE_IMAGE_DETECTED', 
-          message: 'Generated images must come from Nanonbanana, not source image. This is MANDATORY.',
-          listing: {
-            title: title || '',
-            description: description || '',
-            tags: tags || [],
-            materials: materials || '',
-          }
-        },
-        { status: 500 }
+      console.warn('[QUICK GENERATE] ⚠️ Some images are source images, filtering them out');
+      // Filtrer les images source au lieu de bloquer complètement
+      finalImages = finalImages.filter(img => 
+        !img.isSourceImage &&
+        !(img.url && (img.url === imageInput || img.url === imageDataUrl || (sourceImage && img.url.includes(sourceImage.substring(0, 100)))))
       );
     }
     
