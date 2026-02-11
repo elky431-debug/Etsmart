@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
+import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink, Store, Sparkles, Coins, ChevronDown, Chrome } from 'lucide-react';
 import { niches } from '@/lib/niches';
 
 // ID réel de l'extension publiée sur le Chrome Web Store
@@ -125,164 +125,188 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
   };
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto p-6 sm:p-8 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-lg">
-      {/* Contenu principal */}
-      <div>
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
-            Trouver les boutiques dominantes
-          </h2>
-          <p className="text-slate-600 text-sm sm:text-base">
-            Analysez automatiquement les meilleures boutiques Etsy de votre niche
-          </p>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium mt-3">
-            2 crédits par analyse
+    <div className="relative w-full max-w-2xl mx-auto">
+      {/* Glow effect behind card */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-[#00d4ff]/20 via-[#00c9b7]/10 to-[#00d4ff]/20 rounded-3xl blur-xl opacity-60" />
+
+      <div className="relative bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/50 overflow-hidden">
+        {/* Header gradient accent */}
+        <div className="h-1 bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]" />
+
+        <div className="p-6 sm:p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20 border border-[#00d4ff]/20 mb-4">
+              <Store className="w-7 h-7 text-[#00d4ff]" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+              Trouver les boutiques dominantes
+            </h2>
+            <p className="text-white/50 text-sm sm:text-base max-w-md mx-auto">
+              Analysez automatiquement les meilleures boutiques Etsy de votre niche avec l&apos;IA
+            </p>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/25 text-[#00d4ff] text-sm font-medium mt-4">
+              <Coins size={14} />
+              2 crédits par analyse
+            </div>
           </div>
-        </div>
 
-        {/* Formulaire */}
-        <div className="space-y-4 mb-6">
-        {/* Catégorie */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Catégorie (optionnel)
-          </label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00d4ff] focus:border-transparent"
-          >
-            <option value="">Sélectionner une catégorie</option>
-            {niches.map((nicheItem) => (
-              <option key={nicheItem.id} value={nicheItem.name}>
-                {nicheItem.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Formulaire */}
+          <div className="space-y-5 mb-6">
+            {/* Catégorie */}
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2">
+                Catégorie <span className="text-white/30">(optionnel)</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
+                >
+                  <option value="" className="bg-black text-white/50">Sélectionner une catégorie</option>
+                  {niches.map((nicheItem) => (
+                    <option key={nicheItem.id} value={nicheItem.name} className="bg-black text-white">
+                      {nicheItem.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 pointer-events-none" />
+              </div>
+            </div>
 
-        {/* Niche */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Niche ou mot-clé <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-            <input
-              type="text"
-              value={niche}
-              onChange={(e) => setNiche(e.target.value)}
-              placeholder="Ex: montres minimalistes, bijoux personnalisés..."
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00d4ff] focus:border-transparent"
-            />
+            {/* Niche */}
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2">
+                Niche ou mot-clé <span className="text-[#00d4ff]">*</span>
+              </label>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5 group-focus-within:text-[#00d4ff] transition-colors" />
+                <input
+                  type="text"
+                  value={niche}
+                  onChange={(e) => setNiche(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleStartImport()}
+                  placeholder="Ex: montres minimalistes, bijoux personnalisés..."
+                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Statut extension */}
-      {extensionChecked && (
-        <div className={`mb-4 p-3 rounded-lg flex items-start gap-3 ${
-          extensionDetected && !manualMode
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-amber-50 border border-amber-200'
-        }`}>
-          {extensionDetected && !manualMode ? (
-            <>
-              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-900">
-                  Extension détectée
-                </p>
-                <p className="text-xs text-green-700 mt-1">
-                  L'import automatique est disponible
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-900">
-                  Extension non détectée
-                </p>
-                <p className="text-xs text-amber-700 mt-1">
-                  {manualMode 
-                    ? 'Mode développeur activé'
-                    : 'Installez l\'extension Chrome pour l\'import automatique'
-                  }
-                </p>
-                {!manualMode && (
-                  <button
-                    onClick={handleManualMode}
-                    className="mt-2 text-xs text-amber-700 underline hover:text-amber-900"
-                  >
-                    Mode développeur : Oui, elle est installée
-                  </button>
-                )}
-              </div>
-            </>
+          {/* Statut extension */}
+          {extensionChecked && (
+            <div className={`mb-5 p-4 rounded-xl flex items-start gap-3 ${
+              extensionDetected && !manualMode
+                ? 'bg-emerald-500/10 border border-emerald-500/20'
+                : 'bg-amber-500/10 border border-amber-500/20'
+            }`}>
+              {extensionDetected && !manualMode ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-emerald-300">
+                      Extension détectée
+                    </p>
+                    <p className="text-xs text-emerald-400/70 mt-0.5">
+                      L&apos;import automatique est disponible
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-300">
+                      Extension non détectée
+                    </p>
+                    <p className="text-xs text-amber-400/70 mt-0.5">
+                      {manualMode 
+                        ? 'Mode développeur activé'
+                        : 'Installez l\'extension Chrome pour l\'import automatique'
+                      }
+                    </p>
+                    {!manualMode && (
+                      <button
+                        onClick={handleManualMode}
+                        className="mt-1.5 text-xs text-amber-400/60 underline hover:text-amber-300 transition-colors"
+                      >
+                        Mode développeur : Oui, elle est installée
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Tutoriel installation extension via Chrome Web Store */}
-      {!extensionDetected && !manualMode && extensionChecked && (
-        <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <h3 className="text-sm font-semibold text-slate-900 mb-2">
-            Installer l'extension Etsmart
-          </h3>
-          <p className="text-xs text-slate-600 mb-3">
-            Pour activer l&apos;import automatique, installez l&apos;extension gratuite depuis le Chrome Web Store.
-          </p>
-          <a
-            href={CHROME_WEB_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-slate-900 transition-colors"
+          {/* Tutoriel installation extension via Chrome Web Store */}
+          {!extensionDetected && !manualMode && extensionChecked && (
+            <div className="mb-5 p-5 bg-white/[0.03] border border-white/10 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00d4ff]/15 to-[#00c9b7]/15 border border-[#00d4ff]/15 flex items-center justify-center flex-shrink-0">
+                  <Chrome className="w-5 h-5 text-[#00d4ff]" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-white mb-1">
+                    Installer l&apos;extension Etsmart
+                  </h3>
+                  <p className="text-xs text-white/40 mb-3">
+                    Pour activer l&apos;import automatique, installez l&apos;extension gratuite depuis le Chrome Web Store.
+                  </p>
+                  <a
+                    href={CHROME_WEB_STORE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-white text-xs font-semibold hover:bg-white/15 transition-colors"
+                  >
+                    Installer l&apos;extension
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="mt-2.5 text-[11px] text-white/30">
+                    Une fois installée, rechargez cette page pour que Etsmart détecte automatiquement l&apos;extension.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Erreur */}
+          {error && (
+            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-300 flex-1">{error}</p>
+            </div>
+          )}
+
+          {/* Bouton CTA */}
+          <button
+            onClick={handleStartImport}
+            disabled={loading || (!selectedCategory && !niche)}
+            className="group relative w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-[#00d4ff]/20 transition-all overflow-hidden"
           >
-            Installer l&apos;extension sur Chrome
-            <ExternalLink className="w-3 h-3" />
-          </a>
-          <p className="mt-2 text-[11px] text-slate-500">
-            Une fois installée, rechargez cette page pour que Etsmart détecte automatiquement l&apos;extension.
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Analyse en cours...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                <span>Analyser les boutiques concurrentes</span>
+              </>
+            )}
+          </button>
+
+          {/* Info footer */}
+          <p className="mt-4 text-xs text-white/25 text-center">
+            L&apos;extension va ouvrir Etsy, scraper les boutiques et les analyser automatiquement avec GPT-4o
           </p>
         </div>
-      )}
-
-      {/* Erreur */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-900 flex-1">{error}</p>
-        </div>
-      )}
-
-      {/* Bouton CTA */}
-      <button
-        onClick={handleStartImport}
-        disabled={loading || (!selectedCategory && !niche)}
-        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full shadow-lg shadow-[#00d4ff]/20 transition-all"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Analyse en cours...</span>
-          </>
-        ) : (
-          <>
-            <Download className="w-5 h-5" />
-            <span>Trouver les boutiques dominantes</span>
-            <ExternalLink className="w-4 h-4" />
-          </>
-        )}
-      </button>
-
-      {/* Info */}
-        <p className="mt-4 text-xs text-slate-500 text-center">
-          L'extension va ouvrir Etsy, scraper les boutiques et les analyser automatiquement avec l'IA
-        </p>
       </div>
     </div>
   );
 }
-
