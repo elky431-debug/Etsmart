@@ -20,11 +20,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Pour les pages d'analyse, bypasser TOUTE vérification d'abonnement (même sans paramètre analyzing)
   const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
   
-  // ⚠️ CRITICAL: Ne pas appeler les hooks de protection si on bypass
-  // Cela évite toute redirection ou vérification
+  // ⚠️ CRITICAL: Toujours appeler les hooks (règle React), mais ignorer leurs résultats si on bypass
   const { user, loading: authLoading } = useAuth();
-  const subscriptionProtection = shouldBypassProtection ? { isActive: true, isLoading: false, plan: null, cancelAtPeriodEnd: false, currentPeriodEnd: null } : useSubscriptionProtection();
-  const { subscription, loading: subLoading, hasActiveSubscription } = shouldBypassProtection ? { subscription: null, loading: false, hasActiveSubscription: true } : useSubscription();
+  const subscriptionProtection = useSubscriptionProtection();
+  const { subscription, loading: subLoading, hasActiveSubscription } = useSubscription();
+  
+  // Si on bypass, forcer les valeurs pour éviter toute vérification
+  const effectiveProtection = shouldBypassProtection 
+    ? { isActive: true, isLoading: false, plan: null, cancelAtPeriodEnd: false, currentPeriodEnd: null }
+    : subscriptionProtection;
+  const effectiveSubscription = shouldBypassProtection
+    ? { subscription: null, loading: false, hasActiveSubscription: true }
+    : { subscription, loading: subLoading, hasActiveSubscription };
 
   // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
   // This ensures a re-render happens when the check completes
