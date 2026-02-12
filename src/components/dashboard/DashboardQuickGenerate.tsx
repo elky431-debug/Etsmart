@@ -243,19 +243,35 @@ export function DashboardQuickGenerate() {
 
       console.log('[QUICK GENERATE] 📊 Generating listing and images together...', backgroundBase64 ? '(with custom background)' : '', 'Total payload:', Math.round(((imageBase64?.length || 0) + (backgroundBase64?.length || 0)) / 1024), 'KB');
       
-      const response = await fetch('/api/generate-listing-and-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sourceImage: imageBase64,
-          backgroundImage: backgroundBase64,
-          quantity,
-          aspectRatio,
-        }),
-      });
+      // Timeout frontend de 55s pour correspondre au timeout Netlify (~50s)
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 55000);
+      
+      let response: Response;
+      try {
+        response = await fetch('/api/generate-listing-and-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            sourceImage: imageBase64,
+            backgroundImage: backgroundBase64,
+            quantity,
+            aspectRatio,
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        clearTimeout(fetchTimeout);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('La génération a pris trop de temps (>55s). Réessayez avec 1 seule image.');
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(fetchTimeout);
+      }
 
       if (!response.ok) {
         // Pour un 504, la fonction a peut-être fini côté serveur mais Netlify a timeout
