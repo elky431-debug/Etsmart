@@ -701,8 +701,9 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
         }
       })(),
 
-      // 3. ⚠️ OBLIGATION ABSOLUE - Générer les images avec Nanonbanana (MANDATORY)
-      (async () => {
+      // 3. Générer les images avec Nanonbanana (avec timeout global de 20s)
+      Promise.race([
+        (async () => {
         console.log('[QUICK GENERATE] ⚠️ Starting image generation with Nanonbanana...');
         console.log('[QUICK GENERATE] Variables check:', {
           hasNanonbananaKey: !!NANONBANANA_API_KEY,
@@ -740,7 +741,7 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
             // Générer les images en parallèle (MÊME LOGIQUE QUE generate-images)
             const generationPromises = Array.from({ length: quantity }, async (_, index) => {
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout pour Netlify
+              const timeoutId = setTimeout(() => controller.abort(), 18000); // 18s timeout (under 20s global)
               
               try {
                 console.log(`[QUICK GENERATE] Generating image ${index + 1}/${quantity} with Nanonbanana...`);
@@ -986,7 +987,7 @@ ${additionalAngles[angleIndex]}
                       console.log('[QUICK GENERATE] ⚠️ Note: Results will also be sent to callback URL. Polling is a fallback.');
                       
                       // Polling pour récupérer le résultat
-                      const maxPollingAttempts = 15; // 15 tentatives max pour Netlify
+                      const maxPollingAttempts = 8; // 8 tentatives max (16s)
                       const pollingInterval = 2000; // 2 secondes entre chaque tentative (MÊME QUE generate-images)
                       let pollingAttempt = 0;
                       let finalImageUrl: string | null = null;
@@ -1091,9 +1092,7 @@ ${additionalAngles[angleIndex]}
                         // Si le polling échoue, on attend un peu plus longtemps (la génération peut prendre du temps)
                         // et on essaie une dernière fois avec un délai plus long
                         console.warn(`[QUICK GENERATE] ⚠️ Polling failed after ${maxPollingAttempts} attempts. Task ID: ${taskId}`);
-                        console.warn(`[QUICK GENERATE] ⚠️ Waiting additional 10 seconds and trying one more time...`);
-                        
-                        await new Promise(resolve => setTimeout(resolve, 10000)); // Attendre 10 secondes de plus
+                        console.warn(`[QUICK GENERATE] ⚠️ Trying one more time...`);
                         
                         // Dernière tentative avec l'endpoint principal
                         try {
@@ -1185,7 +1184,7 @@ ${additionalAngles[angleIndex]}
                 
                 const isTimeout = error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('Timeout');
                 const errorMessage = isTimeout 
-                  ? 'Timeout: La génération a pris plus de 45 secondes'
+                  ? 'Timeout: La génération a pris plus de 18 secondes'
                   : error.message || 'Erreur inconnue';
                 
                 return {
@@ -1291,26 +1290,23 @@ ${additionalAngles[angleIndex]}
         console.log('[QUICK GENERATE] ✅ FINAL: Images generation complete:', allImages.length, 'image(s) from Nanonbanana');
         return { success: true, images: allImages };
       })().catch((error: any) => {
-        // ⚠️ NE JAMAIS retourner l'image source - retourner un objet avec success: false
-        console.error('[QUICK GENERATE] ❌ Images generation completely failed:', error.message);
-        console.error('[QUICK GENERATE] ❌ Error stack:', error.stack);
-        console.error('[QUICK GENERATE] ❌ Error details:', {
-          name: error.name,
-          message: error.message,
-          cause: error.cause,
-          stack: error.stack,
-        });
+        console.error('[QUICK GENERATE] ❌ Images generation failed:', error.message);
         return { 
           success: false, 
           error: error.message || 'Nanonbanana image generation failed',
           images: [],
-          errorDetails: {
-            name: error.name,
-            message: error.message,
-            cause: error.cause,
-          }
         };
       }),
+        // Timeout de 20 secondes pour les images - retourne le listing sans images si dépassé
+        new Promise((resolve) => setTimeout(() => {
+          console.warn('[QUICK GENERATE] ⏱️ Images generation timeout (20s) - returning listing without images');
+          resolve({ 
+            success: false, 
+            error: 'Timeout: la génération d\'images a dépassé 20 secondes',
+            images: [],
+          });
+        }, 20000))
+      ]),
     ]);
 
     // Extraire les résultats
