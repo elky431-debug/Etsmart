@@ -14,63 +14,9 @@ try {
 export const maxDuration = 120; // 2 minutes max pour la génération
 export const runtime = 'nodejs';
 
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * PROMPT FIXE INTERNE - NON MODIFIABLE
- * ═══════════════════════════════════════════════════════════════════════════════
- * 
- * Ce prompt est UNIQUE, GLOBAL et UTILISÉ POUR TOUS LES PRODUITS
- * Source: Cahier des charges Etsmart - Module Images générées
- */
-const FIXED_PROMPT = `You are a professional lifestyle photographer specialized in high-converting product images for Etsy.
-
-REFERENCE PRODUCT
-Use the provided product image as the ONLY reference. The generated image must faithfully represent the exact same product.
-
-CRITICAL RULE – EXACT PRODUCT FIDELITY
-The product in the generated image must be IDENTICAL to the product shown in the reference image
-Reproduce the product exactly as it appears: shape, proportions, colors, materials, textures, finishes, and details
-If the product contains any writing, text, symbols, engravings, or markings, they must be reproduced EXACTLY as shown
-Do NOT modify, enhance, stylize, or reinterpret the product in any way
-The product must remain the central focus of the image
-
-SCENE & CONTEXT
-Create a realistic, natural lifestyle scene that shows the product in its ideal real-world usage context.
-The environment must feel authentic, credible, and appropriate for the type of product.
-
-BACKGROUND & DEPTH (MANDATORY)
-The scene must include a natural background with visible depth
-Use foreground and background separation to create a sense of space
-The background should be softly blurred or naturally out of focus (depth of field)
-Avoid flat, empty, or plain backgrounds
-
-MOOD & EMOTION
-Calm, pleasant, and inviting atmosphere
-Emotion to convey: comfort, trust, and desirability
-Style: premium Etsy lifestyle photography (authentic, warm, aspirational, not commercial or artificial)
-
-PHOTOGRAPHY STYLE
-Soft natural lighting only (no artificial flash)
-Ultra-realistic photo rendering
-Natural depth of field
-Balanced, harmonious colors
-Clean and engaging camera angle
-
-ABSOLUTE PROHIBITIONS (outside of the product itself)
-NO added text
-NO added logos
-NO brand names
-NO watermarks
-NO price tags
-NO badges, stickers, or icons
-NO artificial marketing elements
-NO frames, borders, overlays, or graphic elements
-NO flat catalog-style photography
-
-The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
-
 interface GenerateImagesRequest {
   sourceImage: string; // base64
+  backgroundImage?: string; // base64 - optional custom background image
   customInstructions?: string;
   quantity: number;
   aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
@@ -244,33 +190,92 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // ⚠️ CONSTRUIRE LE PROMPT avec FIXED_PROMPT
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // Nanonbanana utilise directement l'image uploadée et le prompt
-    // Le prompt doit forcer Nanonbanana à garder le produit IDENTIQUE et changer SEULEMENT le décor/background
-    // ═══════════════════════════════════════════════════════════════════════════════
-    
+    // ⚠️ CONSTRUIRE LE PROMPT
     console.log('[IMAGE GENERATION] ⚠️ Construction du prompt');
     
-    // Construire le prompt avec le FIXED_PROMPT exact fourni par l'utilisateur
-    // Le FIXED_PROMPT contient toutes les instructions pour garder le produit IDENTIQUE et modifier le background
-    // ⚠️ CRITICAL: Ajouter des instructions explicites pour forcer la modification du background
-    let enhancedPrompt = `⚠️⚠️⚠️ CRITICAL INSTRUCTION - YOU MUST MODIFY THE BACKGROUND ⚠️⚠️⚠️
-
-The generated image MUST be DIFFERENT from the source image. The background and decor MUST be completely changed.
-- Keep the product EXACTLY IDENTICAL (shape, colors, details, everything)
-- But COMPLETELY REPLACE the background and decor with a new, different lifestyle scene
-- DO NOT return the same image - the background MUST be different
-- If the background looks the same as the source, this is a FAILURE
-
-${FIXED_PROMPT}
-
-⚠️⚠️⚠️ FINAL REMINDER - CRITICAL REQUIREMENT ⚠️⚠️⚠️
-- The product stays IDENTICAL (do not touch it)
-- The background MUST be DIFFERENT from the source image
-- Create a NEW, DIFFERENT lifestyle background that is cozy and realistic
-- DO NOT copy the original background - MODIFY IT COMPLETELY`;
+    // Si un fond personnalisé est fourni, utiliser GPT-4o Vision pour le DÉCRIRE
+    let backgroundDescription: string | null = null;
+    if (body.backgroundImage) {
+      try {
+        console.log('[IMAGE GENERATION] 🎨 Describing custom background with GPT-4o Vision...');
+        const openaiKey = process.env.OPENAI_API_KEY;
+        if (openaiKey) {
+          let bgDataUrl = body.backgroundImage;
+          if (!bgDataUrl.startsWith('data:image/')) {
+            bgDataUrl = `data:image/jpeg;base64,${bgDataUrl}`;
+          }
+          
+          const bgDescResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openaiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Describe this background/scene image in detail for an AI image generator. Focus on: colors, textures, surfaces, materials, lighting, atmosphere, environment type (indoor/outdoor), and any distinctive elements. Be very specific and descriptive in 2-3 sentences. Only describe the scene/background, not any products.',
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: { url: bgDataUrl, detail: 'low' },
+                    },
+                  ],
+                },
+              ],
+              max_tokens: 200,
+              temperature: 0.3,
+            }),
+          });
+          
+          if (bgDescResponse.ok) {
+            const bgDescData = await bgDescResponse.json();
+            backgroundDescription = bgDescData.choices?.[0]?.message?.content?.trim() || null;
+            console.log('[IMAGE GENERATION] ✅ Background described:', backgroundDescription);
+          } else {
+            console.error('[IMAGE GENERATION] ⚠️ Background description failed:', bgDescResponse.status);
+          }
+        }
+      } catch (bgError: any) {
+        console.error('[IMAGE GENERATION] ⚠️ Background description error:', bgError.message);
+      }
+    }
     
+    // Construire le prompt avec la description du fond si disponible
+    let enhancedPrompt: string;
+    
+    if (backgroundDescription) {
+      enhancedPrompt = `Professional Etsy lifestyle product photography.
+
+MANDATORY BACKGROUND: Create a background that matches this exact description:
+"${backgroundDescription}"
+The background MUST look like the described scene. Do NOT use a different background.
+
+Rules:
+- Keep the product EXACTLY IDENTICAL (shape, colors, textures, details, text/engravings).
+- The background MUST match the description above.
+- Place product naturally in that scene with matching lighting and shadows.
+- Soft natural lighting, realistic depth of field, warm Etsy lifestyle feel.
+- NO text, logos, watermarks, badges, borders, or marketing elements.
+- Ultra-realistic professional product photography.`;
+      console.log('[IMAGE GENERATION] ✅ Custom background mode via description');
+    } else {
+      enhancedPrompt = `Professional Etsy lifestyle product photography.
+
+Rules:
+- Keep the product EXACTLY IDENTICAL (shape, colors, textures, details, text/engravings).
+- Create a NEW, DIFFERENT cozy lifestyle background (NOT the same as the source image).
+- Realistic natural scene appropriate for the product type.
+- Soft natural lighting, depth of field, warm and inviting atmosphere.
+- NO text, logos, watermarks, badges, borders, or marketing elements.
+- Ultra-realistic premium product photography that makes people want to buy.`;
+    }
+
     // Ajouter les instructions personnalisées si présentes (optionnel)
     if (body.customInstructions && body.customInstructions.trim()) {
       enhancedPrompt = `${enhancedPrompt}
@@ -279,6 +284,7 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
     }
     
     console.log('[IMAGE GENERATION] ✅ Prompt construit');
+    console.log('[IMAGE GENERATION] Background description:', !!backgroundDescription);
     console.log('[IMAGE GENERATION] ✅ Prompt length:', enhancedPrompt.length);
     console.log('[IMAGE GENERATION] ✅ Prompt preview:', enhancedPrompt.substring(0, 200) + '...');
     
@@ -431,57 +437,26 @@ ADDITIONAL INSTRUCTIONS: ${body.customInstructions.trim()}`;
       try {
         console.log(`[IMAGE GENERATION] Generating image ${index + 1}/${body.quantity} with Nanonbanana...`);
         
-        // ⚠️ CRITICAL: Créer un prompt unique pour chaque image avec un point de vue différent
-        // Chaque image doit avoir un angle de vue, une perspective ou un contexte différent
-        let imageSpecificPrompt = enhancedPrompt || '';
+        // Créer un prompt concis avec angle de caméra unique par image
+        const VIEWPOINTS = [
+          'frontal eye-level view',
+          '45-degree left angle',
+          '45-degree right angle',
+          'top-down overhead view',
+          'low angle looking up',
+          'close-up macro detail',
+          'wide environmental shot',
+          'three-quarter rear view',
+        ];
         
-        if (body.quantity > 1) {
-          // Ajouter des instructions spécifiques selon l'index pour varier le point de vue
-          const viewpointInstructions = [
-            // Image 1 (index 0) : Vue de face / angle frontal
-            `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
-- Use a FRONTAL or STRAIGHT-ON camera angle
-- Show the product from a direct, eye-level perspective
-- The camera should be positioned directly in front of the product
-- Create a balanced, centered composition`,
-            
-            // Image 2 (index 1) : Vue de côté / angle latéral
-            `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
-- Use a SIDE or ANGULAR camera angle (45-degree angle or side view)
-- Show the product from a different perspective than the first image
-- The camera should be positioned at an angle (left or right side)
-- Create a dynamic, slightly off-center composition with depth
-- Show the product from a different angle to highlight different features`,
-          ];
-          
-          // Ajouter l'instruction de point de vue spécifique
-          if (index < viewpointInstructions.length) {
-            imageSpecificPrompt = `${enhancedPrompt}
-
-${viewpointInstructions[index]}
-
-⚠️ CRITICAL: This image MUST be visually DIFFERENT from the other generated images:
-- Different camera angle and perspective
-- Different background composition and layout
-- Different lighting direction if possible
-- Different depth of field or focus point
-- The product remains IDENTICAL, but everything else should vary`;
-          } else {
-            // Pour plus de 2 images, varier avec d'autres angles
-            const additionalAngles = [
-              `- Use a TOP-DOWN or OVERHEAD camera angle`,
-              `- Use a LOW ANGLE looking up at the product`,
-              `- Use a CLOSE-UP or MACRO perspective`,
-              `- Use a WIDE ANGLE showing more context`,
-            ];
-            const angleIndex = index % additionalAngles.length;
-            imageSpecificPrompt = `${enhancedPrompt}
-
-⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${body.quantity}:
-${additionalAngles[angleIndex]}
-
-⚠️ CRITICAL: This image MUST be visually DIFFERENT from all other generated images`;
-          }
+        const viewpoint = VIEWPOINTS[index % VIEWPOINTS.length];
+        
+        // Prompt = angle + instructions principales (gardé court !)
+        let imageSpecificPrompt = `CAMERA ANGLE: ${viewpoint}.\n\n${enhancedPrompt}`;
+        
+        // ⚠️ HARD LIMIT: Tronquer à 1800 chars max pour éviter les erreurs 500 Nanonbanana
+        if (imageSpecificPrompt.length > 1800) {
+          imageSpecificPrompt = imageSpecificPrompt.substring(0, 1800);
         }
         
         console.log(`[IMAGE GENERATION] Prompt length: ${imageSpecificPrompt.length} chars`);
@@ -494,29 +469,24 @@ ${additionalAngles[angleIndex]}
         // ⚠️ Pour image-to-image, utiliser "imageUrls" (tableau d'URLs) au lieu de "image" (base64)
         // ⚠️ "callBackUrl" est OBLIGATOIRE selon la documentation
         
-        // Essayer d'abord avec imageUrls contenant une data URL (base64)
-        // Si ça ne fonctionne pas, il faudra uploader l'image et utiliser une URL
         const imageDataUrl = `data:image/jpeg;base64,${imageForAPI}`;
         
-        // Limite à 1 image maximum (une seule image par analyse)
-        const numImagesForNanonbanana = Math.min(body.quantity, 1);
+        // Prompt déjà tronqué à 1800 chars ci-dessus
+        const finalPrompt = imageSpecificPrompt;
         
-        // ⚠️ Paramètres pour forcer la modification du background
-        // Ajouter des paramètres de contrôle si supportés par Nanonbanana
-        // Limiter la taille du prompt si trop long (certaines APIs ont des limites)
-        const maxPromptLength = 2000; // Limite de sécurité
-        const finalPrompt = imageSpecificPrompt.length > maxPromptLength 
-          ? imageSpecificPrompt.substring(0, maxPromptLength) + '...'
-          : imageSpecificPrompt;
+        // ⚠️ Toujours 1 seule image (le produit). Le fond est décrit dans le prompt.
+        const imageUrlsForRequest = [imageDataUrl];
         
         const requestBody: any = {
-          type: 'IMAGETOIAMGE', // Type obligatoire : "TEXTTOIAMGE" ou "IMAGETOIAMGE" (MAJUSCULES)
-          prompt: finalPrompt, // Prompt unique pour chaque image avec point de vue différent (limité si trop long)
-          imageUrls: [imageDataUrl], // Tableau d'URLs d'images (ou data URLs en base64)
-          image_size: body.aspectRatio === '1:1' ? '1:1' : body.aspectRatio === '16:9' ? '16:9' : body.aspectRatio === '9:16' ? '9:16' : '1:1', // Format selon la documentation
-          numImages: 1, // Toujours 1 image par requête (on fait plusieurs requêtes si quantity > 1)
-          callBackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://etsmart.app'}/api/nanonbanana-callback`, // URL de callback obligatoire
+          type: 'IMAGETOIAMGE',
+          prompt: finalPrompt,
+          imageUrls: imageUrlsForRequest,
+          image_size: body.aspectRatio === '1:1' ? '1:1' : body.aspectRatio === '16:9' ? '16:9' : body.aspectRatio === '9:16' ? '9:16' : '1:1',
+          numImages: 1,
+          callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
         };
+        
+        console.log('[IMAGE GENERATION] imageUrls count:', imageUrlsForRequest.length, '(product only, background in prompt)');
         
         console.log('[IMAGE GENERATION] Request body prepared (without image):', JSON.stringify({ ...requestBody, prompt: '[PROMPT]', imageUrls: '[IMAGE_URLS]' }));
         console.log('[IMAGE GENERATION] Image length:', imageForAPI.length, 'chars');
@@ -799,9 +769,7 @@ ${additionalAngles[angleIndex]}
                 // Si le polling échoue, on attend un peu plus longtemps (la génération peut prendre du temps)
                 // et on essaie une dernière fois avec un délai plus long
                 console.warn(`[IMAGE GENERATION] ⚠️ Polling failed after ${maxPollingAttempts} attempts. Task ID: ${taskId}`);
-                console.warn(`[IMAGE GENERATION] ⚠️ Waiting additional 10 seconds and trying one more time...`);
-                
-                await new Promise(resolve => setTimeout(resolve, 10000)); // Attendre 10 secondes de plus
+                console.warn(`[IMAGE GENERATION] ⚠️ Trying one more time...`);
                 
                 // Dernière tentative avec l'endpoint principal
                 try {
@@ -820,8 +788,12 @@ ${additionalAngles[angleIndex]}
                     const lastData = await lastAttempt.json();
                     console.log('[IMAGE GENERATION] Last attempt response:', JSON.stringify(lastData, null, 2));
                     
-                    const lastUrl = lastData.data?.url 
+                    const lastUrl = lastData.data?.response?.resultImageUrl
+                      || lastData.data?.response?.originImageUrl
+                      || lastData.data?.url 
                       || lastData.data?.image_url 
+                      || lastData.data?.imageUrl
+                      || lastData.data?.images?.[0]?.url
                       || lastData.url 
                       || lastData.image_url;
                     
@@ -898,7 +870,7 @@ ${additionalAngles[angleIndex]}
         
         return {
           id: `img-error-${Date.now()}-${index}`,
-          url: `https://via.placeholder.com/1024x1024?text=Error+${index + 1}`,
+          url: '',
           error: errorMessage,
         };
       }

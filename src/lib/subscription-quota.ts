@@ -113,8 +113,13 @@ export async function incrementAnalysisCount(userId: string, amount: number = 0.
     }
     
     // Check current quota
-    const quota = analysisQuota || PLAN_QUOTAS[subscriptionPlan as PlanId] || 100;
+    // ⚠️ CRITICAL FIX: ALWAYS use PLAN_QUOTAS as the source of truth for quota
+    // The database analysis_quota can be stale if the user upgraded/changed plan
+    const planQuota = PLAN_QUOTAS[subscriptionPlan as PlanId];
+    const quota = (planQuota !== undefined && planQuota !== 0) ? planQuota : (analysisQuota || 100);
     const isUnlimited = isUnlimitedPlan(subscriptionPlan as PlanId) || quota === -1;
+    
+    console.log(`[incrementAnalysisCount] 📊 Quota source: plan=${subscriptionPlan}, planQuota=${planQuota}, dbQuota=${analysisQuota}, finalQuota=${quota}`);
     
     // Ensure amount is a number
     const amountNum = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
@@ -407,7 +412,28 @@ export async function getUserQuotaInfo(userId: string): Promise<{
     // If database says user has ACTIVE subscription, use it immediately (FAST PATH)
     if (user && user.subscription_status === 'active') {
       console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscription_plan}`);
-      const quota = user.analysis_quota || PLAN_QUOTAS[user.subscription_plan as PlanId] || 100;
+      
+      // ⚠️ CRITICAL FIX: ALWAYS use PLAN_QUOTAS as the source of truth for quota
+      // The database analysis_quota can be stale if the user upgraded/changed plan
+      const planQuota = PLAN_QUOTAS[user.subscription_plan as PlanId];
+      const dbQuota = user.analysis_quota;
+      
+      // Use plan quota as authoritative source, fallback to DB only if plan not found
+      const quota = (planQuota !== undefined && planQuota !== 0) ? planQuota : (dbQuota || 100);
+      
+      console.log(`[getUserQuotaInfo] 📊 Quota check: plan=${user.subscription_plan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
+      
+      // Auto-fix stale analysis_quota in database if it doesn't match the plan
+      if (planQuota !== undefined && planQuota !== 0 && dbQuota !== planQuota) {
+        console.log(`[getUserQuotaInfo] ⚠️ Fixing stale analysis_quota in DB: ${dbQuota} → ${planQuota}`);
+        supabase
+          .from('users')
+          .update({ analysis_quota: planQuota })
+          .eq('id', userId)
+          .then(() => console.log(`[getUserQuotaInfo] ✅ analysis_quota updated to ${planQuota}`))
+          .catch((err: any) => console.error(`[getUserQuotaInfo] ❌ Failed to update analysis_quota:`, err));
+      }
+      
       const isUnlimited = isUnlimitedPlan(user.subscription_plan as PlanId) || quota === -1;
       // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
       // Handle both string and number types from database
@@ -415,6 +441,8 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       const used = typeof rawUsed === 'number' ? rawUsed : (rawUsed != null ? parseFloat(String(rawUsed)) : 0);
       const usedNum = isNaN(used) ? 0 : used;
       const remaining = isUnlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, quota - usedNum);
+      
+      console.log(`[getUserQuotaInfo] 📊 Usage: used=${usedNum}, quota=${quota}, remaining=${remaining}`);
       
       let requiresUpgrade: PlanId | undefined;
       if (!isUnlimited && used >= quota) {

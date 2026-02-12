@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
 
     const {
       sourceImage,
+      backgroundImage,
       quantity = 1,
       aspectRatio = '1:1',
     } = body;
@@ -421,84 +422,97 @@ Generate the title, tags and materials now:`;
       }
     }
 
-    // Prompt fixe pour Nanonbanana
-    const FIXED_PROMPT = `You are a professional lifestyle photographer specialized in high-converting product images for Etsy.
-
-REFERENCE PRODUCT
-Use the provided product image as the ONLY reference. The generated image must faithfully represent the exact same product.
-
-CRITICAL RULE – EXACT PRODUCT FIDELITY
-The product in the generated image must be IDENTICAL to the product shown in the reference image
-Reproduce the product exactly as it appears: shape, proportions, colors, materials, textures, finishes, and details
-If the product contains any writing, text, symbols, engravings, or markings, they must be reproduced EXACTLY as shown
-Do NOT modify, enhance, stylize, or reinterpret the product in any way
-The product must remain the central focus of the image
-
-SCENE & CONTEXT
-Create a realistic, natural lifestyle scene that shows the product in its ideal real-world usage context.
-The environment must feel authentic, credible, and appropriate for the type of product.
-
-BACKGROUND & DEPTH (MANDATORY)
-The scene must include a natural background with visible depth
-Use foreground and background separation to create a sense of space
-The background should be softly blurred or naturally out of focus (depth of field)
-Avoid flat, empty, or plain backgrounds
-
-MOOD & EMOTION
-Calm, pleasant, and inviting atmosphere
-Emotion to convey: comfort, trust, and desirability
-Style: premium Etsy lifestyle photography (authentic, warm, aspirational, not commercial or artificial)
-
-PHOTOGRAPHY STYLE
-Soft natural lighting only (no artificial flash)
-Ultra-realistic photo rendering
-Natural depth of field
-Balanced, harmonious colors
-Clean and engaging camera angle
-
-ABSOLUTE PROHIBITIONS (outside of the product itself)
-NO added text
-NO added logos
-NO brand names
-NO watermarks
-NO price tags
-NO badges, stickers, or icons
-NO artificial marketing elements
-NO frames, borders, overlays, or graphic elements
-NO flat catalog-style photography
-
-The final image should look like a high-quality Etsy listing photo and naturally make people want to click and buy.`;
-
-    let enhancedPrompt = `⚠️⚠️⚠️ CRITICAL INSTRUCTION - YOU MUST MODIFY THE BACKGROUND ⚠️⚠️⚠️
-
-The generated image MUST be DIFFERENT from the source image. The background and decor MUST be completely changed.
-- Keep the product EXACTLY IDENTICAL (shape, colors, details, everything)
-- But COMPLETELY REPLACE the background and decor with a new, different lifestyle scene
-- DO NOT return the same image - the background MUST be different
-- If the background looks the same as the source, this is a FAILURE
-
-${FIXED_PROMPT}
-
-⚠️⚠️⚠️ FINAL REMINDER - CRITICAL REQUIREMENT ⚠️⚠️⚠️
-- The product stays IDENTICAL (do not touch it)
-- The background MUST be DIFFERENT from the source image
-- Create a NEW, DIFFERENT lifestyle background that is cozy and realistic
-- DO NOT copy the original background - MODIFY IT COMPLETELY`;
-
     const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
     
     // ⚠️ IMPORTANT: Utiliser l'image uploadée exactement comme dans l'onglet image
-    // Format exact : data:image/jpeg;base64,{base64Data}
     const imageDataUrl = `data:image/jpeg;base64,${imageForAPI}`;
     
+    // ⚠️ Si un fond personnalisé est fourni, utiliser GPT-4o Vision pour le DÉCRIRE
+    // Ensuite on inclut la description dans le prompt texte (1 seule image envoyée à Nanonbanana)
+    let backgroundDescription: string | null = null;
+    if (backgroundImage) {
+      try {
+        console.log('[QUICK GENERATE] 🎨 Describing custom background with GPT-4o Vision...');
+        let bgDataUrl = backgroundImage;
+        if (!bgDataUrl.startsWith('data:image/')) {
+          bgDataUrl = `data:image/jpeg;base64,${bgDataUrl}`;
+        }
+        
+        const bgDescResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Describe this background/scene image in detail for an AI image generator. Focus on: colors, textures, surfaces, materials, lighting, atmosphere, environment type (indoor/outdoor), and any distinctive elements. Be very specific and descriptive in 2-3 sentences. Only describe the scene/background, not any products.',
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: bgDataUrl, detail: 'low' },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 200,
+            temperature: 0.3,
+          }),
+        });
+        
+        if (bgDescResponse.ok) {
+          const bgDescData = await bgDescResponse.json();
+          backgroundDescription = bgDescData.choices?.[0]?.message?.content?.trim() || null;
+          console.log('[QUICK GENERATE] ✅ Background described:', backgroundDescription);
+        } else {
+          console.error('[QUICK GENERATE] ⚠️ Background description failed:', bgDescResponse.status);
+        }
+      } catch (bgError: any) {
+        console.error('[QUICK GENERATE] ⚠️ Background description error:', bgError.message);
+      }
+    }
+    
+    // Construire le prompt avec la description du fond si disponible
+    let enhancedPrompt: string;
+    
+    if (backgroundDescription) {
+      enhancedPrompt = `Professional Etsy lifestyle product photography.
+
+MANDATORY BACKGROUND: Create a background that matches this exact description:
+"${backgroundDescription}"
+The background MUST look like the described scene. Do NOT use a different background.
+
+Rules:
+- Keep the product EXACTLY IDENTICAL (shape, colors, textures, details, text/engravings).
+- The background MUST match the description above.
+- Place product naturally in that scene with matching lighting and shadows.
+- Soft natural lighting, realistic depth of field, warm Etsy lifestyle feel.
+- NO text, logos, watermarks, badges, borders, or marketing elements.
+- Ultra-realistic professional product photography.`;
+      console.log('[QUICK GENERATE] ✅ Custom background mode via description');
+    } else {
+      enhancedPrompt = `Professional Etsy lifestyle product photography.
+
+Rules:
+- Keep the product EXACTLY IDENTICAL (shape, colors, textures, details, text/engravings).
+- Create a NEW, DIFFERENT cozy lifestyle background (NOT the same as the source image).
+- Realistic natural scene appropriate for the product type.
+- Soft natural lighting, depth of field, warm and inviting atmosphere.
+- NO text, logos, watermarks, badges, borders, or marketing elements.
+- Ultra-realistic premium product photography that makes people want to buy.`;
+    }
+    
     console.log('[QUICK GENERATE] ✅ Image prepared for Nanonbanana:', {
-      imageInputLength: imageInput.length,
       imageForAPILength: imageForAPI.length,
-      imageDataUrlLength: imageDataUrl.length,
-      imageDataUrlPreview: imageDataUrl.substring(0, 50) + '...',
+      hasBackgroundDescription: !!backgroundDescription,
     });
     
-    // Ne pas tronquer le prompt - utiliser le prompt complet comme dans l'onglet image
     const finalPrompt = enhancedPrompt;
     
     console.log('[QUICK GENERATE] ✅ Prompt prepared:', {
@@ -511,43 +525,43 @@ ${FIXED_PROMPT}
       // 1. Générer la description
       (async () => {
         try {
-          const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are an expert Etsy copywriter specializing in conversion-optimized product descriptions.',
-                },
-                {
-                  role: 'user',
-                  content: descriptionPrompt,
-                },
-              ],
-              temperature: 0.7,
-              max_tokens: 2000,
-            }),
-          });
+    const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert Etsy copywriter specializing in conversion-optimized product descriptions.',
+          },
+          {
+            role: 'user',
+            content: descriptionPrompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
 
-          if (!descriptionResponse.ok) {
-            const errorData = await descriptionResponse.json().catch(() => ({ error: 'parse_failed' }));
-            console.error('[QUICK GENERATE] Description generation error:', descriptionResponse.status, errorData);
+    if (!descriptionResponse.ok) {
+      const errorData = await descriptionResponse.json().catch(() => ({ error: 'parse_failed' }));
+      console.error('[QUICK GENERATE] Description generation error:', descriptionResponse.status, errorData);
             throw new Error('DESCRIPTION_GENERATION_FAILED');
-          }
+    }
 
-          const descriptionData = await descriptionResponse.json();
-          const description = descriptionData.choices[0]?.message?.content?.trim();
+    const descriptionData = await descriptionResponse.json();
+    const description = descriptionData.choices[0]?.message?.content?.trim();
 
-          if (!description) {
+    if (!description) {
             throw new Error('DESCRIPTION_GENERATION_FAILED');
-          }
+    }
 
-          console.log('[QUICK GENERATE] ✅ Description generated, length:', description.length);
+    console.log('[QUICK GENERATE] ✅ Description generated, length:', description.length);
           return { success: true, description };
         } catch (error: any) {
           console.error('[QUICK GENERATE] ❌ Description generation failed:', error.message);
@@ -557,41 +571,41 @@ ${FIXED_PROMPT}
 
       // 2. Générer titre, tags et matériaux
       (async () => {
-        try {
-          const titleTagsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are an expert in Etsy SEO and optimized product listing creation. You MUST return valid JSON with title, tags, and materials.',
-                },
-                {
-                  role: 'user',
-                  content: titleTagsMaterialsPrompt + '\n\n⚠️⚠️⚠️ CRITICAL: You MUST return valid JSON. Do not add any text before or after the JSON. The JSON must contain: title (string), tags (comma-separated string), materials (comma-separated string).',
-                },
-              ],
-              temperature: 0.7,
-              max_tokens: 500,
+      try {
+        const titleTagsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert in Etsy SEO and optimized product listing creation. You MUST return valid JSON with title, tags, and materials.',
+              },
+              {
+                role: 'user',
+                content: titleTagsMaterialsPrompt + '\n\n⚠️⚠️⚠️ CRITICAL: You MUST return valid JSON. Do not add any text before or after the JSON. The JSON must contain: title (string), tags (comma-separated string), materials (comma-separated string).',
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 500,
               response_format: { type: 'json_object' },
-            }),
-          });
+          }),
+        });
 
-          if (!titleTagsResponse.ok) {
-            const errorData = await titleTagsResponse.json().catch(() => ({ error: 'parse_failed' }));
+        if (!titleTagsResponse.ok) {
+          const errorData = await titleTagsResponse.json().catch(() => ({ error: 'parse_failed' }));
             console.error('[QUICK GENERATE] Title/tags/materials generation error:', titleTagsResponse.status, errorData);
             throw new Error('TITLE_TAGS_MATERIALS_GENERATION_FAILED');
-          }
+        }
 
-          const titleTagsData = await titleTagsResponse.json();
-          const titleTagsContent = titleTagsData.choices[0]?.message?.content?.trim();
+        const titleTagsData = await titleTagsResponse.json();
+        const titleTagsContent = titleTagsData.choices[0]?.message?.content?.trim();
 
-          if (!titleTagsContent) {
+        if (!titleTagsContent) {
             throw new Error('TITLE_TAGS_MATERIALS_GENERATION_FAILED');
           }
 
@@ -601,7 +615,7 @@ ${FIXED_PROMPT}
           const parsed = JSON.parse(jsonString);
 
           const title = parsed.title || '';
-          const tagsString = parsed.tags || '';
+        const tagsString = parsed.tags || '';
           const tags = tagsString.split(',').map((t: string) => t.trim()).filter((t: string) => t && t.length <= 20).slice(0, 13);
           const materials = parsed.materials || '';
 
@@ -701,9 +715,8 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
         }
       })(),
 
-      // 3. Générer les images avec Nanonbanana (avec timeout global de 20s)
-      Promise.race([
-        (async () => {
+      // 3. Générer les images avec Nanonbanana
+      (async () => {
         console.log('[QUICK GENERATE] ⚠️ Starting image generation with Nanonbanana...');
         console.log('[QUICK GENERATE] Variables check:', {
           hasNanonbananaKey: !!NANONBANANA_API_KEY,
@@ -746,70 +759,45 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
               try {
                 console.log(`[QUICK GENERATE] Generating image ${index + 1}/${quantity} with Nanonbanana...`);
                 
-                // ⚠️ CRITICAL: Créer un prompt unique pour chaque image avec un point de vue différent (MÊME QUE generate-images)
-                let imageSpecificPrompt = finalPrompt || '';
+                // Créer un prompt concis avec angle de caméra unique par image
+                const VIEWPOINTS = [
+                  'frontal eye-level view',
+                  '45-degree left angle',
+                  '45-degree right angle',
+                  'top-down overhead view',
+                  'low angle looking up',
+                  'close-up macro detail',
+                  'wide environmental shot',
+                  'three-quarter rear view',
+                ];
                 
-                if (quantity > 1) {
-                  // Ajouter des instructions spécifiques selon l'index pour varier le point de vue
-                  const viewpointInstructions = [
-                    // Image 1 (index 0) : Vue de face / angle frontal
-                    `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${quantity}:
-- Use a FRONTAL or STRAIGHT-ON camera angle
-- Show the product from a direct, eye-level perspective
-- The camera should be positioned directly in front of the product
-- Create a balanced, centered composition`,
-                    
-                    // Image 2 (index 1) : Vue de côté / angle latéral
-                    `⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${quantity}:
-- Use a SIDE or ANGULAR camera angle (45-degree angle or side view)
-- Show the product from a different perspective than the first image
-- The camera should be positioned at an angle (left or right side)
-- Create a dynamic, slightly off-center composition with depth
-- Show the product from a different angle to highlight different features`,
-                  ];
-                  
-                  // Ajouter l'instruction de point de vue spécifique
-                  if (index < viewpointInstructions.length) {
-                    imageSpecificPrompt = `${finalPrompt}
-
-${viewpointInstructions[index]}
-
-⚠️ CRITICAL: This image MUST be visually DIFFERENT from the other generated images:
-- Different camera angle and perspective
-- Different background composition and layout
-- Different lighting direction if possible
-- Different depth of field or focus point
-- The product remains IDENTICAL, but everything else should vary`;
-                  } else {
-                    // Pour plus de 2 images, varier avec d'autres angles
-                    const additionalAngles = [
-                      `- Use a TOP-DOWN or OVERHEAD camera angle`,
-                      `- Use a LOW ANGLE looking up at the product`,
-                      `- Use a CLOSE-UP or MACRO perspective`,
-                      `- Use a WIDE ANGLE showing more context`,
-                    ];
-                    const angleIndex = index % additionalAngles.length;
-                    imageSpecificPrompt = `${finalPrompt}
-
-⚠️ VIEWPOINT INSTRUCTION FOR IMAGE ${index + 1}/${quantity}:
-${additionalAngles[angleIndex]}
-
-⚠️ CRITICAL: This image MUST be visually DIFFERENT from all other generated images`;
-                  }
+                const viewpoint = VIEWPOINTS[index % VIEWPOINTS.length];
+                
+                // Prompt = angle + instructions principales (gardé court !)
+                let imageSpecificPrompt = `CAMERA ANGLE: ${viewpoint}.\n\n${finalPrompt}`;
+                
+                // ⚠️ HARD LIMIT: Tronquer à 1800 chars max pour éviter les erreurs 500 Nanonbanana
+                if (imageSpecificPrompt.length > 1800) {
+                  imageSpecificPrompt = imageSpecificPrompt.substring(0, 1800);
                 }
                 
                 console.log(`[QUICK GENERATE] Prompt length: ${imageSpecificPrompt.length} chars`);
                 console.log(`[QUICK GENERATE] Image length: ${imageForAPI.length} chars`);
                 console.log(`[QUICK GENERATE] API Key: ${NANONBANANA_API_KEY.substring(0, 10)}...`);
-              
-                const requestBody: any = {
-                  type: 'IMAGETOIAMGE', // Type obligatoire : "TEXTTOIAMGE" ou "IMAGETOIAMGE" (MAJUSCULES)
-                  prompt: imageSpecificPrompt, // Prompt unique pour chaque image avec point de vue différent
-                  imageUrls: [imageDataUrl], // Tableau d'URLs d'images (ou data URLs en base64)
-                  image_size: aspectRatio === '1:1' ? '1:1' : aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1', // Format selon la documentation
-                  numImages: 1, // Toujours 1 image par requête (on fait plusieurs requêtes si quantity > 1)
-                  callBackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://etsmart.app'}/api/nanonbanana-callback`, // URL de callback obligatoire
+
+                // ⚠️ Toujours 1 seule image (le produit). Le fond est décrit dans le prompt.
+                const imageUrlsForRequest = [imageDataUrl];
+
+            const requestBody: any = {
+              type: 'IMAGETOIAMGE',
+                  prompt: imageSpecificPrompt,
+                  imageUrls: imageUrlsForRequest,
+              image_size: aspectRatio === '1:1' ? '1:1' : aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
+              numImages: 1,
+                  callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
                 };
+                
+                console.log('[QUICK GENERATE] imageUrls count:', imageUrlsForRequest.length, '(product only, background in prompt)');
                 
                 console.log('[QUICK GENERATE] Request body prepared (without image):', JSON.stringify({ ...requestBody, prompt: '[PROMPT]', imageUrls: '[IMAGE_URLS]' }));
                 console.log('[QUICK GENERATE] Image length:', imageForAPI.length, 'chars');
@@ -836,9 +824,9 @@ ${additionalAngles[angleIndex]}
                     // Essayer différents formats d'authentification
                     const authHeaders: Record<string, string>[] = [
                       {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
-                      },
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
+              },
                       {
                         'Content-Type': 'application/json',
                         'X-API-Key': NANONBANANA_API_KEY,
@@ -864,7 +852,7 @@ ${additionalAngles[angleIndex]}
                         nanonbananaResponse = await fetch(endpoint, {
                           method: 'POST',
                           headers: headers as HeadersInit,
-                          body: JSON.stringify(requestBody),
+              body: JSON.stringify(requestBody),
                           signal: controller.signal,
                         });
                         
@@ -990,10 +978,10 @@ ${additionalAngles[angleIndex]}
                       const maxPollingAttempts = 8; // 8 tentatives max (16s)
                       const pollingInterval = 2000; // 2 secondes entre chaque tentative (MÊME QUE generate-images)
                       let pollingAttempt = 0;
-                      let finalImageUrl: string | null = null;
-                      
+                let finalImageUrl: string | null = null;
+
                       while (pollingAttempt < maxPollingAttempts && !finalImageUrl) {
-                        await new Promise(resolve => setTimeout(resolve, pollingInterval));
+                  await new Promise(resolve => setTimeout(resolve, pollingInterval));
                         pollingAttempt++;
                         
                         try {
@@ -1004,7 +992,7 @@ ${additionalAngles[angleIndex]}
                           const statusEndpoints = [
                             {
                               url: `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?taskId=${taskId}`,
-                              method: 'GET',
+                        method: 'GET',
                             },
                             {
                               url: `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?task_id=${taskId}`,
@@ -1020,17 +1008,17 @@ ${additionalAngles[angleIndex]}
                             try {
                               const fetchOptions: RequestInit = {
                                 method: endpoint.method,
-                                headers: {
-                                  'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
-                                  'Content-Type': 'application/json',
-                                },
+                        headers: {
+                          'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
+                          'Content-Type': 'application/json',
+                        },
                               };
                               
                               console.log(`[QUICK GENERATE] Trying endpoint: ${endpoint.method} ${endpoint.url}`);
                               const statusResponse = await fetch(endpoint.url, fetchOptions);
-                              
-                              if (statusResponse.ok) {
-                                const statusData = await statusResponse.json();
+
+                    if (statusResponse.ok) {
+                      const statusData = await statusResponse.json();
                                 console.log('[QUICK GENERATE] Status response (full):', JSON.stringify(statusData, null, 2));
                                 
                                 // Vérifier le code de réponse
@@ -1051,10 +1039,10 @@ ${additionalAngles[angleIndex]}
                                   || statusData.data?.output?.url
                                   || statusData.data?.output?.image_url;
                                 
-                                  if (url) {
-                                    finalImageUrl = url;
+                      if (url) {
+                        finalImageUrl = url;
                                     console.log('[QUICK GENERATE] ✅ Image URL found via polling:', url.substring(0, 50) + '...');
-                                    break;
+                        break;
                                   } else {
                                     // Vérifier le statut de la tâche
                                     const taskStatus = statusData.data?.status || statusData.data?.state || statusData.status;
@@ -1076,19 +1064,19 @@ ${additionalAngles[angleIndex]}
                                 }
                               } else {
                                 console.log('[QUICK GENERATE] Status response not OK:', statusResponse.status, statusResponse.statusText);
-                              }
-                            } catch (pollError) {
+                    }
+                  } catch (pollError) {
                               continue; // Essayer le prochain endpoint
                             }
                           }
                         } catch (pollError: any) {
                           console.log(`[QUICK GENERATE] Polling error (attempt ${pollingAttempt}):`, pollError.message);
-                        }
-                      }
-                      
-                      if (finalImageUrl) {
+                  }
+                }
+
+                if (finalImageUrl) {
                         nanonbananaData.url = finalImageUrl;
-                      } else {
+                } else {
                         // Si le polling échoue, on attend un peu plus longtemps (la génération peut prendre du temps)
                         // et on essaie une dernière fois avec un délai plus long
                         console.warn(`[QUICK GENERATE] ⚠️ Polling failed after ${maxPollingAttempts} attempts. Task ID: ${taskId}`);
@@ -1111,15 +1099,19 @@ ${additionalAngles[angleIndex]}
                             const lastData = await lastAttempt.json();
                             console.log('[QUICK GENERATE] Last attempt response:', JSON.stringify(lastData, null, 2));
                             
-                            const lastUrl = lastData.data?.url 
-                              || lastData.data?.image_url 
-                              || lastData.url 
-                              || lastData.image_url;
-                            
-                            if (lastUrl) {
-                              finalImageUrl = lastUrl;
-                              console.log('[QUICK GENERATE] ✅ Image URL found on last attempt:', lastUrl.substring(0, 50) + '...');
-                            }
+                    const lastUrl = lastData.data?.response?.resultImageUrl
+                      || lastData.data?.response?.originImageUrl
+                      || lastData.data?.url 
+                      || lastData.data?.image_url 
+                      || lastData.data?.imageUrl
+                      || lastData.data?.images?.[0]?.url
+                      || lastData.url 
+                      || lastData.image_url;
+                    
+                    if (lastUrl) {
+                      finalImageUrl = lastUrl;
+                      console.log('[QUICK GENERATE] ✅ Image URL found on last attempt:', lastUrl.substring(0, 50) + '...');
+                    }
                           }
                         } catch (lastError) {
                           console.error('[QUICK GENERATE] Last attempt also failed:', lastError);
@@ -1130,8 +1122,8 @@ ${additionalAngles[angleIndex]}
                           // Le callback recevra les résultats
                           throw new Error(`Génération en cours. Task ID: ${taskId}. Les résultats seront envoyés au callback: ${requestBody.callBackUrl}. Le polling a échoué.`);
                         }
-                      }
-                    } else {
+                }
+              } else {
                       // Formats possibles dans data : { url }, { image_url }, { images: [{ url }] }, { result: { url } }
                       const imageUrl = nanonbananaData.data.url 
                         || nanonbananaData.data.image_url 
@@ -1142,7 +1134,7 @@ ${additionalAngles[angleIndex]}
                         || nanonbananaData.data.image
                         || nanonbananaData.data.output;
                       
-                      if (imageUrl) {
+                if (imageUrl) {
                         console.log('[QUICK GENERATE] ✅ Image URL found in data:', imageUrl.substring(0, 50) + '...');
                         // Continuer avec imageUrl (sera utilisé plus bas)
                         nanonbananaData.url = imageUrl;
@@ -1178,18 +1170,18 @@ ${additionalAngles[angleIndex]}
                   id: `img-${Date.now()}-${index}`,
                   url: imageUrl,
                 };
-              } catch (error: any) {
+          } catch (error: any) {
                 clearTimeout(timeoutId);
-                console.error(`[QUICK GENERATE] Error generating image ${index + 1}:`, error);
+            console.error(`[QUICK GENERATE] Error generating image ${index + 1}:`, error);
                 
                 const isTimeout = error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('Timeout');
                 const errorMessage = isTimeout 
                   ? 'Timeout: La génération a pris plus de 18 secondes'
                   : error.message || 'Erreur inconnue';
                 
-                return {
-                  id: `img-error-${Date.now()}-${index}`,
-                  url: '',
+            return {
+              id: `img-error-${Date.now()}-${index}`,
+              url: '',
                   error: errorMessage,
                 };
               } finally {
@@ -1239,12 +1231,12 @@ ${additionalAngles[angleIndex]}
                 }))
               );
             }
-            
-            if (validImages.length > 0) {
+        
+        if (validImages.length > 0) {
               allImages = validImages;
               console.log(`[QUICK GENERATE] ✅ SUCCESS: Got ${allImages.length} image(s) on attempt ${globalAttempts}`);
               break; // Sortir de la boucle globale si on a au moins une image
-            } else {
+        } else {
               console.warn(`[QUICK GENERATE] ⚠️ Attempt ${globalAttempts}: No valid images, retrying...`);
               if (globalAttempts < maxGlobalAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 3000)); // Attendre 3 secondes avant retry
@@ -1260,18 +1252,18 @@ ${additionalAngles[angleIndex]}
             });
             if (globalAttempts < maxGlobalAttempts) {
               console.log(`[QUICK GENERATE] ⚠️ Retrying in 2 seconds... (attempt ${globalAttempts}/${maxGlobalAttempts})`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              continue;
-            }
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
             console.error(`[QUICK GENERATE] ❌ All ${maxGlobalAttempts} attempts failed. Throwing error.`);
             throw error;
           }
         }
 
-        // ⚠️ VÉRIFICATION FINALE OBLIGATOIRE - Les images Nanonbanana sont MANDATORY
+        // ⚠️ VÉRIFICATION FINALE - si aucune image, retourner success: false (le listing sera quand même retourné)
         if (allImages.length === 0) {
-          console.error('[QUICK GENERATE] ❌ CRITICAL: No images generated after all attempts - THIS IS NOT ACCEPTABLE');
-          throw new Error('Image generation failed after all retry attempts. Nanonbanana images are MANDATORY - cannot use source image.');
+          console.warn('[QUICK GENERATE] ⚠️ No images generated after all attempts - returning listing without images');
+          return { success: false, error: 'Aucune image générée. Réessayez depuis l\'onglet Images.', images: [] };
         }
 
         // ⚠️ VÉRIFIER que les images ne sont PAS l'image source
@@ -1297,16 +1289,6 @@ ${additionalAngles[angleIndex]}
           images: [],
         };
       }),
-        // Timeout de 20 secondes pour les images - retourne le listing sans images si dépassé
-        new Promise((resolve) => setTimeout(() => {
-          console.warn('[QUICK GENERATE] ⏱️ Images generation timeout (20s) - returning listing without images');
-          resolve({ 
-            success: false, 
-            error: 'Timeout: la génération d\'images a dépassé 20 secondes',
-            images: [],
-          });
-        }, 20000))
-      ]),
     ]);
 
     // Extraire les résultats
@@ -1411,19 +1393,19 @@ ${additionalAngles[angleIndex]}
     console.log(`[QUICK GENERATE] ⚠️ About to decrement ${creditNeeded} credit(s) for user:`, user.id);
     
     try {
-      const quotaResult = await incrementAnalysisCount(user.id, creditNeeded);
-      if (!quotaResult.success) {
-        console.error(`❌ [QUICK GENERATE] Failed to decrement quota (${creditNeeded} credit):`, quotaResult.error);
+    quotaResult = await incrementAnalysisCount(user.id, creditNeeded);
+    if (!quotaResult.success) {
+      console.error(`❌ [QUICK GENERATE] Failed to decrement quota (${creditNeeded} credit):`, quotaResult.error);
         console.error(`[QUICK GENERATE] Quota result details:`, JSON.stringify(quotaResult, null, 2));
         // ⚠️ CRITICAL: If quota deduction fails, throw error to prevent free usage
         throw new Error(`Failed to deduct credits: ${quotaResult.error || 'Unknown error'}`);
-      } else {
-        console.log(`✅ [QUICK GENERATE] Quota decremented successfully (${creditNeeded} credit):`, {
-          used: quotaResult.used,
-          quota: quotaResult.quota,
-          remaining: quotaResult.remaining,
-          amount: creditNeeded,
-        });
+    } else {
+      console.log(`✅ [QUICK GENERATE] Quota decremented successfully (${creditNeeded} credit):`, {
+        used: quotaResult.used,
+        quota: quotaResult.quota,
+        remaining: quotaResult.remaining,
+        amount: creditNeeded,
+      });
       }
     } catch (quotaError: any) {
       console.error(`❌ [QUICK GENERATE] CRITICAL ERROR: Failed to deduct credits:`, quotaError.message);

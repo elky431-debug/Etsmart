@@ -37,6 +37,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(
     analysis.product.images[0] || null
   );
+  const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
+  const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [customInstructions, setCustomInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
@@ -45,6 +47,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
@@ -132,6 +135,29 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
     }
   };
 
+  const handleBackgroundSelect = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('L\'image de fond est trop grande. Taille maximum : 10MB');
+      return;
+    }
+    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i)) {
+      alert('Format non supporté. Utilisez JPG ou PNG.');
+      return;
+    }
+    setBackgroundImage(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setBackgroundImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBackgroundInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleBackgroundSelect(e.target.files[0]);
+    }
+  };
+
   const generateImages = async () => {
     if (!sourceImagePreview) {
       alert('Veuillez sélectionner une image source');
@@ -167,7 +193,18 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       // The listing can be generated separately in the "Listing" tab
       // This allows users to generate images without needing a listing first
       
-      console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)');
+      // Convertir le fond en base64 si présent
+      let backgroundBase64: string | undefined;
+      if (backgroundImage) {
+        const bgReader = new FileReader();
+        backgroundBase64 = await new Promise<string>((resolve, reject) => {
+          bgReader.onload = (e) => resolve(e.target?.result as string);
+          bgReader.onerror = reject;
+          bgReader.readAsDataURL(backgroundImage);
+        });
+      }
+
+      console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)', backgroundBase64 ? '(with custom background)' : '');
       
       const response = await fetch('/api/generate-images', {
         method: 'POST',
@@ -177,6 +214,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         },
         body: JSON.stringify({
           sourceImage: imageBase64,
+          backgroundImage: backgroundBase64,
           customInstructions: customInstructions.trim() || undefined,
           quantity,
           aspectRatio,
@@ -415,18 +453,80 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               </div>
             </div>
 
-            {/* B. Custom Instructions */}
-            <div>
-              <label className="block text-sm font-bold text-white mb-2">
-                Instructions personnalisées (optionnel)
-              </label>
-              <textarea
-                value={customInstructions}
-                onChange={(e) => setCustomInstructions(e.target.value)}
-                placeholder="Describe specific details (optional)"
-                className="w-full px-4 py-3 rounded-lg border border-white/10 bg-black text-white placeholder-white/40 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 outline-none resize-none text-sm"
-                rows={3}
-              />
+            {/* B. Custom Instructions + Background */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-white mb-2">
+                  Instructions personnalisées <span className="text-white/40 font-normal">(optionnel)</span>
+                </label>
+                <textarea
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="Describe specific details (optional)"
+                  className="w-full px-4 py-3 rounded-lg border border-white/10 bg-black text-white placeholder-white/40 focus:border-[#00d4ff] focus:ring-2 focus:ring-[#00d4ff]/20 outline-none resize-none text-sm"
+                  rows={3}
+                />
+              </div>
+              
+              {/* Background Image Upload */}
+              <div>
+                <label className="block text-sm font-bold text-white mb-2">
+                  Fond personnalisé <span className="text-white/40 font-normal">(optionnel)</span>
+                </label>
+                <div
+                  onClick={() => backgroundInputRef.current?.click()}
+                  className={`relative border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition-all ${
+                    backgroundImagePreview
+                      ? 'border-[#00d4ff]/40 bg-[#00d4ff]/5'
+                      : 'border-white/15 hover:border-white/30 bg-white/[0.02]'
+                  }`}
+                >
+                  <input
+                    ref={backgroundInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    onChange={handleBackgroundInputChange}
+                    className="hidden"
+                  />
+                  {backgroundImagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={backgroundImagePreview}
+                        alt="Fond"
+                        className="w-full h-20 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBackgroundImage(null);
+                          setBackgroundImagePreview(null);
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                        title="Supprimer le fond"
+                      >
+                        <X size={12} />
+                      </button>
+                      <div className="absolute bottom-1 left-1 px-2 py-0.5 rounded bg-black/70 text-[10px] text-white/80">
+                        Fond personnalisé ✓
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 justify-center py-1">
+                      <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                        <ImageIcon size={14} className="text-white/40" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs text-white/60">
+                          Cliquez pour ajouter un fond
+                        </p>
+                        <p className="text-[10px] text-white/30">
+                          Le produit sera placé sur ce fond
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* C. Quantity */}

@@ -42,6 +42,8 @@ export function DashboardQuickGenerate() {
   
   const [sourceImage, setSourceImage] = useState<File | null>(null);
   const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(null);
+  const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
+  const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -50,6 +52,7 @@ export function DashboardQuickGenerate() {
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [copiedTitle, setCopiedTitle] = useState(false);
@@ -151,6 +154,29 @@ export function DashboardQuickGenerate() {
     }
   };
 
+  const handleBackgroundSelect = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('L\'image de fond est trop grande. Taille maximum : 10MB');
+      return;
+    }
+    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i)) {
+      alert('Format non supporté. Utilisez JPG ou PNG.');
+      return;
+    }
+    setBackgroundImage(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setBackgroundImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBackgroundInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleBackgroundSelect(e.target.files[0]);
+    }
+  };
+
   const generateEverything = async () => {
     if (!sourceImagePreview) {
       alert('Veuillez sélectionner une image source');
@@ -182,7 +208,18 @@ export function DashboardQuickGenerate() {
         throw new Error('Authentification requise');
       }
 
-      console.log('[QUICK GENERATE] 📊 Generating listing and images together...');
+      // Convertir le fond en base64 si présent
+      let backgroundBase64: string | undefined;
+      if (backgroundImage) {
+        const bgReader = new FileReader();
+        backgroundBase64 = await new Promise<string>((resolve, reject) => {
+          bgReader.onload = (e) => resolve(e.target?.result as string);
+          bgReader.onerror = reject;
+          bgReader.readAsDataURL(backgroundImage);
+        });
+      }
+
+      console.log('[QUICK GENERATE] 📊 Generating listing and images together...', backgroundBase64 ? '(with custom background)' : '');
       
       const response = await fetch('/api/generate-listing-and-images', {
         method: 'POST',
@@ -192,6 +229,7 @@ export function DashboardQuickGenerate() {
         },
         body: JSON.stringify({
           sourceImage: imageBase64,
+          backgroundImage: backgroundBase64,
           quantity,
           aspectRatio,
         }),
@@ -354,7 +392,18 @@ export function DashboardQuickGenerate() {
       regenCountRef.current++;
       const selectedScene = sceneVariations[currentIndex];
 
-      console.log(`[QUICK GENERATE] 🔄 Regenerating images with scene variation #${currentIndex + 1}...`);
+      // Convertir le fond en base64 si présent
+      let bgBase64: string | undefined;
+      if (backgroundImage) {
+        const bgReader = new FileReader();
+        bgBase64 = await new Promise<string>((resolve, reject) => {
+          bgReader.onload = (e) => resolve(e.target?.result as string);
+          bgReader.onerror = reject;
+          bgReader.readAsDataURL(backgroundImage);
+        });
+      }
+
+      console.log(`[QUICK GENERATE] 🔄 Regenerating images with scene variation #${currentIndex + 1}...`, bgBase64 ? '(with custom background)' : '');
 
       const response = await fetch('/api/generate-images', {
         method: 'POST',
@@ -364,9 +413,12 @@ export function DashboardQuickGenerate() {
         },
         body: JSON.stringify({
           sourceImage: imageBase64,
+          backgroundImage: bgBase64,
           quantity,
           aspectRatio,
-          customInstructions: `⚠️ MANDATORY: Create a COMPLETELY DIFFERENT scene from any previous generation. ${selectedScene} Use a unique camera angle (variation seed: ${Date.now()}).`,
+          customInstructions: bgBase64 
+            ? `⚠️ MANDATORY: Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. DO NOT create any other background. The custom background is NON-NEGOTIABLE. Try a different camera angle or product placement within this same background (variation seed: ${Date.now()}).`
+            : `⚠️ MANDATORY: Create a COMPLETELY DIFFERENT scene from any previous generation. ${selectedScene} Use a unique camera angle (variation seed: ${Date.now()}).`,
         }),
       });
 
@@ -551,6 +603,69 @@ export function DashboardQuickGenerate() {
 
               {/* Settings */}
               <div className="space-y-4">
+                {/* Background Image Upload (optional) */}
+                <div>
+                  <label className="block text-sm font-bold text-white mb-2">
+                    Fond personnalisé <span className="text-white/40 font-normal">(optionnel)</span>
+                  </label>
+                  <p className="text-xs text-white/50 mb-3">
+                    Uploadez une image de fond pour que le produit y soit intégré
+                  </p>
+                  <div
+                    onClick={() => backgroundInputRef.current?.click()}
+                    className={`relative border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                      backgroundImagePreview
+                        ? 'border-[#00d4ff]/40 bg-[#00d4ff]/5'
+                        : 'border-white/15 hover:border-white/30 bg-white/[0.02]'
+                    }`}
+                  >
+                    <input
+                      ref={backgroundInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleBackgroundInputChange}
+                      className="hidden"
+                    />
+                    {backgroundImagePreview ? (
+                      <div className="relative">
+                        <img
+                          src={backgroundImagePreview}
+                          alt="Fond"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBackgroundImage(null);
+                            setBackgroundImagePreview(null);
+                          }}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                          title="Supprimer le fond"
+                        >
+                          <X size={12} />
+                        </button>
+                        <div className="absolute bottom-1 left-1 px-2 py-0.5 rounded bg-black/70 text-[10px] text-white/80">
+                          Fond personnalisé ✓
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 justify-center py-1">
+                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                          <ImageIcon size={16} className="text-white/40" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs text-white/60">
+                            Cliquez pour ajouter un fond
+                          </p>
+                          <p className="text-[10px] text-white/30">
+                            JPG / PNG • Max 10MB
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-bold text-white mb-3">
                     Quantité d'images
