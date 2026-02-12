@@ -57,6 +57,7 @@ export function DashboardQuickGenerate() {
   const [copiedDescription, setCopiedDescription] = useState(false);
   const [copiedMaterials, setCopiedMaterials] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
 
   // Vérifier au montage si une génération rapide a déjà été effectuée
   useEffect(() => {
@@ -280,6 +281,119 @@ export function DashboardQuickGenerate() {
       }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Compteur de régénérations pour varier les scènes à chaque clic
+  const regenCountRef = useRef(0);
+
+  const regenerateImages = async () => {
+    if (!sourceImagePreview) {
+      alert('Aucune image source disponible');
+      return;
+    }
+
+    setIsRegeneratingImages(true);
+    setError(null);
+
+    try {
+      // Convertir l'image en base64
+      let imageBase64 = sourceImagePreview;
+      if (sourceImage) {
+        const reader = new FileReader();
+        imageBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(sourceImage);
+        });
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('Authentification requise');
+      }
+
+      // Scènes variées pour forcer des résultats différents à chaque clic
+      const sceneVariations = [
+        'Place the product on a rustic wooden table in a cozy kitchen with warm morning sunlight streaming through a window. Add a coffee cup and fresh flowers nearby.',
+        'Show the product on a marble shelf in a modern minimalist living room with soft ambient lighting and green plants in the background.',
+        'Position the product on a vintage desk near a window overlooking a rainy day. Include old books and a candle for atmosphere.',
+        'Display the product on a soft white linen fabric in a bright, airy bedroom with natural daylight and dried eucalyptus nearby.',
+        'Place the product on a natural stone surface outdoors in a garden setting with bokeh flowers and golden hour sunlight.',
+        'Show the product on a dark slate surface with dramatic side lighting, creating elegant shadows. Minimal dark moody aesthetic.',
+        'Position the product on a wicker basket on a sunlit patio with terracotta pots and climbing ivy in the background.',
+        'Display the product on a pastel-colored surface in a Scandinavian-style room with soft diffused light from sheer curtains.',
+        'Place the product on weathered driftwood at a beach setting with soft ocean waves blurred in the background and warm sunset tones.',
+        'Show the product on a glass table in a luxurious setting with velvet fabric, gold accents, and soft candlelight reflections.',
+        'Position the product on a mossy forest floor with dappled sunlight filtering through tall trees and ferns.',
+        'Display the product on a colorful handwoven blanket in a bohemian-style room with macramé wall hangings and warm fairy lights.',
+      ];
+
+      const currentIndex = regenCountRef.current % sceneVariations.length;
+      regenCountRef.current++;
+      const selectedScene = sceneVariations[currentIndex];
+
+      console.log(`[QUICK GENERATE] 🔄 Regenerating images with scene variation #${currentIndex + 1}...`);
+
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sourceImage: imageBase64,
+          quantity,
+          aspectRatio,
+          customInstructions: `⚠️ MANDATORY: Create a COMPLETELY DIFFERENT scene from any previous generation. ${selectedScene} Use a unique camera angle (variation seed: ${Date.now()}).`,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorData: any;
+        try {
+          const text = await response.text();
+          errorData = text ? JSON.parse(text) : { error: 'Erreur inconnue' };
+        } catch {
+          errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
+        }
+        throw new Error(errorData.error || errorData.message || `Erreur ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[QUICK GENERATE] Regenerated images:', data);
+
+      if (data.images && data.images.length > 0) {
+        const validImages = data.images.filter((img: any) => !img.error && img.url && img.url.trim() !== '');
+        if (validImages.length > 0) {
+          setGeneratedImages(prev => [...prev, ...validImages]);
+          // Mettre à jour sessionStorage
+          if (typeof window !== 'undefined') {
+            const allImages = [...generatedImages, ...validImages];
+            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+          }
+        } else {
+          setError('Aucune image valide générée. Réessayez.');
+        }
+      } else {
+        setError('La génération d\'images a échoué. Réessayez.');
+      }
+
+      // Refresh subscription
+      setTimeout(() => {
+        refreshSubscription(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('subscription-refresh'));
+        }
+      }, 3000);
+
+    } catch (error: any) {
+      console.error('Error regenerating images:', error);
+      setError(error.message || 'Erreur lors de la régénération des images');
+    } finally {
+      setIsRegeneratingImages(false);
     }
   };
 
@@ -718,6 +832,26 @@ export function DashboardQuickGenerate() {
                       </motion.div>
                     ))}
                   </div>
+
+                  {/* Regenerate Images Button */}
+                  <button
+                    onClick={regenerateImages}
+                    disabled={isRegeneratingImages || !sourceImagePreview}
+                    className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRegeneratingImages ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Génération en cours...
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={18} />
+                        Générer de nouvelles images (angles différents)
+                        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
             </motion.div>
