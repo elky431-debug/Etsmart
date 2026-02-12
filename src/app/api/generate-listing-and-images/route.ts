@@ -730,7 +730,7 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
         // ⚠️ RETRY LOOP GLOBAL : Réessayer jusqu'à obtenir au moins une image
         let allImages: any[] = [];
         let globalAttempts = 0;
-        const maxGlobalAttempts = 3; // 3 tentatives globales
+        const maxGlobalAttempts = 1; // 1 seule tentative pour respecter le timeout Netlify
 
         while (allImages.length === 0 && globalAttempts < maxGlobalAttempts) {
           globalAttempts++;
@@ -740,7 +740,7 @@ Return JSON: {"title": "your expanded title here (100-140 chars)"}`,
             // Générer les images en parallèle (MÊME LOGIQUE QUE generate-images)
             const generationPromises = Array.from({ length: quantity }, async (_, index) => {
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout pour Nanonbanana (MÊME QUE generate-images)
+              const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout pour Netlify
               
               try {
                 console.log(`[QUICK GENERATE] Generating image ${index + 1}/${quantity} with Nanonbanana...`);
@@ -986,7 +986,7 @@ ${additionalAngles[angleIndex]}
                       console.log('[QUICK GENERATE] ⚠️ Note: Results will also be sent to callback URL. Polling is a fallback.');
                       
                       // Polling pour récupérer le résultat
-                      const maxPollingAttempts = 30; // 30 tentatives max (MÊME QUE generate-images)
+                      const maxPollingAttempts = 15; // 15 tentatives max pour Netlify
                       const pollingInterval = 2000; // 2 secondes entre chaque tentative (MÊME QUE generate-images)
                       let pollingAttempt = 0;
                       let finalImageUrl: string | null = null;
@@ -1185,7 +1185,7 @@ ${additionalAngles[angleIndex]}
                 
                 const isTimeout = error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('Timeout');
                 const errorMessage = isTimeout 
-                  ? 'Timeout: La génération a pris plus de 120 secondes'
+                  ? 'Timeout: La génération a pris plus de 45 secondes'
                   : error.message || 'Erreur inconnue';
                 
                 return {
@@ -1361,44 +1361,6 @@ ${additionalAngles[angleIndex]}
 
     // ⚠️ VÉRIFICATION FINALE OBLIGATOIRE : Les images doivent venir de Nanonbanana
     let finalImages = images;
-    
-    // Si la génération d'images a échoué, essayer une dernière fois
-    if (finalImages.length === 0 && !imagesResult.success) {
-      console.error('[QUICK GENERATE] ❌ CRITICAL: No images from Nanonbanana - Retrying one more time...');
-      console.error('[QUICK GENERATE] Error details:', imagesResult.error);
-      
-      // Dernière tentative urgente avec Nanonbanana
-      try {
-        const urgentResponse = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
-          },
-          body: JSON.stringify({
-            type: 'IMAGETOIAMGE',
-            prompt: finalPrompt,
-            imageUrls: [imageDataUrl],
-            image_size: aspectRatio === '1:1' ? '1:1' : aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
-            numImages: 1,
-          }),
-        });
-
-        if (urgentResponse.ok) {
-          const urgentData = await urgentResponse.json();
-          const urgentUrl = urgentData.data?.url || urgentData.data?.image_url || urgentData.url;
-          if (urgentUrl && !urgentUrl.includes('data:image')) {
-            console.log('[QUICK GENERATE] ✅ Urgent retry succeeded');
-            finalImages = [{
-              id: `img-urgent-${Date.now()}`,
-              url: urgentUrl,
-            }];
-          }
-        }
-      } catch (urgentError: any) {
-        console.error('[QUICK GENERATE] ❌ Urgent retry also failed:', urgentError.message);
-      }
-    }
     
     // ⚠️ Si les images ont échoué mais le listing est OK, retourner le listing avec un warning
     // Ne plus bloquer avec une erreur 500 - le listing a de la valeur même sans images

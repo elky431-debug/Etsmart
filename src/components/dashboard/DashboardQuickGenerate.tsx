@@ -198,12 +198,31 @@ export function DashboardQuickGenerate() {
       });
 
       if (!response.ok) {
+        // Pour un 504, la fonction a peut-être fini côté serveur mais Netlify a timeout
+        if (response.status === 504) {
+          throw new Error('La génération a pris trop de temps. Réessayez avec 1 seule image ou réessayez dans quelques instants.');
+        }
         let errorData: any;
         try {
           const text = await response.text();
           errorData = text ? JSON.parse(text) : { error: 'Erreur inconnue' };
         } catch (parseError) {
           errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
+        }
+        // Si le serveur a retourné un listing malgré l'erreur, l'utiliser
+        if (errorData.listing) {
+          console.warn('[QUICK GENERATE] Server returned listing despite error:', errorData.error);
+          if (errorData.listing.title || errorData.listing.description) {
+            setListingData({
+              title: errorData.listing.title || '',
+              description: errorData.listing.description || '',
+              tags: errorData.listing.tags || [],
+              materials: errorData.listing.materials || '',
+            });
+            setHasGenerated(true);
+            setError(`⚠️ Le listing a été généré mais les images ont échoué. Vous pouvez générer les images séparément.`);
+            return;
+          }
         }
         const errorMessage = errorData.error || errorData.message || `Erreur ${response.status}`;
         const errorDetails = errorData.details ? ` Détails: ${typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)}` : '';
