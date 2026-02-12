@@ -15,6 +15,34 @@ import type { ProductAnalysis } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 
+// ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
+const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+        if (h > maxHeight) { w = (maxHeight / h) * w; h = maxHeight; }
+        canvas.width = Math.round(w);
+        canvas.height = Math.round(h);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context failed')); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+};
+
 interface ImageGeneratorProps {
   analysis: ProductAnalysis;
   hasListing?: boolean; // Indique si le listing est déjà généré (pour affichage uniquement, n'affecte pas la génération)
@@ -169,15 +197,13 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
     setError(null);
 
     try {
-      // Convertir l'image en base64 si c'est un File
-      let imageBase64 = sourceImagePreview;
+      // ⚠️ Compresser les images côté frontend pour rester sous la limite 6MB de Netlify
+      let imageBase64: string;
       if (sourceImage) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(sourceImage);
-        });
+        imageBase64 = await compressImageToBase64(sourceImage, 1024, 1024, 0.7);
+        console.log('[IMAGE GENERATION] ✅ Source image compressed:', Math.round(imageBase64.length / 1024), 'KB');
+      } else {
+        imageBase64 = sourceImagePreview!;
       }
 
       // Récupérer le token d'authentification
@@ -193,15 +219,11 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       // The listing can be generated separately in the "Listing" tab
       // This allows users to generate images without needing a listing first
       
-      // Convertir le fond en base64 si présent
+      // Compresser le fond si présent (512x512 car utilisé uniquement pour description GPT-4o)
       let backgroundBase64: string | undefined;
       if (backgroundImage) {
-        const bgReader = new FileReader();
-        backgroundBase64 = await new Promise<string>((resolve, reject) => {
-          bgReader.onload = (e) => resolve(e.target?.result as string);
-          bgReader.onerror = reject;
-          bgReader.readAsDataURL(backgroundImage);
-        });
+        backgroundBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+        console.log('[IMAGE GENERATION] ✅ Background image compressed:', Math.round(backgroundBase64.length / 1024), 'KB');
       }
 
       console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)', backgroundBase64 ? '(with custom background)' : '');
