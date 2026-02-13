@@ -266,48 +266,37 @@ export function DashboardQuickGenerate() {
       }
 
       const data = await response.json();
-      console.log('[QUICK GENERATE] ✅ Response:', {
-        listing: !!data.listing,
-        images: data.images?.length || 0,
-        pendingTasks: data.imageTasks?.length || 0,
-      });
+      console.log('[QUICK GENERATE] ✅ Listing ready, polling images...');
 
-      // Collecter toutes les images (serveur-ready + polling client si nécessaire)
-      let allImages: GeneratedImage[] = (data.images || [])
-        .filter((img: any) => img.url && img.url.startsWith('http'));
+      // Poll images côté client (l'API retourne des taskIds)
+      const taskIds: string[] = data.imageTaskIds || [];
+      let allImages: GeneratedImage[] = [];
 
-      // Si des tasks sont encore en cours, poll côté client (max 60s)
-      const pendingTasks = data.imageTasks || [];
-      if (pendingTasks.length > 0) {
-        console.log(`[QUICK GENERATE] 🔄 ${pendingTasks.length} image(s) still pending, polling...`);
-        
+      if (taskIds.length > 0) {
+        // Poll en parallèle, max 20 polls x 3s = 60s
         const pollResults = await Promise.all(
-          pendingTasks.map(async (task: any) => {
-            // 20 polls x 3s = 60s max côté client
-            for (let i = 0; i < 20; i++) {
+          taskIds.map(async (taskId: string) => {
+            for (let attempt = 0; attempt < 20; attempt++) {
               await new Promise(r => setTimeout(r, 3000));
               try {
-                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(task.taskId)}`);
+                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                  headers: { 'Authorization': `Bearer ${token}` },
+                });
                 if (!res.ok) continue;
-                const statusData = await res.json();
-                if (statusData.status === 'ready' && statusData.url) {
-                  return statusData.url;
-                }
-                if (statusData.status === 'error') return null;
-              } catch { /* continue */ }
+                const s = await res.json();
+                if (s.status === 'ready' && s.url) return s.url;
+                if (s.status === 'error') return null;
+              } catch { /* retry */ }
             }
             return null;
           })
         );
-
         pollResults.forEach((url, i) => {
-          if (url) allImages.push({ id: `img-poll-${Date.now()}-${i}`, url });
+          if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
         });
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // TOUT AFFICHER D'UN COUP
-      // ═══════════════════════════════════════════════════════════════
       if (data.listing) {
         const listing: ListingData = {
           title: data.listing.title || '',
@@ -332,14 +321,10 @@ export function DashboardQuickGenerate() {
       }
 
       setHasGenerated(true);
-
-      // Refresh subscription
-      setTimeout(() => {
-        refreshSubscription(true);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('subscription-refresh'));
-        }
-      }, 3000);
+      refreshSubscription(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscription-refresh'));
+      }
       
     } catch (error: any) {
       console.error('Error generating:', error);
