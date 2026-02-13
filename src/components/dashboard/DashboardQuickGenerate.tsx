@@ -234,22 +234,69 @@ export function DashboardQuickGenerate() {
         throw new Error('Authentification requise');
       }
 
-      // Compresser le fond si présent (512x512 suffit car utilisé uniquement pour description GPT-4o)
+      // Compresser le fond si présent
       let backgroundBase64: string | undefined;
       if (backgroundImage) {
         backgroundBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
         console.log('[QUICK GENERATE] ✅ Background image compressed:', Math.round(backgroundBase64.length / 1024), 'KB');
       }
 
-      console.log('[QUICK GENERATE] 📊 Generating listing and images together...', backgroundBase64 ? '(with custom background)' : '', 'Total payload:', Math.round(((imageBase64?.length || 0) + (backgroundBase64?.length || 0)) / 1024), 'KB');
+      // ═══════════════════════════════════════════════════════════════════════════
+      // ÉTAPE 1: Générer le LISTING (rapide, ~10s) — Ne timeout jamais sur Netlify
+      // ═══════════════════════════════════════════════════════════════════════════
+      console.log('[QUICK GENERATE] 📝 Step 1: Generating listing...');
       
-      // Timeout frontend de 55s pour correspondre au timeout Netlify (~50s)
-      const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), 55000);
-      
-      let response: Response;
+      const listingResponse = await fetch('/api/generate-listing-and-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sourceImage: imageBase64,
+        }),
+      });
+
+      if (!listingResponse.ok) {
+        let errorData: any;
+        try {
+          const text = await listingResponse.text();
+          errorData = text ? JSON.parse(text) : { error: 'Erreur inconnue' };
+        } catch {
+          errorData = { error: `Erreur ${listingResponse.status}` };
+        }
+        throw new Error(errorData.error || errorData.message || `Erreur ${listingResponse.status}`);
+      }
+
+      const listingResponseData = await listingResponse.json();
+      console.log('[QUICK GENERATE] ✅ Listing generated:', listingResponseData);
+
+      // Afficher le listing immédiatement
+      let listing: ListingData | null = null;
+      if (listingResponseData.listing) {
+        listing = {
+          title: listingResponseData.listing.title || '',
+          description: listingResponseData.listing.description || '',
+          tags: listingResponseData.listing.tags || [],
+          materials: listingResponseData.listing.materials || '',
+        };
+        setListingData(listing);
+      }
+
+      setHasGenerated(true);
+      if (typeof window !== 'undefined' && listing) {
+        sessionStorage.setItem(storageKey, 'true');
+        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // ÉTAPE 2: Générer les IMAGES (séparé, via /api/generate-images)
+      // ═══════════════════════════════════════════════════════════════════════════
+      console.log('[QUICK GENERATE] 🖼️ Step 2: Generating images...');
+      setIsGenerating(true); // Garder l'état de chargement
+
       try {
-        response = await fetch('/api/generate-listing-and-images', {
+        const imageResponse = await fetch('/api/generate-images', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -261,103 +308,35 @@ export function DashboardQuickGenerate() {
             quantity,
             aspectRatio,
           }),
-          signal: controller.signal,
         });
-      } catch (fetchErr: any) {
-        clearTimeout(fetchTimeout);
-        if (fetchErr.name === 'AbortError') {
-          throw new Error('La génération a pris trop de temps (>55s). Réessayez avec 1 seule image.');
-        }
-        throw fetchErr;
-      } finally {
-        clearTimeout(fetchTimeout);
-      }
 
-      if (!response.ok) {
-        // Pour un 504, la fonction a peut-être fini côté serveur mais Netlify a timeout
-        if (response.status === 504) {
-          throw new Error('La génération a pris trop de temps. Réessayez avec 1 seule image ou réessayez dans quelques instants.');
-        }
-        let errorData: any;
-        try {
-          const text = await response.text();
-          errorData = text ? JSON.parse(text) : { error: 'Erreur inconnue' };
-        } catch (parseError) {
-          errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
-        }
-        // Si le serveur a retourné un listing malgré l'erreur, l'utiliser
-        if (errorData.listing) {
-          console.warn('[QUICK GENERATE] Server returned listing despite error:', errorData.error);
-          if (errorData.listing.title || errorData.listing.description) {
-            setListingData({
-              title: errorData.listing.title || '',
-              description: errorData.listing.description || '',
-              tags: errorData.listing.tags || [],
-              materials: errorData.listing.materials || '',
-            });
-            setHasGenerated(true);
-            setError(`⚠️ Le listing a été généré mais les images ont échoué. Vous pouvez générer les images séparément.`);
-            return;
+        if (!imageResponse.ok) {
+          const errorText = await imageResponse.text().catch(() => '');
+          console.error('[QUICK GENERATE] Image generation HTTP error:', imageResponse.status, errorText);
+          setError('⚠️ Le listing a été généré. La génération d\'images a échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+        } else {
+          const imageData = await imageResponse.json();
+          console.log('[QUICK GENERATE] Image response:', imageData);
+
+          if (imageData.images && imageData.images.length > 0) {
+            const validImages = imageData.images.filter((img: any) => !img.error && img.url && img.url.trim() !== '');
+            if (validImages.length > 0) {
+              setGeneratedImages(validImages);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
+              }
+            } else {
+              setError('⚠️ Le listing a été généré. Aucune image valide retournée. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+            }
+          } else {
+            setError('⚠️ Le listing a été généré. La génération d\'images a échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
           }
         }
-        const errorMessage = errorData.error || errorData.message || `Erreur ${response.status}`;
-        const errorDetails = errorData.details ? ` Détails: ${typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)}` : '';
-        console.error('[QUICK GENERATE] API Error:', response.status, errorData);
-        throw new Error(`${errorMessage}${errorDetails}`);
+      } catch (imgErr: any) {
+        console.error('[QUICK GENERATE] Image generation error:', imgErr);
+        setError('⚠️ Le listing a été généré. La génération d\'images a échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
       }
 
-      const data = await response.json();
-      console.log('[QUICK GENERATE] Response:', data);
-      
-      if (data.error && !data.success) {
-        const details = data.details ? ` Détails: ${Array.isArray(data.details) ? data.details.join(', ') : data.details}` : '';
-        throw new Error(`${data.error}${details}`);
-      }
-      
-      // Afficher un warning si les images ont échoué mais le listing est OK
-      if (data.warning) {
-        console.warn('[QUICK GENERATE] Warning:', data.warning);
-        setError(data.warning);
-      }
-      
-      // Mettre à jour les images générées
-      let validImages: GeneratedImage[] = [];
-      if (data.images && data.images.length > 0) {
-        validImages = data.images.filter((img: any) => !img.error && img.url && img.url.trim() !== '');
-        console.log('[QUICK GENERATE] Valid images received:', validImages.length, 'out of', data.images.length);
-        if (validImages.length > 0) {
-          setGeneratedImages(validImages);
-        } else {
-          console.warn('[QUICK GENERATE] No valid images found in response');
-        }
-      } else {
-        console.warn('[QUICK GENERATE] No images in response or empty array');
-      }
-      
-      // Mettre à jour les données du listing
-      let listing: ListingData | null = null;
-      if (data.listing) {
-        listing = {
-          title: data.listing.title || '',
-          description: data.listing.description || '',
-          tags: data.listing.tags || [],
-          materials: data.listing.materials || '',
-        };
-        setListingData(listing);
-      }
-      
-      // Marquer comme généré et sauvegarder dans sessionStorage
-      setHasGenerated(true);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(storageKey, 'true');
-        if (validImages.length > 0) {
-          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
-        }
-        if (listing) {
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
-      }
-      
       // Refresh subscription
       setTimeout(() => {
         refreshSubscription(true);
@@ -369,7 +348,6 @@ export function DashboardQuickGenerate() {
     } catch (error: any) {
       console.error('Error generating listing and images:', error);
       setError(error.message || 'Erreur lors de la génération');
-      // Ne pas effacer les données si on a déjà un listing partiel
       if (!listingData) {
         setGeneratedImages([]);
         setListingData(null);
@@ -830,7 +808,7 @@ export function DashboardQuickGenerate() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {isGenerating ? (
+          {isGenerating && !listingData ? (
             <motion.div
               key="generating"
               initial={{ opacity: 0 }}
@@ -840,10 +818,10 @@ export function DashboardQuickGenerate() {
             >
               <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
               <p className="text-lg font-semibold text-white">
-                Génération du listing et des images...
+                Génération du listing...
               </p>
               <p className="text-sm text-white/70 mt-2">
-                Cela peut prendre quelques secondes
+                Les images seront générées juste après
               </p>
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
@@ -974,6 +952,17 @@ export function DashboardQuickGenerate() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Images Loading State (listing shown, images loading) */}
+              {isGenerating && listingData && generatedImages.length === 0 && (
+                <div className="bg-black rounded-xl border border-white/10 p-6">
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
+                    <p className="text-base font-semibold text-white">Génération des images en cours...</p>
+                    <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+                  </div>
                 </div>
               )}
 
