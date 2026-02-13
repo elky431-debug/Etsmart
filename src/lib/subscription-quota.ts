@@ -113,13 +113,14 @@ export async function incrementAnalysisCount(userId: string, amount: number = 0.
     }
     
     // Check current quota
-    // ⚠️ CRITICAL FIX: ALWAYS use PLAN_QUOTAS as the source of truth for quota
-    // The database analysis_quota can be stale if the user upgraded/changed plan
-    const planQuota = PLAN_QUOTAS[subscriptionPlan as PlanId];
-    const quota = (planQuota !== undefined && planQuota !== 0) ? planQuota : (analysisQuota || 100);
+    // Use the HIGHER value between PLAN_QUOTAS and DB value
+    // This respects manual admin overrides (e.g. boosted from 200 to 600)
+    const planQuota = PLAN_QUOTAS[subscriptionPlan as PlanId] || 0;
+    const dbQuota = analysisQuota || 0;
+    const quota = Math.max(planQuota, dbQuota) || 100;
     const isUnlimited = isUnlimitedPlan(subscriptionPlan as PlanId) || quota === -1;
     
-    console.log(`[incrementAnalysisCount] 📊 Quota source: plan=${subscriptionPlan}, planQuota=${planQuota}, dbQuota=${analysisQuota}, finalQuota=${quota}`);
+    console.log(`[incrementAnalysisCount] 📊 Quota source: plan=${subscriptionPlan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
     
     // Ensure amount is a number
     const amountNum = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
@@ -327,12 +328,25 @@ async function syncSubscriptionFromStripe(userId: string, userEmail: string): Pr
     try {
       const supabase = createSupabaseAdminClient();
       
+      // Check current DB quota to avoid overwriting manual admin overrides
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('analysis_quota')
+        .eq('id', userId)
+        .single();
+      
+      const currentDbQuota = currentUser?.analysis_quota || 0;
+      // Only update quota if current DB value is LOWER (never downgrade manual boosts)
+      const newQuota = Math.max(quota, currentDbQuota);
+      
+      console.log(`[syncSubscriptionFromStripe] Quota update: planQuota=${quota}, dbQuota=${currentDbQuota}, final=${newQuota}`);
+      
       await supabase
         .from('users')
         .update({
           subscription_plan: plan,
           subscription_status: 'active',
-          analysis_quota: quota,
+          analysis_quota: newQuota,
           current_period_start: periodStartDate.toISOString(),
           current_period_end: periodEndDate.toISOString(),
           stripe_customer_id: customer.id,
@@ -413,18 +427,20 @@ export async function getUserQuotaInfo(userId: string): Promise<{
     if (user && user.subscription_status === 'active') {
       console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscription_plan}`);
       
-      // ⚠️ CRITICAL FIX: ALWAYS use PLAN_QUOTAS as the source of truth for quota
-      // The database analysis_quota can be stale if the user upgraded/changed plan
-      const planQuota = PLAN_QUOTAS[user.subscription_plan as PlanId];
-      const dbQuota = user.analysis_quota;
+      // Use the HIGHER value between PLAN_QUOTAS and DB value
+      // This respects manual overrides (e.g. admin boosted quota from 200 to 600)
+      const planQuota = PLAN_QUOTAS[user.subscription_plan as PlanId] || 0;
+      const dbQuota = user.analysis_quota || 0;
       
-      // Use plan quota as authoritative source, fallback to DB only if plan not found
-      const quota = (planQuota !== undefined && planQuota !== 0) ? planQuota : (dbQuota || 100);
+      // If DB quota is HIGHER than plan quota, it means an admin manually boosted it → respect it
+      // If DB quota is LOWER than plan quota, it means DB is stale → use plan quota
+      const quota = Math.max(planQuota, dbQuota) || 100;
       
       console.log(`[getUserQuotaInfo] 📊 Quota check: plan=${user.subscription_plan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
       
-      // Auto-fix stale analysis_quota in database if it doesn't match the plan
-      if (planQuota !== undefined && planQuota !== 0 && dbQuota !== planQuota) {
+      // Only auto-fix if DB quota is LOWER than plan quota (stale data)
+      // Never downgrade a manually boosted quota
+      if (planQuota > 0 && dbQuota < planQuota) {
         console.log(`[getUserQuotaInfo] ⚠️ Fixing stale analysis_quota in DB: ${dbQuota} → ${planQuota}`);
         supabase
           .from('users')

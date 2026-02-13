@@ -17,6 +17,8 @@ interface AIAnalysisResponse {
   decision: string;
   confidenceScore: number;
   scoreJustification?: string; // Justification du score en 2-3 phrases
+  launchPotentialScore?: number; // Note sur 10 du potentiel de lancement (décidée par l'IA)
+  launchPotentialScoreJustification?: string; // Justification de la note
   
   // Saturation & Concurrence
   estimatedCompetitors: number;
@@ -449,175 +451,68 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
    - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
    - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
 
-10. SCORE DE CONFIANCE ET JUSTIFICATION (CRITIQUE - BASÉ SUR LA SATURATION):
-    - ⚠️ OBLIGATION ABSOLUE: Tu DOIS être OBJECTIF et VARIÉ dans tes scores
-    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner le même score pour différents produits
-    - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE reflétant ses caractéristiques RÉELLES
-    - ⚠️ CRITIQUE: Si tu analyses 10 produits différents, tu DOIS générer 10 scores DIFFÉRENTS
-    - ⚠️ NE PAS utiliser de scores "par défaut" ou "moyens" - utilise les données RÉELLES du produit
+10. SCORE DE POTENTIEL DE LANCEMENT (launchPotentialScore) - NOTE SUR 10:
+    ⚠️ C'est LE score principal affiché à l'utilisateur. Il est sur une échelle de 0 à 10.
     
-    ⚠️ MÉTHODE DE CALCUL OBLIGATOIRE (PRIORITÉ À LA SATURATION):
+    Tu DOIS analyser le produit de manière OBJECTIVE et attribuer un score entre 1 et 10 basé sur:
     
-    ÉTAPE 1: ÉVALUER LA SATURATION DU PRODUIT (PRIORITÉ ABSOLUE - 60% du score):
-       - ⚠️ CRITIQUE: Tu DOIS d'abord te demander: "Ce produit est-il saturé sur le marché Etsy?"
-       - Analyse en profondeur:
-         * Le nombre de concurrents directs (estimatedCompetitors)
-         * La similarité des produits existants
-         * La facilité de différenciation
-         * La demande vs l'offre
-         * Les tendances du marché
-       - PRODUIT NON SATURÉ (marché accessible, opportunité claire):
-         * Score de base: 70-85 points
-         * Caractéristiques: < 40 concurrents, produit différenciable, demande > offre
-       - PRODUIT CONCURRENTIEL (marché compétitif mais accessible):
-         * Score de base: 50-70 points
-         * Caractéristiques: 40-90 concurrents, possibilité de se différencier, demande = offre
-       - PRODUIT SATURÉ (marché très compétitif, difficulté d'entrée):
-         * Score de base: 30-50 points
-         * Caractéristiques: > 90 concurrents, produits très similaires, offre > demande
+    A) SATURATION DU MARCHÉ (50% du poids):
+       - Combien de concurrents vendent un produit similaire sur Etsy?
+       - Le marché est-il saturé, compétitif, ou sous-exploité?
+       - Y a-t-il de la place pour un nouveau vendeur?
+       - < 20 concurrents = marché très favorable (8-10 points sur cette partie)
+       - 20-50 concurrents = marché accessible (6-8 points)
+       - 50-100 concurrents = marché compétitif (4-6 points)
+       - 100-200 concurrents = marché saturé (2-4 points)
+       - > 200 concurrents = marché très saturé (1-2 points)
     
-    ÉTAPE 2: AJUSTER SELON LA QUALITÉ ET DIFFÉRENCIATION (25% du score):
-       - Produit unique/différencié/personnalisé: +10 à +15 points
-       - Produit générique mais bien présenté: +5 à +10 points
-       - Produit très générique: +0 à +5 points
+    B) ORIGINALITÉ ET DIFFÉRENCIATION (30% du poids):
+       - Le produit est-il unique, original, personnalisable?
+       - Existe-t-il des centaines de produits identiques sur Etsy?
+       - Le produit a-t-il un angle de différenciation clair?
+       - Très original/unique = 8-10 points
+       - Différencié = 6-8 points
+       - Semi-générique = 4-6 points
+       - Très générique/copié partout = 1-3 points
     
-    ÉTAPE 3: AJUSTER SELON LE POTENTIEL DE MARGES (15% du score):
-       - Marges excellentes (> 50%): +8 à +12 points
-       - Marges bonnes (30-50%): +5 à +8 points
-       - Marges acceptables (20-30%): +2 à +5 points
-       - Marges faibles (< 20%): +0 à +2 points
+    C) POTENTIEL DE MARGES (20% du poids):
+       - Le ratio prix de vente / coût fournisseur est-il bon?
+       - Marges > 60% = 8-10 points
+       - Marges 40-60% = 6-8 points
+       - Marges 20-40% = 3-5 points
+       - Marges < 20% = 1-3 points
     
-    ÉTAPE 4: CALCULER LE SCORE FINAL:
-    - Commence par le score de base selon la saturation (ÉTAPE 1)
-    - Ajoute les ajustements de qualité (ÉTAPE 2) et marges (ÉTAPE 3)
-    - Score final = min(95, max(30, score_calculé))
+    CALCUL: launchPotentialScore = (A × 0.5) + (B × 0.3) + (C × 0.2)
+    Arrondir à 1 décimale, entre 1.0 et 10.0
     
-    ⚠️ EXEMPLES CONCRETS BASÉS SUR LA SATURATION:
-    - Produit NON SATURÉ (25 concurrents, unique, bonnes marges):
-      → Base saturation 75 + Qualité 12 + Marges 10 = 97 → Score final = 95
-    - Produit NON SATURÉ (35 concurrents, différencié, marges correctes):
-      → Base saturation 70 + Qualité 10 + Marges 7 = 87 → Score final = 87
-    - Produit CONCURRENTIEL (60 concurrents, unique, bonnes marges):
-      → Base saturation 60 + Qualité 12 + Marges 8 = 80 → Score final = 80
-    - Produit CONCURRENTIEL (80 concurrents, générique, marges acceptables):
-      → Base saturation 55 + Qualité 6 + Marges 4 = 65 → Score final = 65
-    - Produit SATURÉ (120 concurrents, générique, marges faibles):
-      → Base saturation 40 + Qualité 3 + Marges 1 = 44 → Score final = 44
-    - Produit SATURÉ (150+ concurrents, très générique, marges très faibles):
-      → Base saturation 30 + Qualité 0 + Marges 0 = 30 → Score final = 30
+    ⚠️ SEULE RÈGLE ABSOLUE - BIJOUX SIMPLES NON ORIGINAUX:
+    - Si le produit est un bijou SIMPLE et NON ORIGINAL (bracelet basique, collier générique, bague sans personnalisation, etc.)
+      → Le score DOIT être 3/10 ou moins
+    - MAIS si le bijou est original, personnalisé, gravé, thématique (viking, medieval), fait main avec un design unique, etc.
+      → Tu peux mettre un score plus élevé selon ton analyse (5-8/10 si vraiment différencié)
     
-    ⚠️ OBLIGATION ABSOLUE - VARIATION DES SCORES (CRITIQUE):
-    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner le même score pour différents produits
-    - ⚠️ INTERDICTION FORMELLE: Ne JAMAIS retourner les scores suspects suivants: 23, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95
-    - ⚠️ OBLIGATION: Chaque produit DOIT avoir un score UNIQUE calculé à partir de ses données RÉELLES
-    - ⚠️ MÉTHODE OBLIGATOIRE STRICTE: 
-      1. Analyse les données RÉELLES du produit (concurrence, qualité, marges, saturation)
-      2. Calcule le score ÉTAPE PAR ÉTAPE selon la méthode ci-dessus
-      3. Ne saute JAMAIS les étapes de calcul
-      4. Utilise les valeurs EXACTES que tu as estimées, pas des valeurs par défaut
-      5. Ajoute une variation de ±2 à ±8 points basée sur des détails spécifiques du produit
-    - ⚠️ EXEMPLE INTERDIT: Ne JAMAIS faire "50 + 12 + 20 + 8 + 6 = 96" pour tous les produits
-    - ⚠️ EXEMPLE CORRECT: 
-      * Produit A (unique, faible concurrence): 50 + 25 + 40 + 20 + 10 = 145 → 95
-      * Produit B (générique, forte concurrence): 50 + 5 + 3 + 3 + 2 = 63 → 63
-      * Produit C (différencié, concurrence modérée): 50 + 15 + 20 + 8 + 6 = 99 → 95
-      * Produit D (standard, concurrence moyenne): 50 + 12 + 18 + 7 + 5 = 92 → 92
-      * Produit E (personnalisé, faible concurrence): 50 + 22 + 35 + 15 + 9 = 131 → 95
-    - ⚠️ Le score DOIT refléter la RÉALITÉ du produit analysé, pas une moyenne ou un score par défaut
-    - ⚠️ Si tu génères un score suspect (23, 30, etc.), ton analyse sera automatiquement rejetée et tu devras recalculer
+    ⚠️ POUR TOUS LES AUTRES PRODUITS (sacs, bébé, décoration, mugs, vêtements, etc.):
+    - AUCUNE règle forcée. Tu analyses OBJECTIVEMENT la saturation, l'originalité et les marges
+    - Un sac unique peut avoir 8/10, un sac générique peut avoir 3/10
+    - Un produit bébé saturé peut avoir 4/10, un produit bébé niche peut avoir 9/10
+    - Sois HONNÊTE et OBJECTIF dans ton évaluation
     
-    ⚠️ EXEMPLES CONCRETS DE SCORING (utiliser ces exemples comme référence):
-    - Produit unique/personnalisé, concurrence très faible (< 20), bonnes marges (> 40%), marché non saturé:
-      → Base 50 + Qualité 25 + Concurrence 40 + Marges 20 + Saturation 10 = 145 → Score final = 95
-    - Produit unique, concurrence faible (25 concurrents), marges bonnes (35%), marché concurrentiel:
-      → Base 50 + Qualité 20 + Concurrence 30 + Marges 15 + Saturation 6 = 121 → Score final = 95
-    - Produit différencié, concurrence modérée (50 concurrents), marges correctes (28%), marché concurrentiel:
-      → Base 50 + Qualité 15 + Concurrence 20 + Marges 8 + Saturation 6 = 99 → Score final = 95
-    - Produit différencié, concurrence modérée (60 concurrents), marges acceptables (25%), marché concurrentiel:
-      → Base 50 + Qualité 15 + Concurrence 18 + Marges 7 + Saturation 6 = 96 → Score final = 95
-    - Produit générique mais bien présenté, concurrence modérée (55 concurrents), marges acceptables (22%), marché concurrentiel:
-      → Base 50 + Qualité 12 + Concurrence 20 + Marges 6 + Saturation 5 = 93 → Score final = 93
-    - Produit générique, concurrence élevée (80 concurrents), marges faibles (18%), marché saturé:
-      → Base 50 + Qualité 5 + Concurrence 8 + Marges 3 + Saturation 2 = 68 → Score final = 68
-    - Produit très générique, forte concurrence (120 concurrents), marges faibles (15%), marché saturé:
-      → Base 50 + Qualité 2 + Concurrence 2 + Marges 1 + Saturation 1 = 56 → Score final = 56
-    - Produit générique, très forte concurrence (150+ concurrents), marges très faibles (< 15%), marché saturé:
-      → Base 50 + Qualité 0 + Concurrence 0 + Marges 0 + Saturation 0 = 50 → Score final = 50
+    EXEMPLES:
+    - Bracelet en argent simple sans gravure → 2.5/10 (bijou simple non original)
+    - Collier viking personnalisé gravé → 6.5/10 (bijou original et différencié)
+    - Mug personnalisé dans un marché peu saturé → 7.8/10
+    - Sac à dos générique comme des milliers d'autres → 3.2/10
+    - Sac à dos en cuir artisanal unique → 7.5/10
+    - Lampe LED 3D moon unique → 8.2/10
+    - Coque iPhone générique → 2.0/10
+    - Produit bébé personnalisé dans un segment peu saturé → 8.5/10
     
-    ⚠️ RÈGLE ABSOLUE: Ne jamais donner un score < 5 pour un produit de qualité sauf si:
-    - Le produit est un bijou (règle spéciale < 3)
-    - Le produit est un sac (règle spéciale = 4)
-    - Le produit a une concurrence extrême (> 200) ET des marges très faibles (< 15%)
-    
-    - OBLIGATOIRE: Fournis une justification du score en 2-3 phrases (scoreJustification)
-      * Explique clairement pourquoi tu as attribué ce score précis
-      * Mentionne les points forts ET les points faibles identifiés
-      * Sois concis mais informatif
-      * Justifie chaque point de score attribué
-    
-    ⚠️ RÈGLE ABSOLUE - BIJOUX (OBLIGATION STRICTE ET NON NÉGOCIABLE):
-    - Si le produit est un bijou (necklace, bracelet, ring, earring, collier, bague, boucle d'oreille, etc.) OU si la niche est "jewelry" ou "bijoux":
-      * ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être STRICTEMENT INFÉRIEUR à 3/10
-      * ⚠️ STRICTEMENT INFÉRIEUR signifie: le score DOIT être < 3.0 (pas égal, pas supérieur)
-      * Le score DOIT être entre 1.0 et 2.99 inclusivement (jamais 3.0 ou plus)
-      * Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
-      * Même si tous les autres facteurs suggèrent un score élevé, pour les bijoux le score DOIT rester STRICTEMENT < 3
-      * Exemples de scores VALIDES: 1.0, 1.5, 2.0, 2.5, 2.9, 2.99 (tous < 3.0)
-      * Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.0, 3.1, 4.0, 5.0, 10.0, etc. (tous >= 3.0)
-      * ⚠️ Si tu génères un score de 3.0 ou plus pour un bijou, ton analyse sera automatiquement rejetée et corrigée
-      * ⚠️ Cette règle s'applique à TOUS les bijoux sans exception, quelle que soit leur qualité apparente
-    
-    b) PRODUITS POUR BÉBÉS ET NAISSANCES (baby, bébé, infant, nursery, newborn, nouveau-né, toddler, bambin, birth, naissance):
-       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être AU MINIMUM 7/10
-       - ⚠️ AU MINIMUM signifie: le score DOIT être >= 7.0 (jamais inférieur)
-       - Le score DOIT être entre 7.0 et 95 (jamais moins de 7)
-       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de qualité moyenne
-       - Même si tous les autres facteurs suggèrent un score faible, pour les produits bébés/naissance le score DOIT être >= 7
-       - Exemples de scores VALIDES: 7.0, 7.5, 8.0, 8.5, 9.0, 10.0, 95.0
-       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 6.9, 6.5, 5.0, 3.0, etc. (tous < 7.0)
-       - ⚠️ Si tu génères un score de moins de 7.0 pour un produit bébé/naissance, ton analyse sera automatiquement rejetée et corrigée
-       - ⚠️ Cette règle s'applique à TOUS les produits pour bébés et naissances sans exception
-    
-    c) MASQUES HALLOWEEN (halloween mask, masque halloween):
-       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être STRICTEMENT INFÉRIEUR à 4/10
-       - ⚠️ STRICTEMENT INFÉRIEUR signifie: le score DOIT être < 4.0 (pas égal, pas supérieur)
-       - Le score DOIT être entre 1.0 et 3.99 inclusivement (jamais 4.0 ou plus)
-       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
-       - Même si tous les autres facteurs suggèrent un score élevé, pour les masques Halloween le score DOIT rester STRICTEMENT < 4
-       - Exemples de scores VALIDES: 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.9, 3.99 (tous < 4.0)
-       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 4.0, 4.1, 5.0, 10.0, etc. (tous >= 4.0)
-       - ⚠️ Si tu génères un score de 4.0 ou plus pour un masque Halloween, ton analyse sera automatiquement rejetée et corrigée
-       - ⚠️ Cette règle s'applique à TOUS les masques Halloween sans exception, quelle que soit leur qualité apparente
-    
-    d) SACS (bag, bags, sac, sacs, handbag, purse, tote, backpack, shoulder bag, crossbody, clutch, wallet, messenger bag, duffel, suitcase, briefcase):
-       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être EXACTEMENT 4/10
-       - ⚠️ EXACTEMENT signifie: le score DOIT être = 4.0 (jamais différent)
-       - Le score DOIT être exactement 4.0 (jamais moins, jamais plus)
-       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée, même si le produit semble de bonne qualité
-       - Même si tous les autres facteurs suggèrent un score différent, pour les sacs le score DOIT être exactement 4
-       - Exemples de scores VALIDES: 4.0 uniquement
-       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.0, 3.5, 4.5, 5.0, 10.0, etc. (tous différents de 4.0)
-       - ⚠️ Si tu génères un score différent de 4.0 pour un sac, ton analyse sera automatiquement rejetée et corrigée
-       - ⚠️ Cette règle s'applique à TOUS les sacs sans exception, quelle que soit leur qualité apparente
-    
-    e) TOUS LES AUTRES PRODUITS (sauf bijoux, masques Halloween, sacs):
-       - ⚠️ OBLIGATION ABSOLUE ET NON NÉGOCIABLE: Le score de confiance DOIT être AU MINIMUM 4/10
-       - ⚠️ AU MINIMUM signifie: le score DOIT être >= 4.0 (jamais inférieur)
-       - Le score DOIT être entre 4.0 et 95 (jamais moins de 4)
-       - Cette règle est OBLIGATOIRE et ne peut JAMAIS être contournée
-       - Même si l'analyse suggère un score inférieur à 4, pour tous les autres produits le score DOIT être >= 4
-       - Exemples de scores VALIDES: 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 95.0
-       - Exemples de scores INVALIDES (à NE JAMAIS utiliser): 3.9, 3.5, 3.0, 2.0, 1.0, etc. (tous < 4.0)
-       - ⚠️ Si tu génères un score de moins de 4.0 pour un produit qui n'est pas un bijou, un masque Halloween ou un sac, ton analyse sera automatiquement rejetée et corrigée
-       - ⚠️ Cette règle s'applique à TOUS les autres produits sans exception
-    
-    ⚠️ PRIORITÉ DES RÈGLES:
-    - Si le produit est un bijou → appliquer la règle a) (score < 3)
-    - Si le produit est un masque Halloween ET n'est pas un bijou → appliquer la règle c) (score < 4)
-    - Si le produit est un sac ET n'est pas un bijou/masque Halloween → appliquer la règle d) (score = 4)
-    - Si le produit est pour bébés ET n'est pas un bijou/masque Halloween/sac → appliquer la règle b) (score >= 7)
-    - Pour tous les autres produits → appliquer la règle e) (score >= 4)
-    - Ces règles sont OBLIGATOIRES et doivent être respectées même si l'analyse suggère un autre score
+    - OBLIGATOIRE: Fournis une justification du score en 2-3 phrases (launchPotentialScoreJustification)
+
+11. SCORE DE CONFIANCE (confidenceScore):
+    - Score entre 30 et 95 représentant ta confiance dans l'analyse globale
+    - Ce score reflète la fiabilité de ton analyse, PAS le potentiel du produit
+    - Plus tu es sûr de tes estimations (concurrents, prix, marché), plus le score est élevé
 
 ═══════════════════════════════════════════════════════════════════════════════
 FORMAT DE RÉPONSE STRICT (JSON UNIQUEMENT)
@@ -635,8 +530,10 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
   "estimatedShippingCost": nombre,
   "supplierPriceReasoning": "justification courte de l'estimation",
   "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
-  "confidenceScore": nombre entre 30 et 95 (⚠️ OBLIGATION: pour bijoux: STRICTEMENT < 3.0 | pour masques Halloween: STRICTEMENT < 4.0 | pour sacs: EXACTEMENT 4.0 | pour bébés/naissance: >= 7.0 | pour tous les autres: >= 4.0),
-  "scoreJustification": "2-3 phrases expliquant pourquoi ce score, points forts et faibles",
+  "launchPotentialScore": nombre entre 1.0 et 10.0 (note sur 10 du potentiel de lancement - L'IA DÉCIDE selon saturation/originalité/marges - SEULE EXCEPTION: bijoux simples non originaux = 3.0 max),
+  "launchPotentialScoreJustification": "2-3 phrases expliquant pourquoi cette note, saturation observée, originalité, marges",
+  "confidenceScore": nombre entre 30 et 95 (confiance dans l'analyse, PAS le potentiel du produit),
+  "scoreJustification": "2-3 phrases expliquant la fiabilité de l'analyse",
   "estimatedCompetitors": nombre,
   "competitorEstimationReasoning": "justification courte de l'estimation",
   "competitorEstimationReliable": bool,
@@ -679,8 +576,8 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       promptSizeKB: (prompt.length / 1024).toFixed(2),
       niche,
       price: productPrice,
-      maxTokens: 1000,
-      temperature: 0.1,
+      maxTokens: 1500,
+      temperature: 0,
       model: 'gpt-4o-mini',
       timeout: '40s',
       retries: 1,
@@ -751,10 +648,11 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
                 ]
               }
             ],
-            temperature: 0.1, // Réduit pour réponse plus rapide et déterministe
-            max_tokens: 1500, // Augmenté pour permettre une réponse très détaillée
-            response_format: { type: 'json_object' }, // Force JSON - le prompt doit explicitement demander du JSON
-            stream: false // Pas de streaming pour réduire la latence
+            temperature: 0, // ⚠️ ZÉRO = 100% déterministe, même produit = même résultat
+            max_tokens: 1500,
+            response_format: { type: 'json_object' },
+            seed: 42, // ⚠️ Seed fixe pour garantir la reproductibilité exacte des résultats
+            stream: false
           }),
           signal: controller.signal,
         });
@@ -1344,102 +1242,27 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       }, { status: 500 });
     }
     
-    // ⚠️ RÈGLES SPÉCIFIQUES PAR NICHE ET TYPE DE PRODUIT - Ajuster le score
-    const nicheLower = (niche || '').toLowerCase();
-    const productDescription = (analysis.productVisualDescription || body.productTitle || '').toLowerCase();
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VALIDATION DU SCORE: L'IA décide, on ne force plus rien sauf bijoux simples
+    // ═══════════════════════════════════════════════════════════════════════════
     
-    // Détecter le type de produit - Détection complète des bijoux
-    const productTitleLower = (body.productTitle || '').toLowerCase();
-    const productTypeLower = (body.productCategory || '').toLowerCase();
-    const isJewelry = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
-        nicheLower.includes('jewelry') || nicheLower.includes('bijou') ||
-        productDescription.includes('jewelry') || productDescription.includes('bijou') ||
-        productDescription.includes('necklace') || productDescription.includes('collier') ||
-        productDescription.includes('bracelet') || productDescription.includes('ring') || 
-        productDescription.includes('bague') || productDescription.includes('earring') ||
-        productDescription.includes('boucle') || productDescription.includes('pendant') ||
-        productDescription.includes('pendentif') || productDescription.includes('charm') ||
-        productDescription.includes('choker') || productDescription.includes('anklet') ||
-        productDescription.includes('brooch') || productDescription.includes('broche') ||
-        productTitleLower.includes('necklace') || productTitleLower.includes('collier') ||
-        productTitleLower.includes('bracelet') || productTitleLower.includes('ring') ||
-        productTitleLower.includes('bague') || productTitleLower.includes('earring') ||
-        productTitleLower.includes('boucle') || productTitleLower.includes('jewelry') ||
-        productTitleLower.includes('bijou') || productTypeLower.includes('jewelry') ||
-        productTypeLower.includes('bijou');
+    // Assurer que confidenceScore (confiance dans l'analyse) reste dans les bornes
+    if (analysis.confidenceScore < 30) analysis.confidenceScore = 30;
+    if (analysis.confidenceScore > 95) analysis.confidenceScore = 95;
     
-    // Détecter TOUS les sacs (pas seulement les sacs à main pour femmes)
-    const isBag = nicheLower === 'bag' || nicheLower === 'bags' || nicheLower === 'sac' || nicheLower === 'sacs' ||
-        productDescription.includes('bag') || productDescription.includes('sac') ||
-        productDescription.includes('handbag') || productDescription.includes('purse') ||
-        productDescription.includes('tote') || productDescription.includes('backpack') ||
-        productDescription.includes('shoulder bag') || productDescription.includes('crossbody') ||
-        productDescription.includes('clutch') || productDescription.includes('wallet') ||
-        productDescription.includes('messenger bag') || productDescription.includes('duffel') ||
-        productDescription.includes('suitcase') || productDescription.includes('briefcase');
+    // Assurer que launchPotentialScore (note du produit sur 10) reste dans les bornes
+    if (analysis.launchPotentialScore !== undefined) {
+      if (analysis.launchPotentialScore < 1) analysis.launchPotentialScore = 1;
+      if (analysis.launchPotentialScore > 10) analysis.launchPotentialScore = 10;
+      // Arrondir à 1 décimale
+      analysis.launchPotentialScore = Math.round(analysis.launchPotentialScore * 10) / 10;
+    }
     
-    const isBaby = nicheLower === 'baby' || nicheLower === 'bébé' ||
-        productDescription.includes('baby') || productDescription.includes('bébé') ||
-        productDescription.includes('infant') || productDescription.includes('nursery') ||
-        productDescription.includes('newborn') || productDescription.includes('nouveau-né') ||
-        productDescription.includes('toddler') || productDescription.includes('bambin');
-    
-    // Détecter les masques Halloween
-    const isHalloweenMask = nicheLower.includes('halloween') || nicheLower.includes('halloween mask') ||
-        productDescription.includes('halloween mask') || productDescription.includes('masque halloween') ||
-        productDescription.includes('halloween') && productDescription.includes('mask');
-    
-    // ⚠️ RÈGLE SPÉCIALE: Niches avec score minimum de 8
-    const highScoreNiches = [
-      'seagrass',
-      'laptop wallpaper',
-      'cattle dog',
-      'coaching tools',
-      'purple swimsuit',
-      'modeling clay',
-      'rider jacket',
-      'barbiecore',
-      'customised bag',
-      'florida vacation'
-    ];
-    
-    // ⚠️ RÈGLE SPÉCIALE: La niche seagrass doit avoir un score de 10
-    if (nicheLower === 'seagrass') {
-      analysis.confidenceScore = 10.0; // Forcer score de 10
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Autres niches spécifiques doivent avoir un score >= 8
-    else if (highScoreNiches.includes(nicheLower)) {
-      if (analysis.confidenceScore < 8.0) {
-        analysis.confidenceScore = 8.0; // Forcer minimum 8
-      }
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Tous les bijoux doivent avoir un score strictement < 3
-    else if (isJewelry) {
-      // Forcer strictement < 3 pour TOUS les bijoux, même si le score est déjà < 3
-      if (analysis.confidenceScore >= 3.0) {
-        analysis.confidenceScore = 2.99; // Forcer strictement < 3
-      }
-      // S'assurer que le score reste strictement < 3 (même s'il est déjà < 3, on le garantit)
-      if (analysis.confidenceScore >= 3.0) {
-        analysis.confidenceScore = 2.99; // Double vérification pour garantir < 3
-      }
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Tous les masques Halloween doivent avoir un score strictement < 4
-    else if (isHalloweenMask && analysis.confidenceScore >= 4.0) {
-      analysis.confidenceScore = 3.99; // Forcer strictement < 4
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Tous les sacs doivent avoir un score exactement = 4
-    else if (isBag) {
-      analysis.confidenceScore = 4.0; // Forcer exactement 4
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
-    else if (isBaby && analysis.confidenceScore < 7.0) {
-      analysis.confidenceScore = 7.0; // Forcer minimum 7
-    }
-    // ⚠️ RÈGLE SPÉCIALE: Pour tous les autres produits, minimum 4
-    else if (analysis.confidenceScore < 4.0) {
-      analysis.confidenceScore = 4.0; // Forcer minimum 4 pour tous les autres
-    }
+    console.log('📊 AI scores:', {
+      launchPotentialScore: analysis.launchPotentialScore,
+      confidenceScore: analysis.confidenceScore,
+      launchPotentialScoreJustification: analysis.launchPotentialScoreJustification?.substring(0, 100),
+    });
     
     const responseTime = Date.now() - openaiStartTime;
     console.log('✅ Analysis completed successfully:', {

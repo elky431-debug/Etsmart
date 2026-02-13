@@ -44,8 +44,9 @@ function getJustificationFR(scoreValue: number): string {
 export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
   // Traduire les textes en français (remplace les valeurs stockées en anglais)
   const verdictFR = useMemo(() => getVerdictFR(score.score), [score.score]);
-  const explanationFR = useMemo(() => getExplanationFR(score.score), [score.score]);
-  const justificationFR = useMemo(() => getJustificationFR(score.score), [score.score]);
+  const explanationFR = useMemo(() => score.explanation || getExplanationFR(score.score), [score.score, score.explanation]);
+  // Utiliser la justification de l'IA si disponible, sinon fallback
+  const justificationFR = useMemo(() => score.scoreJustification || getJustificationFR(score.score), [score.score, score.scoreJustification]);
 
   // Couleurs dynamiques basées sur le score pour le contour
   // 0-3: Rouge, 4-6: Orange, 7-10: Vert

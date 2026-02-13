@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const quota = PLAN_QUOTAS[plan] || 100;
+    const planQuota = PLAN_QUOTAS[plan] || 100;
     
     // Safely handle period dates
     const rawPeriodStart = (subscription as any).current_period_start;
@@ -142,8 +142,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Check Stripe] ✅ Found active subscription: ${plan}, cancelAtPeriodEnd: ${cancelAtPeriodEnd}`);
 
-    // Fetch current usage from database FIRST - select ALL columns to handle naming
+    // Fetch current usage and quota from database FIRST
     let currentUsed = 0;
+    let dbQuota = 0;
     try {
       const { data: userData, error: fetchError } = await supabase
         .from('users')
@@ -159,11 +160,17 @@ export async function GET(request: NextRequest) {
         // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
         const rawValue = userData.analysisUsedThisMonth ?? userData.analysis_used_this_month ?? 0;
         currentUsed = parseFloat(rawValue) || 0;
-        console.log(`[Check Stripe] Current usage from DB: ${currentUsed}`);
+        dbQuota = userData.analysis_quota || 0;
+        console.log(`[Check Stripe] Current usage from DB: ${currentUsed}, DB quota: ${dbQuota}`);
       }
     } catch (fetchError) {
       console.warn('[Check Stripe] Could not fetch current usage:', fetchError);
     }
+
+    // Use the HIGHER value between plan quota and DB quota
+    // This respects manual admin overrides (e.g. boosted from 200 to 600)
+    const quota = Math.max(planQuota, dbQuota) || 100;
+    console.log(`[Check Stripe] Final quota: planQuota=${planQuota}, dbQuota=${dbQuota}, final=${quota}`);
 
     // Update database with subscription info (using snake_case column names!)
     try {
@@ -176,6 +183,7 @@ export async function GET(request: NextRequest) {
           subscription_status: 'active',
           stripe_customer_id: customer.id,
           stripe_subscription_id: subscription.id,
+          // Only update quota if plan quota is HIGHER than DB quota (never downgrade manual boosts)
           analysis_quota: quota,
           // DON'T touch analysis_used_this_month - keep existing value!
           current_period_start: periodStart.toISOString(),

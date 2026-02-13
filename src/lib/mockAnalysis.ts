@@ -928,6 +928,10 @@ interface AIAnalysisResult {
   nicheMatch?: boolean; // true si le produit correspond à la niche, false sinon
   nicheMatchReasoning?: string; // Explication de la correspondance ou non-correspondance
   
+  // Launch Potential Score (décidé par l'IA)
+  launchPotentialScore?: number; // Note sur 10 du potentiel de lancement (1.0 - 10.0)
+  launchPotentialScoreJustification?: string; // Justification de la note par l'IA
+  
   // Verdict
   finalVerdict: string;
   warningIfAny: string | null;
@@ -1842,12 +1846,14 @@ export const analyzeProduct = async (
         productTitle: product.title,
         productType,
         productVisualDescription: aiAnalysis.productVisualDescription,
+        aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
+        aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
       });
       
       // Ajouter le score à competitorAnalysis
       competitorAnalysis.launchPotentialScore = launchPotentialScore;
       
-      console.log(`✅ Launch Potential Score calculated: ${launchPotentialScore.score}/10 (${launchPotentialScore.tier})`);
+      console.log(`✅ Launch Potential Score calculated: ${launchPotentialScore.score}/10 (${launchPotentialScore.tier}) - ${aiAnalysis.launchPotentialScore ? 'AI-decided' : 'matrix fallback'}`);
     } else {
       // Fallback: Utiliser les estimations de l'IA si le nouveau module échoue
       competitorAnalysis = {
@@ -1882,6 +1888,8 @@ export const analyzeProduct = async (
         productTitle: product.title,
         productType,
         productVisualDescription: aiAnalysis.productVisualDescription,
+        aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
+        aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
       });
       
       console.log('⚠️ Competition estimate failed, using AI estimates as fallback');
@@ -1921,6 +1929,8 @@ export const analyzeProduct = async (
         productTitle: product.title,
         productType,
         productVisualDescription: aiAnalysis.productVisualDescription,
+        aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
+        aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
       });
     } catch (scoreError) {
       console.error('Failed to calculate Launch Potential Score:', scoreError);
@@ -2030,79 +2040,18 @@ export const analyzeProduct = async (
       finalVerdict = 'avoid';
     }
     
-    // Calculer le score de confiance - FORCER une note basse si la correspondance n'est pas bonne
+    // Score de confiance de l'IA (confiance dans l'analyse, 30-95)
     let confidenceScore = aiAnalysis.confidenceScore;
     if (!nicheMatch) {
-      // Forcer une note basse (entre 20 et 35) si le produit ne correspond pas à la niche
+      // Réduire la confiance si le produit ne correspond pas à la niche
       confidenceScore = Math.min(35, Math.max(20, confidenceScore - 40));
     }
+    // Assurer les bornes
+    confidenceScore = Math.max(30, Math.min(95, confidenceScore));
     
-    // ⚠️ RÈGLES SPÉCIFIQUES PAR NICHE ET TYPE DE PRODUIT
-    const nicheStr = typeof validNiche === 'string' ? validNiche : (validNiche as any).id || (validNiche as any).name || '';
-    const nicheLower = nicheStr.toLowerCase();
-    const productDescription = (aiAnalysis.productVisualDescription || product.title || '').toLowerCase();
-    
-    // Détecter le type de produit
-    const isJewelry = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
-        productDescription.includes('jewelry') || productDescription.includes('bijou') ||
-        productDescription.includes('necklace') || productDescription.includes('collier') ||
-        productDescription.includes('bracelet') || productDescription.includes('ring') || 
-        productDescription.includes('bague') || productDescription.includes('earring') ||
-        productDescription.includes('boucle');
-    
-    // Détecter TOUS les sacs (pas seulement les sacs à main pour femmes)
-    const isBag = nicheLower === 'bag' || nicheLower === 'bags' || nicheLower === 'sac' || nicheLower === 'sacs' ||
-        productDescription.includes('bag') || productDescription.includes('sac') ||
-        productDescription.includes('handbag') || productDescription.includes('purse') ||
-        productDescription.includes('tote') || productDescription.includes('backpack') ||
-        productDescription.includes('shoulder bag') || productDescription.includes('crossbody') ||
-        productDescription.includes('clutch') || productDescription.includes('wallet') ||
-        productDescription.includes('messenger bag') || productDescription.includes('duffel') ||
-        productDescription.includes('suitcase') || productDescription.includes('briefcase');
-    
-    const isBaby = nicheLower === 'baby' || nicheLower === 'bébé' ||
-        productDescription.includes('baby') || productDescription.includes('bébé') ||
-        productDescription.includes('infant') || productDescription.includes('nursery') ||
-        productDescription.includes('newborn') || productDescription.includes('nouveau-né') ||
-        productDescription.includes('toddler') || productDescription.includes('bambin');
-    
-    // 1. Bijoux : note strictement < 3 (priorité absolue)
-    if (isJewelry) {
-      console.log('⚠️ Produit bijoux détecté - Forçage note strictement < 3');
-      // Forcer strictement inférieur à 3 (entre 1.0 et 2.99, jamais 3 ou plus)
-      const calculatedScore = confidenceScore * 0.1;
-      confidenceScore = Math.min(2.99, Math.max(1.0, calculatedScore)); // Strictement < 3
-      
-      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est STRICTEMENT < 3
-      if (confidenceScore >= 3.0) {
-        console.error('❌ ERREUR: Score bijoux >= 3.0 détecté, correction automatique à 2.99');
-        confidenceScore = 2.99; // Forcer strictement < 3
-      }
-    }
-    // 2. Sacs : note fixe = 4 (seulement si ce n'est pas un bijou)
-    else if (isBag) {
-      console.log('⚠️ Produit sac détecté - Forçage note = 4');
-      // Forcer exactement 4.0
-      confidenceScore = 4.0;
-      
-      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est exactement 4
-      if (confidenceScore !== 4.0) {
-        console.error('❌ ERREUR: Score sac !== 4.0 détecté, correction automatique à 4.0');
-        confidenceScore = 4.0; // Forcer exactement 4
-      }
-    }
-    // 3. Produits pour bébés : note >= 7 (seulement si ce n'est pas un bijou ou un sac)
-    else if (isBaby) {
-      console.log('⚠️ Produit bébé/naissance détecté - Forçage note >= 7');
-      // Forcer minimum 7 (entre 7.0 et 95, jamais moins de 7)
-      confidenceScore = Math.max(7, Math.min(95, confidenceScore + 20)); // Forcer minimum 7, maximum 95
-      
-      // ⚠️ VALIDATION FINALE ABSOLUE: S'assurer que le score est >= 7
-      if (confidenceScore < 7) {
-        console.error('❌ ERREUR: Score bébé < 7 détecté, correction automatique à 7');
-        confidenceScore = 7; // Forcer minimum 7
-      }
-    }
+    // Note: Le launchPotentialScore (note sur 10) est maintenant géré entièrement par
+    // calculateLaunchPotentialScore() qui utilise le score de l'IA directement.
+    // Plus aucun override hardcodé ici.
     
     // Construire le message d'avertissement
     let warningMessage = aiAnalysis.warningIfAny || '';

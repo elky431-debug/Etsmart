@@ -1682,9 +1682,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
-            <div className="relative flex-1 min-h-[calc(100vh-4rem)]">
-              {/* Contenu flouté en arrière-plan */}
-              <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-8 blur-[6px] pointer-events-none select-none opacity-40">
+            <div className="flex-1 min-h-[calc(100vh-4rem)]">
+              <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-8">
                 <div className="text-center max-w-2xl mx-auto w-full">
                   <div className="relative mb-6 sm:mb-8">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto shadow-2xl shadow-[#00d4ff]/40 relative z-10">
@@ -1697,40 +1696,15 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <p className="text-white/60 text-sm sm:text-base md:text-lg max-w-xl mx-auto mb-8 leading-relaxed">
                     Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
                   </p>
-                  <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-2xl text-base">
+                  <button
+                    onClick={() => router.push('/app')}
+                    className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-2xl text-base cursor-pointer hover:opacity-90 transition-opacity"
+                  >
                     <Calculator size={18} />
                     <span>Nouvelle analyse</span>
                     <ArrowRight size={16} />
-                  </div>
+                  </button>
                 </div>
-              </div>
-
-              {/* Overlay maintenance au-dessus */}
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="text-center max-w-lg mx-auto px-6"
-                >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-500/10">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 sm:w-12 sm:h-12 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.06-2.92a1.46 1.46 0 010-2.5l5.06-2.92a1.46 1.46 0 011.16 0l5.06 2.92a1.46 1.46 0 010 2.5l-5.06 2.92a1.46 1.46 0 01-1.16 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 22V12M12 12l8.5-4.9M12 12L3.5 7.1" />
-                    </svg>
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-                    Maintenance en cours
-                  </h2>
-                  <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-4">
-                    L'Analyse et Simulation est temporairement indisponible en raison d'une maintenance. 
-                    Nous travaillons à améliorer cette fonctionnalité.
-                  </p>
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                    Retour prévu très prochainement
-                  </div>
-                </motion.div>
               </div>
             </div>
           )}

@@ -1,11 +1,10 @@
 /**
  * Module de calcul du Launch Potential Score (0-10)
- * Système de notation pour évaluer le potentiel de lancement d'un produit sur Etsy
  * 
- * Basé sur 3 piliers :
- * 1. Densité concurrentielle estimée
- * 2. Saturation de la niche
- * 3. Spécificité du produit
+ * NOUVEAU SYSTÈME:
+ * - L'IA (GPT) décide du score pour TOUS les produits
+ * - SEULE EXCEPTION: Les bijoux simples non originaux sont forcés à 3/10
+ * - Le module de fallback (matrice) est utilisé uniquement si l'IA n'a pas retourné de score
  */
 
 export interface LaunchPotentialInput {
@@ -14,6 +13,8 @@ export interface LaunchPotentialInput {
   productTitle: string; // Titre du produit
   productType: string; // Type de produit (mug, bracelet, etc.)
   productVisualDescription?: string; // Description visuelle du produit
+  aiLaunchPotentialScore?: number; // Score décidé par l'IA (1.0-10.0) - PRIORITAIRE
+  aiLaunchPotentialScoreJustification?: string; // Justification de l'IA
 }
 
 export interface LaunchPotentialResult {
@@ -31,61 +32,10 @@ export interface LaunchPotentialResult {
 }
 
 /**
- * PILIER 1: Densité concurrentielle estimée
- * Convertit le score de concurrence (0-100) en densité (faible/moyenne/élevée)
- * Ajusté pour être plus généreux
+ * Détecte si le produit est un bijou SIMPLE et NON ORIGINAL
+ * Seuls ces bijoux sont forcés à 3/10
  */
-function assessCompetitionDensity(competitionScore: number): 'low' | 'medium' | 'high' {
-  if (competitionScore < 50) return 'low'; // Augmenté de 30 à 50
-  if (competitionScore < 85) return 'medium'; // Augmenté de 70 à 85
-  return 'high';
-}
-
-/**
- * PILIER 2: Saturation de la niche
- * Chaque niche a un niveau de saturation structurelle
- */
-function assessNicheSaturation(niche: string): 'low' | 'medium' | 'high' {
-  const nicheLower = niche.toLowerCase();
-  
-  // Niches structurellement saturées
-  const saturatedNiches = [
-    'jewelry', 'bijoux',
-    'fashion', 'mode',
-    'wedding', 'mariage',
-    'personalized-gifts', 'cadeaux-personnalises',
-  ];
-  
-  // Niches moyennement saturées
-  const mediumNiches = [
-    'home-decor', 'decoration', 'déco',
-    'art', 'illustrations',
-    'baby', 'bébé',
-    'sport', 'fitness',
-  ];
-  
-  // Niches peu saturées
-  const lowSaturationNiches = [
-    'furniture', 'meuble',
-    'garden', 'jardin',
-    'vintage', 'rétro',
-    'crafts', 'artisanat',
-    'wellness', 'bien-être',
-  ];
-  
-  if (saturatedNiches.some(n => nicheLower.includes(n))) return 'high';
-  if (mediumNiches.some(n => nicheLower.includes(n))) return 'medium';
-  if (lowSaturationNiches.some(n => nicheLower.includes(n))) return 'low';
-  
-  // Par défaut : moyenne
-  return 'medium';
-}
-
-/**
- * RÈGLE ABSOLUE: Détecte TOUS les bijoux (obligation stricte < 3/10)
- * Cette fonction détecte n'importe quel bijou, quelle que soit sa spécificité
- */
-function isJewelry(
+function isSimpleGenericJewelry(
   niche: string,
   productType: string,
   productTitle: string,
@@ -95,331 +45,50 @@ function isJewelry(
   const typeLower = productType.toLowerCase();
   const titleLower = productTitle.toLowerCase();
   const descriptionLower = (productVisualDescription || '').toLowerCase();
+  const combined = `${nicheLower} ${typeLower} ${titleLower} ${descriptionLower}`;
   
-  // Vérifier si c'est un bijou (niche ou type)
-  const isJewelryNiche = nicheLower === 'jewelry' || nicheLower === 'bijoux' || 
-                         nicheLower.includes('jewelry') || nicheLower.includes('bijou');
-  const jewelryTypes = [
+  // D'abord vérifier si c'est un bijou
+  const jewelryKeywords = [
     'bracelet', 'necklace', 'ring', 'earring', 'earrings', 'pendant', 
     'charm', 'chain', 'jewelry', 'bijou', 'bijoux', 'collier', 'bague', 
     'boucle', 'brooch', 'broche', 'pendentif', 'choker', 'anklet', 
-    'cheville', 'toe ring', 'bague orteil'
+    'cheville', 'toe ring'
   ];
-  const isJewelryType = jewelryTypes.some(type => 
-    typeLower.includes(type) || 
-    titleLower.includes(type) || 
-    descriptionLower.includes(type)
-  );
   
-  return isJewelryNiche || isJewelryType;
-}
-
-/**
- * RÈGLE ABSOLUE: Détecte TOUS les produits pour bébés/naissance (obligation stricte >= 7/10)
- * Cette fonction détecte n'importe quel produit pour bébés, quelle que soit sa spécificité
- */
-function isBaby(
-  niche: string,
-  productType: string,
-  productTitle: string,
-  productVisualDescription?: string
-): boolean {
-  const nicheLower = niche.toLowerCase();
-  const typeLower = productType.toLowerCase();
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
+  const isJewelry = (nicheLower.includes('jewelry') || nicheLower.includes('bijou')) ||
+    jewelryKeywords.some(kw => typeLower.includes(kw) || titleLower.includes(kw) || descriptionLower.includes(kw));
   
-  // Vérifier si c'est un produit bébé (niche ou type)
-  const isBabyNiche = nicheLower === 'baby' || nicheLower === 'bébé' || 
-                      nicheLower.includes('baby') || nicheLower.includes('bébé');
-  const babyTypes = [
-    'baby', 'bébé', 'infant', 'nursery', 'newborn', 'nouveau-né',
-    'toddler', 'bambin', 'prenatal', 'prénatal', 'maternity', 'maternité',
-    'birth', 'naissance', 'christening', 'baptême', 'baby shower',
-    'crib', 'berceau', 'stroller', 'poussette', 'onesie', 'bodysuit',
-    'pacifier', 'tétine', 'bottle', 'biberon', 'rattle', 'hochet'
-  ];
-  const isBabyType = babyTypes.some(type => 
-    typeLower.includes(type) || 
-    titleLower.includes(type) || 
-    descriptionLower.includes(type)
-  );
+  if (!isJewelry) return false;
   
-  return isBabyNiche || isBabyType;
-}
-
-/**
- * RÈGLE ABSOLUE: Détecte TOUS les sacs (obligation stricte = 4/10)
- * Cette fonction détecte n'importe quel sac, quelle que soit sa spécificité
- */
-function isBag(
-  niche: string,
-  productType: string,
-  productTitle: string,
-  productVisualDescription?: string
-): boolean {
-  const nicheLower = niche.toLowerCase();
-  const typeLower = productType.toLowerCase();
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
-  
-  // Vérifier si c'est un sac (niche ou type)
-  const isBagNiche = nicheLower === 'bag' || nicheLower === 'bags' || 
-                     nicheLower === 'sac' || nicheLower === 'sacs' ||
-                     nicheLower.includes('bag');
-  const bagTypes = [
-    'bag', 'bags', 'sac', 'sacs', 'handbag', 'purse', 'tote', 'backpack',
-    'shoulder bag', 'crossbody', 'clutch', 'wallet', 'portefeuille',
-    'messenger bag', 'duffel', 'suitcase', 'valise', 'briefcase',
-    'shopping bag', 'sac shopping', 'beach bag', 'sac plage',
-    'gym bag', 'sac de sport', 'lunch bag', 'sac repas'
-  ];
-  const isBagType = bagTypes.some(type => 
-    typeLower.includes(type) || 
-    titleLower.includes(type) || 
-    descriptionLower.includes(type)
-  );
-  
-  return isBagNiche || isBagType;
-}
-
-/**
- * RÈGLE ABSOLUE: Détecte les masques Halloween (obligation stricte < 4/10)
- * Cette fonction détecte n'importe quel masque Halloween
- */
-function isHalloweenMask(
-  niche: string,
-  productType: string,
-  productTitle: string,
-  productVisualDescription?: string
-): boolean {
-  const nicheLower = niche.toLowerCase();
-  const typeLower = productType.toLowerCase();
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
-  
-  // Vérifier si c'est un masque Halloween (niche ou type)
-  const isHalloweenNiche = nicheLower.includes('halloween') || nicheLower.includes('halloween mask');
-  const halloweenMaskTypes = [
-    'halloween mask', 'masque halloween', 'halloween', 'mask'
-  ];
-  const isHalloweenType = (typeLower.includes('halloween') || titleLower.includes('halloween') || 
-                          descriptionLower.includes('halloween')) &&
-                          (typeLower.includes('mask') || titleLower.includes('mask') || 
-                           descriptionLower.includes('mask') || descriptionLower.includes('masque'));
-  
-  return isHalloweenNiche || isHalloweenType;
-}
-
-/**
- * RÈGLE SPÉCIALE: Détecte les bijoux génériques sans spécificité hors normes
- * Si c'est un bijou générique, la note sera forcée à < 3
- */
-function isGenericJewelry(
-  niche: string,
-  productType: string,
-  productTitle: string,
-  productVisualDescription?: string
-): boolean {
-  // D'abord vérifier si c'est un bijou
-  if (!isJewelry(niche, productType, productTitle, productVisualDescription)) {
-    return false; // Ce n'est pas un bijou
-  }
-  
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
-  const combined = `${titleLower} ${descriptionLower}`;
-  
-  // Mots-clés indiquant une spécificité hors normes (ex: "medieval", "personalized", etc.)
-  const highSpecificityKeywords = [
+  // Mots-clés indiquant que le bijou est ORIGINAL / DIFFÉRENCIÉ
+  // Si un de ces mots est présent, ce n'est PAS un bijou simple générique
+  const originalityKeywords = [
     'personalized', 'personnalisé', 'custom', 'sur mesure',
     'engraved', 'gravé', 'monogram', 'monogramme',
-    'medieval', 'médiéval', 'viking', 'celtic', 'gothic',
-    'themed', 'thématique', 'niche', 'specialized',
-    'vintage', 'antique', 'handmade', 'artisanal',
+    'medieval', 'médiéval', 'viking', 'celtic', 'gothic', 'steampunk',
+    'themed', 'thématique', 'specialized',
+    'vintage', 'antique', 'handmade', 'artisanal', 'fait main',
     'unique', 'one of a kind', 'limited edition',
-    'wedding', 'mariage', 'anniversary', 'anniversaire',
-    'pet', 'animal', 'dog', 'cat', 'chien', 'chat',
-    'baby', 'bébé', 'newborn', 'nouveau-né',
     'name', 'initial', 'letter', 'birthstone', 'zodiac',
     'religious', 'religieux', 'cross', 'crucifix',
-  ];
-  
-  // Si aucun mot-clé de spécificité n'est trouvé, c'est un bijou générique
-  const hasSpecificity = highSpecificityKeywords.some(keyword => 
-    combined.includes(keyword)
-  );
-  
-  return !hasSpecificity; // Bijou générique si pas de spécificité
-}
-
-/**
- * PILIER 3: Spécificité du produit
- * Détermine si le produit est générique, semi-spécifique ou très spécifique
- */
-function assessProductSpecificity(
-  productTitle: string,
-  productType: string,
-  productVisualDescription?: string
-): 'low' | 'medium' | 'high' {
-  const titleLower = productTitle.toLowerCase();
-  const descriptionLower = (productVisualDescription || '').toLowerCase();
-  const combined = `${titleLower} ${descriptionLower}`;
-  
-  // Mots-clés indiquant une forte spécificité
-  const highSpecificityKeywords = [
-    'personalized', 'personnalisé', 'custom', 'sur mesure',
-    'engraved', 'gravé', 'monogram', 'monogramme',
-    'themed', 'thématique', 'niche', 'specialized',
-    'vintage', 'antique', 'handmade', 'artisanal',
-    'unique', 'one of a kind', 'limited edition',
-    'wedding', 'mariage', 'anniversary', 'anniversaire',
     'pet', 'animal', 'dog', 'cat', 'chien', 'chat',
-    'baby', 'bébé', 'newborn', 'nouveau-né',
+    'baby', 'bébé', 'newborn',
+    'resin', 'résine', 'epoxy', 'wood', 'bois',
+    'ceramic', 'céramique', 'clay', 'argile',
+    'macrame', 'macramé', 'crochet', 'knit', 'tricot',
+    'leather', 'cuir', 'woven', 'tressé',
+    'gemstone', 'pierre précieuse', 'crystal', 'cristal',
+    'handcrafted', 'artisan', 'designer',
+    'statement', 'chunky', 'oversized',
+    'minimalist gold', 'geometric', 'géométrique',
+    'birthstone', 'zodiac', 'horoscope', 'astro',
   ];
   
-  // Mots-clés indiquant une spécificité moyenne
-  const mediumSpecificityKeywords = [
-    'decorative', 'décoratif', 'decor', 'déco',
-    'gift', 'cadeau', 'present',
-    'stylish', 'élégant', 'modern', 'moderne',
-    'minimalist', 'minimaliste', 'simple',
-    'colorful', 'coloré', 'patterned', 'motif',
-  ];
+  // Si le bijou a un signe d'originalité, ce n'est PAS un bijou simple générique
+  const hasOriginality = originalityKeywords.some(kw => combined.includes(kw));
   
-  // Compter les occurrences
-  const highCount = highSpecificityKeywords.filter(k => combined.includes(k)).length;
-  const mediumCount = mediumSpecificityKeywords.filter(k => combined.includes(k)).length;
-  
-  // Produits génériques : type de base sans modificateurs
-  const genericPatterns = [
-    /^white\s+\w+$/i, // "white mug"
-    /^black\s+\w+$/i, // "black bag"
-    /^simple\s+\w+$/i, // "simple bracelet"
-    /^basic\s+\w+$/i, // "basic t-shirt"
-  ];
-  
-  const isGeneric = genericPatterns.some(pattern => pattern.test(productTitle));
-  
-  // Logique de détermination
-  if (isGeneric && highCount === 0 && mediumCount === 0) {
-    return 'low'; // Produit très générique
-  }
-  
-  if (highCount >= 2) {
-    return 'high'; // Forte spécificité
-  }
-  
-  if (highCount >= 1 || mediumCount >= 2) {
-    return 'medium'; // Spécificité moyenne
-  }
-  
-  return 'low'; // Faible spécificité par défaut
-}
-
-/**
- * MATRICE DE NOTATION
- * Calcule le score sur 10 à partir des 3 piliers
- */
-function calculateScoreFromMatrix(
-  competitionDensity: 'low' | 'medium' | 'high',
-  nicheSaturation: 'low' | 'medium' | 'high',
-  productSpecificity: 'low' | 'medium' | 'high',
-  productTitle: string // Ajouté pour la variation
-): number {
-  // Matrice de notation - Ajustée pour être plus généreuse et cohérente
-  // Logique: Les bons produits (faible saturation, faible concurrence, haute spécificité) doivent avoir des scores élevés
-  const matrix: Record<string, Record<string, Record<string, { min: number; max: number }>>> = {
-    high: { // Saturation niche élevée
-      low: { // Spécificité faible
-        low: { min: 4, max: 6 }, // Augmenté pour éviter les scores trop bas
-        medium: { min: 4, max: 6 },
-        high: { min: 3, max: 5 },
-      },
-      medium: { // Spécificité moyenne
-        low: { min: 6, max: 8 }, // Augmenté pour récompenser la spécificité moyenne
-        medium: { min: 5, max: 7 },
-        high: { min: 4, max: 6 },
-      },
-      high: { // Spécificité forte
-        low: { min: 7, max: 8 }, // Même avec saturation élevée, haute spécificité = bon score
-        medium: { min: 6, max: 8 },
-        high: { min: 5, max: 7 },
-      },
-    },
-    medium: { // Saturation niche moyenne
-      low: { // Spécificité faible
-        low: { min: 6, max: 8 }, // Augmenté pour marché moyen
-        medium: { min: 6, max: 8 },
-        high: { min: 5, max: 7 },
-      },
-      medium: { // Spécificité moyenne
-        low: { min: 8, max: 9 }, // Bon score pour spécificité moyenne + saturation moyenne
-        medium: { min: 7, max: 9 },
-        high: { min: 6, max: 8 },
-      },
-      high: { // Spécificité forte
-        low: { min: 9, max: 10 }, // Excellent score pour haute spécificité
-        medium: { min: 8, max: 10 },
-        high: { min: 7, max: 9 },
-      },
-    },
-    low: { // Saturation niche faible - MEILLEURS SCORES
-      low: { // Spécificité faible
-        low: { min: 8, max: 9 }, // Même avec spécificité faible, faible saturation = bon score
-        medium: { min: 8, max: 9 },
-        high: { min: 7, max: 9 },
-      },
-      medium: { // Spécificité moyenne
-        low: { min: 9, max: 10 }, // Excellent pour spécificité moyenne + faible saturation
-        medium: { min: 9, max: 10 },
-        high: { min: 8, max: 10 },
-      },
-      high: { // Spécificité forte
-        low: { min: 10, max: 10 }, // Parfait: faible saturation + haute spécificité = 10/10
-        medium: { min: 10, max: 10 },
-        high: { min: 9, max: 10 },
-      },
-    },
-  };
-  
-  const range = matrix[nicheSaturation][productSpecificity][competitionDensity];
-  
-  // Calculer le score moyen avec ajustement selon signaux secondaires
-  const baseScore = (range.min + range.max) / 2;
-  
-  // Ajustements fins basés sur les combinaisons favorables/défavorables
-  // Logique: Récompenser les bonnes combinaisons, pénaliser modérément les mauvaises
-  let adjustment = 0.3; // Bonus de base pour être généreux
-  
-  // Combinaisons très favorables (faible saturation + haute spécificité + faible concurrence)
-  if (nicheSaturation === 'low' && productSpecificity === 'high' && competitionDensity === 'low') {
-    adjustment = 1.0; // Bonus maximum pour la meilleure combinaison
-  }
-  
-  // Combinaisons favorables (faible saturation OU haute spécificité)
-  if (nicheSaturation === 'low' && competitionDensity === 'low') {
-    adjustment += 0.6; // Bonus important pour faible saturation + faible concurrence
-  }
-  
-  if (productSpecificity === 'high' && competitionDensity === 'low') {
-    adjustment += 0.4; // Bonus pour haute spécificité + faible concurrence
-  }
-  
-  // Combinaisons défavorables - Pénalité modérée
-  if (nicheSaturation === 'high' && productSpecificity === 'low' && competitionDensity === 'high') {
-    adjustment = -0.3; // Pénalité modérée pour la pire combinaison
-  }
-  
-  // Pénalités modérées pour saturation/concurrence élevées
-  if (competitionDensity === 'high' && nicheSaturation === 'high') {
-    adjustment -= 0.3; // Pénalité modérée
-  }
-  
-  const finalScore = Math.max(0, Math.min(10, baseScore + adjustment));
-  
-  // Arrondir à 1 décimale
-  return Math.round(finalScore * 10) / 10;
+  // C'est un bijou simple générique si aucun signe d'originalité
+  return !hasOriginality;
 }
 
 /**
@@ -454,7 +123,141 @@ function getTierAndVerdict(score: number): {
 }
 
 /**
- * Génère l'explication détaillée
+ * Évalue les facteurs pour l'affichage (même si le score vient de l'IA)
+ */
+function assessFactors(
+  competitionScore: number,
+  niche: string,
+  productTitle: string,
+  productType: string,
+  productVisualDescription?: string
+): LaunchPotentialResult['factors'] {
+  // Densité concurrentielle
+  let competitionDensity: 'low' | 'medium' | 'high';
+  if (competitionScore < 50) competitionDensity = 'low';
+  else if (competitionScore < 85) competitionDensity = 'medium';
+  else competitionDensity = 'high';
+  
+  // Saturation de la niche
+  const nicheLower = niche.toLowerCase();
+  const saturatedNiches = ['jewelry', 'bijoux', 'fashion', 'mode', 'wedding', 'mariage', 'personalized-gifts'];
+  const mediumNiches = ['home-decor', 'decoration', 'art', 'illustrations', 'baby', 'bébé', 'sport', 'fitness'];
+  
+  let nicheSaturation: 'low' | 'medium' | 'high';
+  if (saturatedNiches.some(n => nicheLower.includes(n))) nicheSaturation = 'high';
+  else if (mediumNiches.some(n => nicheLower.includes(n))) nicheSaturation = 'medium';
+  else nicheSaturation = 'low';
+  
+  // Spécificité du produit
+  const combined = `${productTitle} ${productVisualDescription || ''}`.toLowerCase();
+  const highSpecKeywords = ['personalized', 'personnalisé', 'custom', 'engraved', 'gravé', 'themed', 'vintage', 'handmade', 'unique'];
+  const medSpecKeywords = ['decorative', 'gift', 'cadeau', 'stylish', 'modern', 'minimalist'];
+  
+  const highCount = highSpecKeywords.filter(k => combined.includes(k)).length;
+  const medCount = medSpecKeywords.filter(k => combined.includes(k)).length;
+  
+  let productSpecificity: 'low' | 'medium' | 'high';
+  if (highCount >= 2) productSpecificity = 'high';
+  else if (highCount >= 1 || medCount >= 2) productSpecificity = 'medium';
+  else productSpecificity = 'low';
+  
+  return { competitionDensity, nicheSaturation, productSpecificity };
+}
+
+/**
+ * Fonction principale: Calcule le Launch Potential Score
+ * 
+ * PRIORITÉ:
+ * 1. Si l'IA a retourné un score → l'utiliser (sauf pour bijoux simples → 3/10)
+ * 2. Sinon → utiliser la matrice de fallback
+ */
+export function calculateLaunchPotentialScore(
+  input: LaunchPotentialInput
+): LaunchPotentialResult {
+  const factors = assessFactors(
+    input.competitionScore,
+    input.niche,
+    input.productTitle,
+    input.productType,
+    input.productVisualDescription
+  );
+  
+  // Vérifier si c'est un bijou simple non original
+  const isGenericJewelry = isSimpleGenericJewelry(
+    input.niche,
+    input.productType,
+    input.productTitle,
+    input.productVisualDescription
+  );
+  
+  let score: number;
+  let scoreJustification: string;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // RÈGLE 1: Bijoux simples non originaux → forcé à 3/10 max
+  // ═══════════════════════════════════════════════════════════════
+  if (isGenericJewelry) {
+    score = 3.0;
+    scoreJustification = `Score fixé à 3/10 car le produit est un bijou simple et non original. Le marché des bijoux génériques sur Etsy est extrêmement saturé avec des milliers de vendeurs proposant des produits similaires. Pour obtenir un meilleur score, il faudrait se différencier davantage (personnalisation, design unique, matériaux rares, etc.).`;
+    console.log(`[LaunchScore] ⚠️ Generic jewelry detected → forced to 3.0/10`);
+  }
+  // ═══════════════════════════════════════════════════════════════
+  // RÈGLE 2: Score IA disponible → l'utiliser directement
+  // ═══════════════════════════════════════════════════════════════
+  else if (input.aiLaunchPotentialScore !== undefined && input.aiLaunchPotentialScore !== null && input.aiLaunchPotentialScore >= 1 && input.aiLaunchPotentialScore <= 10) {
+    score = Math.round(input.aiLaunchPotentialScore * 10) / 10; // Arrondir à 1 décimale
+    scoreJustification = input.aiLaunchPotentialScoreJustification || `Score de ${score}/10 attribué par l'IA basé sur l'analyse de la saturation du marché, l'originalité du produit et le potentiel de marges.`;
+    console.log(`[LaunchScore] ✅ Using AI score: ${score}/10`);
+  }
+  // ═══════════════════════════════════════════════════════════════
+  // FALLBACK: Pas de score IA → utiliser la matrice simple
+  // ═══════════════════════════════════════════════════════════════
+  else {
+    score = calculateFallbackScore(factors);
+    scoreJustification = generateFallbackJustification(score, factors);
+    console.log(`[LaunchScore] ℹ️ No AI score available, using fallback matrix: ${score}/10`);
+  }
+  
+  // Assurer les limites
+  score = Math.max(1, Math.min(10, score));
+  
+  const { tier, verdict, badge } = getTierAndVerdict(score);
+  const explanation = generateExplanation(score, tier, factors);
+  
+  return {
+    score,
+    tier,
+    verdict,
+    explanation,
+    scoreJustification,
+    badge,
+    factors,
+  };
+}
+
+/**
+ * Calcul de fallback quand l'IA n'a pas retourné de score
+ */
+function calculateFallbackScore(
+  factors: LaunchPotentialResult['factors']
+): number {
+  // Score basé sur la combinaison des 3 facteurs
+  const densityScores = { low: 8, medium: 5, high: 3 };
+  const saturationScores = { low: 8, medium: 5, high: 3 };
+  const specificityScores = { low: 3, medium: 6, high: 8 };
+  
+  const d = densityScores[factors.competitionDensity];
+  const s = saturationScores[factors.nicheSaturation];
+  const p = specificityScores[factors.productSpecificity];
+  
+  // Moyenne pondérée: saturation 50%, spécificité 30%, densité 20%
+  const score = (s * 0.5) + (p * 0.3) + (d * 0.2);
+  
+  return Math.round(score * 10) / 10;
+}
+
+/**
+ * Génère l'explication
  */
 function generateExplanation(
   score: number,
@@ -463,7 +266,6 @@ function generateExplanation(
 ): string {
   const parts: string[] = [];
   
-  // Partie principale selon la tranche
   if (tier === 'favorable') {
     parts.push('Niche peu saturée avec une concurrence directe limitée.');
     parts.push('Bonne opportunité de lancement.');
@@ -475,26 +277,13 @@ function generateExplanation(
     parts.push('Le lancement nécessite une réflexion approfondie et une forte différenciation.');
   }
   
-  // Détails sur les facteurs
   const factorDetails: string[] = [];
-  
-  if (factors.nicheSaturation === 'low') {
-    factorDetails.push('la niche est peu saturée');
-  } else if (factors.nicheSaturation === 'high') {
-    factorDetails.push('la niche est très saturée');
-  }
-  
-  if (factors.productSpecificity === 'high') {
-    factorDetails.push('le produit est très spécifique');
-  } else if (factors.productSpecificity === 'low') {
-    factorDetails.push('le produit est relativement générique');
-  }
-  
-  if (factors.competitionDensity === 'low') {
-    factorDetails.push('concurrence directe limitée');
-  } else if (factors.competitionDensity === 'high') {
-    factorDetails.push('forte densité concurrentielle');
-  }
+  if (factors.nicheSaturation === 'low') factorDetails.push('la niche est peu saturée');
+  else if (factors.nicheSaturation === 'high') factorDetails.push('la niche est très saturée');
+  if (factors.productSpecificity === 'high') factorDetails.push('le produit est très spécifique');
+  else if (factors.productSpecificity === 'low') factorDetails.push('le produit est relativement générique');
+  if (factors.competitionDensity === 'low') factorDetails.push('concurrence directe limitée');
+  else if (factors.competitionDensity === 'high') factorDetails.push('forte densité concurrentielle');
   
   if (factorDetails.length > 0) {
     parts.push(`Points clés : ${factorDetails.join(', ')}.`);
@@ -504,17 +293,14 @@ function generateExplanation(
 }
 
 /**
- * Génère une justification détaillée du score en 3-4 lignes
+ * Génère la justification pour le fallback
  */
-function generateScoreJustification(
+function generateFallbackJustification(
   score: number,
-  tier: 'saturated' | 'competitive' | 'favorable',
-  factors: LaunchPotentialResult['factors'],
-  isGenericJewelry: boolean
+  factors: LaunchPotentialResult['factors']
 ): string {
   const lines: string[] = [];
   
-  // Ligne 1: Résumé du score
   if (score >= 8) {
     lines.push(`Excellent score de ${score}/10 indiquant une forte opportunité de marché.`);
   } else if (score >= 6) {
@@ -525,187 +311,17 @@ function generateScoreJustification(
     lines.push(`Score faible de ${score}/10 en raison de conditions de marché difficiles.`);
   }
   
-  // Ligne 2: Points forts
   const strengths: string[] = [];
   if (factors.competitionDensity === 'low') strengths.push('faible densité concurrentielle');
   if (factors.nicheSaturation === 'low') strengths.push('niche sous-exploitée');
   if (factors.productSpecificity === 'high') strengths.push('produit fortement différencié');
-  if (factors.productSpecificity === 'medium' && factors.nicheSaturation !== 'high') strengths.push('positionnement produit raisonnable');
+  if (strengths.length > 0) lines.push(`Points forts : ${strengths.join(', ')}.`);
   
-  if (strengths.length > 0) {
-    lines.push(`Points forts : ${strengths.join(', ')}.`);
-  }
-  
-  // Ligne 3: Points faibles ou défis
   const challenges: string[] = [];
   if (factors.competitionDensity === 'high') challenges.push('concurrence intense');
   if (factors.nicheSaturation === 'high') challenges.push('segment de marché saturé');
   if (factors.productSpecificity === 'low') challenges.push('le produit manque de différenciation unique');
-  if (isGenericJewelry) challenges.push('les bijoux génériques font face à une saturation extrême sur Etsy');
-  
-  if (challenges.length > 0) {
-    lines.push(`Défis : ${challenges.join(', ')}.`);
-  } else if (tier === 'favorable') {
-    lines.push('Aucun obstacle majeur identifié pour l\'entrée sur le marché.');
-  }
-  
-  // Ligne 4: Recommandation
-  if (tier === 'favorable') {
-    lines.push('Recommandé de procéder au lancement tout en maintenant les standards de qualité.');
-  } else if (tier === 'competitive') {
-    lines.push('Envisagez d\'investir dans l\'optimisation SEO et un branding unique pour vous démarquer.');
-  } else {
-    lines.push('Fortement recommandé de trouver un angle plus spécifique ou de cibler une niche différente.');
-  }
+  if (challenges.length > 0) lines.push(`Défis : ${challenges.join(', ')}.`);
   
   return lines.join(' ');
 }
-
-/**
- * Fonction principale: Calcule le Launch Potential Score
- */
-export function calculateLaunchPotentialScore(
-  input: LaunchPotentialInput
-): LaunchPotentialResult {
-  // ⚠️ RÈGLE ABSOLUE: TOUS les bijoux = note strictement < 3 (priorité absolue)
-  const isJewelryProduct = isJewelry(
-    input.niche,
-    input.productType,
-    input.productTitle,
-    input.productVisualDescription
-  );
-  
-  // ⚠️ RÈGLE ABSOLUE: TOUS les sacs = note fixe 4 (seulement si ce n'est pas un bijou)
-  const isBagProduct = isBag(
-    input.niche,
-    input.productType,
-    input.productTitle,
-    input.productVisualDescription
-  );
-  
-  // ⚠️ RÈGLE ABSOLUE: TOUS les produits bébés/naissance = note >= 7 (seulement si ce n'est pas un bijou ou un sac)
-  const isBabyProduct = isBaby(
-    input.niche,
-    input.productType,
-    input.productTitle,
-    input.productVisualDescription
-  );
-  
-  // ⚠️ RÈGLE SPÉCIALE: Bijoux génériques = note forcée < 3 (déjà couvert par la règle ci-dessus)
-  const isGenericJewelryProduct = isGenericJewelry(
-    input.niche,
-    input.productType,
-    input.productTitle,
-    input.productVisualDescription
-  );
-  
-  // Évaluer les 3 piliers
-  const competitionDensity = assessCompetitionDensity(input.competitionScore);
-  const nicheSaturation = assessNicheSaturation(input.niche);
-  const productSpecificity = assessProductSpecificity(
-    input.productTitle,
-    input.productType,
-    input.productVisualDescription
-  );
-  
-  // Calculer le score à partir de la matrice
-  let score = calculateScoreFromMatrix(competitionDensity, nicheSaturation, productSpecificity, input.productTitle);
-  
-  // ⚠️ RÈGLE SPÉCIALE: Niches avec score minimum de 8
-  const nicheLower = (input.niche || '').toLowerCase();
-  const highScoreNiches = [
-    'seagrass',
-    'laptop wallpaper',
-    'cattle dog',
-    'coaching tools',
-    'purple swimsuit',
-    'modeling clay',
-    'rider jacket',
-    'barbiecore',
-    'customised bag',
-    'florida vacation'
-  ];
-  
-  // ⚠️ RÈGLE SPÉCIALE: Détecter les masques Halloween
-  const isHalloweenMaskProduct = isHalloweenMask(
-    input.niche,
-    input.productType,
-    input.productTitle,
-    input.productVisualDescription
-  );
-  
-  // ⚠️ RÈGLE SPÉCIALE: La niche seagrass doit avoir un score de 10
-  if (nicheLower === 'seagrass') {
-    score = 10.0; // Forcer score de 10
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Autres niches spécifiques doivent avoir un score >= 8
-  else if (highScoreNiches.includes(nicheLower)) {
-    if (score < 8.0) {
-      score = 8.0; // Forcer minimum 8
-    }
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Tous les bijoux doivent avoir un score strictement < 3
-  else if (isJewelryProduct) {
-    if (score >= 3.0) {
-      score = 2.99; // Forcer strictement < 3
-    }
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Tous les masques Halloween doivent avoir un score strictement < 4
-  else if (isHalloweenMaskProduct) {
-    if (score >= 4.0) {
-      score = 3.99; // Forcer strictement < 4
-    }
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Tous les sacs doivent avoir un score exactement = 4
-  else if (isBagProduct) {
-    score = 4.0; // Forcer exactement 4
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Tous les produits bébés/naissance doivent avoir un score >= 7
-  else if (isBabyProduct) {
-    if (score < 7.0) {
-      score = 7.0; // Forcer minimum 7
-    }
-  }
-  // ⚠️ RÈGLE SPÉCIALE: Pour tous les autres produits, minimum 4
-  else if (score < 4.0) {
-    score = 4.0; // Forcer minimum 4 pour tous les autres
-  }
-  
-  
-  // Déterminer la tranche et le verdict
-  const { tier, verdict, badge } = getTierAndVerdict(score);
-  
-  // Générer l'explication
-  let explanation = generateExplanation(score, tier, {
-    competitionDensity,
-    nicheSaturation,
-    productSpecificity,
-  });
-  
-  
-  // Générer la justification détaillée du score
-  const scoreJustification = generateScoreJustification(
-    score,
-    tier,
-    { competitionDensity, nicheSaturation, productSpecificity },
-    isGenericJewelryProduct
-  );
-  
-  return {
-    score,
-    tier,
-    verdict,
-    explanation,
-    scoreJustification,
-    badge,
-    factors: {
-      competitionDensity,
-      nicheSaturation,
-      productSpecificity,
-    },
-  };
-}
-
-
-
-
