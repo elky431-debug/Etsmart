@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
+let sharp: any;
+try { sharp = require('sharp'); } catch { sharp = null; }
+
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
 /**
- * API ROUTE - GÉNÉRATION DU LISTING UNIQUEMENT (rapide, <15s)
- * Les images sont générées séparément par le frontend via /api/generate-images
+ * API ROUTE - GÉNÉRATION COMBINÉE LISTING + SOUMISSION IMAGES
  * 
- * Coût: 1.0 crédit pour le listing
+ * Flow:
+ * 1. Analyse produit (GPT-4o-mini) ~3-5s
+ * 2. En parallèle: Description + Titre/Tags + Soumission images à Nanonbanana ~5-8s
+ * 3. Retourne: listing complet + task IDs pour les images
+ * 4. Le frontend poll /api/check-image-status pour récupérer les images
+ * 
+ * Coût: 2.0 crédits (1 listing + 1 images) — déduits immédiatement
+ * Temps total: ~10-15s — bien sous le timeout Netlify
  */
 export async function POST(request: NextRequest) {
   try {
@@ -24,57 +33,134 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 }); }
 
-    const { sourceImage } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1' } = body;
     if (!sourceImage) return NextResponse.json({ error: 'MISSING_IMAGE' }, { status: 400 });
 
-    // Quota check - only 1 credit for listing
+    // Quota check
     const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
     const quotaInfo = await getUserQuotaInfo(user.id);
     if (quotaInfo.status !== 'active') return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED' }, { status: 403 });
-    
-    const creditNeeded = 1.0;
+    const creditNeeded = 2.0;
     if (quotaInfo.remaining < creditNeeded) return NextResponse.json({ error: 'QUOTA_EXCEEDED' }, { status: 403 });
 
     const apiKey = process.env.OPENAI_API_KEY;
+    const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
     if (!apiKey) return NextResponse.json({ error: 'OPENAI_API_KEY_MISSING' }, { status: 500 });
 
-    // Préparer l'image pour l'analyse GPT-4o
+    // Préparer l'image
     let imageForAnalysis = sourceImage;
     if (!imageForAnalysis.startsWith('data:image/')) imageForAnalysis = `data:image/jpeg;base64,${imageForAnalysis}`;
 
-    console.log('[LISTING GEN] Starting for user:', user.id);
+    // Compresser l'image pour Nanonbanana
+    let imageForAPI: string;
+    try {
+      let base64Data = sourceImage;
+      if (base64Data.startsWith('data:image/')) {
+        const parts = base64Data.split(',');
+        if (parts.length > 1) base64Data = parts[1];
+      }
+      if (sharp) {
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        let compressedBuffer = await sharp(imageBuffer)
+          .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 70, mozjpeg: true })
+          .toBuffer();
+        if (compressedBuffer.length > 500 * 1024) {
+          compressedBuffer = await sharp(imageBuffer)
+            .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 60, mozjpeg: true })
+            .toBuffer();
+        }
+        imageForAPI = compressedBuffer.toString('base64');
+        console.log('[GEN] Image compressed:', (compressedBuffer.length / 1024).toFixed(0), 'KB');
+      } else {
+        imageForAPI = base64Data;
+      }
+    } catch {
+      let base64Data = sourceImage;
+      if (base64Data.startsWith('data:image/')) {
+        const parts = base64Data.split(',');
+        if (parts.length > 1) base64Data = parts[1];
+      }
+      imageForAPI = base64Data;
+    }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // ÉTAPE 1: Analyse produit avec GPT-4o-mini (rapide)
-    // ═══════════════════════════════════════════════════════════════════════════
-    const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{
-          role: 'user',
-          content: [
+    const imageDataUrl = `data:image/jpeg;base64,${imageForAPI}`;
+    console.log('[GEN] Starting | user:', user.id, '| qty:', quantity);
+
+    // ═══════════════════════════════════════════════════════════════
+    // ÉTAPE 1: Analyse produit + Description fond EN PARALLÈLE
+    // ═══════════════════════════════════════════════════════════════
+    const step1Promises: Promise<any>[] = [
+      fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: [
             { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, and key features in English. Be concise (100-200 words).' },
             { type: 'image_url', image_url: { url: imageForAnalysis, detail: 'low' } },
-          ],
-        }],
-        max_tokens: 300,
+          ]}],
+          max_tokens: 300,
+        }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error(`Analysis failed: ${r.status}`);
+        const d = await r.json();
+        return d.choices?.[0]?.message?.content?.trim() || '';
       }),
-    });
+    ];
 
-    if (!analysisResponse.ok) throw new Error(`Analysis failed: ${analysisResponse.status}`);
-    const analysisData = await analysisResponse.json();
-    const productVisualDescription = analysisData.choices?.[0]?.message?.content?.trim();
-    if (!productVisualDescription) throw new Error('No product description from analysis');
+    if (backgroundImage) {
+      let bgDataUrl = backgroundImage;
+      if (!bgDataUrl.startsWith('data:image/')) bgDataUrl = `data:image/jpeg;base64,${bgDataUrl}`;
+      step1Promises.push(
+        fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: [
+              { type: 'text', text: 'Describe this background/scene for an AI image generator. Colors, textures, lighting, atmosphere. 2-3 sentences. Scene only, no products.' },
+              { type: 'image_url', image_url: { url: bgDataUrl, detail: 'low' } },
+            ]}],
+            max_tokens: 150, temperature: 0.3,
+          }),
+        }).then(async (r) => {
+          if (!r.ok) return null;
+          const d = await r.json();
+          return d.choices?.[0]?.message?.content?.trim() || null;
+        }).catch(() => null)
+      );
+    }
 
-    console.log('[LISTING GEN] ✅ Product analyzed:', productVisualDescription.substring(0, 60));
+    const step1Results = await Promise.all(step1Promises);
+    const productVisualDescription = step1Results[0];
+    const backgroundDescription: string | null = step1Results[1] || null;
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // ÉTAPE 2: Génération Description + Titre/Tags EN PARALLÈLE
-    // ═══════════════════════════════════════════════════════════════════════════
-    const [descriptionResult, titleTagsResult] = await Promise.all([
-      // Description Etsy
+    if (!productVisualDescription) {
+      return NextResponse.json({ error: 'IMAGE_ANALYSIS_FAILED' }, { status: 500 });
+    }
+    console.log('[GEN] ✅ Step 1 done');
+
+    // Build Nanonbanana prompt
+    let nanonbananaPrompt: string;
+    if (backgroundDescription) {
+      nanonbananaPrompt = `Professional Etsy lifestyle product photography.
+MANDATORY BACKGROUND: "${backgroundDescription}"
+Rules: Keep product IDENTICAL. Place naturally in described scene. Soft lighting, depth of field. NO text/logos/watermarks.`;
+    } else {
+      nanonbananaPrompt = `Professional Etsy lifestyle product photography.
+Rules: Keep product IDENTICAL. Create NEW cozy lifestyle background. Soft lighting, depth of field, warm atmosphere. NO text/logos/watermarks.`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ÉTAPE 2: Description + Titre/Tags + SOUMISSION images EN PARALLÈLE
+    // (Pas de polling ici — le frontend poll via /api/check-image-status)
+    // ═══════════════════════════════════════════════════════════════
+    const VIEWPOINTS = ['frontal eye-level view', '45-degree angle', 'top-down view', 'close-up detail', 'wide shot', 'three-quarter view', 'low angle', 'side profile'];
+
+    const [descResult, titleResult, ...imageSubmitResults] = await Promise.all([
+      // Description
       (async () => {
         try {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -92,13 +178,10 @@ export async function POST(request: NextRequest) {
           if (!r.ok) throw new Error(`${r.status}`);
           const d = await r.json();
           return d.choices?.[0]?.message?.content?.trim() || '';
-        } catch (e: any) {
-          console.error('[LISTING GEN] Description error:', e.message);
-          return '';
-        }
+        } catch { return ''; }
       })(),
 
-      // Titre + Tags + Matériaux
+      // Title + Tags + Materials
       (async () => {
         try {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -124,38 +207,115 @@ export async function POST(request: NextRequest) {
             for (const s of suffixes) { if (title.length + s.length <= 140) { title += s; break; } }
           }
           return { title, tags, materials: parsed.materials || '' };
-        } catch (e: any) {
-          console.error('[LISTING GEN] Title/tags error:', e.message);
-          return { title: '', tags: [] as string[], materials: '' };
-        }
+        } catch { return { title: '', tags: [] as string[], materials: '' }; }
       })(),
+
+      // Submit images to Nanonbanana (NO polling — just get task IDs)
+      ...Array.from({ length: quantity }, (_, index) => (async () => {
+        try {
+          const viewpoint = VIEWPOINTS[index % VIEWPOINTS.length];
+          let prompt = `CAMERA ANGLE: ${viewpoint}.\n\n${nanonbananaPrompt}`;
+          if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
+
+          const requestBody = {
+            type: 'IMAGETOIAMGE',
+            prompt,
+            imageUrls: [imageDataUrl],
+            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
+            numImages: 1,
+            callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+          };
+
+          // Try endpoints
+          const endpoints = [
+            'https://api.nanobananaapi.ai/api/v1/nanobanana/generate',
+            'https://api.nanobanana.com/api/v1/nanobanana/generate',
+          ];
+          const authFormats = [
+            { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANONBANANA_API_KEY}` },
+            { 'Content-Type': 'application/json', 'X-API-Key': NANONBANANA_API_KEY, 'Authorization': `Bearer ${NANONBANANA_API_KEY}` },
+          ];
+
+          let response: Response | null = null;
+          for (const endpoint of endpoints) {
+            for (const headers of authFormats) {
+              try {
+                response = await fetch(endpoint, {
+                  method: 'POST',
+                  headers: headers as any,
+                  body: JSON.stringify(requestBody),
+                });
+                if (response.status !== 403 && response.status !== 404) break;
+              } catch { continue; }
+            }
+            if (response && response.status !== 403 && response.status !== 404) break;
+          }
+
+          if (!response || !response.ok) {
+            throw new Error(`Nanonbanana submit failed: ${response?.status || 'no response'}`);
+          }
+
+          const data = await response.json();
+
+          // Check for direct URL (rare but possible)
+          const directUrl = data.data?.response?.resultImageUrl || data.data?.url || data.url;
+          if (directUrl) {
+            return { taskId: null, url: directUrl, index };
+          }
+
+          // Get task ID for polling
+          const taskId = data.data?.task_id || data.data?.taskId || data.data?.id;
+          if (!taskId) throw new Error('No taskId returned');
+
+          console.log(`[GEN] ✅ Image ${index + 1} submitted, taskId: ${taskId}`);
+          return { taskId, url: null, index };
+        } catch (e: any) {
+          console.error(`[GEN] ❌ Image ${index + 1} submit failed:`, e.message);
+          return { taskId: null, url: null, index, error: e.message };
+        }
+      })()),
     ]);
 
-    const description = descriptionResult || productVisualDescription;
-    const title = titleTagsResult.title || productVisualDescription.substring(0, 140);
-    const tags = titleTagsResult.tags.length > 0 ? titleTagsResult.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
-    const materials = titleTagsResult.materials || 'Various materials';
+    // Build results
+    const description = descResult || productVisualDescription;
+    const title = titleResult.title || productVisualDescription.substring(0, 140);
+    const tags = titleResult.tags.length > 0 ? titleResult.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
+    const materials = titleResult.materials || 'Various materials';
 
-    // Déduire 1 crédit pour le listing
+    // Process image results
+    const imageTasks: any[] = [];
+    const immediateImages: any[] = [];
+    for (const result of imageSubmitResults) {
+      if (result.url) {
+        immediateImages.push({ id: `img-${Date.now()}-${result.index}`, url: result.url });
+      } else if (result.taskId) {
+        imageTasks.push({ taskId: result.taskId, index: result.index });
+      }
+      // Errors are just skipped
+    }
+
+    // Deduct 2 credits
     let quotaResult: any = null;
     try {
       quotaResult = await incrementAnalysisCount(user.id, creditNeeded);
-      if (quotaResult?.success) console.log('[LISTING GEN] ✅ Quota:', { used: quotaResult.used, remaining: quotaResult.remaining });
+      if (quotaResult?.success) console.log('[GEN] ✅ Quota deducted:', quotaResult.remaining, 'remaining');
     } catch (e: any) {
-      console.error('[LISTING GEN] Quota error:', e.message);
+      console.error('[GEN] Quota error:', e.message);
     }
 
-    console.log('[LISTING GEN] ✅ Done | title:', title.length, 'chars | desc:', description.length, 'chars | tags:', tags.length);
+    console.log('[GEN] ✅ Done | listing OK | images:', immediateImages.length, 'ready,', imageTasks.length, 'pending');
 
     return NextResponse.json({
       success: true,
       listing: { title, description, tags, materials },
-      images: [], // Images are now generated separately by the frontend
+      images: immediateImages, // Images already available (rare)
+      imageTasks, // Task IDs for frontend to poll
+      // nanonbananaApiKey is handled server-side in check-image-status
       quotaUpdated: quotaResult !== null,
       ...(quotaResult?.success ? { quota: { used: quotaResult.used, remaining: quotaResult.remaining, quota: quotaResult.quota } } : {}),
     });
   } catch (error: any) {
-    console.error('[LISTING GEN] ❌ Fatal:', error.message);
+    console.error('[GEN] ❌ Fatal:', error.message);
     return NextResponse.json({ error: 'GENERATION_ERROR', message: error.message }, { status: 500 });
   }
 }
