@@ -551,6 +551,28 @@ export function DashboardQuickGenerate() {
     }
   };
 
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+
+  const downloadAllImages = async () => {
+    if (generatedImages.length === 0) return;
+    setIsDownloadingAll(true);
+    try {
+      for (let i = 0; i < generatedImages.length; i++) {
+        const img = generatedImages[i];
+        if (!img.url || !img.url.startsWith('http')) continue;
+        await downloadImage(img.url, i);
+        // Small delay between downloads to avoid browser blocking
+        if (i < generatedImages.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error('[DOWNLOAD ALL] Error:', error);
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -997,25 +1019,49 @@ export function DashboardQuickGenerate() {
                     ))}
                   </div>
 
-                  {/* Regenerate Images Button */}
-                  <button
-                    onClick={regenerateImages}
-                    disabled={isRegeneratingImages || !sourceImagePreview}
-                    className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRegeneratingImages ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Génération en cours...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon size={18} />
-                        Générer de nouvelles images (angles différents)
-                        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
-                      </>
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    {/* Download All Button */}
+                    {generatedImages.length > 1 && (
+                      <button
+                        onClick={downloadAllImages}
+                        disabled={isDownloadingAll}
+                        className="flex-1 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00bfe6] hover:to-[#00b5a5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isDownloadingAll ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            Téléchargement en cours...
+                          </>
+                        ) : (
+                          <>
+                            <Download size={18} />
+                            Tout télécharger ({generatedImages.length} images)
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
+
+                    {/* Regenerate Images Button */}
+                    <button
+                      onClick={regenerateImages}
+                      disabled={isRegeneratingImages || !sourceImagePreview}
+                      className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isRegeneratingImages ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Génération en cours...
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon size={18} />
+                          Générer de nouvelles images
+                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>

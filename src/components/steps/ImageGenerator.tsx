@@ -406,6 +406,28 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
     }
   };
 
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+
+  const downloadAllImages = async () => {
+    if (generatedImages.length === 0) return;
+    setIsDownloadingAll(true);
+    try {
+      for (let i = 0; i < generatedImages.length; i++) {
+        const img = generatedImages[i];
+        if (!img.url || !img.url.startsWith('http')) continue;
+        await downloadImage(img.url, i);
+        // Small delay between downloads to avoid browser blocking
+        if (i < generatedImages.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error('[DOWNLOAD ALL] Error:', error);
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       {/* Full Width Layout */}
@@ -731,6 +753,29 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                       </motion.div>
                     ))}
                   </div>
+
+                  {/* Download All Button */}
+                  {generatedImages.length > 1 && (
+                    <div className="mt-6">
+                      <button
+                        onClick={downloadAllImages}
+                        disabled={isDownloadingAll}
+                        className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00bfe6] hover:to-[#00b5a5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isDownloadingAll ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            Téléchargement en cours...
+                          </>
+                        ) : (
+                          <>
+                            <Download size={18} />
+                            Tout télécharger ({generatedImages.length} images)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div
