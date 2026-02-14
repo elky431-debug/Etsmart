@@ -438,9 +438,10 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       
       console.log(`[getUserQuotaInfo] 📊 Quota check: plan=${user.subscription_plan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
       
-      // Only auto-fix if DB quota is LOWER than plan quota (stale data)
-      // Never downgrade a manually boosted quota
-      if (planQuota > 0 && dbQuota < planQuota) {
+      // ⚠️ CRITICAL: Only auto-fix if DB quota is LOWER than plan quota AND DB quota is 0 or null (stale data)
+      // Never downgrade a manually boosted quota (even if it's lower than plan quota, it might be intentional)
+      // Only update if DB quota is 0/null (truly stale) - never touch if it's a positive number (could be manual override)
+      if (planQuota > 0 && (dbQuota === 0 || dbQuota === null || dbQuota === undefined)) {
         console.log(`[getUserQuotaInfo] ⚠️ Fixing stale analysis_quota in DB: ${dbQuota} → ${planQuota}`);
         supabase
           .from('users')
@@ -448,6 +449,8 @@ export async function getUserQuotaInfo(userId: string): Promise<{
           .eq('id', userId)
           .then(() => console.log(`[getUserQuotaInfo] ✅ analysis_quota updated to ${planQuota}`))
           .catch((err: any) => console.error(`[getUserQuotaInfo] ❌ Failed to update analysis_quota:`, err));
+      } else if (dbQuota > 0 && dbQuota !== planQuota) {
+        console.log(`[getUserQuotaInfo] ℹ️ DB quota (${dbQuota}) differs from plan quota (${planQuota}) - respecting DB value (manual override)`);
       }
       
       const isUnlimited = isUnlimitedPlan(user.subscription_plan as PlanId) || quota === -1;

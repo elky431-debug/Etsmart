@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink, Store, Sparkles, Coins, ChevronDown, Chrome } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Download, AlertCircle, CheckCircle2, Loader2, ExternalLink, Store, Sparkles, Coins, ChevronDown, Chrome, Check } from 'lucide-react';
 import { niches } from '@/lib/niches';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ID réel de l'extension publiée sur le Chrome Web Store
 const EXTENSION_ID = 'daenliioilkcdiaagbpieblmphfpgfff';
@@ -22,6 +23,8 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
   const [extensionChecked, setExtensionChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Détecter l'extension Chrome
   useEffect(() => {
@@ -124,6 +127,20 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
     setExtensionDetected(false);
   };
 
+  // Fermer le dropdown si on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="relative w-full max-w-2xl mx-auto">
       {/* Glow effect behind card */}
@@ -153,25 +170,95 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
 
           {/* Formulaire */}
           <div className="space-y-5 mb-6">
-            {/* Catégorie */}
+            {/* Catégorie - Dropdown personnalisé */}
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2">
                 Catégorie <span className="text-white/30">(optionnel)</span>
               </label>
-              <div className="relative">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
+              <div className="relative" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                  className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white text-left flex items-center justify-between transition-all ${
+                    isCategoryOpen
+                      ? 'border-[#00d4ff]/50 ring-2 ring-[#00d4ff]/30 bg-white/10'
+                      : 'border-white/10 hover:border-[#00d4ff]/30'
+                  }`}
                 >
-                  <option value="" className="bg-black text-white/50">Sélectionner une catégorie</option>
-                  {niches.map((nicheItem) => (
-                    <option key={nicheItem.id} value={nicheItem.name} className="bg-black text-white">
-                      {nicheItem.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 pointer-events-none" />
+                  <span className={selectedCategory ? 'text-white' : 'text-white/50'}>
+                    {selectedCategory || 'Sélectionner une catégorie'}
+                  </span>
+                  <ChevronDown 
+                    className={`w-5 h-5 text-[#00d4ff] transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {isCategoryOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute z-50 w-full mt-2 bg-black/95 backdrop-blur-xl border border-[#00d4ff]/20 rounded-xl shadow-2xl shadow-[#00d4ff]/10 overflow-hidden"
+                    >
+                      {/* Header avec gradient */}
+                      <div className="px-4 py-3 bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 border-b border-[#00d4ff]/20 flex items-center gap-2">
+                        <Check className="w-4 h-4 text-[#00d4ff]" />
+                        <span className="text-sm font-semibold text-white">Sélectionner une catégorie</span>
+                      </div>
+
+                      {/* Liste des catégories */}
+                      <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory('');
+                            setIsCategoryOpen(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left transition-all flex items-center justify-between ${
+                            selectedCategory === ''
+                              ? 'bg-gradient-to-r from-[#00d4ff]/20 to-[#00c9b7]/20 text-white'
+                              : 'text-white/70 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-sm">Aucune catégorie</span>
+                          {selectedCategory === '' && <Check className="w-4 h-4 text-[#00d4ff]" />}
+                        </button>
+
+                        {niches.map((nicheItem, index) => (
+                          <motion.button
+                            key={nicheItem.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(nicheItem.name);
+                              setIsCategoryOpen(false);
+                            }}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.02 }}
+                            className={`w-full px-4 py-3 text-left transition-all flex items-center justify-between border-t border-white/5 ${
+                              selectedCategory === nicheItem.name
+                                ? 'bg-gradient-to-r from-[#00d4ff]/20 to-[#00c9b7]/20 text-white'
+                                : 'text-white/80 hover:bg-gradient-to-r hover:from-[#00d4ff]/10 hover:to-[#00c9b7]/10 hover:text-white'
+                            }`}
+                          >
+                            <span className="text-sm font-medium">{nicheItem.name}</span>
+                            {selectedCategory === nicheItem.name && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="w-5 h-5 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center"
+                              >
+                                <Check className="w-3 h-3 text-white" />
+                              </motion.div>
+                            )}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 

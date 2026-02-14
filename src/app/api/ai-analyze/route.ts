@@ -454,6 +454,12 @@ INSTRUCTIONS DÉTAILLÉES PAR SECTION
 10. SCORE DE POTENTIEL DE LANCEMENT (launchPotentialScore) - NOTE SUR 10:
     ⚠️ C'est LE score principal affiché à l'utilisateur. Il est sur une échelle de 0 à 10.
     
+    ⚠️ RÈGLE ABSOLUE: CHAQUE PRODUIT EST UNIQUE ET DOIT AVOIR UN SCORE DIFFÉRENT.
+    - Tu NE DOIS PAS donner le même score à tous les produits.
+    - Analyse en profondeur l'IMAGE du produit spécifique et son marché RÉEL.
+    - Un bracelet en argent ≠ une lampe LED ≠ un mug personnalisé → ils doivent avoir des scores TRÈS DIFFÉRENTS.
+    - Le score doit refléter les VRAIES conditions de marché pour CE produit spécifique, pas une note par défaut.
+    
     Tu DOIS analyser le produit de manière OBJECTIVE et attribuer un score entre 1 et 10 basé sur:
     
     A) SATURATION DU MARCHÉ (50% du poids):
@@ -577,7 +583,7 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       niche,
       price: productPrice,
       maxTokens: 1500,
-      temperature: 0,
+      temperature: 0.7,
       model: 'gpt-4o-mini',
       timeout: '40s',
       retries: 1,
@@ -648,10 +654,9 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
                 ]
               }
             ],
-            temperature: 0, // ⚠️ ZÉRO = 100% déterministe, même produit = même résultat
+            temperature: 0.7, // ⚠️ 0.7 = bon équilibre entre cohérence et différenciation entre produits
             max_tokens: 1500,
             response_format: { type: 'json_object' },
-            seed: 42, // ⚠️ Seed fixe pour garantir la reproductibilité exacte des résultats
             stream: false
           }),
           signal: controller.signal,

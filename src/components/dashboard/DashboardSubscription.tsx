@@ -77,9 +77,16 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
             if (stripeData.hasSubscription) {
               // Use Stripe data directly - it's the source of truth
               const usedValue = parseFloat(String(stripeData.used)) || 0;
-              const quotaValue = stripeData.quota || 100;
+              // ⚠️ CRITICAL: Always use quota from API (respects manual overrides)
+              const quotaValue = (stripeData.quota !== undefined && stripeData.quota !== null) ? stripeData.quota : 100;
               const remainingValue = parseFloat(String(stripeData.remaining)) || (quotaValue - usedValue);
               const percentage = quotaValue > 0 ? (usedValue / quotaValue) * 100 : 0;
+              
+              console.log('[Dashboard] 📊 Quota from API:', { 
+                apiQuota: stripeData.quota, 
+                finalQuota: quotaValue,
+                used: usedValue 
+              });
               
               setUsageStats({
                 used: usedValue,
@@ -173,8 +180,16 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 
                 // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
                 const usedValue = parseFloat(String(stripeData.used)) || 0;
-                const remainingValue = parseFloat(String(stripeData.remaining)) || (stripeData.quota - usedValue);
-                const quotaValue = stripeData.quota || plan.analysesPerMonth;
+                // ⚠️ CRITICAL: Always use quota from API (respects manual overrides), fallback to plan only if quota is truly missing
+                const quotaValue = (stripeData.quota !== undefined && stripeData.quota !== null) ? stripeData.quota : plan.analysesPerMonth;
+                const remainingValue = parseFloat(String(stripeData.remaining)) || (quotaValue - usedValue);
+                
+                console.log('[Dashboard] 📊 Quota values:', { 
+                  apiQuota: stripeData.quota, 
+                  planQuota: plan.analysesPerMonth, 
+                  finalQuota: quotaValue,
+                  used: usedValue 
+                });
                 
                 setUsageStats({
                   used: usedValue,

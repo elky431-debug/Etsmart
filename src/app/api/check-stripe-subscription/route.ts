@@ -173,7 +173,21 @@ export async function GET(request: NextRequest) {
     console.log(`[Check Stripe] Final quota: planQuota=${planQuota}, dbQuota=${dbQuota}, final=${quota}`);
 
     // Update database with subscription info (using snake_case column names!)
+    // ⚠️ CRITICAL: Only update quota if it's HIGHER than current DB value (never downgrade manual boosts)
     try {
+      // Read current quota from DB again to be absolutely sure we don't overwrite a higher value
+      const { data: currentUserData } = await supabase
+        .from('users')
+        .select('analysis_quota')
+        .eq('id', user.id)
+        .single();
+      
+      const currentDbQuota = currentUserData?.analysis_quota || 0;
+      // Only use the higher value - never downgrade
+      const effectiveQuota = Math.max(planQuota, currentDbQuota);
+      
+      console.log(`[Check Stripe] Quota update check: planQuota=${planQuota}, currentDbQuota=${currentDbQuota}, effectiveQuota=${effectiveQuota}`);
+      
       await supabase
         .from('users')
         .upsert({
@@ -183,8 +197,8 @@ export async function GET(request: NextRequest) {
           subscription_status: 'active',
           stripe_customer_id: customer.id,
           stripe_subscription_id: subscription.id,
-          // Only update quota if plan quota is HIGHER than DB quota (never downgrade manual boosts)
-          analysis_quota: quota,
+          // Only update quota if effective quota is HIGHER than current DB quota (never downgrade manual boosts)
+          analysis_quota: effectiveQuota,
           // DON'T touch analysis_used_this_month - keep existing value!
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd.toISOString(),
@@ -192,19 +206,38 @@ export async function GET(request: NextRequest) {
           onConflict: 'id',
           ignoreDuplicates: false,
         });
-      console.log(`[Check Stripe] Database updated for user ${user.id}`);
+      console.log(`[Check Stripe] Database updated for user ${user.id} with quota ${effectiveQuota}`);
     } catch (dbError) {
       console.error('[Check Stripe] Database update failed (non-critical):', dbError);
     }
 
-    const remaining = Math.max(0, quota - currentUsed);
+    // Use the effective quota (which respects manual overrides) for the response
+    // Re-read DB quota one more time to ensure we have the latest value after potential update
+    let finalQuota = quota;
+    try {
+      const { data: finalUserData } = await supabase
+        .from('users')
+        .select('analysis_quota')
+        .eq('id', user.id)
+        .single();
+      
+      const finalDbQuota = finalUserData?.analysis_quota || 0;
+      finalQuota = Math.max(planQuota, finalDbQuota) || 100;
+      console.log(`[Check Stripe] Final quota for response: planQuota=${planQuota}, finalDbQuota=${finalDbQuota}, finalQuota=${finalQuota}`);
+    } catch (err) {
+      console.warn('[Check Stripe] Could not re-read quota, using calculated value:', err);
+    }
+    
+    const remaining = Math.max(0, finalQuota - currentUsed);
+    
+    console.log(`[Check Stripe] 📤 Returning subscription data: quota=${finalQuota}, used=${currentUsed}, remaining=${remaining}`);
     
     return NextResponse.json({
       hasSubscription: true,
       plan,
       status: cancelAtPeriodEnd ? 'canceling' : 'active',
       cancelAtPeriodEnd,
-      quota,
+      quota: finalQuota, // ⚠️ CRITICAL: Return the quota that respects manual overrides
       used: currentUsed,
       remaining: remaining,
       customerId: customer.id,
