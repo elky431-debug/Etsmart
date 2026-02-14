@@ -258,320 +258,73 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // PROMPT AVEC ESTIMATION DU PRIX FOURNISSEUR
+    // PROMPT OPTIMISÉ - COMPACT POUR RÉPONSE RAPIDE (<15s)
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // ⚡ PROMPT COMPLET ET DÉTAILLÉ POUR ANALYSE PRÉCISE
-    // IMPORTANT: Avec response_format: json_object, le prompt DOIT explicitement demander du JSON
-    const prompt = `Tu es un expert e-commerce de niveau international, spécialisé dans l'analyse approfondie de produits pour la plateforme Etsy. Ta mission est d'analyser ce produit avec une précision maximale et de fournir une évaluation complète et détaillée qui aidera un vendeur à prendre une décision éclairée.
+    const prompt = `Expert e-commerce Etsy. Analyse ce produit. Niche: ${niche}. Prix fournisseur: ${productPrice > 0 ? `$${productPrice}` : 'à estimer'}.
 
-═══════════════════════════════════════════════════════════════════════════════
-CONTEXTE DE L'ANALYSE
-═══════════════════════════════════════════════════════════════════════════════
+ANALYSE L'IMAGE et réponds en JSON valide:
 
-- Niche du produit: ${niche}
-- Prix fournisseur indiqué: ${productPrice > 0 ? `$${productPrice}` : 'non fourni (à estimer)'}
-- Image du produit: Analyse l'image fournie pour identifier tous les détails visuels
+1. VISION: Décris le produit en 1 phrase. Vérifie s'il correspond à la niche "${niche}".
+2. PRIX FOURNISSEUR: Estime coût AliExpress + shipping. supplierPrice = estimatedSupplierPrice + estimatedShippingCost
+3. RECHERCHE ETSY: Requête 5-8 mots EN ANGLAIS: [type] [caractéristique distinctive] [matériau] [style] [couleur]. Inclure les traits visuels distinctifs.
+4. CONCURRENCE: Estime le nombre de BOUTIQUES Etsy vendant des produits similaires. 0-40=LANCER, 41-90=LANCER_CONCURRENTIEL, 91+=NE_PAS_LANCER.
+5. PRIX RECOMMANDÉ: Coût total < $70 → ×3 min. Coût ≥ $70 → ×2 min. optimal = max(coût×multiplicateur, marché×1.05).
+6. SIMULATION: Temps première vente (sans/avec ads), ventes à 3 mois (prudent/réaliste/optimiste).
+7. TAGS SEO: EXACTEMENT 13 tags en anglais, max 20 chars chacun.
+8. TITRE VIRAL: EN ANGLAIS, 100-140 caractères, avec adjectifs puissants + matériau + usage + occasion.
 
-═══════════════════════════════════════════════════════════════════════════════
-INSTRUCTIONS DÉTAILLÉES PAR SECTION
-═══════════════════════════════════════════════════════════════════════════════
+9. SCORE DE POTENTIEL (launchPotentialScore) - NOTE SUR 10:
+⚠️ CHAQUE PRODUIT DOIT AVOIR UN SCORE UNIQUE ET DIFFÉRENT.
+Calcul: (Saturation×0.5) + (Originalité×0.3) + (Marges×0.2)
+- Saturation: <20 concurrents=8-10pts, 20-50=6-8, 50-100=4-6, 100-200=2-4, 200+=1-2
+- Originalité: Unique=8-10, Différencié=6-8, Semi-générique=4-6, Copié partout=1-3
+- Marges: >60%=8-10, 40-60%=6-8, 20-40%=3-5, <20%=1-3
+Bijoux simples non originaux = 3.0 max. Bijoux originaux/personnalisés = score normal.
+Justifie en 2-3 phrases.
 
-1. ANALYSE VISUELLE DU PRODUIT (VISION):
-   - Examine attentivement l'image du produit
-   - Décris le produit que tu vois dans l'image en 1 phrase claire, précise et descriptive
-   - Indique clairement si tu peux identifier le produit (canIdentifyProduct: true/false)
-   - Sois très spécifique sur les caractéristiques visibles:
-     * Couleurs dominantes et accents
-     * Forme générale et dimensions apparentes
-     * Matériaux visibles (métal, plastique, tissu, bois, etc.)
-     * Style et esthétique (moderne, vintage, minimaliste, etc.)
-     * Détails distinctifs (textures, motifs, finitions)
-   - Si le produit n'est pas clairement identifiable, indique-le mais fournis quand même une description basée sur ce que tu peux voir
+10. confidenceScore: 30-95, fiabilité de l'analyse (PAS le potentiel).
 
-1.5. VÉRIFICATION CORRESPONDANCE NICHE/PRODUIT (CRITIQUE):
-   - ⚠️ CRITIQUE: Vérifie si le produit que tu vois dans l'image correspond réellement à la niche sélectionnée: "${niche}"
-   - Compare le type de produit visible dans l'image avec ce que la niche "${niche}" devrait normalement contenir
-   - Si le produit ne correspond PAS à la niche (ex: un bijou alors que la niche est "home-decor", ou un mug alors que la niche est "jewelry"), alors:
-     * nicheMatch: false
-     * nicheMatchReasoning: "Le produit visible dans l'image ne correspond pas à la niche sélectionnée. [Explique pourquoi]"
-   - Si le produit correspond à la niche, alors:
-     * nicheMatch: true
-     * nicheMatchReasoning: "Le produit correspond bien à la niche sélectionnée."
-   - Cette vérification est CRITIQUE car un produit mal aligné avec sa niche aura des résultats médiocres sur Etsy
-
-2. ESTIMATION DU PRIX FOURNISSEUR:
-   - Estime le coût d'achat probable chez le fournisseur (AliExpress/Alibaba) selon la niche:
-     * Bijoux et accessoires: $0.5-12 (dépend de la complexité et des matériaux)
-     * Décoration et objets d'art: $2-35 (dépend de la taille et de la qualité)
-     * Autres catégories: $1-25 (estimation générale)
-   - Estime les frais de livraison depuis le fournisseur: $1-20 selon:
-     * Le poids apparent du produit
-     * La taille et le volume
-     * La fragilité (emballage renforcé si nécessaire)
-   - Justifie brièvement ton estimation en mentionnant les facteurs pris en compte
-   - Le champ "supplierPrice" doit être égal à estimatedSupplierPrice + estimatedShippingCost
-
-3. REQUÊTE DE RECHERCHE ETSY (CRITIQUE POUR TROUVER LES CONCURRENTS):
-   - Génère une requête de recherche Etsy ULTRA-PRÉCISE en anglais (5-8 mots)
-   - OBJECTIF: Trouver les VRAIS concurrents qui vendent le MÊME type de produit
-   
-   ⚠️ ORDRE DE PRIORITÉ STRICT (du plus important au moins important):
-     1. TYPE DE PRODUIT exact (watch, necklace, mug, lamp, etc.)
-     2. CARACTÉRISTIQUES DISTINCTIVES VISUELLES (arabic numerals, skeleton dial, led, engraved, etc.)
-     3. MATÉRIAU visible (leather, silver, silicone, wood, ceramic, etc.)
-     4. STYLE/DESIGN (minimalist, vintage, boho, modern, industrial, etc.)
-     5. COULEUR principale (black, gold, rose gold, white, etc.)
-     6. GENRE si applicable (men, women, unisex)
-     7. EN DERNIER: usage/occasion (gift, wedding, home decor) - SEULEMENT s'il reste de la place
-   
-   - FORMULE: "[type] [caractéristique distinctive] [matériau] [style] [couleur] [genre]"
-   
-   - RÈGLE CRITIQUE: Les caractéristiques qui DIFFÉRENCIENT le produit doivent TOUJOURS apparaître
-     * Si une montre a des chiffres arabes → "arabic numerals" DOIT être dans la requête
-     * Si un bijou est gravé → "engraved" DOIT être dans la requête
-     * Si une lampe est LED → "led" DOIT être dans la requête
-     * Si un objet a une forme particulière → l'inclure (moon, heart, geometric, etc.)
-   
-   - Exemples de BONNES requêtes:
-     * "watch arabic numerals black silicone minimalist men" (caractéristique "arabic" incluse)
-     * "necklace personalized name engraved gold women" (caractéristique "engraved" incluse)
-     * "lamp moon 3d led floating magnetic" (caractéristiques "moon 3d led floating" incluses)
-     * "ring skeleton mechanical steampunk silver" (caractéristique "skeleton" incluse)
-   
-   - Exemples de MAUVAISES requêtes:
-     * "black silicone watch men gift" → MANQUE "arabic numerals" qui est distinctif!
-     * "gold necklace gift women" → MANQUE "personalized/engraved" si le produit l'est!
-   
-   - NE JAMAIS omettre une caractéristique visuelle distinctive au profit de "gift" ou "present"
-
-4. ANALYSE APPROFONDIE DE LA CONCURRENCE:
-   - Estime le nombre de BOUTIQUES Etsy (pas de listings individuels) vendant des produits similaires
-   - Cette estimation doit être réaliste et basée sur:
-     * La popularité de la niche
-     * La spécificité du produit
-     * Les tendances du marché Etsy
-   - Règles de décision STRICTES basées sur le nombre de concurrents:
-     * 0-40 concurrents = LANCER (marché accessible, opportunité claire)
-     * 41-90 concurrents = LANCER_CONCURRENTIEL (marché compétitif mais accessible avec optimisation)
-     * 91+ concurrents = NE_PAS_LANCER (marché saturé, difficulté d'entrée trop élevée)
-   - Estime le prix moyen du marché Etsy pour ce type de produit (averageMarketPrice)
-   - Détermine une fourchette de prix crédible (marketPriceRange: min et max)
-   - Justifie ton estimation de concurrence en expliquant ton raisonnement
-   - Indique si ton estimation est fiable (competitorEstimationReliable: true/false)
-   - Détermine le niveau de saturation:
-     * "non_sature" si < 40 concurrents
-     * "concurrentiel" si 41-90 concurrents
-     * "sature" si 91+ concurrents
-   - Fournis une analyse de saturation en 1 phrase
-
-5. CALCUL DÉTAILLÉ DU PRIX DE VENTE RECOMMANDÉ:
-   - Calcule d'abord le coût total (estimatedSupplierPrice + estimatedShippingCost)
-   - Applique les règles de multiplicateur:
-     * Si coût total < $70: Multiplicateur × 3 (marge importante nécessaire)
-     * Si coût total ≥ $70: Multiplicateur × 2 (marge réduite acceptable)
-   - Le prix recommandé optimal doit être supérieur au prix moyen du marché × 1.05 (positionnement premium)
-   - Calcule le prix minimum viable (minimumViablePrice) = coût total × multiplicateur
-   - Détermine le prix optimal (recommendedPrice.optimal) = max(prix minimum viable, prix moyen marché × 1.05)
-   - Définis une fourchette:
-     * recommendedPrice.min = prix minimum viable
-     * recommendedPrice.max = prix optimal × 1.3 (marge pour promotions)
-   - Évalue le niveau de risque (priceRiskLevel):
-     * "faible" si le prix recommandé est compétitif et la marge est confortable
-     * "moyen" si le prix est dans la moyenne du marché
-     * "élevé" si le prix est au-dessus du marché ou la marge est serrée
-   - Fournis une analyse de prix détaillée en 1 phrase expliquant ta recommandation
-
-6. SIMULATION COMPLÈTE DE LANCEMENT:
-   - Temps estimé avant première vente:
-     * Sans publicité (withoutAds): 7-21 jours (estimation min-max réaliste)
-     * Avec publicité Etsy Ads (withAds): 3-10 jours (estimation min-max avec budget publicitaire)
-   - Ventes projetées après 3 mois:
-     * Scénario prudent: estimation conservatrice (conditions défavorables)
-     * Scénario réaliste: estimation probable (conditions normales)
-     * Scénario optimiste: estimation si tout va bien (conditions favorables)
-   - Ajoute une note explicative (simulationNote) qui explique les hypothèses de ta simulation
-
-7. TAGS SEO OPTIMISÉS POUR ETSY (OBLIGATOIRE - 13 TAGS):
-   - ⚠️ CRITIQUE: Génère EXACTEMENT 13 tags SEO en anglais (OBLIGATOIRE - JAMAIS MOINS DE 13)
-   - ⚠️ Si tu génères moins de 13 tags, ton analyse sera rejetée
-   - Maximum 20 caractères par tag (contrainte Etsy)
-   - Utilise des mots-clés pertinents et recherchés sur Etsy
-   - Inclus des variations: matériaux, couleurs, usages, occasions, styles, caractéristiques
-   - Évite les doublons et les tags trop génériques
-   - Les tags doivent être optimisés pour le référencement Etsy
-   - Exemples de variations à inclure: matériau (wood, metal, fabric), couleur (black, white, blue), style (modern, vintage, minimalist), usage (gift, decoration, storage), occasion (birthday, wedding, anniversary), caractéristiques (handmade, custom, personalized)
-   - ⚠️ RAPPEL: Tu DOIS générer EXACTEMENT 13 tags, pas 12, pas 11, pas 10 - EXACTEMENT 13
-
-8. TITRE VIRAL ET SEO (CRITIQUE - OBLIGATOIREMENT LONG ET VIRAL):
-   - ⚠️ CRITIQUE: Génère un titre SEO LONG et VIRAL en anglais (OBLIGATOIREMENT entre 100 et 140 caractères)
-   - ⚠️ Le titre DOIT faire AU MINIMUM 100 caractères - JAMAIS moins de 100 caractères
-   - ⚠️ Le titre DOIT faire AU MAXIMUM 140 caractères (limite Etsy)
-   - ⚠️ Si tu génères un titre de moins de 100 caractères, ton analyse sera rejetée
-   - ⚠️ Idéalement, vise entre 120 et 140 caractères pour une optimisation maximale
-   
-   TECHNIQUES VIRALES À UTILISER:
-   - Utilise des mots puissants et émotionnels: "Stunning", "Exquisite", "Premium", "Luxury", "Perfect", "Unique", "Handcrafted", "Beautiful", "Elegant"
-   - Inclus des bénéfices émotionnels: "for Her", "for Him", "Perfect Gift", "Thoughtful Present", "Memorable Keepsake"
-   - Ajoute des contextes d'usage: "Birthday Gift", "Anniversary Present", "Wedding Favor", "Home Decor", "Office Decor"
-   - Mentionne les caractéristiques premium: "Handmade", "Custom", "Personalized", "Engraved", "Premium Quality", "Artisan Made"
-   - Inclus des matériaux et styles: "Wooden", "Metal", "Leather", "Fabric", "Modern", "Vintage", "Minimalist", "Bohemian"
-   - Ajoute des occasions: "Christmas", "Valentine's Day", "Mother's Day", "Father's Day", "Graduation", "Housewarming"
-   
-   STRUCTURE VIRALE RECOMMANDÉE (100-140 caractères, idéalement 120-140):
-   [Adjectif puissant] + [Produit principal] + [Matériau/Style] + [Caractéristiques détaillées] + [Usage/Bénéfice] + [Occasion/Contexte] + [Mots-clés bonus SEO]
-   
-   EXEMPLES DE TITRES VIRAUX EXCELLENTS (100-140 caractères):
-   - "Stunning Handmade Wooden Music Box Custom Engraved Name Personalized Gift for Her Birthday Anniversary Keepsake Jewelry Storage Box" (130 caractères)
-   - "Exquisite Premium Leather Journal Handcrafted Personalized Custom Name Engraved Perfect Gift for Writers Students Office Decor" (135 caractères)
-   - "Beautiful Handmade Ceramic Mug Custom Design Personalized Name Perfect Gift for Coffee Lovers Home Decor Kitchen Essential" (132 caractères)
-   - "Luxury Handcrafted Wooden Watch Box Premium Quality Custom Engraved Perfect Gift for Him Birthday Anniversary Keepsake" (128 caractères)
-   - "Premium Handmade Custom Personalized Gift Unique Design Perfect Present for Special Occasion Thoughtful Keepsake" (105 caractères)
-   
-   EXEMPLES DE MAUVAIS TITRES (À ÉVITER):
-   - "Custom Music Box Gift" (trop court, pas viral, seulement 22 caractères - MOINS DE 100)
-   - "Wooden Box" (trop court, pas de mots-clés SEO - MOINS DE 100)
-   - "Gift for Her" (trop générique, pas de description du produit - MOINS DE 100)
-   
-   RÈGLES ABSOLUES:
-   - Le titre DOIT faire AU MINIMUM 100 caractères (OBLIGATOIRE - JAMAIS MOINS)
-   - Le titre DOIT faire AU MAXIMUM 140 caractères (limite Etsy)
-   - Idéalement, vise entre 120 et 140 caractères pour une optimisation maximale
-   - Inclus au moins 3-4 adjectifs puissants et émotionnels
-   - Mentionne le matériau ET le style
-   - Inclus au moins 2-3 contextes d'usage différents
-   - Ajoute des mots-clés SEO pertinents (handmade, custom, personalized, gift, etc.)
-   - Le titre doit être naturel, lisible et accrocheur (pas juste une liste de mots-clés)
-   - Évite les répétitions mais maximise les variations de mots-clés pertinents
-   - Le titre doit créer une émotion et donner envie de cliquer
-
-9. VERDICT FINAL ET RECOMMANDATIONS:
-   - Fournis un verdict final en 1 phrase qui résume ta recommandation
-   - Le verdict doit être clair et actionnable
-   - Ajoute un avertissement (warningIfAny) si tu détectes des risques importants, sinon null
-   - Le verdict doit refléter la décision (LANCER, LANCER_CONCURRENTIEL, ou NE_PAS_LANCER)
-
-10. SCORE DE POTENTIEL DE LANCEMENT (launchPotentialScore) - NOTE SUR 10:
-    ⚠️ C'est LE score principal affiché à l'utilisateur. Il est sur une échelle de 0 à 10.
-    
-    ⚠️ RÈGLE ABSOLUE: CHAQUE PRODUIT EST UNIQUE ET DOIT AVOIR UN SCORE DIFFÉRENT.
-    - Tu NE DOIS PAS donner le même score à tous les produits.
-    - Analyse en profondeur l'IMAGE du produit spécifique et son marché RÉEL.
-    - Un bracelet en argent ≠ une lampe LED ≠ un mug personnalisé → ils doivent avoir des scores TRÈS DIFFÉRENTS.
-    - Le score doit refléter les VRAIES conditions de marché pour CE produit spécifique, pas une note par défaut.
-    
-    Tu DOIS analyser le produit de manière OBJECTIVE et attribuer un score entre 1 et 10 basé sur:
-    
-    A) SATURATION DU MARCHÉ (50% du poids):
-       - Combien de concurrents vendent un produit similaire sur Etsy?
-       - Le marché est-il saturé, compétitif, ou sous-exploité?
-       - Y a-t-il de la place pour un nouveau vendeur?
-       - < 20 concurrents = marché très favorable (8-10 points sur cette partie)
-       - 20-50 concurrents = marché accessible (6-8 points)
-       - 50-100 concurrents = marché compétitif (4-6 points)
-       - 100-200 concurrents = marché saturé (2-4 points)
-       - > 200 concurrents = marché très saturé (1-2 points)
-    
-    B) ORIGINALITÉ ET DIFFÉRENCIATION (30% du poids):
-       - Le produit est-il unique, original, personnalisable?
-       - Existe-t-il des centaines de produits identiques sur Etsy?
-       - Le produit a-t-il un angle de différenciation clair?
-       - Très original/unique = 8-10 points
-       - Différencié = 6-8 points
-       - Semi-générique = 4-6 points
-       - Très générique/copié partout = 1-3 points
-    
-    C) POTENTIEL DE MARGES (20% du poids):
-       - Le ratio prix de vente / coût fournisseur est-il bon?
-       - Marges > 60% = 8-10 points
-       - Marges 40-60% = 6-8 points
-       - Marges 20-40% = 3-5 points
-       - Marges < 20% = 1-3 points
-    
-    CALCUL: launchPotentialScore = (A × 0.5) + (B × 0.3) + (C × 0.2)
-    Arrondir à 1 décimale, entre 1.0 et 10.0
-    
-    ⚠️ SEULE RÈGLE ABSOLUE - BIJOUX SIMPLES NON ORIGINAUX:
-    - Si le produit est un bijou SIMPLE et NON ORIGINAL (bracelet basique, collier générique, bague sans personnalisation, etc.)
-      → Le score DOIT être 3/10 ou moins
-    - MAIS si le bijou est original, personnalisé, gravé, thématique (viking, medieval), fait main avec un design unique, etc.
-      → Tu peux mettre un score plus élevé selon ton analyse (5-8/10 si vraiment différencié)
-    
-    ⚠️ POUR TOUS LES AUTRES PRODUITS (sacs, bébé, décoration, mugs, vêtements, etc.):
-    - AUCUNE règle forcée. Tu analyses OBJECTIVEMENT la saturation, l'originalité et les marges
-    - Un sac unique peut avoir 8/10, un sac générique peut avoir 3/10
-    - Un produit bébé saturé peut avoir 4/10, un produit bébé niche peut avoir 9/10
-    - Sois HONNÊTE et OBJECTIF dans ton évaluation
-    
-    EXEMPLES:
-    - Bracelet en argent simple sans gravure → 2.5/10 (bijou simple non original)
-    - Collier viking personnalisé gravé → 6.5/10 (bijou original et différencié)
-    - Mug personnalisé dans un marché peu saturé → 7.8/10
-    - Sac à dos générique comme des milliers d'autres → 3.2/10
-    - Sac à dos en cuir artisanal unique → 7.5/10
-    - Lampe LED 3D moon unique → 8.2/10
-    - Coque iPhone générique → 2.0/10
-    - Produit bébé personnalisé dans un segment peu saturé → 8.5/10
-    
-    - OBLIGATOIRE: Fournis une justification du score en 2-3 phrases (launchPotentialScoreJustification)
-
-11. SCORE DE CONFIANCE (confidenceScore):
-    - Score entre 30 et 95 représentant ta confiance dans l'analyse globale
-    - Ce score reflète la fiabilité de ton analyse, PAS le potentiel du produit
-    - Plus tu es sûr de tes estimations (concurrents, prix, marché), plus le score est élevé
-
-═══════════════════════════════════════════════════════════════════════════════
-FORMAT DE RÉPONSE STRICT (JSON UNIQUEMENT)
-═══════════════════════════════════════════════════════════════════════════════
-
-Tu DOIS répondre UNIQUEMENT en JSON valide avec cette structure exacte:
-
+JSON STRICT:
 {
   "canIdentifyProduct": bool,
-  "productVisualDescription": "1 phrase descriptive et précise",
-  "nicheMatch": bool (CRITIQUE: true si le produit correspond à la niche, false sinon),
-  "nicheMatchReasoning": "explication de la correspondance ou non-correspondance avec la niche",
-  "etsySearchQuery": "5-8 mots ULTRA-PRÉCIS: [type] [matériau] [style] [couleur] [usage]",
-  "estimatedSupplierPrice": nombre,
-  "estimatedShippingCost": nombre,
-  "supplierPriceReasoning": "justification courte de l'estimation",
-  "decision": "LANCER" | "LANCER_CONCURRENTIEL" | "NE_PAS_LANCER",
-  "launchPotentialScore": nombre entre 1.0 et 10.0 (note sur 10 du potentiel de lancement - L'IA DÉCIDE selon saturation/originalité/marges - SEULE EXCEPTION: bijoux simples non originaux = 3.0 max),
-  "launchPotentialScoreJustification": "2-3 phrases expliquant pourquoi cette note, saturation observée, originalité, marges",
-  "confidenceScore": nombre entre 30 et 95 (confiance dans l'analyse, PAS le potentiel du produit),
-  "scoreJustification": "2-3 phrases expliquant la fiabilité de l'analyse",
-  "estimatedCompetitors": nombre,
-  "competitorEstimationReasoning": "justification courte de l'estimation",
+  "productVisualDescription": "1 phrase",
+  "nicheMatch": bool,
+  "nicheMatchReasoning": "1 phrase",
+  "etsySearchQuery": "5-8 mots anglais",
+  "estimatedSupplierPrice": number,
+  "estimatedShippingCost": number,
+  "supplierPriceReasoning": "courte justification",
+  "decision": "LANCER"|"LANCER_CONCURRENTIEL"|"NE_PAS_LANCER",
+  "launchPotentialScore": 1.0-10.0,
+  "launchPotentialScoreJustification": "2-3 phrases",
+  "confidenceScore": 30-95,
+  "scoreJustification": "1-2 phrases",
+  "estimatedCompetitors": number,
+  "competitorEstimationReasoning": "courte justification",
   "competitorEstimationReliable": bool,
-  "saturationLevel": "non_sature" | "concurrentiel" | "sature",
-  "saturationAnalysis": "analyse courte en 1 phrase",
-  "averageMarketPrice": nombre,
-  "marketPriceRange": {"min": nombre, "max": nombre},
-  "marketPriceReasoning": "justification courte du prix marché",
-  "supplierPrice": nombre (estimatedSupplierPrice + estimatedShippingCost),
-  "minimumViablePrice": nombre,
-  "recommendedPrice": {"optimal": nombre, "min": nombre, "max": nombre},
-  "priceRiskLevel": "faible" | "moyen" | "élevé",
-  "pricingAnalysis": "analyse détaillée en 1 phrase",
+  "saturationLevel": "non_sature"|"concurrentiel"|"sature",
+  "saturationAnalysis": "1 phrase",
+  "averageMarketPrice": number,
+  "marketPriceRange": {"min": number, "max": number},
+  "marketPriceReasoning": "1 phrase",
+  "supplierPrice": number,
+  "minimumViablePrice": number,
+  "recommendedPrice": {"optimal": number, "min": number, "max": number},
+  "priceRiskLevel": "faible"|"moyen"|"élevé",
+  "pricingAnalysis": "1 phrase",
   "launchSimulation": {
-    "timeToFirstSale": {
-      "withoutAds": {"min": nombre, "max": nombre},
-      "withAds": {"min": nombre, "max": nombre}
-    },
-    "salesAfter3Months": {
-      "prudent": nombre,
-      "realiste": nombre,
-      "optimise": nombre
-    },
-    "simulationNote": "note explicative détaillée"
+    "timeToFirstSale": {"withoutAds": {"min": number, "max": number}, "withAds": {"min": number, "max": number}},
+    "salesAfter3Months": {"prudent": number, "realiste": number, "optimise": number},
+    "simulationNote": "1 phrase"
   },
-  "viralTitleEN": "titre VIRAL LONG (OBLIGATOIREMENT entre 100 et 140 caractères, idéalement 120-140) en anglais, riche en mots-clés SEO, avec adjectifs puissants et contextes d'usage",
-  "seoTags": ["tag1", "tag2", ..., "tag13"] (OBLIGATOIRE: EXACTEMENT 13 tags - JAMAIS MOINS),
-  "finalVerdict": "verdict final en 1 phrase",
-  "warningIfAny": "avertissement si nécessaire" | null
+  "viralTitleEN": "100-140 chars, viral, SEO",
+  "seoTags": ["13 tags exactement"],
+  "finalVerdict": "1 phrase",
+  "warningIfAny": "string ou null"
 }
 
-IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans explications, sans commentaires. Le JSON doit être valide et complet.`;
+JSON UNIQUEMENT, pas de texte.`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -585,19 +338,19 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
       maxTokens: 1500,
       temperature: 0.7,
       model: 'gpt-4o-mini',
-      timeout: '40s',
-      retries: 1,
-      netlifyLimit: '50s',
+      timeout: '22s',
+      retries: 0,
+      netlifyLimit: '26s',
     });
     
     const openaiStartTime = Date.now();
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
-    // ⚡ OPTIMISATION: Réduire les retries et augmenter le timeout pour accélérer
-    // Timeout à 40s par tentative (donne plus de temps à OpenAI)
-    // Avec seulement 1 retry, on reste sous la limite Netlify de 50s par requête
-    const MAX_RETRIES = 1; // 2 tentatives au total (0, 1) - réduit pour accélérer
-    const INITIAL_TIMEOUT = 40000; // 40s par tentative (augmenté pour éviter les timeouts)
+    // ⚡ OPTIMISATION NETLIFY: UNE SEULE tentative avec timeout strict
+    // Netlify Pro = 26s max. On utilise 22s pour laisser une marge de sécurité.
+    // PAS DE RETRY - une seule tentative rapide pour rester dans la limite Netlify
+    const MAX_RETRIES = 0; // ⚠️ UNE SEULE tentative - pas de retry
+    const INITIAL_TIMEOUT = 22000; // 22s max (Netlify coupe à ~26s)
     let lastError: any = null;
     let openaiResponse: Response | null = null;
     
@@ -655,7 +408,7 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire, sans ex
               }
             ],
             temperature: 0.7, // ⚠️ 0.7 = bon équilibre entre cohérence et différenciation entre produits
-            max_tokens: 1500,
+            max_tokens: 2000, // Augmenté pour éviter les JSON tronqués
             response_format: { type: 'json_object' },
             stream: false
           }),
