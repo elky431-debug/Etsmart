@@ -928,9 +928,18 @@ interface AIAnalysisResult {
   nicheMatch?: boolean; // true si le produit correspond à la niche, false sinon
   nicheMatchReasoning?: string; // Explication de la correspondance ou non-correspondance
   
-  // Launch Potential Score (décidé par l'IA)
-  launchPotentialScore?: number; // Note sur 10 du potentiel de lancement (1.0 - 10.0)
-  launchPotentialScoreJustification?: string; // Justification de la note par l'IA
+  // Launch Potential Score (décidé par l'IA via 6 critères pondérés)
+  launchPotentialScore?: number; // Note sur 10 = final_weighted_score (0-10)
+  launchPotentialScoreJustification?: string; // = strategic_summary
+  classification?: string; // NOT RECOMMENDED / HIGH RISK / MODERATE OPPORTUNITY / STRONG OPPORTUNITY / EXCEPTIONAL OPPORTUNITY
+  scoringBreakdown?: {
+    market_demand: { score: number; analysis: string };
+    competition_intensity: { score: number; analysis: string };
+    differentiation_potential: { score: number; analysis: string };
+    profit_margin_potential: { score: number; analysis: string };
+    impulse_buy_potential: { score: number; analysis: string };
+    scalability_potential: { score: number; analysis: string };
+  };
   
   // Verdict
   finalVerdict: string;
@@ -1193,6 +1202,52 @@ const fetchAIAnalysis = async (
       : 'handmade gift product';
     
     console.log('✅ Generated final fallback Etsy query:', analysis.etsySearchQuery);
+  }
+  
+  // Map the scoring breakdown from API response if available
+  const rawAnalysis = analysis as any;
+  
+  // Map scoringBreakdown → launchPotentialScore, classification, etc.
+  if (rawAnalysis.scoringBreakdown) {
+    const sb = rawAnalysis.scoringBreakdown;
+    // Recalculate weighted score
+    const weightedScore = (
+      (sb.market_demand?.score || 0) * 0.25 +
+      (sb.competition_intensity?.score || 0) * 0.20 +
+      (sb.differentiation_potential?.score || 0) * 0.15 +
+      (sb.profit_margin_potential?.score || 0) * 0.20 +
+      (sb.impulse_buy_potential?.score || 0) * 0.10 +
+      (sb.scalability_potential?.score || 0) * 0.10
+    );
+    analysis.scoringBreakdown = sb;
+    analysis.launchPotentialScore = Math.round(weightedScore * 10) / 10;
+    console.log(`📊 Scoring breakdown mapped: weighted=${analysis.launchPotentialScore}`);
+  }
+  
+  // Map top-level scoring fields if returned in new format
+  if (rawAnalysis.market_demand && !rawAnalysis.scoringBreakdown) {
+    analysis.scoringBreakdown = {
+      market_demand: rawAnalysis.market_demand,
+      competition_intensity: rawAnalysis.competition_intensity,
+      differentiation_potential: rawAnalysis.differentiation_potential,
+      profit_margin_potential: rawAnalysis.profit_margin_potential,
+      impulse_buy_potential: rawAnalysis.impulse_buy_potential,
+      scalability_potential: rawAnalysis.scalability_potential,
+    };
+    if (rawAnalysis.final_weighted_score) {
+      analysis.launchPotentialScore = rawAnalysis.final_weighted_score;
+    }
+    if (rawAnalysis.strategic_summary) {
+      analysis.launchPotentialScoreJustification = rawAnalysis.strategic_summary;
+    }
+  }
+  
+  // Map classification
+  if (rawAnalysis.classification && !analysis.classification) {
+    analysis.classification = rawAnalysis.classification;
+  }
+  if (rawAnalysis.launchPotentialScoreJustification && !analysis.launchPotentialScoreJustification) {
+    analysis.launchPotentialScoreJustification = rawAnalysis.launchPotentialScoreJustification;
   }
   
   // S'assurer que les autres champs critiques ont des valeurs par défaut
@@ -1848,6 +1903,8 @@ export const analyzeProduct = async (
         productVisualDescription: aiAnalysis.productVisualDescription,
         aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
         aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
+        aiClassification: aiAnalysis.classification,
+        aiScoringBreakdown: aiAnalysis.scoringBreakdown,
       });
       
       // Ajouter le score à competitorAnalysis
@@ -1890,6 +1947,8 @@ export const analyzeProduct = async (
         productVisualDescription: aiAnalysis.productVisualDescription,
         aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
         aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
+        aiClassification: aiAnalysis.classification,
+        aiScoringBreakdown: aiAnalysis.scoringBreakdown,
       });
       
       console.log('⚠️ Competition estimate failed, using AI estimates as fallback');
@@ -1931,6 +1990,8 @@ export const analyzeProduct = async (
         productVisualDescription: aiAnalysis.productVisualDescription,
         aiLaunchPotentialScore: aiAnalysis.launchPotentialScore,
         aiLaunchPotentialScoreJustification: aiAnalysis.launchPotentialScoreJustification,
+        aiClassification: aiAnalysis.classification,
+        aiScoringBreakdown: aiAnalysis.scoringBreakdown,
       });
     } catch (scoreError) {
       console.error('Failed to calculate Launch Potential Score:', scoreError);

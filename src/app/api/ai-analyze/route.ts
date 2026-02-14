@@ -13,12 +13,28 @@ interface AIAnalysisRequest {
   productImageUrl: string;
 }
 
+interface ScoringCriterion {
+  score: number;
+  analysis: string;
+}
+
+interface ScoringBreakdownResponse {
+  market_demand: ScoringCriterion;
+  competition_intensity: ScoringCriterion;
+  differentiation_potential: ScoringCriterion;
+  profit_margin_potential: ScoringCriterion;
+  impulse_buy_potential: ScoringCriterion;
+  scalability_potential: ScoringCriterion;
+}
+
 interface AIAnalysisResponse {
   decision: string;
   confidenceScore: number;
-  scoreJustification?: string; // Justification du score en 2-3 phrases
-  launchPotentialScore?: number; // Note sur 10 du potentiel de lancement (décidée par l'IA)
-  launchPotentialScoreJustification?: string; // Justification de la note
+  scoreJustification?: string;
+  launchPotentialScore?: number; // = final_weighted_score (0-10)
+  launchPotentialScoreJustification?: string; // = strategic_summary
+  classification?: string; // NOT RECOMMENDED / HIGH RISK / MODERATE OPPORTUNITY / STRONG OPPORTUNITY / EXCEPTIONAL OPPORTUNITY
+  scoringBreakdown?: ScoringBreakdownResponse; // 6 critères détaillés
   
   // Saturation & Concurrence
   estimatedCompetitors: number;
@@ -261,70 +277,92 @@ export async function POST(request: NextRequest) {
     // PROMPT OPTIMISÉ - COMPACT POUR RÉPONSE RAPIDE (<15s)
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const prompt = `Expert e-commerce Etsy. Analyse ce produit. Niche: ${niche}. Prix fournisseur: ${productPrice > 0 ? `$${productPrice}` : 'à estimer'}.
+    const prompt = `Analyze this product image for Etsy dropshipping viability.
+Niche: ${niche}. Supplier price: ${productPrice > 0 ? `$${productPrice}` : 'estimate from image'}.
 
-ANALYSE L'IMAGE et réponds en JSON valide:
+═══ PART A: PRODUCT IDENTIFICATION ═══
+1. Describe the product in 1 sentence from the image.
+2. Check if product matches niche "${niche}".
+3. Estimate AliExpress supplier cost + shipping cost.
+4. Generate 5-8 word English Etsy search query.
 
-1. VISION: Décris le produit en 1 phrase. Vérifie s'il correspond à la niche "${niche}".
-2. PRIX FOURNISSEUR: Estime coût AliExpress + shipping. supplierPrice = estimatedSupplierPrice + estimatedShippingCost
-3. RECHERCHE ETSY: Requête 5-8 mots EN ANGLAIS: [type] [caractéristique distinctive] [matériau] [style] [couleur]. Inclure les traits visuels distinctifs.
-4. CONCURRENCE: Estime le nombre de BOUTIQUES Etsy vendant des produits similaires. 0-40=LANCER, 41-90=LANCER_CONCURRENTIEL, 91+=NE_PAS_LANCER.
-5. PRIX RECOMMANDÉ: Coût total < $70 → ×3 min. Coût ≥ $70 → ×2 min. optimal = max(coût×multiplicateur, marché×1.05).
-6. SIMULATION: Temps première vente (sans/avec ads), ventes à 3 mois (prudent/réaliste/optimiste).
-7. TAGS SEO: EXACTEMENT 13 tags en anglais, max 20 chars chacun.
-8. TITRE VIRAL: EN ANGLAIS, 100-140 caractères, avec adjectifs puissants + matériau + usage + occasion.
+═══ PART B: PRODUCT SCORING (MOST IMPORTANT) ═══
+Score each criterion from 0 to 10. BE STRICTLY OBJECTIVE AND ANALYTICAL.
+DO NOT default to middle scores (5-7). Use the FULL range 0-10.
+Each criterion MUST have a 2-4 sentence analytical justification.
 
-9. SCORE DE POTENTIEL (launchPotentialScore) - NOTE SUR 10:
-⚠️ CHAQUE PRODUIT DOIT AVOIR UN SCORE UNIQUE ET DIFFÉRENT.
-Calcul: (Saturation×0.5) + (Originalité×0.3) + (Marges×0.2)
-- Saturation: <20 concurrents=8-10pts, 20-50=6-8, 50-100=4-6, 100-200=2-4, 200+=1-2
-- Originalité: Unique=8-10, Différencié=6-8, Semi-générique=4-6, Copié partout=1-3
-- Marges: >60%=8-10, 40-60%=6-8, 20-40%=3-5, <20%=1-3
-Bijoux simples non originaux = 3.0 max. Bijoux originaux/personnalisés = score normal.
-Justifie en 2-3 phrases.
+⚠️ CRITICAL RULES:
+- Products that are GENUINELY good should score 7-10
+- Products that are BAD should score 0-3
+- Simple generic jewelry (basic bracelets, necklaces, rings, earrings without personalization/unique design/rare materials) MUST score: Competition ≤2, Differentiation ≤2, Market Demand ≤3
+- DO NOT be optimistic. DO NOT give every product a 5-7. Be HARSH when needed.
 
-10. confidenceScore: 30-95, fiabilité de l'analyse (PAS le potentiel).
+CRITERIA:
+1) Market Demand (weight: 25%): Real buyer intent? Problem-solving or strong desire? Evergreen or seasonal?
+2) Competition Intensity (weight: 20%): How hard to enter this market? Overcrowded? Big sellers dominating? (HIGH score = LOW competition = GOOD)
+3) Differentiation Potential (weight: 15%): Can this be positioned uniquely? Branding opportunity? Visual standout?
+4) Profit Margin Potential (weight: 20%): Price vs cost analysis. Room for ads? Long-term viable?
+5) Impulse Buy Potential (weight: 10%): Emotionally attractive? Quick purchase decision?
+6) Scalability Potential (weight: 10%): Variations? Brand expansion? Repeat purchase?
 
-JSON STRICT:
+WEIGHTED SCORE = (Demand×0.25)+(Competition×0.20)+(Differentiation×0.15)+(Margin×0.20)+(Impulse×0.10)+(Scalability×0.10)
+CLASSIFICATION: 0-3.9=NOT RECOMMENDED, 4-5.9=HIGH RISK, 6-7.4=MODERATE OPPORTUNITY, 7.5-8.5=STRONG OPPORTUNITY, 8.6-10=EXCEPTIONAL OPPORTUNITY
+
+═══ PART C: MARKET DATA ═══
+- Estimate number of Etsy competitors selling similar products
+- Estimate average market price range
+- Pricing: total cost < $70 → min price = cost×3; cost ≥ $70 → min price = cost×2
+- Simulation: days to first sale (with/without ads), 3-month sales projection
+- SEO: EXACTLY 13 English tags, max 20 chars each
+- Viral title: English, 100-140 chars
+
+STRICT JSON OUTPUT:
 {
-  "canIdentifyProduct": bool,
-  "productVisualDescription": "1 phrase",
-  "nicheMatch": bool,
-  "nicheMatchReasoning": "1 phrase",
-  "etsySearchQuery": "5-8 mots anglais",
+  "canIdentifyProduct": true,
+  "productVisualDescription": "1 sentence",
+  "nicheMatch": true/false,
+  "nicheMatchReasoning": "1 sentence",
+  "etsySearchQuery": "5-8 words",
   "estimatedSupplierPrice": number,
   "estimatedShippingCost": number,
-  "supplierPriceReasoning": "courte justification",
+  "supplierPriceReasoning": "justification",
+  "scoringBreakdown": {
+    "market_demand": {"score": X, "analysis": "2-4 sentences"},
+    "competition_intensity": {"score": X, "analysis": "2-4 sentences"},
+    "differentiation_potential": {"score": X, "analysis": "2-4 sentences"},
+    "profit_margin_potential": {"score": X, "analysis": "2-4 sentences"},
+    "impulse_buy_potential": {"score": X, "analysis": "2-4 sentences"},
+    "scalability_potential": {"score": X, "analysis": "2-4 sentences"}
+  },
+  "launchPotentialScore": X.X,
+  "classification": "STRING",
+  "launchPotentialScoreJustification": "4-6 sentences strategic summary",
   "decision": "LANCER"|"LANCER_CONCURRENTIEL"|"NE_PAS_LANCER",
-  "launchPotentialScore": 1.0-10.0,
-  "launchPotentialScoreJustification": "2-3 phrases",
   "confidenceScore": 30-95,
-  "scoreJustification": "1-2 phrases",
   "estimatedCompetitors": number,
-  "competitorEstimationReasoning": "courte justification",
-  "competitorEstimationReliable": bool,
+  "competitorEstimationReasoning": "justification",
+  "competitorEstimationReliable": true/false,
   "saturationLevel": "non_sature"|"concurrentiel"|"sature",
-  "saturationAnalysis": "1 phrase",
+  "saturationAnalysis": "1 sentence",
   "averageMarketPrice": number,
   "marketPriceRange": {"min": number, "max": number},
-  "marketPriceReasoning": "1 phrase",
+  "marketPriceReasoning": "1 sentence",
   "supplierPrice": number,
   "minimumViablePrice": number,
   "recommendedPrice": {"optimal": number, "min": number, "max": number},
-  "priceRiskLevel": "faible"|"moyen"|"élevé",
-  "pricingAnalysis": "1 phrase",
+  "priceRiskLevel": "faible"|"moyen"|"eleve",
+  "pricingAnalysis": "1 sentence",
   "launchSimulation": {
     "timeToFirstSale": {"withoutAds": {"min": number, "max": number}, "withAds": {"min": number, "max": number}},
     "salesAfter3Months": {"prudent": number, "realiste": number, "optimise": number},
-    "simulationNote": "1 phrase"
+    "simulationNote": "1 sentence"
   },
-  "viralTitleEN": "100-140 chars, viral, SEO",
-  "seoTags": ["13 tags exactement"],
-  "finalVerdict": "1 phrase",
-  "warningIfAny": "string ou null"
+  "viralTitleEN": "100-140 chars",
+  "seoTags": ["exactly 13 tags"],
+  "finalVerdict": "1 sentence",
+  "warningIfAny": null
 }
-
-JSON UNIQUEMENT, pas de texte.`;
+JSON ONLY.`;
 
     console.log('📤 Calling OpenAI API with OPTIMIZED prompt:', {
       url: productImageUrl?.substring(0, 100),
@@ -388,7 +426,7 @@ JSON UNIQUEMENT, pas de texte.`;
             messages: [
               {
                 role: 'system',
-                content: 'Tu es un expert e-commerce Etsy. Réponds UNIQUEMENT en JSON valide. Sois concis et précis.'
+                content: 'You are a senior ecommerce product analyst specialized in Etsy and dropshipping market validation. Respond ONLY in valid JSON. CRITICAL: Be strictly objective. Use the FULL scoring range 0-10. Do NOT default every product to 5-7. Bad products MUST score low (0-3). Good products should score high (8-10). Simple generic jewelry MUST score very low. Each product MUST get a unique score based on real market analysis.'
               },
               {
                 role: 'user',
@@ -408,7 +446,7 @@ JSON UNIQUEMENT, pas de texte.`;
               }
             ],
             temperature: 0.7, // ⚠️ 0.7 = bon équilibre entre cohérence et différenciation entre produits
-            max_tokens: 2000, // Augmenté pour éviter les JSON tronqués
+            max_tokens: 3500, // Augmenté pour les 6 critères détaillés + autres champs
             response_format: { type: 'json_object' },
             stream: false
           }),
@@ -645,6 +683,17 @@ JSON UNIQUEMENT, pas de texte.`;
             supplierPriceReasoning: 'Default estimation',
             decision: 'LANCER_CONCURRENTIEL',
             confidenceScore: 50,
+            scoringBreakdown: {
+              market_demand: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+              competition_intensity: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+              differentiation_potential: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+              profit_margin_potential: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+              impulse_buy_potential: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+              scalability_potential: { score: 5, analysis: 'Default estimation - unable to parse AI response.' },
+            },
+            launchPotentialScore: 5.0,
+            classification: 'HIGH RISK',
+            launchPotentialScoreJustification: 'Score par défaut - l\'analyse IA n\'a pas pu être complètement parsée.',
             estimatedCompetitors: competitorMatch ? parseInt(competitorMatch[1]) : 50,
             competitorEstimationReasoning: 'Estimation par défaut',
             competitorEstimationReliable: false,
@@ -678,7 +727,7 @@ JSON UNIQUEMENT, pas de texte.`;
             seoTags: ['gift', 'handmade', 'product', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'],
             finalVerdict: 'Product can be launched with proper optimization',
             warningIfAny: null,
-            nicheMatch: true, // Par défaut, on assume que le produit correspond (rétrocompatibilité)
+            nicheMatch: true,
             nicheMatchReasoning: 'Correspondance assumée par défaut (fallback API).',
           } as AIAnalysisResponse;
           
@@ -1001,24 +1050,93 @@ JSON UNIQUEMENT, pas de texte.`;
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // VALIDATION DU SCORE: L'IA décide, on ne force plus rien sauf bijoux simples
+    // VALIDATION DU SCORE: 6-criteria weighted scoring system
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // Assurer que confidenceScore (confiance dans l'analyse) reste dans les bornes
+    // Assurer que confidenceScore reste dans les bornes
+    if (!analysis.confidenceScore) analysis.confidenceScore = 50;
     if (analysis.confidenceScore < 30) analysis.confidenceScore = 30;
     if (analysis.confidenceScore > 95) analysis.confidenceScore = 95;
     
-    // Assurer que launchPotentialScore (note du produit sur 10) reste dans les bornes
+    // If the AI returned the new format with top-level criteria (from the new prompt), map to scoringBreakdown
+    if (!analysis.scoringBreakdown) {
+      const rawAny = analysis as any;
+      if (rawAny.market_demand && rawAny.competition_intensity) {
+        analysis.scoringBreakdown = {
+          market_demand: rawAny.market_demand,
+          competition_intensity: rawAny.competition_intensity,
+          differentiation_potential: rawAny.differentiation_potential,
+          profit_margin_potential: rawAny.profit_margin_potential,
+          impulse_buy_potential: rawAny.impulse_buy_potential,
+          scalability_potential: rawAny.scalability_potential,
+        };
+        if (rawAny.final_weighted_score) {
+          analysis.launchPotentialScore = rawAny.final_weighted_score;
+        }
+        if (rawAny.strategic_summary) {
+          analysis.launchPotentialScoreJustification = rawAny.strategic_summary;
+        }
+        if (rawAny.classification) {
+          analysis.classification = rawAny.classification;
+        }
+        console.log('✅ Mapped top-level scoring fields to scoringBreakdown');
+      }
+    }
+    
+    // Si scoringBreakdown existe, recalculer le score pondéré pour vérification
+    if (analysis.scoringBreakdown) {
+      const sb = analysis.scoringBreakdown;
+      // Clamp each criterion score to 0-10
+      const criteria = ['market_demand', 'competition_intensity', 'differentiation_potential', 'profit_margin_potential', 'impulse_buy_potential', 'scalability_potential'] as const;
+      for (const key of criteria) {
+        if (sb[key]) {
+          sb[key].score = Math.max(0, Math.min(10, sb[key].score));
+        }
+      }
+      // Recalculate weighted score to ensure consistency
+      const recalculated = (
+        (sb.market_demand?.score || 0) * 0.25 +
+        (sb.competition_intensity?.score || 0) * 0.20 +
+        (sb.differentiation_potential?.score || 0) * 0.15 +
+        (sb.profit_margin_potential?.score || 0) * 0.20 +
+        (sb.impulse_buy_potential?.score || 0) * 0.10 +
+        (sb.scalability_potential?.score || 0) * 0.10
+      );
+      analysis.launchPotentialScore = Math.round(recalculated * 10) / 10;
+      
+      console.log('📊 Scoring breakdown:', {
+        market_demand: sb.market_demand?.score,
+        competition_intensity: sb.competition_intensity?.score,
+        differentiation_potential: sb.differentiation_potential?.score,
+        profit_margin_potential: sb.profit_margin_potential?.score,
+        impulse_buy_potential: sb.impulse_buy_potential?.score,
+        scalability_potential: sb.scalability_potential?.score,
+        recalculated_weighted: analysis.launchPotentialScore,
+      });
+    }
+    
+    // Assurer que launchPotentialScore reste dans les bornes
     if (analysis.launchPotentialScore !== undefined) {
-      if (analysis.launchPotentialScore < 1) analysis.launchPotentialScore = 1;
+      if (analysis.launchPotentialScore < 0) analysis.launchPotentialScore = 0;
       if (analysis.launchPotentialScore > 10) analysis.launchPotentialScore = 10;
-      // Arrondir à 1 décimale
       analysis.launchPotentialScore = Math.round(analysis.launchPotentialScore * 10) / 10;
+    }
+    
+    // Déterminer la classification si pas fournie
+    if (!analysis.classification && analysis.launchPotentialScore !== undefined) {
+      const s = analysis.launchPotentialScore;
+      if (s < 4) analysis.classification = 'NOT RECOMMENDED';
+      else if (s < 6) analysis.classification = 'HIGH RISK';
+      else if (s < 7.5) analysis.classification = 'MODERATE OPPORTUNITY';
+      else if (s <= 8.5) analysis.classification = 'STRONG OPPORTUNITY';
+      else analysis.classification = 'EXCEPTIONAL OPPORTUNITY';
     }
     
     console.log('📊 AI scores:', {
       launchPotentialScore: analysis.launchPotentialScore,
+      classification: analysis.classification,
       confidenceScore: analysis.confidenceScore,
+      hasScoringBreakdown: !!analysis.scoringBreakdown,
       launchPotentialScoreJustification: analysis.launchPotentialScoreJustification?.substring(0, 100),
     });
     

@@ -68,13 +68,29 @@ export interface EtsyCompetitor {
   estimatedMonthlyRevenue: number;
 }
 
+export interface ScoringCriterion {
+  score: number; // 0-10
+  analysis: string; // 2-4 sentences justification
+}
+
+export interface ScoringBreakdown {
+  market_demand: ScoringCriterion;
+  competition_intensity: ScoringCriterion;
+  differentiation_potential: ScoringCriterion;
+  profit_margin_potential: ScoringCriterion;
+  impulse_buy_potential: ScoringCriterion;
+  scalability_potential: ScoringCriterion;
+}
+
 export interface LaunchPotentialScore {
-  score: number; // Score sur 10 (0-10)
-  tier: 'saturated' | 'competitive' | 'favorable'; // Tranche : 0-3 / 4-7 / 8-10
+  score: number; // Score sur 10 (0-10) = final_weighted_score
+  tier: 'saturated' | 'competitive' | 'favorable'; // Tranche : 0-3.9 / 4-7.4 / 7.5-10
   verdict: string; // Verdict texte court
   explanation: string; // Explication détaillée
-  scoreJustification: string; // Justification détaillée du score en 3-4 lignes
+  scoreJustification: string; // Strategic summary (4-6 phrases)
   badge: '🔴' | '🟡' | '🟢'; // Badge visuel
+  classification?: string; // NOT RECOMMENDED / HIGH RISK / MODERATE OPPORTUNITY / STRONG OPPORTUNITY / EXCEPTIONAL OPPORTUNITY
+  scoringBreakdown?: ScoringBreakdown; // Détail des 6 critères
   factors: {
     competitionDensity: 'low' | 'medium' | 'high';
     nicheSaturation: 'low' | 'medium' | 'high';

@@ -2,95 +2,66 @@
 
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
-import { Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Sparkles, TrendingUp, Shield, Lightbulb, DollarSign, Zap, Layers } from 'lucide-react';
 import type { LaunchPotentialScore as LaunchPotentialScoreType } from '@/types';
 
 interface LaunchPotentialScoreProps {
   score: LaunchPotentialScoreType;
 }
 
-// Fonction pour obtenir le verdict en français basé sur le score
-function getVerdictFR(scoreValue: number): string {
-  if (scoreValue <= 3) return 'Lancement non recommandé';
-  if (scoreValue <= 7) return 'Possible avec stratégie';
-  return 'Bonne opportunité de lancement';
-}
+// Classification labels en français
+const classificationLabelsFR: Record<string, string> = {
+  'NOT RECOMMENDED': 'Non recommandé',
+  'HIGH RISK': 'Risque élevé',
+  'MODERATE OPPORTUNITY': 'Opportunité modérée',
+  'STRONG OPPORTUNITY': 'Bonne opportunité',
+  'EXCEPTIONAL OPPORTUNITY': 'Opportunité exceptionnelle',
+};
 
-// Fonction pour obtenir l'explication en français basée sur le score
-function getExplanationFR(scoreValue: number): string {
-  if (scoreValue <= 3) {
-    return 'Forte saturation du marché avec une concurrence significative. Le lancement nécessite une réflexion approfondie et une forte différenciation.';
-  }
-  if (scoreValue <= 7) {
-    return 'Concurrence modérée dans cette niche. Le lancement est possible avec une stratégie de différenciation et marketing adaptée.';
-  }
-  return 'Niche peu saturée avec une concurrence directe limitée. Bonne opportunité de lancement.';
-}
+// Criteria display config
+const criteriaConfig = [
+  { key: 'market_demand', label: 'Demande marché', weight: '25%', icon: TrendingUp, color: 'text-blue-400' },
+  { key: 'competition_intensity', label: 'Concurrence', weight: '20%', icon: Shield, color: 'text-red-400' },
+  { key: 'differentiation_potential', label: 'Différenciation', weight: '15%', icon: Lightbulb, color: 'text-purple-400' },
+  { key: 'profit_margin_potential', label: 'Marges', weight: '20%', icon: DollarSign, color: 'text-emerald-400' },
+  { key: 'impulse_buy_potential', label: 'Achat impulsif', weight: '10%', icon: Zap, color: 'text-amber-400' },
+  { key: 'scalability_potential', label: 'Scalabilité', weight: '10%', icon: Layers, color: 'text-cyan-400' },
+] as const;
 
-// Fonction pour obtenir la justification en français basée sur le score
-function getJustificationFR(scoreValue: number): string {
-  if (scoreValue >= 8) {
-    return `Excellent score de ${scoreValue.toFixed(1)}/10 indiquant une forte opportunité de marché. Points forts : faible densité concurrentielle, produit fortement différencié. Aucun obstacle majeur identifié pour l'entrée sur le marché. Recommandé de procéder au lancement tout en maintenant les standards de qualité.`;
-  }
-  if (scoreValue >= 6) {
-    return `Bon score de ${scoreValue.toFixed(1)}/10 suggérant un lancement viable avec une stratégie adaptée. Points forts : positionnement produit raisonnable. Envisagez d'investir dans l'optimisation SEO et un branding unique pour vous démarquer.`;
-  }
-  if (scoreValue >= 4) {
-    return `Score modéré de ${scoreValue.toFixed(1)}/10 indiquant un marché concurrentiel nécessitant une différenciation. Défis : concurrence modérée, segment partiellement saturé. Envisagez d'investir dans l'optimisation SEO et un branding unique pour vous démarquer.`;
-  }
-  return `Score faible de ${scoreValue.toFixed(1)}/10 en raison de conditions de marché difficiles. Défis : concurrence intense, segment de marché saturé. Fortement recommandé de trouver un angle plus spécifique ou de cibler une niche différente.`;
+function getScoreBarColor(score: number): string {
+  if (score <= 3) return 'bg-red-500';
+  if (score <= 5) return 'bg-orange-500';
+  if (score <= 7) return 'bg-yellow-500';
+  return 'bg-emerald-500';
 }
 
 export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
-  // Traduire les textes en français (remplace les valeurs stockées en anglais)
-  const verdictFR = useMemo(() => getVerdictFR(score.score), [score.score]);
-  const explanationFR = useMemo(() => score.explanation || getExplanationFR(score.score), [score.score, score.explanation]);
-  // Utiliser la justification de l'IA si disponible, sinon fallback
-  const justificationFR = useMemo(() => score.scoreJustification || getJustificationFR(score.score), [score.score, score.scoreJustification]);
+  const classificationFR = useMemo(() => {
+    if (score.classification) return classificationLabelsFR[score.classification] || score.classification;
+    if (score.score < 4) return 'Non recommandé';
+    if (score.score < 6) return 'Risque élevé';
+    if (score.score < 7.5) return 'Opportunité modérée';
+    if (score.score <= 8.5) return 'Bonne opportunité';
+    return 'Opportunité exceptionnelle';
+  }, [score.classification, score.score]);
 
-  // Couleurs dynamiques basées sur le score pour le contour
-  // 0-3: Rouge, 4-6: Orange, 7-10: Vert
+  const justificationFR = useMemo(() => {
+    return score.scoreJustification || `Score de ${score.score.toFixed(1)}/10 basé sur l'analyse multicritères du produit.`;
+  }, [score.score, score.scoreJustification]);
+
   const getScoreColors = () => {
-    if (score.score <= 3) {
-      return {
-        border: 'border-red-500',
-        scoreText: 'text-red-500',
-        text: 'text-white',
-      };
-    } else if (score.score <= 6) {
-      return {
-        border: 'border-orange-500',
-        scoreText: 'text-orange-500',
-        text: 'text-white',
-      };
+    if (score.score < 4) {
+      return { border: 'border-red-500', scoreText: 'text-red-500', classificationBg: 'bg-red-500/20 text-red-400' };
+    } else if (score.score < 6) {
+      return { border: 'border-orange-500', scoreText: 'text-orange-500', classificationBg: 'bg-orange-500/20 text-orange-400' };
+    } else if (score.score < 7.5) {
+      return { border: 'border-yellow-500', scoreText: 'text-yellow-500', classificationBg: 'bg-yellow-500/20 text-yellow-400' };
     } else {
-      return {
-        border: 'border-emerald-500',
-        scoreText: 'text-emerald-500',
-        text: 'text-white',
-      };
+      return { border: 'border-emerald-500', scoreText: 'text-emerald-500', classificationBg: 'bg-emerald-500/20 text-emerald-400' };
     }
   };
 
   const colors = getScoreColors();
-
-  const getIcon = () => {
-    // Utiliser un "i" avec le dégradé cyan/turquoise sur localhost
-    const isLocalhost = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' || 
-      window.location.hostname === '127.0.0.1'
-    );
-    
-    return (
-      <span className={`text-3xl font-bold ${
-        isLocalhost 
-          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent' 
-          : 'text-white'
-      }`} style={isLocalhost ? {} : {}}>
-        i
-      </span>
-    );
-  };
 
   return (
     <motion.div
@@ -101,33 +72,36 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
     >
       <div className="relative z-10">
         {/* Header */}
-        <div className="flex items-start mb-6">
+        <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                typeof window !== 'undefined' && (
-                  window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1'
-                )
-                  ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                  : colors.border.replace('border-', 'bg-')
-              }`}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]"
             >
-              {getIcon()}
+              <span className="text-3xl font-bold text-white">i</span>
             </motion.div>
             <div>
               <h2 className="text-xl font-bold text-white mb-1">Score de potentiel</h2>
-              <p className="text-sm text-white/70">Évaluation des opportunités de marché</p>
+              <p className="text-sm text-white/70">Évaluation multicritères du produit</p>
             </div>
           </div>
+          
+          {/* Classification badge */}
+          <motion.span
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold ${colors.classificationBg}`}
+          >
+            {classificationFR}
+          </motion.span>
         </div>
 
         {/* Score principal */}
         <div className="mb-6">
-          <div className="flex items-baseline gap-3 mb-2">
+          <div className="flex items-baseline gap-3 mb-4">
             <motion.span
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -138,55 +112,88 @@ export function LaunchPotentialScore({ score }: LaunchPotentialScoreProps) {
             </motion.span>
             <span className="text-2xl font-bold text-white/50">/ 10</span>
           </div>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className={`text-lg font-bold ${colors.text} mb-3`}
-          >
-            {verdictFR}
-          </motion.p>
-          
-          {/* Score Justification - AI Explanation */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55 }}
-            className="p-4 rounded-xl bg-black border border-white/10 mb-4"
-          >
-            <div className="flex items-start gap-2">
-              <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-white/90 leading-relaxed">
-                {justificationFR}
-              </p>
-            </div>
-          </motion.div>
-          
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="text-sm text-white/80 leading-relaxed"
-          >
-            {explanationFR}
-          </motion.p>
         </div>
 
-        {/* Texte explicatif obligatoire */}
+        {/* 6 Criteria Breakdown */}
+        {score.scoringBreakdown && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-6 space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-white/80 mb-4">Détail des critères</h3>
+            {criteriaConfig.map((criterion, index) => {
+              const data = score.scoringBreakdown?.[criterion.key as keyof typeof score.scoringBreakdown];
+              if (!data) return null;
+              const Icon = criterion.icon;
+              
+              return (
+                <motion.div
+                  key={criterion.key}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + index * 0.08 }}
+                  className="group"
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <Icon size={14} className={criterion.color} />
+                    <span className="text-xs font-medium text-white/70 flex-1">{criterion.label}</span>
+                    <span className="text-[10px] text-white/40">{criterion.weight}</span>
+                    <span className={`text-sm font-bold ${data.score <= 3 ? 'text-red-400' : data.score <= 5 ? 'text-orange-400' : data.score <= 7 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                      {data.score}/10
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-1">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(data.score / 10) * 100}%` }}
+                      transition={{ delay: 0.6 + index * 0.08, duration: 0.5 }}
+                      className={`h-full rounded-full ${getScoreBarColor(data.score)}`}
+                    />
+                  </div>
+                  {/* Analysis text - shown on hover/always for mobile */}
+                  {data.analysis && (
+                    <p className="text-[10px] text-white/40 leading-relaxed mt-1 line-clamp-2">
+                      {data.analysis}
+                    </p>
+                  )}
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+
+        {/* Strategic Summary / Justification */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="p-4 rounded-xl bg-black border border-white/10 mb-4"
+        >
+          <div className="flex items-start gap-2">
+            <Sparkles size={16} className="text-[#00d4ff] mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-white/90 leading-relaxed">
+              {justificationFR}
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Disclaimer */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 1 }}
           className="p-4 rounded-lg bg-black border border-white/10"
         >
           <p className="text-xs text-white/70 leading-relaxed italic">
-            Ce score reflète une évaluation globale de la saturation du marché et de la concurrence dans la niche du produit. 
-            C'est une estimation destinée à faciliter la prise de décision et ne garantit pas les résultats.
+            Ce score reflète une évaluation multicritères objective basée sur la demande du marché, 
+            la concurrence, le potentiel de différenciation, les marges, l&apos;attractivité émotionnelle et la scalabilité. 
+            C&apos;est une estimation destinée à faciliter la prise de décision et ne garantit pas les résultats.
           </p>
         </motion.div>
       </div>
     </motion.div>
   );
 }
-
-
