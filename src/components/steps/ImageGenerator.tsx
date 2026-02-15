@@ -259,16 +259,39 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         throw new Error(`${data.error}${details}`);
       }
       
-      if (!data.images || data.images.length === 0) {
-        throw new Error('Aucune image générée. Vérifiez votre clé API OpenAI (OPENAI_API_KEY) et les logs du serveur.');
+      // New flow: API returns taskIds, poll for results client-side
+      const taskIds: string[] = data.imageTaskIds || [];
+      
+      if (taskIds.length === 0) {
+        throw new Error('Aucune image soumise. Réessayez.');
       }
       
-      // Filtrer les images avec erreur
-      const validImages = data.images.filter((img: any) => !img.error);
-      const failedImages = data.images.filter((img: any) => img.error);
+      console.log('[IMAGE GENERATION] Polling for', taskIds.length, 'image(s)...');
+      
+      const pollResults = await Promise.all(
+        taskIds.map(async (taskId: string) => {
+          for (let attempt = 0; attempt < 20; attempt++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+              });
+              if (!res.ok) continue;
+              const s = await res.json();
+              if (s.status === 'ready' && s.url) return s.url;
+              if (s.status === 'error') return null;
+            } catch { /* retry */ }
+          }
+          return null;
+        })
+      );
+      
+      const validImages = pollResults
+        .filter((url): url is string => !!url)
+        .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
       
       if (validImages.length === 0) {
-        throw new Error('Toutes les générations ont échoué. Vérifiez votre clé API et les logs du serveur.');
+        throw new Error('Aucune image générée. Réessayez.');
       }
       
       setGeneratedImages(validImages);

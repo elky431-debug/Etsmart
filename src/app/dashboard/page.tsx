@@ -36,7 +36,8 @@ import {
   Globe,
   ChevronUp,
   ExternalLink,
-  ArrowUpRight
+  ArrowUpRight,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -58,8 +59,9 @@ import { DashboardProfile } from '@/components/dashboard/DashboardProfile';
 import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
+import { DashboardBanner } from '@/components/dashboard/DashboardBanner';
 // Paywall is now handled by dashboard/layout.tsx
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'quick-generate' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder';
+type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'quick-generate' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder' | 'banner';
 
 interface MenuItem {
   id: DashboardSection;
@@ -97,7 +99,7 @@ export default function DashboardPage() {
     try {
       const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
       // Ne jamais utiliser 'history' comme section par défaut au refresh
-      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(lastSection)) {
         setActiveSection(lastSection);
       }
     } catch (e) {
@@ -191,7 +193,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -199,7 +201,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors'].includes(lastSection)) {
+          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
@@ -1355,6 +1357,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
       ],
     },
     {
+      label: 'Boutique',
+      items: [
+        { id: 'banner', label: 'Bannière', icon: ImageIcon },
+      ],
+    },
+    {
       label: 'Brainstorm',
       items: [
         { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
@@ -1902,6 +1910,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 </motion.div>
               </div>
             </div>
+          )}
+
+          {activeSection === 'banner' && (
+            <DashboardBanner />
           )}
 
           {activeSection === 'etsy-trends' && (

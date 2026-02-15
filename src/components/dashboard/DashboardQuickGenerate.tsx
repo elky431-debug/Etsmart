@@ -421,15 +421,38 @@ export function DashboardQuickGenerate() {
       }
 
       const data = await response.json();
-      console.log('[QUICK GENERATE] Regenerated images:', data);
+      console.log('[QUICK GENERATE] Image tasks submitted:', data);
 
-      if (data.images && data.images.length > 0) {
-        const validImages = data.images.filter((img: any) => !img.error && img.url && img.url.trim() !== '');
-        if (validImages.length > 0) {
-          setGeneratedImages(prev => [...prev, ...validImages]);
-          // Mettre à jour sessionStorage
+      // Poll for images client-side (same pattern as initial generation)
+      const taskIds: string[] = data.imageTaskIds || [];
+      
+      if (taskIds.length > 0) {
+        const pollResults = await Promise.all(
+          taskIds.map(async (taskId: string) => {
+            for (let attempt = 0; attempt < 20; attempt++) {
+              await new Promise(r => setTimeout(r, 3000));
+              try {
+                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                  headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) continue;
+                const s = await res.json();
+                if (s.status === 'ready' && s.url) return s.url;
+                if (s.status === 'error') return null;
+              } catch { /* retry */ }
+            }
+            return null;
+          })
+        );
+
+        const newImages = pollResults
+          .filter((url): url is string => !!url)
+          .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
+
+        if (newImages.length > 0) {
+          setGeneratedImages(prev => [...prev, ...newImages]);
           if (typeof window !== 'undefined') {
-            const allImages = [...generatedImages, ...validImages];
+            const allImages = [...generatedImages, ...newImages];
             sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
           }
         } else {
