@@ -138,14 +138,19 @@ export async function POST(request: NextRequest) {
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: 'Return valid JSON only.' },
-            { role: 'user', content: `Product: ${productDesc}\nJSON: {"title":"SEO 100-140 chars","tags":"t1,t2,...,t13","materials":"m1,m2"} English.` },
+            { role: 'user', content: `Product: ${productDesc}\nReturn JSON: {"title":"SEO optimized Etsy title 100-140 chars","tags":"EXACTLY 13 comma-separated tags, each max 20 chars, relevant to product","materials":"m1,m2"} English. You MUST return EXACTLY 13 tags, no more, no less.` },
           ], temperature: 0.7, max_tokens: 400, response_format: { type: 'json_object' },
         }),
       }).then(async r => {
         if (!r.ok) return { title: '', tags: [] as string[], materials: '' };
         const d = await r.json(); const p = JSON.parse(d.choices?.[0]?.message?.content?.trim());
         let title = p.title || '';
-        const tags = (p.tags || '').split(',').map((t: string) => t.trim()).filter((t: string) => t && t.length <= 20).slice(0, 13);
+        let tags = (p.tags || '').split(',').map((t: string) => t.trim()).filter((t: string) => t && t.length <= 20).slice(0, 13);
+        // Enforce EXACTLY 13 tags — pad with relevant generic tags if AI returned fewer
+        if (tags.length < 13) {
+          const padTags = ['handmade', 'gift idea', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'home decor', 'special', 'creative', 'personalized', 'vintage style', 'boho', 'minimalist', 'aesthetic', 'bestseller'];
+          for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map((t: string) => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
+        }
         if (title.length < 100) { for (const s of [' - Perfect Gift Idea', ' - Unique Handcrafted Design']) { if (title.length + s.length <= 140) { title += s; break; } } }
         return { title, tags, materials: p.materials || '' };
       }).catch(() => ({ title: '', tags: [] as string[], materials: '' })),

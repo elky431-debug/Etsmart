@@ -241,7 +241,7 @@ OUTPUT FORMAT (JSON):
 Return a JSON object with this exact structure:
 {
   "title": "SEO optimized title (MINIMUM 100 characters, ideally 120-140 characters, natural and keyword-rich - NEVER under 100 characters)",
-  "tags": "tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13",
+  "tags": "tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13 (EXACTLY 13 tags required, never less)",
   "materials": "material1, material2, material3, material4"
 }
 
@@ -374,7 +374,12 @@ Generate the title, tags and materials now:`;
             .split(',')
             .map(t => t.trim())
             .filter(t => t && t.length <= 20)
-            .slice(0, 13); // Ensure max 13 tags
+            .slice(0, 13);
+          // Enforce EXACTLY 13 tags
+          if (tags.length < 13) {
+            const padTags = ['handmade', 'gift idea', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'home decor', 'special', 'creative', 'personalized', 'vintage style', 'boho', 'minimalist', 'aesthetic', 'bestseller'];
+            for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map(t => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
+          }
 
           // Parse materials from comma-separated string
           if (materialsString) {
@@ -403,6 +408,11 @@ Generate the title, tags and materials now:`;
             .map(t => t.trim())
             .filter(t => t && t.length <= 20)
             .slice(0, 13);
+          // Enforce EXACTLY 13 tags
+          if (tags.length < 13) {
+            const padTags = ['handmade', 'gift idea', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'home decor', 'special', 'creative', 'personalized', 'vintage style', 'boho', 'minimalist', 'aesthetic', 'bestseller'];
+            for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map(t => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
+          }
 
           if (materialsString) {
             materials = materialsString
