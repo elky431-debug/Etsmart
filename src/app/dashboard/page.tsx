@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   History, 
   User, 
   Settings, 
@@ -37,7 +37,8 @@ import {
   ChevronUp,
   ExternalLink,
   ArrowUpRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Play
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -60,8 +61,25 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { DashboardBanner } from '@/components/dashboard/DashboardBanner';
+import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGenerator';
 // Paywall is now handled by dashboard/layout.tsx
-type DashboardSection = 'analyze' | 'history' | 'analyse-simulation' | 'listing' | 'images' | 'quick-generate' | 'profile' | 'settings' | 'subscription' | 'competitors' | 'prompt-universel' | 'etsy-trends' | 'top-etsy-sellers' | 'niche-finder' | 'banner';
+type DashboardSection =
+  | 'analyze'
+  | 'history'
+  | 'analyse-simulation'
+  | 'listing'
+  | 'images'
+  | 'quick-generate'
+  | 'profile'
+  | 'settings'
+  | 'subscription'
+  | 'competitors'
+  | 'prompt-universel'
+  | 'etsy-trends'
+  | 'top-etsy-sellers'
+  | 'niche-finder'
+  | 'banner'
+  | 'video-generator';
 
 interface MenuItem {
   id: DashboardSection;
@@ -99,7 +117,24 @@ export default function DashboardPage() {
     try {
       const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
       // Ne jamais utiliser 'history' comme section par défaut au refresh
-      if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(lastSection)) {
+      if (
+        lastSection &&
+        lastSection !== 'history' &&
+        [
+          'analyze',
+          'analysis',
+          'analyse-simulation',
+          'listing',
+          'images',
+          'quick-generate',
+          'profile',
+          'settings',
+          'subscription',
+          'competitors',
+          'banner',
+          'video-generator',
+        ].includes(lastSection)
+      ) {
         setActiveSection(lastSection);
       }
     } catch (e) {
@@ -1350,9 +1385,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Composer',
       items: [
-    { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
-    { id: 'listing', label: 'Listing', icon: FileText },
-    { id: 'images', label: 'Images', icon: Sparkles },
+        { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
+        { id: 'listing', label: 'Listing', icon: FileText },
+        { id: 'images', label: 'Images', icon: Sparkles },
+        { id: 'video-generator', label: 'Vidéo', icon: Play },
         { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
       ],
     },
@@ -1755,6 +1791,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 setSelectedAnalysis(null);
               }}
             />
+          )}
+
+          {activeSection === 'video-generator' && (
+            <DashboardVideoGenerator />
           )}
 
           {activeSection === 'history' && !selectedAnalysis && (
