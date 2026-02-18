@@ -83,15 +83,19 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   // Vérifier au montage si une image a déjà été générée pour ce produit
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      setError((prev) => {
+        if (!prev) return null;
+        const isTechnical = /failedImages is not defined|Can't find variable|is not defined|ReferenceError/i.test(prev);
+        return isTechnical ? null : prev;
+      });
       const saved = sessionStorage.getItem(storageKey);
       if (saved === 'true') {
         setHasGeneratedImage(true);
-        // Si on a des images sauvegardées, les restaurer aussi
         const savedImages = sessionStorage.getItem(`${storageKey}-images`);
         if (savedImages) {
           try {
             const images = JSON.parse(savedImages);
-            setGeneratedImages(images);
+            setGeneratedImages(Array.isArray(images) ? images : []);
           } catch (e) {
             console.error('Error parsing saved images:', e);
           }
@@ -329,8 +333,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
       }
       
-      if (failedImages.length > 0) {
-        setError(`${failedImages.length} image(s) n'ont pas pu être générée(s). ${validImages.length} image(s) générée(s) avec succès.`);
+      if (failedCount > 0) {
+        setError(`${failedCount} image(s) n'ont pas pu être générée(s). ${validImages.length} image(s) générée(s) avec succès.`);
       }
       
       if (data.warning) {
@@ -338,7 +342,15 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       }
     } catch (error: any) {
       console.error('Error generating images:', error);
-      setError(error.message || 'Erreur lors de la génération des images');
+      const rawMessage = error?.message || 'Erreur lors de la génération des images';
+      // Ne pas afficher les erreurs techniques (ReferenceError, failedImages, etc.) à l'utilisateur
+      const isTechnicalError =
+        /Can't find variable|is not defined|ReferenceError|failedImages is not defined/i.test(rawMessage);
+      setError(
+        isTechnicalError
+          ? 'Erreur technique lors de la génération. Veuillez rafraîchir la page (Ctrl+F5) et réessayer.'
+          : rawMessage
+      );
       setGeneratedImages([]);
     } finally {
       setIsGenerating(false);
@@ -732,9 +744,14 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-white">
-                      {generatedImages.length} image{generatedImages.length > 1 ? 's' : ''} générée{generatedImages.length > 1 ? 's' : ''}
+                      {generatedImages.length > 0
+                        ? `${generatedImages.length} image${generatedImages.length > 1 ? 's' : ''} générée${generatedImages.length > 1 ? 's' : ''}`
+                        : 'Aucune image à afficher'}
                     </h3>
                   </div>
+                  {generatedImages.length === 0 ? (
+                    <p className="text-sm text-white/60 py-4">Les images n’ont pas été enregistrées. Vous pouvez relancer une génération ci-dessus.</p>
+                  ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {generatedImages.map((img, index) => (
                       <motion.div
