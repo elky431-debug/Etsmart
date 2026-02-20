@@ -81,13 +81,26 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
 
   // Ne jamais afficher les erreurs techniques (ex: failedImages/failedCount is not defined)
-  const isTechnicalError = (msg: string | null) =>
-    !!msg && /failedImages is not defined|failedCount is not defined|Can't find variable|is not defined|ReferenceError/i.test(msg);
+  const isTechnicalError = (msg: string | null) => {
+    if (!msg || typeof msg !== 'string') return false;
+    const s = msg.trim();
+    return (
+      /failedImages\s+is\s+not\s+defined/i.test(s) ||
+      /failedCount\s+is\s+not\s+defined/i.test(s) ||
+      /Can't find variable/i.test(s) ||
+      /is not defined/i.test(s) ||
+      /ReferenceError/i.test(s)
+    );
+  };
   const displayError = error && !isTechnicalError(error) ? error : null;
 
   // Nettoyer toute erreur technique AVANT le premier affichage (évite flash avec cache ancien)
   useLayoutEffect(() => {
-    setError((prev) => (prev && isTechnicalError(prev) ? null : prev));
+    setError((prev) => {
+      if (!prev) return prev;
+      if (isTechnicalError(prev)) return null;
+      return prev;
+    });
   }, []);
 
   // Vérifier au montage si une image a déjà été générée pour ce produit
@@ -355,11 +368,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       }
     } catch (err: any) {
       console.error('Error generating images:', err);
-      const rawMessage = err?.message || 'Erreur lors de la génération des images';
-      // Ne jamais afficher les erreurs techniques (ReferenceError, failedImages, etc.) — ne pas les mettre en state
-      const isTechnical =
-        /Can't find variable|is not defined|ReferenceError|failedImages is not defined|failedCount is not defined/i.test(rawMessage);
-      if (isTechnical) {
+      const rawMessage = (err?.message || 'Erreur lors de la génération des images') as string;
+      if (isTechnicalError(rawMessage)) {
         setError(null);
       } else {
         setError(rawMessage);
@@ -730,8 +740,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         {/* RÉSULTATS - Full width en dessous */}
         <div className="bg-black rounded-xl border border-white/10">
           <div className="p-6">
-            {/* Message d'erreur (jamais afficher les erreurs techniques type "failedImages is not defined") */}
-            {displayError && (
+            {/* Message d'erreur — jamais afficher les erreurs techniques (failedImages/failedCount is not defined) */}
+            {displayError && !isTechnicalError(displayError) && (
               <div className="mb-4 p-4 rounded-lg bg-black border border-red-500/50">
                 <p className="text-sm text-red-400">{displayError}</p>
               </div>
