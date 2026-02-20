@@ -80,13 +80,18 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [isDragging, setIsDragging] = useState(false);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
 
+  // Ne jamais afficher les erreurs techniques (ex: failedImages/failedCount is not defined)
+  const isTechnicalError = (msg: string | null) =>
+    !!msg && /failedImages is not defined|failedCount is not defined|Can't find variable|is not defined|ReferenceError/i.test(msg);
+  const displayError = error && !isTechnicalError(error) ? error : null;
+
   // Vérifier au montage si une image a déjà été générée pour ce produit
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Ne jamais garder une erreur technique (ex: failedImages is not defined)
       setError((prev) => {
         if (!prev) return null;
-        const isTechnical = /failedImages is not defined|Can't find variable|is not defined|ReferenceError/i.test(prev);
+        const isTechnical = isTechnicalError(prev);
         return isTechnical ? null : prev;
       });
       const saved = sessionStorage.getItem(storageKey);
@@ -714,10 +719,10 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         {/* RÉSULTATS - Full width en dessous */}
         <div className="bg-black rounded-xl border border-white/10">
           <div className="p-6">
-            {/* Message d'erreur */}
-            {error && (
+            {/* Message d'erreur (jamais afficher les erreurs techniques type "failedImages is not defined") */}
+            {displayError && (
               <div className="mb-4 p-4 rounded-lg bg-black border border-red-500/50">
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-red-400">{displayError}</p>
               </div>
             )}
             
