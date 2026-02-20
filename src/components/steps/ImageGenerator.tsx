@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, 
@@ -84,6 +84,11 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const isTechnicalError = (msg: string | null) =>
     !!msg && /failedImages is not defined|failedCount is not defined|Can't find variable|is not defined|ReferenceError/i.test(msg);
   const displayError = error && !isTechnicalError(error) ? error : null;
+
+  // Nettoyer toute erreur technique AVANT le premier affichage (évite flash avec cache ancien)
+  useLayoutEffect(() => {
+    setError((prev) => (prev && isTechnicalError(prev) ? null : prev));
+  }, []);
 
   // Vérifier au montage si une image a déjà été générée pour ce produit
   useEffect(() => {
@@ -348,17 +353,17 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       if (data.warning) {
         console.warn('[IMAGE GENERATION]', data.warning);
       }
-    } catch (error: any) {
-      console.error('Error generating images:', error);
-      const rawMessage = error?.message || 'Erreur lors de la génération des images';
-      // Ne pas afficher les erreurs techniques (ReferenceError, failedImages, etc.) à l'utilisateur
-      const isTechnicalError =
-        /Can't find variable|is not defined|ReferenceError|failedImages is not defined/i.test(rawMessage);
-      setError(
-        isTechnicalError
-          ? 'Erreur technique lors de la génération. Veuillez rafraîchir la page (Ctrl+F5) et réessayer.'
-          : rawMessage
-      );
+    } catch (err: any) {
+      console.error('Error generating images:', err);
+      const rawMessage = err?.message || 'Erreur lors de la génération des images';
+      // Ne jamais afficher les erreurs techniques (ReferenceError, failedImages, etc.) — ne pas les mettre en state
+      const isTechnical =
+        /Can't find variable|is not defined|ReferenceError|failedImages is not defined|failedCount is not defined/i.test(rawMessage);
+      if (isTechnical) {
+        setError(null);
+      } else {
+        setError(rawMessage);
+      }
       setGeneratedImages([]);
     } finally {
       setIsGenerating(false);
