@@ -509,8 +509,14 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   <div className="relative">
                     <img
                       src={sourceImagePreview}
-                      alt="Source"
-                      className="w-full h-48 object-cover rounded-lg mb-3"
+                      alt="Image source"
+                      className="w-full h-48 object-cover rounded-lg mb-3 bg-white/5"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        t.onerror = null;
+                        t.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect fill="%231a1a1a" width="400" height="200"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="14">Image source</text></svg>');
+                      }}
                     />
                     <button
                       onClick={(e) => {
@@ -772,13 +778,14 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         <div className="aspect-square relative">
                           <img
                             src={img.url}
-                            alt={`Generated ${index + 1}`}
-                            className="w-full h-full object-cover"
+                            alt={`Image ${index + 1} générée`}
+                            className="w-full h-full object-cover bg-white/5"
+                            referrerPolicy="no-referrer"
                             onError={(e) => {
                               console.error('Error loading image:', img.url);
-                              // Afficher un placeholder en cas d'erreur
                               const target = e.target as HTMLImageElement;
-                              target.src = `https://via.placeholder.com/1024x1024?text=Image+Error`;
+                              target.onerror = null;
+                              target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%231a1a1a" width="400" height="400"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-family="sans-serif" font-size="16">Image indisponible</text></svg>');
                             }}
                             loading="lazy"
                           />
@@ -833,12 +840,12 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   exit={{ opacity: 0 }}
                   className="min-h-[400px] flex flex-col items-center justify-center py-12"
                 >
-                  <ImageIcon size={64} className="text-slate-300 mb-4" />
-                  <p className="text-lg font-semibold text-slate-900 mb-2">
-                    Ready to create
+                  <ImageIcon size={64} className="text-white/40 mb-4" />
+                  <p className="text-lg font-semibold text-white mb-2">
+                    Prêt à créer
                   </p>
-                  <p className="text-sm text-slate-500 text-center max-w-md">
-                    Upload a product image and select a style
+                  <p className="text-sm text-white/60 text-center max-w-md">
+                    Uploadez une image produit et choisissez un format
                   </p>
                 </motion.div>
               )}
@@ -862,8 +869,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               animate={{ scale: 1 }}
               exit={{ scale: 0.9 }}
               src={fullscreenImage}
-              alt="Fullscreen"
+              alt="Agrandir"
               className="max-w-full max-h-full object-contain"
+              referrerPolicy="no-referrer"
               onClick={(e) => e.stopPropagation()}
             />
             <div className="absolute top-4 right-4 flex gap-3">
