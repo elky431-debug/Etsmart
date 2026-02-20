@@ -295,6 +295,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         .filter((url): url is string => !!url)
         .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
       
+      const failedCount = taskIds.length - validImages.length;
+      
       if (validImages.length === 0) {
         throw new Error('Aucune image générée. Réessayez.');
       }
