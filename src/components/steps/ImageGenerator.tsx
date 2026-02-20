@@ -83,6 +83,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   // Vérifier au montage si une image a déjà été générée pour ce produit
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Ne jamais garder une erreur technique (ex: failedImages is not defined)
       setError((prev) => {
         if (!prev) return null;
         const isTechnical = /failedImages is not defined|Can't find variable|is not defined|ReferenceError/i.test(prev);
