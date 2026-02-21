@@ -779,50 +779,51 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                     </h3>
                   </div>
                   {generatedImages.length === 0 ? (
-                    <p className="text-sm text-white/60 py-4">Les images n’ont pas été enregistrées. Vous pouvez relancer une génération ci-dessus.</p>
+                    <p className="text-sm text-white/60 py-4">Les images n'ont pas été enregistrées. Vous pouvez relancer une génération ci-dessus.</p>
                   ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {generatedImages.map((img, index) => (
-                      <motion.div
-                        key={img.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={img.url}
-                            alt={`Image ${index + 1} générée`}
-                            className="w-full h-full object-cover bg-white/5"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              console.error('Error loading image:', img.url);
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%231a1a1a" width="400" height="400"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-family="sans-serif" font-size="16">Image indisponible</text></svg>');
-                            }}
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => setFullscreenImage(img.url)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
-                            >
-                              <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
-                            </button>
-                            <button
-                              onClick={() => downloadImage(img.url, index)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
-                            >
-                              <Download size={18} className="text-white sm:w-4 sm:h-4" />
-                            </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {generatedImages.map((img, index) => (
+                        <motion.div
+                          key={img.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
+                        >
+                          <div className="aspect-square relative">
+                            <img
+                              src={img.url}
+                              alt={`Image ${index + 1} générée`}
+                              className="w-full h-full object-cover bg-white/5"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                console.error('Error loading image:', img.url);
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%231a1a1a" width="400" height="400"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-family="sans-serif" font-size="16">Image indisponible</text></svg>');
+                              }}
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                            <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => setFullscreenImage(img.url)}
+                                className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              >
+                                <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
+                              </button>
+                              <button
+                                onClick={() => downloadImage(img.url, index)}
+                                className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              >
+                                <Download size={18} className="text-white sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Download All Button */}
                   {generatedImages.length > 1 && (
