@@ -5,6 +5,9 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 // ETSMART AI ANALYSIS API - GPT-4o VISION
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export const maxDuration = 25; // Netlify Pro = 26s max, on utilise 25s pour la marge
+export const runtime = 'nodejs';
+
 interface AIAnalysisRequest {
   productTitle: string;
   productPrice: number;
@@ -212,6 +215,101 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // MODE TEST LOCALHOST - Retourne des données mockées rapidement
+    // ═══════════════════════════════════════════════════════════════════════════════
+    const isLocalhost = process.env.NODE_ENV === 'development' || 
+                       request.headers.get('host')?.includes('localhost') ||
+                       request.headers.get('host')?.includes('127.0.0.1');
+    
+    if (isLocalhost) {
+      console.log('🧪 [AI-ANALYZE] LOCALHOST MODE - Using mock analysis data');
+      
+      // Simuler un délai de 3 secondes
+      await new Promise(r => setTimeout(r, 3000));
+      
+      // Données mockées réalistes
+      const mockAnalysis = {
+        success: true,
+        analysis: {
+          canIdentifyProduct: true,
+          productVisualDescription: 'Beautiful handmade product with unique design and high-quality materials',
+          etsySearchQuery: 'handmade unique gift custom personalized',
+          decision: 'LANCER',
+          confidenceScore: 75,
+          estimatedCompetitors: 45,
+          competitorEstimationReasoning: 'Market analysis shows moderate competition with good opportunities for differentiation',
+          competitorEstimationReliable: true,
+          saturationLevel: 'concurrentiel',
+          saturationAnalysis: 'The market is competitive but accessible, with room for new sellers',
+          averageMarketPrice: 35.99,
+          marketPriceRange: { min: 24.99, max: 49.99 },
+          marketPriceReasoning: 'Based on similar products on Etsy',
+          estimatedSupplierPrice: 8.50,
+          estimatedShippingCost: 4.00,
+          supplierPriceReasoning: 'Estimated based on product type and materials',
+          supplierPrice: 8.50,
+          minimumViablePrice: 25.50,
+          recommendedPrice: {
+            optimal: 39.99,
+            min: 25.50,
+            max: 51.99
+          },
+          priceRiskLevel: 'faible',
+          pricingAnalysis: 'Good profit margin potential with competitive pricing',
+          launchSimulation: {
+            timeToFirstSale: {
+              withoutAds: { min: 7, max: 21 },
+              withAds: { min: 3, max: 10 }
+            },
+            salesAfter3Months: {
+              prudent: 8,
+              realiste: 15,
+              optimise: 25
+            },
+            simulationNote: 'Realistic projections based on market analysis'
+          },
+          launchPotentialScore: 7.2,
+          launchPotentialScoreJustification: 'This product shows good potential with moderate competition and strong differentiation opportunities. The market demand is solid and profit margins are viable.',
+          classification: 'MODERATE_OPPORTUNITY',
+          scoringBreakdown: {
+            market_demand: {
+              score: 7.5,
+              analysis: 'Strong market demand for this type of product. Evergreen category with consistent buyer interest.'
+            },
+            competition_intensity: {
+              score: 6.5,
+              analysis: 'Moderate competition level. Market is accessible but requires good positioning and marketing.'
+            },
+            differentiation_potential: {
+              score: 7.0,
+              analysis: 'Good opportunities for differentiation through unique design, quality, and branding.'
+            },
+            profit_margin_potential: {
+              score: 7.8,
+              analysis: 'Excellent profit margin potential. Room for competitive pricing while maintaining healthy margins.'
+            },
+            impulse_buy_potential: {
+              score: 6.5,
+              analysis: 'Moderate impulse buy potential. Product appeals to emotional triggers and gift buyers.'
+            },
+            scalability_potential: {
+              score: 7.0,
+              analysis: 'Good scalability with potential for variations and complementary products.'
+            }
+          },
+          nicheMatch: true,
+          nicheMatchReasoning: 'Product matches the selected niche well',
+          viralTitleEN: 'Unique Handmade Product - Perfect Gift Idea - Custom Design - High Quality - Special Occasion Gift',
+          seoTags: ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'special'],
+          finalVerdict: 'This product has good potential with moderate competition. Launch with confidence by following the recommendations.'
+        }
+      };
+      
+      isAnalyzing = false;
+      return NextResponse.json(mockAnalysis);
+    }
+
     // Check if user has enough quota (2 credits needed for analysis and simulation)
     if (quotaInfo.remaining < 2.0) {
       isAnalyzing = false;
@@ -385,10 +483,10 @@ JSON ONLY.`;
     const usedModel = 'gpt-4o-mini'; // ⚡ UTILISER DIRECTEMENT GPT-4O-MINI (le plus rapide)
     
     // ⚡ OPTIMISATION NETLIFY: UNE SEULE tentative avec timeout strict
-    // Netlify Pro = 26s max. On utilise 22s pour laisser une marge de sécurité.
+    // Netlify Pro = 26s max. On utilise 24s pour laisser une marge de sécurité.
     // PAS DE RETRY - une seule tentative rapide pour rester dans la limite Netlify
     const MAX_RETRIES = 0; // ⚠️ UNE SEULE tentative - pas de retry
-    const INITIAL_TIMEOUT = 22000; // 22s max (Netlify coupe à ~26s)
+    const INITIAL_TIMEOUT = 24000; // 24s max (Netlify coupe à ~26s, on laisse 2s de marge)
     let lastError: any = null;
     let openaiResponse: Response | null = null;
     

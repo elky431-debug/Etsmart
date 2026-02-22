@@ -1000,19 +1000,42 @@ const fetchAIAnalysis = async (
   const token = session?.access_token;
   
   const startTime = Date.now();
-  const response = await fetch('/api/ai-analyze', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ 
-      productTitle: '', // ⚠️ IGNORÉ - L'IA utilise uniquement l'image
-      productPrice, 
-      niche,
-      productImageUrl
-    }),
-  });
+  
+  // Timeout côté client : 28 secondes (l'API a 25s maxDuration, on laisse 3s de marge)
+  const controller = new AbortController();
+  const clientTimeout = setTimeout(() => {
+    console.error('⏱️ Client-side timeout (28s) - aborting fetch');
+    controller.abort();
+  }, 28000);
+  
+  let response: Response;
+  try {
+    response = await fetch('/api/ai-analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ 
+        productTitle: '', // ⚠️ IGNORÉ - L'IA utilise uniquement l'image
+        productPrice, 
+        niche,
+        productImageUrl
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(clientTimeout);
+  } catch (fetchError: any) {
+    clearTimeout(clientTimeout);
+    if (fetchError.name === 'AbortError') {
+      throw new AnalysisBlockedError(
+        'Timeout de l\'analyse',
+        'L\'analyse a pris plus de 28 secondes et a été annulée.',
+        'Veuillez réessayer avec une image plus petite ou plus claire.'
+      );
+    }
+    throw fetchError;
+  }
   
   const fetchDuration = Date.now() - startTime;
   console.log('📥 Response received after', fetchDuration, 'ms:', {

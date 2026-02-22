@@ -211,10 +211,23 @@ export function DashboardQuickGenerate() {
       return;
     }
 
+    // Vérifier si on est déjà en train de générer
+    if (isGenerating) {
+      console.log('[QUICK GENERATE] ⚠️ Already generating, ignoring duplicate call');
+      return;
+    }
+
     setIsGenerating(true);
     setGeneratedImages([]);
     setListingData(null);
     setError(null);
+    
+    // Timeout de sécurité : arrêter le chargement après 45 secondes maximum
+    const safetyTimeout = setTimeout(() => {
+      console.error('[QUICK GENERATE] ⚠️ Safety timeout reached (45s), forcing stop');
+      setIsGenerating(false);
+      setError('⏱️ La génération prend trop de temps. Veuillez réessayer ou vérifier votre connexion internet.');
+    }, 45000);
 
     try {
       // Compresser les images
@@ -235,24 +248,108 @@ export function DashboardQuickGenerate() {
       }
 
       // ═══════════════════════════════════════════════════════════════
-      // UN SEUL APPEL — Listing + Images d'un coup
-      // L'API fait le poll serveur (~30s). Si timeout Netlify, poll client.
+      // MODE TEST LOCALHOST - Retourne des données mockées rapidement
+      // ═══════════════════════════════════════════════════════════════
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1'
+      );
+      
+      // Mode test pour localhost - retourne des données mockées après 2 secondes
+      // Active automatiquement en localhost pour éviter les problèmes d'API
+      if (isLocalhost) {
+        console.log('[QUICK GENERATE] 🧪 LOCALHOST MODE - Using mock data');
+        
+        // Simuler un délai de 2 secondes
+        await new Promise(r => setTimeout(r, 2000));
+        
+        // Données mockées
+        const mockListing: ListingData = {
+          title: 'Beautiful Handmade Product - Unique Design - Perfect Gift Idea',
+          description: '✨ Discover our beautiful handmade product! Perfect for gifting or personal use. Made with care and attention to detail. This unique item will add a special touch to your home or make an unforgettable gift for someone special. 🌟',
+          tags: ['handmade', 'gift', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'decor', 'special'],
+          materials: 'High quality materials, carefully selected for durability and beauty.',
+        };
+        
+        // Afficher le listing immédiatement
+        setListingData(mockListing);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(mockListing));
+        }
+        
+        // Arrêter le chargement
+        setIsGenerating(false);
+        setHasGenerated(true);
+        
+        // Simuler des images mockées après 5 secondes
+        setTimeout(() => {
+          const mockImages: GeneratedImage[] = [
+            { id: 'mock-1', url: 'https://via.placeholder.com/512x512/00d4ff/ffffff?text=Mock+Image+1' },
+            ...(quantity > 1 ? [{ id: 'mock-2', url: 'https://via.placeholder.com/512x512/00c9b7/ffffff?text=Mock+Image+2' }] : []),
+          ];
+          setGeneratedImages(mockImages);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(mockImages));
+          }
+          console.log('[QUICK GENERATE] ✅ Mock images added');
+        }, 5000);
+        
+        refreshSubscription(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('subscription-refresh'));
+        }
+        
+        clearTimeout(safetyTimeout);
+        console.log('[QUICK GENERATE] ✅ Mock mode completed');
+        return;
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // MODE PRODUCTION - Appel API réel
       // ═══════════════════════════════════════════════════════════════
       console.log('[QUICK GENERATE] 🚀 Generating everything...');
+      console.log('[QUICK GENERATE] 📊 Image size:', imageBase64.length, 'bytes');
+      console.log('[QUICK GENERATE] 📊 Background:', backgroundBase64 ? `${backgroundBase64.length} bytes` : 'none');
+      console.log('[QUICK GENERATE] 📊 Quantity:', quantity, 'AspectRatio:', aspectRatio);
       
-      const response = await fetch('/api/generate-listing-and-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sourceImage: imageBase64,
-          backgroundImage: backgroundBase64,
-          quantity,
-          aspectRatio,
-        }),
-      });
+      // Timeout de 30 secondes pour l'appel API (réduit pour localhost)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error('[QUICK GENERATE] ⏱️ API call timeout (30s) - aborting');
+        controller.abort();
+      }, 30000);
+      
+      let response: Response;
+      const fetchStartTime = Date.now();
+      try {
+        console.log('[QUICK GENERATE] 📡 Sending request to API...');
+        response = await fetch('/api/generate-listing-and-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            sourceImage: imageBase64,
+            backgroundImage: backgroundBase64,
+            quantity,
+            aspectRatio,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(`[QUICK GENERATE] ✅ API responded in ${fetchDuration}ms, status: ${response.status}`);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.error(`[QUICK GENERATE] ❌ API call failed after ${fetchDuration}ms:`, fetchError);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('⏱️ La génération prend trop de temps (30s). Veuillez réessayer ou vérifier votre connexion.');
+        }
+        throw new Error(`Erreur réseau: ${fetchError.message}`);
+      }
 
       if (!response.ok) {
         let errorData: any;
@@ -262,41 +359,27 @@ export function DashboardQuickGenerate() {
         } catch {
           errorData = {};
         }
-        throw new Error(errorData.error || errorData.message || `Erreur ${response.status}`);
+        const errorMsg = errorData.error || errorData.message || `Erreur ${response.status}`;
+        console.error('[QUICK GENERATE] ❌ API error:', errorMsg);
+        throw new Error(errorMsg);
       }
 
-      const data = await response.json();
-      console.log('[QUICK GENERATE] ✅ Listing ready, polling images...');
-
-      // Poll images côté client (l'API retourne des taskIds)
-      const taskIds: string[] = data.imageTaskIds || [];
-      let allImages: GeneratedImage[] = [];
-
-      if (taskIds.length > 0) {
-        // Poll en parallèle, max 20 polls x 3s = 60s
-        const pollResults = await Promise.all(
-          taskIds.map(async (taskId: string) => {
-            for (let attempt = 0; attempt < 20; attempt++) {
-              await new Promise(r => setTimeout(r, 3000));
-              try {
-                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
-                  headers: { 'Authorization': `Bearer ${token}` },
-                });
-                if (!res.ok) continue;
-                const s = await res.json();
-                if (s.status === 'ready' && s.url) return s.url;
-                if (s.status === 'error') return null;
-              } catch { /* retry */ }
-            }
-            return null;
-          })
-        );
-        pollResults.forEach((url, i) => {
-          if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
-        });
+      let data: any;
+      try {
+        data = await response.json();
+        console.log('[QUICK GENERATE] ✅ Listing ready, polling images...', data);
+      } catch (parseError: any) {
+        console.error('[QUICK GENERATE] ❌ JSON parse error:', parseError);
+        throw new Error('Erreur lors de la lecture de la réponse du serveur');
+      }
+      
+      // Vérifier que data contient au moins le listing
+      if (!data || (!data.listing && !data.imageTaskIds)) {
+        console.error('[QUICK GENERATE] ❌ Invalid response data:', data);
+        throw new Error('Réponse invalide du serveur');
       }
 
-      // TOUT AFFICHER D'UN COUP
+      // TOUT AFFICHER D'UN COUP - Afficher le listing immédiatement
       if (data.listing) {
         const listing: ListingData = {
           title: data.listing.title || '',
@@ -309,30 +392,120 @@ export function DashboardQuickGenerate() {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
         }
+        console.log('[QUICK GENERATE] ✅ Listing displayed immediately');
       }
 
-      if (allImages.length > 0) {
-        setGeneratedImages(allImages);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-        }
-      } else {
-        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
-      }
-
+      // Arrêter le chargement dès que le listing est prêt
+      setIsGenerating(false);
       setHasGenerated(true);
       refreshSubscription(true);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('subscription-refresh'));
       }
+
+      // Poll images côté client EN ARRIÈRE-PLAN (l'API retourne des taskIds)
+      const taskIds: string[] = data.imageTaskIds || [];
+      let allImages: GeneratedImage[] = [];
+
+      if (taskIds.length > 0) {
+        console.log(`[QUICK GENERATE] 🔄 Starting background polling for ${taskIds.length} image task(s)...`);
+        
+        // Poller en arrière-plan sans bloquer l'UI
+        (async () => {
+          try {
+            // Poll en parallèle, max 10 polls x 3s = 30s
+            const pollResults = await Promise.all(
+              taskIds.map(async (taskId: string, index: number) => {
+                console.log(`[QUICK GENERATE] 📡 Polling task ${index + 1}/${taskIds.length} (${taskId.substring(0, 8)}...)`);
+                for (let attempt = 0; attempt < 10; attempt++) {
+                  await new Promise(r => setTimeout(r, 3000));
+                  try {
+                    const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                      headers: { 'Authorization': `Bearer ${token}` },
+                    });
+                    if (!res.ok) {
+                      console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/10 failed: ${res.status}`);
+                      continue;
+                    }
+                    const s = await res.json();
+                    console.log(`[QUICK GENERATE] 📊 Task ${index + 1} status: ${s.status}`);
+                    if (s.status === 'ready' && s.url) {
+                      console.log(`[QUICK GENERATE] ✅ Task ${index + 1} ready!`);
+                      return s.url;
+                    }
+                    if (s.status === 'error') {
+                      console.log(`[QUICK GENERATE] ❌ Task ${index + 1} error: ${s.message || 'Unknown error'}`);
+                      return null;
+                    }
+                  } catch (err: any) {
+                    console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/10 exception: ${err.message}`);
+                    // Continue to retry
+                  }
+                }
+                console.log(`[QUICK GENERATE] ⏱️ Task ${index + 1} timeout after 10 attempts`);
+                return null;
+              })
+            );
+            
+            pollResults.forEach((url, i) => {
+              if (url) {
+                console.log(`[QUICK GENERATE] ✅ Image ${i + 1} ready: ${url.substring(0, 50)}...`);
+                allImages.push({ id: `img-${Date.now()}-${i}`, url });
+              }
+            });
+            
+            console.log(`[QUICK GENERATE] 📦 Total images ready: ${allImages.length}/${taskIds.length}`);
+            
+            // Mettre à jour les images une fois qu'elles sont prêtes
+            if (allImages.length > 0) {
+              setGeneratedImages(allImages);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+              }
+            } else if (taskIds.length > 0) {
+              const isLocalhost = typeof window !== 'undefined' && (
+                window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1'
+              );
+              if (isLocalhost) {
+                setError('⚠️ Les images prennent plus de temps en localhost. Elles peuvent prendre jusqu\'à 1-2 minutes. Vous pouvez cliquer sur "Générer de nouvelles images" pour réessayer.');
+              } else {
+                setError('⚠️ Les images prennent plus de temps que prévu. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+              }
+            }
+          } catch (pollError: any) {
+            console.error('[QUICK GENERATE] ❌ Polling error:', pollError);
+            setError('⚠️ Erreur lors du polling des images. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+          }
+        })();
+      } else {
+        // Si pas de taskIds, on affiche quand même le listing
+        console.log('[QUICK GENERATE] ⚠️ No image taskIds returned');
+        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+      }
+
+      // Le listing est déjà affiché et le polling se fait en arrière-plan
       
     } catch (error: any) {
-      console.error('Error generating:', error);
-      setError(error.message || 'Erreur lors de la génération');
+      console.error('[QUICK GENERATE] ❌ Error generating:', error);
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1'
+      );
+      
+      let errorMessage = error.message || 'Erreur lors de la génération';
+      if (isLocalhost && (errorMessage.includes('timeout') || errorMessage.includes('trop de temps'))) {
+        errorMessage = '⏱️ La génération prend trop de temps en localhost. Cela peut être dû à la connexion internet ou aux API externes. Veuillez réessayer.';
+      }
+      
+      setError(errorMessage);
       setGeneratedImages([]);
       setListingData(null);
+      setHasGenerated(false);
     } finally {
+      clearTimeout(safetyTimeout);
       setIsGenerating(false);
+      console.log('[QUICK GENERATE] 🏁 Generation process finished (isGenerating set to false)');
     }
   };
 
@@ -427,20 +600,37 @@ export function DashboardQuickGenerate() {
       const taskIds: string[] = data.imageTaskIds || [];
       
       if (taskIds.length > 0) {
+        console.log(`[QUICK GENERATE] 🔄 Regenerating: polling ${taskIds.length} image task(s)...`);
+        // Poll en parallèle, max 10 polls x 3s = 30s (réduit pour éviter chargement infini)
         const pollResults = await Promise.all(
-          taskIds.map(async (taskId: string) => {
-            for (let attempt = 0; attempt < 20; attempt++) {
+          taskIds.map(async (taskId: string, index: number) => {
+            console.log(`[QUICK GENERATE] 📡 Regenerating: polling task ${index + 1}/${taskIds.length} (${taskId.substring(0, 8)}...)`);
+            for (let attempt = 0; attempt < 10; attempt++) {
               await new Promise(r => setTimeout(r, 3000));
               try {
                 const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
                   headers: { 'Authorization': `Bearer ${token}` },
                 });
-                if (!res.ok) continue;
+                if (!res.ok) {
+                  console.log(`[QUICK GENERATE] ⚠️ Regenerate poll ${attempt + 1}/10 failed: ${res.status}`);
+                  continue;
+                }
                 const s = await res.json();
-                if (s.status === 'ready' && s.url) return s.url;
-                if (s.status === 'error') return null;
-              } catch { /* retry */ }
+                console.log(`[QUICK GENERATE] 📊 Regenerate task ${index + 1} status: ${s.status}`);
+                if (s.status === 'ready' && s.url) {
+                  console.log(`[QUICK GENERATE] ✅ Regenerate task ${index + 1} ready!`);
+                  return s.url;
+                }
+                if (s.status === 'error') {
+                  console.log(`[QUICK GENERATE] ❌ Regenerate task ${index + 1} error: ${s.message || 'Unknown error'}`);
+                  return null;
+                }
+              } catch (err: any) {
+                console.log(`[QUICK GENERATE] ⚠️ Regenerate poll ${attempt + 1}/10 exception: ${err.message}`);
+                // Continue to retry
+              }
             }
+            console.log(`[QUICK GENERATE] ⏱️ Regenerate task ${index + 1} timeout after 10 attempts`);
             return null;
           })
         );
@@ -450,16 +640,27 @@ export function DashboardQuickGenerate() {
           .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
 
         if (newImages.length > 0) {
+          console.log(`[QUICK GENERATE] ✅ Regenerate success: ${newImages.length} new image(s)`);
           setGeneratedImages(prev => [...prev, ...newImages]);
           if (typeof window !== 'undefined') {
             const allImages = [...generatedImages, ...newImages];
             sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
           }
         } else {
-          setError('Aucune image valide générée. Réessayez.');
+          const isLocalhost = typeof window !== 'undefined' && (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1'
+          );
+          if (isLocalhost) {
+            setError('⚠️ Les images prennent plus de temps en localhost. Elles peuvent prendre jusqu\'à 1-2 minutes. Réessayez dans quelques instants.');
+          } else {
+            setError('⚠️ Aucune image valide générée après 30 secondes. Réessayez.');
+          }
+          console.log(`[QUICK GENERATE] ⚠️ Regenerate warning: ${taskIds.length} task(s) but 0 new images after polling`);
         }
       } else {
-        setError('La génération d\'images a échoué. Réessayez.');
+        setError('⚠️ La génération d\'images a échoué. Aucune tâche créée. Réessayez.');
+        console.log('[QUICK GENERATE] ⚠️ Regenerate error: No taskIds returned from API');
       }
 
       // Refresh subscription
