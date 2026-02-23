@@ -133,13 +133,17 @@ export function DashboardQuickGenerate() {
         }
         if (Array.isArray(taskIds) && taskIds.length > 0) {
           (async () => {
+            setIsPollingImages(true);
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
-            if (!token) return;
-
+            if (!token) {
+              setIsPollingImages(false);
+              return;
+            }
+            const maxAttempts = 12;
             const pollResults = await Promise.all(
               taskIds.map(async (taskId: string, index: number) => {
-                for (let attempt = 0; attempt < 20; attempt++) {
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
                   await new Promise(r => setTimeout(r, attempt === 0 ? 2000 : 3000));
                   try {
                     const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
@@ -163,8 +167,11 @@ export function DashboardQuickGenerate() {
               setGeneratedImages(allImages);
               generatedImagesRef.current = allImages;
               sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+            } else {
+              setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
             }
             sessionStorage.removeItem(`${storageKey}-taskIds`);
+            setIsPollingImages(false);
           })();
         }
       }
@@ -466,120 +473,114 @@ export function DashboardQuickGenerate() {
         throw new Error('Réponse invalide du serveur');
       }
 
-      // TOUT AFFICHER D'UN COUP - Afficher le listing immédiatement
-      if (data.listing) {
-        const listing: ListingData = {
-          title: data.listing.title || '',
-          description: data.listing.description || '',
-          tags: data.listing.tags || [],
-          materials: data.listing.materials || '',
-        };
-        setListingData(listing);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
-        console.log('[QUICK GENERATE] ✅ Listing displayed immediately');
+      // Vérifier que data contient au moins le listing
+      if (!data || (!data.listing && !data.imageTaskIds)) {
+        console.error('[QUICK GENERATE] ❌ Invalid response data:', data);
+        throw new Error('Réponse invalide du serveur');
       }
 
-      // Arrêter le chargement dès que le listing est prêt
-      setIsGenerating(false);
-      setHasGenerated(true);
-      refreshSubscription(true);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('subscription-refresh'));
-      }
-
-      // Poll images côté client EN ARRIÈRE-PLAN (l'API retourne des taskIds)
       const taskIds: string[] = data.imageTaskIds || [];
-      let allImages: GeneratedImage[] = [];
+      const pendingListing: ListingData | null = data.listing
+        ? {
+            title: data.listing.title || '',
+            description: data.listing.description || '',
+            tags: data.listing.tags || [],
+            materials: data.listing.materials || '',
+          }
+        : null;
 
+      // Afficher listing + images en même temps : on attend la fin du polling (ou timeout) avant d'afficher
       if (taskIds.length > 0) {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(`${storageKey}-taskIds`, JSON.stringify(taskIds));
+          if (pendingListing) {
+            sessionStorage.setItem(storageKey, 'true');
+            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
+          }
         }
-        console.log(`[QUICK GENERATE] 🔄 Starting background polling for ${taskIds.length} image task(s) (up to 60s)...`);
-        
+        console.log(`[QUICK GENERATE] 🔄 Waiting for listing + images (polling ${taskIds.length} task(s), max 40s)...`);
+
         setIsPollingImages(true);
-        // Poller en arrière-plan sans bloquer l'UI
+        // Ne pas afficher le listing tout de suite — on attend la fin du polling
         (async () => {
+          let allImages: GeneratedImage[] = [];
+          const maxAttempts = 12; // 2s + 11*3s ≈ 35s max
           try {
-            // Poll en parallèle, max 10 polls x 3s = 30s
             const pollResults = await Promise.all(
               taskIds.map(async (taskId: string, index: number) => {
-                console.log(`[QUICK GENERATE] 📡 Polling task ${index + 1}/${taskIds.length} (${taskId.substring(0, 8)}...)`);
-                for (let attempt = 0; attempt < 20; attempt++) {
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
                   await new Promise(r => setTimeout(r, attempt === 0 ? 2000 : 3000));
                   try {
                     const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
                       headers: { 'Authorization': `Bearer ${token}` },
                     });
-                    if (!res.ok) {
-                      console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/20 failed: ${res.status}`);
-                      continue;
-                    }
+                    if (!res.ok) continue;
                     const s = await res.json();
-                    console.log(`[QUICK GENERATE] 📊 Task ${index + 1} status: ${s.status}`);
+                    if (attempt % 3 === 0 || s.status !== 'pending') {
+                      console.log(`[QUICK GENERATE] Task ${index + 1} status: ${s.status}`);
+                    }
                     if (s.status === 'ready' && s.url) {
                       console.log(`[QUICK GENERATE] ✅ Task ${index + 1} ready!`);
                       return s.url;
                     }
-                    if (s.status === 'error') {
-                      console.log(`[QUICK GENERATE] ❌ Task ${index + 1} error: ${s.message || 'Unknown error'}`);
-                      return null;
-                    }
+                    if (s.status === 'error') return null;
                   } catch (err: any) {
-                    console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/20 exception: ${err.message}`);
-                    // Continue to retry
+                    if (attempt % 3 === 0) console.log(`[QUICK GENERATE] Task ${index + 1} poll error: ${err.message}`);
                   }
                 }
-                console.log(`[QUICK GENERATE] ⏱️ Task ${index + 1} timeout after 20 attempts`);
+                console.log(`[QUICK GENERATE] ⏱️ Task ${index + 1} timeout after ${maxAttempts} attempts`);
                 return null;
               })
             );
-            
-            pollResults.forEach((url, i) => {
-              if (url) {
-                console.log(`[QUICK GENERATE] ✅ Image ${i + 1} ready: ${url.substring(0, 50)}...`);
-                allImages.push({ id: `img-${Date.now()}-${i}`, url });
-              }
-            });
-            
-            console.log(`[QUICK GENERATE] 📦 Total images ready: ${allImages.length}/${taskIds.length}`);
 
-            // Persister d'abord en sessionStorage pour ne pas perdre les images si un re-render parent écrase l'état
-            if (allImages.length > 0) {
-              if (typeof window !== 'undefined') {
-                sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-                sessionStorage.removeItem(`${storageKey}-taskIds`);
-              }
-              generatedImagesRef.current = allImages;
-              setGeneratedImages(allImages);
-            } else if (taskIds.length > 0) {
-              const isLocalhost = typeof window !== 'undefined' && (
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1'
-              );
-              if (isLocalhost) {
-                setError('⚠️ Les images prennent plus de temps en localhost. Elles peuvent prendre jusqu\'à 1-2 minutes. Vous pouvez cliquer sur "Générer de nouvelles images" pour réessayer.');
-              } else {
-                setError('⚠️ Les images prennent plus de temps que prévu. Cliquez sur "Générer de nouvelles images" pour réessayer.');
-              }
-            }
+            pollResults.forEach((url, i) => {
+              if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
+            });
+            console.log(`[QUICK GENERATE] 📦 Images: ${allImages.length}/${taskIds.length}`);
           } catch (pollError: any) {
             console.error('[QUICK GENERATE] ❌ Polling error:', pollError);
-            setError('⚠️ Erreur lors du polling des images. Cliquez sur "Générer de nouvelles images" pour réessayer.');
           } finally {
             setIsPollingImages(false);
           }
+
+          // Tout afficher en même temps : listing + images (ou erreur)
+          if (pendingListing) {
+            setListingData(pendingListing);
+          }
+          if (allImages.length > 0) {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+              sessionStorage.removeItem(`${storageKey}-taskIds`);
+            }
+            generatedImagesRef.current = allImages;
+            setGeneratedImages(allImages);
+          } else if (taskIds.length > 0) {
+            setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
+          }
+          setIsGenerating(false);
+          setHasGenerated(true);
+          refreshSubscription(true);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('subscription-refresh'));
+          }
         })();
       } else {
-        // Si pas de taskIds, on affiche quand même le listing
-        console.log('[QUICK GENERATE] ⚠️ No image taskIds returned');
-        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+        // Pas de tâches images : afficher le listing tout de suite
+        if (pendingListing) {
+          setListingData(pendingListing);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(storageKey, 'true');
+            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
+          }
+        }
+        setIsGenerating(false);
+        setHasGenerated(true);
+        refreshSubscription(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('subscription-refresh'));
+        }
+        setError('⚠️ Aucune image générée. Utilisez « Générer de nouvelles images » pour en créer.');
       }
-
-      // Le listing est déjà affiché et le polling se fait en arrière-plan
       
     } catch (error: any) {
       console.error('[QUICK GENERATE] ❌ Error generating:', error);
@@ -1110,12 +1111,18 @@ export function DashboardQuickGenerate() {
           </div>
         )}
 
-        {/* Results - Listing and Images rendered independently, no AnimatePresence blocking */}
+        {/* Results - Loading: un seul écran jusqu'à avoir listing + images (ou timeout) */}
         {isGenerating && !listingData && (
           <div className="min-h-[400px] flex flex-col items-center justify-center py-12">
             <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
-            <p className="text-lg font-semibold text-white">Génération en cours...</p>
-            <p className="text-sm text-white/70 mt-2">Le listing et les images arrivent dans quelques secondes</p>
+            <p className="text-lg font-semibold text-white">
+              {isPollingImages ? 'Génération du listing et des images...' : 'Génération en cours...'}
+            </p>
+            <p className="text-sm text-white/70 mt-2">
+              {isPollingImages
+                ? 'Cela peut prendre 30 à 45 secondes. Merci de patienter.'
+                : 'Le listing et les images arrivent.'}
+            </p>
           </div>
         )}
 
@@ -1243,18 +1250,18 @@ export function DashboardQuickGenerate() {
           </div>
         )}
 
-        {/* Images polling indicator */}
-        {isPollingImages && displayImages.length === 0 && listingData && (
+        {/* Indicateur images en cours (ex. reprise du polling après rechargement) */}
+        {listingData && isPollingImages && displayImages.length === 0 && (
           <div className="bg-black rounded-xl border border-white/10 p-6 mb-6">
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
-              <p className="text-base font-semibold text-white">Génération des images en cours...</p>
-              <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+              <p className="text-base font-semibold text-white">Récupération des images...</p>
+              <p className="text-sm text-white/50 mt-2">Encore 30 à 40 secondes</p>
             </div>
           </div>
         )}
 
-        {/* Images Section - appears as soon as displayImages has items */}
+        {/* Images Section - apparaît en même temps que le listing */}
         {displayImages.length > 0 && (
           <div className="bg-black rounded-xl border border-white/10 p-6 mb-6">
             <h3 className="text-xl font-bold text-white mb-6">
