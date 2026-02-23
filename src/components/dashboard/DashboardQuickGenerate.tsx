@@ -315,13 +315,13 @@ export function DashboardQuickGenerate() {
     setListingData(null);
     setError(null);
     
-    // Timeout de sécurité : arrêter après 90s (API ~30s + polling ~40s)
+    // Timeout de sécurité 45s (comme avant) — annulé dès qu'on a la réponse API pour ne pas couper l'affichage
     const safetyTimeout = setTimeout(() => {
-      console.error('[QUICK GENERATE] ⚠️ Safety timeout reached (90s), forcing stop');
+      console.error('[QUICK GENERATE] ⚠️ Safety timeout (45s)');
       setIsGenerating(false);
       setIsPollingImages(false);
-      setError('⏱️ La génération prend trop de temps. Veuillez réessayer ou vérifier votre connexion internet.');
-    }, 90000);
+      setError('⏱️ La génération prend trop de temps. Veuillez réessayer.');
+    }, 45000);
 
     try {
       // Compresser les images
@@ -484,23 +484,34 @@ export function DashboardQuickGenerate() {
           }
         : null;
 
-      // Afficher listing + images en même temps : on attend la fin du polling (ou timeout) avant d'afficher
+      // Afficher le listing tout de suite (comme avant) pour que l'utilisateur voie toujours quelque chose
+      if (pendingListing) {
+        setListingData(pendingListing);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
+        }
+      } else if (taskIds.length === 0) {
+        setError('⚠️ Le serveur n\'a pas renvoyé de listing. Réessayez.');
+      }
+      clearTimeout(safetyTimeout);
+      setIsGenerating(false);
+      setHasGenerated(true);
+      refreshSubscription(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscription-refresh'));
+      }
+
+      // Polling des images en arrière-plan — les images s'afficheront quand elles sont prêtes
       if (taskIds.length > 0) {
-        clearTimeout(safetyTimeout); // éviter que le timeout de 45s remette l'UI au formulaire pendant le polling
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(`${storageKey}-taskIds`, JSON.stringify(taskIds));
-          if (pendingListing) {
-            sessionStorage.setItem(storageKey, 'true');
-            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
-          }
         }
-        console.log(`[QUICK GENERATE] 🔄 Waiting for listing + images (polling ${taskIds.length} task(s), max 40s)...`);
-
+        console.log(`[QUICK GENERATE] 🔄 Polling images en arrière-plan (${taskIds.length} tâche(s))...`);
         setIsPollingImages(true);
-        // Ne pas afficher le listing tout de suite — on attend la fin du polling
         (async () => {
           let allImages: GeneratedImage[] = [];
-          const maxAttempts = 12; // 2s + 11*3s ≈ 35s max
+          const maxAttempts = 12;
           try {
             const pollResults = await Promise.all(
               taskIds.map(async (taskId: string, index: number) => {
@@ -528,21 +539,15 @@ export function DashboardQuickGenerate() {
                 return null;
               })
             );
-
             pollResults.forEach((url, i) => {
               if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
             });
             console.log(`[QUICK GENERATE] 📦 Images: ${allImages.length}/${taskIds.length}`);
           } catch (pollError: any) {
             console.error('[QUICK GENERATE] ❌ Polling error:', pollError);
-            setError('⚠️ Erreur lors de la récupération des images. Réessayez avec « Générer de nouvelles images ».');
+            setError('⚠️ Erreur lors de la récupération des images. Utilisez « Générer de nouvelles images » pour réessayer.');
           } finally {
             setIsPollingImages(false);
-          }
-
-          // Tout afficher en même temps : listing + images (ou erreur)
-          if (pendingListing) {
-            setListingData(pendingListing);
           }
           if (allImages.length > 0) {
             if (typeof window !== 'undefined') {
@@ -554,28 +559,8 @@ export function DashboardQuickGenerate() {
           } else if (taskIds.length > 0) {
             setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
           }
-          setIsGenerating(false);
-          setHasGenerated(true);
-          refreshSubscription(true);
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('subscription-refresh'));
-          }
         })();
       } else {
-        // Pas de tâches images : afficher le listing tout de suite
-        if (pendingListing) {
-          setListingData(pendingListing);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem(storageKey, 'true');
-            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
-          }
-        }
-        setIsGenerating(false);
-        setHasGenerated(true);
-        refreshSubscription(true);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('subscription-refresh'));
-        }
         setError('⚠️ Aucune image générée. Utilisez « Générer de nouvelles images » pour en créer.');
       }
       
@@ -1108,18 +1093,12 @@ export function DashboardQuickGenerate() {
           </div>
         )}
 
-        {/* Results - Loading: un seul écran jusqu'à avoir listing + images (ou timeout) */}
+        {/* Écran de chargement — uniquement avant d'avoir le listing */}
         {isGenerating && !listingData && (
           <div className="min-h-[400px] flex flex-col items-center justify-center py-12">
             <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
-            <p className="text-lg font-semibold text-white">
-              {isPollingImages ? 'Génération du listing et des images...' : 'Génération en cours...'}
-            </p>
-            <p className="text-sm text-white/70 mt-2">
-              {isPollingImages
-                ? 'Cela peut prendre 30 à 45 secondes. Merci de patienter.'
-                : 'Le listing et les images arrivent.'}
-            </p>
+            <p className="text-lg font-semibold text-white">Génération en cours...</p>
+            <p className="text-sm text-white/70 mt-2">Le listing et les images arrivent dans quelques secondes</p>
           </div>
         )}
 
