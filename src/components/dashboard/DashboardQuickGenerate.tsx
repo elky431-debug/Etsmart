@@ -315,12 +315,13 @@ export function DashboardQuickGenerate() {
     setListingData(null);
     setError(null);
     
-    // Timeout de sécurité : arrêter le chargement après 45 secondes maximum
+    // Timeout de sécurité : arrêter après 90s (API ~30s + polling ~40s)
     const safetyTimeout = setTimeout(() => {
-      console.error('[QUICK GENERATE] ⚠️ Safety timeout reached (45s), forcing stop');
+      console.error('[QUICK GENERATE] ⚠️ Safety timeout reached (90s), forcing stop');
       setIsGenerating(false);
+      setIsPollingImages(false);
       setError('⏱️ La génération prend trop de temps. Veuillez réessayer ou vérifier votre connexion internet.');
-    }, 45000);
+    }, 90000);
 
     try {
       // Compresser les images
@@ -473,12 +474,6 @@ export function DashboardQuickGenerate() {
         throw new Error('Réponse invalide du serveur');
       }
 
-      // Vérifier que data contient au moins le listing
-      if (!data || (!data.listing && !data.imageTaskIds)) {
-        console.error('[QUICK GENERATE] ❌ Invalid response data:', data);
-        throw new Error('Réponse invalide du serveur');
-      }
-
       const taskIds: string[] = data.imageTaskIds || [];
       const pendingListing: ListingData | null = data.listing
         ? {
@@ -491,6 +486,7 @@ export function DashboardQuickGenerate() {
 
       // Afficher listing + images en même temps : on attend la fin du polling (ou timeout) avant d'afficher
       if (taskIds.length > 0) {
+        clearTimeout(safetyTimeout); // éviter que le timeout de 45s remette l'UI au formulaire pendant le polling
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(`${storageKey}-taskIds`, JSON.stringify(taskIds));
           if (pendingListing) {
@@ -539,6 +535,7 @@ export function DashboardQuickGenerate() {
             console.log(`[QUICK GENERATE] 📦 Images: ${allImages.length}/${taskIds.length}`);
           } catch (pollError: any) {
             console.error('[QUICK GENERATE] ❌ Polling error:', pollError);
+            setError('⚠️ Erreur lors de la récupération des images. Réessayez avec « Générer de nouvelles images ».');
           } finally {
             setIsPollingImages(false);
           }
