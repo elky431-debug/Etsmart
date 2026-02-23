@@ -89,6 +89,7 @@ export function DashboardQuickGenerate() {
   const [copiedMaterials, setCopiedMaterials] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
+  const [isPollingImages, setIsPollingImages] = useState(false);
   const generatedImagesRef = useRef<GeneratedImage[]>([]);
 
   // Vérifier au montage si une génération rapide a déjà été effectuée
@@ -499,6 +500,7 @@ export function DashboardQuickGenerate() {
         }
         console.log(`[QUICK GENERATE] 🔄 Starting background polling for ${taskIds.length} image task(s) (up to 60s)...`);
         
+        setIsPollingImages(true);
         // Poller en arrière-plan sans bloquer l'UI
         (async () => {
           try {
@@ -567,6 +569,8 @@ export function DashboardQuickGenerate() {
           } catch (pollError: any) {
             console.error('[QUICK GENERATE] ❌ Polling error:', pollError);
             setError('⚠️ Erreur lors du polling des images. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+          } finally {
+            setIsPollingImages(false);
           }
         })();
       } else {
@@ -1106,256 +1110,231 @@ export function DashboardQuickGenerate() {
           </div>
         )}
 
-        {/* Results */}
-        <AnimatePresence mode="wait">
-          {isGenerating ? (
-            <motion.div
-              key="generating"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[400px] flex flex-col items-center justify-center py-12"
-            >
-              <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
-              <p className="text-lg font-semibold text-white">
-                Génération en cours...
-              </p>
-              <p className="text-sm text-white/70 mt-2">
-                Le listing et les images arrivent dans quelques secondes
-              </p>
-            </motion.div>
-          ) : (listingData || displayImages.length > 0) ? (
-            <motion.div
-              key="results"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              {/* Listing Section */}
-              {listingData && (
-                <div className="space-y-4">
-                  {/* Title */}
-                  {listingData.title && (
-                    <div className="p-5 rounded-xl bg-black border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                            <FileText size={20} className="text-white" />
-                          </div>
-                          <h2 className="text-base font-bold text-white">Titre SEO optimisé</h2>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(listingData.title, 'title')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            copiedTitle 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-black border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedTitle ? 'Copié' : 'Copier'}
-                        </button>
-                      </div>
-                      <div className="p-4 rounded-lg bg-black border border-white/10">
-                        <p className="text-sm font-medium text-white">{listingData.title}</p>
-                      </div>
-                    </div>
-                  )}
+        {/* Results - Listing and Images rendered independently, no AnimatePresence blocking */}
+        {isGenerating && !listingData && (
+          <div className="min-h-[400px] flex flex-col items-center justify-center py-12">
+            <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
+            <p className="text-lg font-semibold text-white">Génération en cours...</p>
+            <p className="text-sm text-white/70 mt-2">Le listing et les images arrivent dans quelques secondes</p>
+          </div>
+        )}
 
-                  {/* Description */}
-                  {listingData.description && (
-                    <div className="p-5 rounded-xl bg-black border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
-                            <FileText size={20} className="text-white" />
-                          </div>
-                          <h3 className="text-base font-bold text-white">Description Etsy</h3>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(listingData.description, 'description')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            copiedDescription 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-black border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedDescription ? 'Copié' : 'Copier'}
-                        </button>
-                      </div>
-                      <div className="p-4 rounded-lg bg-black border border-white/10 max-h-96 overflow-y-auto">
-                        <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
-                          {listingData.description}
-                        </pre>
-                      </div>
+        {/* Listing Section - appears as soon as listingData is available */}
+        {listingData && (
+          <div className="space-y-4 mb-6">
+            {/* Title */}
+            {listingData.title && (
+              <div className="p-5 rounded-xl bg-black border border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                      <FileText size={20} className="text-white" />
                     </div>
-                  )}
-
-                  {/* Tags */}
-                  {listingData.tags && listingData.tags.length > 0 && (
-                    <div className="p-5 rounded-xl bg-black border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <Hash size={20} className="text-[#00d4ff]" />
-                          <h3 className="text-base font-bold text-white">Tags Etsy ({listingData.tags.length}/13)</h3>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(listingData.tags.join(', '), 'tags')}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            copiedTags 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-black border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {copiedTags ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedTags ? 'Copié' : 'Copier'}
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {listingData.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1.5 rounded-lg bg-black border border-white/10 text-sm text-white/80"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Materials */}
-                  {listingData.materials && (
-                    <div className="p-5 rounded-xl bg-black border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                            <Package size={20} className="text-white" />
-                          </div>
-                          <h3 className="text-base font-bold text-white">Matériaux</h3>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(listingData.materials, 'materials')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            copiedMaterials 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-black border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {copiedMaterials ? <Check size={14} /> : <Copy size={14} />}
-                          {copiedMaterials ? 'Copié' : 'Copier'}
-                        </button>
-                      </div>
-                      <div className="p-4 rounded-lg bg-black border border-white/10">
-                        <p className="text-sm font-medium text-white whitespace-pre-wrap">{listingData.materials}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Images Loading State (listing shown, images loading) */}
-              {isGenerating && listingData && generatedImages.length === 0 && (
-                <div className="bg-black rounded-xl border border-white/10 p-6">
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
-                    <p className="text-base font-semibold text-white">Génération des images en cours...</p>
-                    <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+                    <h2 className="text-base font-bold text-white">Titre SEO optimisé</h2>
                   </div>
+                  <button
+                    onClick={() => copyToClipboard(listingData.title, 'title')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      copiedTitle 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-black border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {copiedTitle ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedTitle ? 'Copié' : 'Copier'}
+                  </button>
                 </div>
-              )}
+                <div className="p-4 rounded-lg bg-black border border-white/10">
+                  <p className="text-sm font-medium text-white">{listingData.title}</p>
+                </div>
+              </div>
+            )}
 
-              {/* Images Section */}
-              {displayImages.length > 0 && (
-                <div className="bg-black rounded-xl border border-white/10 p-6">
-                  <h3 className="text-xl font-bold text-white mb-6">
-                    {displayImages.length} image{displayImages.length > 1 ? 's' : ''} générée{displayImages.length > 1 ? 's' : ''}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {displayImages.map((img, index) => (
-                      <motion.div
-                        key={img.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={img.url}
-                            alt={`Generated ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => setFullscreenImage(img.url)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
-                            >
-                              <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
-                            </button>
-                            <button
-                              onClick={() => downloadImage(img.url, index)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
-                            >
-                              <Download size={18} className="text-white sm:w-4 sm:h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
+            {/* Description */}
+            {listingData.description && (
+              <div className="p-5 rounded-xl bg-black border border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+                      <FileText size={20} className="text-white" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Description Etsy</h3>
                   </div>
+                  <button
+                    onClick={() => copyToClipboard(listingData.description, 'description')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      copiedDescription 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-black border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {copiedDescription ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedDescription ? 'Copié' : 'Copier'}
+                  </button>
+                </div>
+                <div className="p-4 rounded-lg bg-black border border-white/10 max-h-96 overflow-y-auto">
+                  <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
+                    {listingData.description}
+                  </pre>
+                </div>
+              </div>
+            )}
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                    {/* Download All Button */}
-                    {displayImages.length > 1 && (
-                      <button
-                        onClick={downloadAllImages}
-                        disabled={isDownloadingAll}
-                        className="flex-1 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00bfe6] hover:to-[#00b5a5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isDownloadingAll ? (
-                          <>
-                            <Loader2 size={18} className="animate-spin" />
-                            Téléchargement en cours...
-                          </>
-                        ) : (
-                          <>
-                            <Download size={18} />
-                            Tout télécharger ({displayImages.length} images)
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* Regenerate Images Button */}
-                    <button
-                      onClick={regenerateImages}
-                      disabled={isRegeneratingImages || !sourceImagePreview}
-                      className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Tags */}
+            {listingData.tags && listingData.tags.length > 0 && (
+              <div className="p-5 rounded-xl bg-black border border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Hash size={20} className="text-[#00d4ff]" />
+                    <h3 className="text-base font-bold text-white">Tags Etsy ({listingData.tags.length}/13)</h3>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(listingData.tags.join(', '), 'tags')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      copiedTags 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-black border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {copiedTags ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedTags ? 'Copié' : 'Copier'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {listingData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1.5 rounded-lg bg-black border border-white/10 text-sm text-white/80"
                     >
-                      {isRegeneratingImages ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin" />
-                          Génération en cours...
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon size={18} />
-                          Générer de nouvelles images
-                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
-                        </>
-                      )}
-                    </button>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Materials */}
+            {listingData.materials && (
+              <div className="p-5 rounded-xl bg-black border border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                      <Package size={20} className="text-white" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Matériaux</h3>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(listingData.materials, 'materials')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      copiedMaterials 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-black border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {copiedMaterials ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedMaterials ? 'Copié' : 'Copier'}
+                  </button>
+                </div>
+                <div className="p-4 rounded-lg bg-black border border-white/10">
+                  <p className="text-sm font-medium text-white whitespace-pre-wrap">{listingData.materials}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Images polling indicator */}
+        {isPollingImages && displayImages.length === 0 && listingData && (
+          <div className="bg-black rounded-xl border border-white/10 p-6 mb-6">
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
+              <p className="text-base font-semibold text-white">Génération des images en cours...</p>
+              <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+            </div>
+          </div>
+        )}
+
+        {/* Images Section - appears as soon as displayImages has items */}
+        {displayImages.length > 0 && (
+          <div className="bg-black rounded-xl border border-white/10 p-6 mb-6">
+            <h3 className="text-xl font-bold text-white mb-6">
+              {displayImages.length} image{displayImages.length > 1 ? 's' : ''} générée{displayImages.length > 1 ? 's' : ''}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {displayImages.map((img, index) => (
+                <div
+                  key={img.id}
+                  className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
+                >
+                  <div className="aspect-square relative">
+                    <img
+                      src={img.url}
+                      alt={`Generated ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                    <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setFullscreenImage(img.url)}
+                        className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                      >
+                        <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
+                      </button>
+                      <button
+                        onClick={() => downloadImage(img.url, index)}
+                        className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                      >
+                        <Download size={18} className="text-white sm:w-4 sm:h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              {displayImages.length > 1 && (
+                <button
+                  onClick={downloadAllImages}
+                  disabled={isDownloadingAll}
+                  className="flex-1 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00bfe6] hover:to-[#00b5a5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDownloadingAll ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Téléchargement en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} />
+                      Tout télécharger ({displayImages.length} images)
+                    </>
+                  )}
+                </button>
               )}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+              <button
+                onClick={regenerateImages}
+                disabled={isRegeneratingImages || !sourceImagePreview}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRegeneratingImages ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Génération en cours...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon size={18} />
+                    Générer de nouvelles images
+                    <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Fullscreen Modal */}
