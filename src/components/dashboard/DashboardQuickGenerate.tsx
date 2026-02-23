@@ -395,6 +395,7 @@ export function DashboardQuickGenerate() {
         console.log('[QUICK GENERATE] ✅ Listing displayed immediately');
       }
 
+      clearTimeout(safetyTimeout); // Ne pas laisser le timeout remettre l'UI en erreur pendant le polling des images
       // Arrêter le chargement dès que le listing est prêt
       setIsGenerating(false);
       setHasGenerated(true);
