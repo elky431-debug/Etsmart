@@ -89,6 +89,7 @@ export function DashboardQuickGenerate() {
   const [copiedMaterials, setCopiedMaterials] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
+  const generatedImagesRef = useRef<GeneratedImage[]>([]);
 
   // Vérifier au montage si une génération rapide a déjà été effectuée
   // Si on a des taskIds sauvegardés mais pas d'images, reprendre le polling (images pas encore prêtes au dernier chargement)
@@ -105,7 +106,9 @@ export function DashboardQuickGenerate() {
       if (savedImages) {
         try {
           const images = JSON.parse(savedImages);
-          setGeneratedImages(Array.isArray(images) ? images : []);
+          const arr = Array.isArray(images) ? images : [];
+          setGeneratedImages(arr);
+          generatedImagesRef.current = arr;
         } catch (e) {
           console.error('Error parsing saved images:', e);
         }
@@ -157,6 +160,7 @@ export function DashboardQuickGenerate() {
               .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
             if (allImages.length > 0) {
               setGeneratedImages(allImages);
+              generatedImagesRef.current = allImages;
               sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
             }
             sessionStorage.removeItem(`${storageKey}-taskIds`);
@@ -171,17 +175,33 @@ export function DashboardQuickGenerate() {
   useEffect(() => {
     if (typeof window === 'undefined' || !hasGenerated || !listingData) return;
     if (generatedImages.length > 0) return;
-    const raw = sessionStorage.getItem(`${storageKey}-images`);
-    if (!raw || raw === '[]') return;
+    const syncFromStorage = () => {
+      const raw = sessionStorage.getItem(`${storageKey}-images`);
+      if (!raw || raw === '[]') return;
     try {
       const images = JSON.parse(raw);
       if (Array.isArray(images) && images.length > 0) {
         setGeneratedImages(images);
+        generatedImagesRef.current = images;
       }
     } catch {
-      // ignore
-    }
+        // ignore
+      }
+    };
+    syncFromStorage();
+    const t = setTimeout(syncFromStorage, 150);
+    return () => clearTimeout(t);
   }, [hasGenerated, listingData, generatedImages.length, storageKey]);
+
+  // Ré-synchroniser l'état depuis la ref si les images sont dans la ref mais pas dans l'état (ex: re-render parent)
+  useEffect(() => {
+    if (generatedImages.length === 0 && generatedImagesRef.current.length > 0) {
+      setGeneratedImages([...generatedImagesRef.current]);
+    }
+  }, [generatedImages.length]);
+
+  // Pour l'affichage: état ou ref (ref = secours si l'état a été perdu)
+  const displayImages = generatedImages.length > 0 ? generatedImages : generatedImagesRef.current;
 
   // Drag & Drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -283,6 +303,7 @@ export function DashboardQuickGenerate() {
 
     setIsGenerating(true);
     setGeneratedImages([]);
+    generatedImagesRef.current = [];
     setListingData(null);
     setError(null);
     
@@ -353,6 +374,7 @@ export function DashboardQuickGenerate() {
             ...(quantity > 1 ? [{ id: 'mock-2', url: 'https://via.placeholder.com/512x512/00c9b7/ffffff?text=Mock+Image+2' }] : []),
           ];
           setGeneratedImages(mockImages);
+          generatedImagesRef.current = mockImages;
           if (typeof window !== 'undefined') {
             sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(mockImages));
           }
@@ -529,6 +551,7 @@ export function DashboardQuickGenerate() {
                 sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
                 sessionStorage.removeItem(`${storageKey}-taskIds`);
               }
+              generatedImagesRef.current = allImages;
               setGeneratedImages(allImages);
             } else if (taskIds.length > 0) {
               const isLocalhost = typeof window !== 'undefined' && (
@@ -568,6 +591,7 @@ export function DashboardQuickGenerate() {
       
       setError(errorMessage);
       setGeneratedImages([]);
+      generatedImagesRef.current = [];
       setListingData(null);
       setHasGenerated(false);
     } finally {
@@ -709,11 +733,14 @@ export function DashboardQuickGenerate() {
 
         if (newImages.length > 0) {
           console.log(`[QUICK GENERATE] ✅ Regenerate success: ${newImages.length} new image(s)`);
-          setGeneratedImages(prev => [...prev, ...newImages]);
-          if (typeof window !== 'undefined') {
-            const allImages = [...generatedImages, ...newImages];
-            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-          }
+          setGeneratedImages(prev => {
+            const next = [...prev, ...newImages];
+            generatedImagesRef.current = next;
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
+            }
+            return next;
+          });
         } else {
           const isLocalhost = typeof window !== 'undefined' && (
             window.location.hostname === 'localhost' ||
@@ -803,15 +830,15 @@ export function DashboardQuickGenerate() {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const downloadAllImages = async () => {
-    if (generatedImages.length === 0) return;
+    const toDownload = generatedImages.length > 0 ? generatedImages : generatedImagesRef.current;
+    if (toDownload.length === 0) return;
     setIsDownloadingAll(true);
     try {
-      for (let i = 0; i < generatedImages.length; i++) {
-        const img = generatedImages[i];
+      for (let i = 0; i < toDownload.length; i++) {
+        const img = toDownload[i];
         if (!img.url || !img.url.startsWith('http')) continue;
         await downloadImage(img.url, i);
-        // Small delay between downloads to avoid browser blocking
-        if (i < generatedImages.length - 1) {
+        if (i < toDownload.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
@@ -872,6 +899,7 @@ export function DashboardQuickGenerate() {
                           setSourceImage(null);
                           setSourceImagePreview(null);
                           setGeneratedImages([]);
+                          generatedImagesRef.current = [];
                           setListingData(null);
                           setError(null);
                           // Réinitialiser le statut de génération si on supprime l'image
@@ -1016,7 +1044,7 @@ export function DashboardQuickGenerate() {
             <div className="mt-6">
               <button
                 onClick={generateEverything}
-                disabled={isGenerating || !sourceImagePreview || hasGenerated || !!(generatedImages.length > 0 && listingData)}
+                disabled={isGenerating || !sourceImagePreview || hasGenerated || !!(displayImages.length > 0 && listingData)}
                 className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/30 flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
@@ -1024,7 +1052,7 @@ export function DashboardQuickGenerate() {
                     <Loader2 size={20} className="animate-spin" />
                     Génération en cours...
                   </>
-                ) : hasGenerated || (generatedImages.length > 0 && listingData) ? (
+                ) : hasGenerated || (displayImages.length > 0 && listingData) ? (
                   <>
                     <Sparkles size={20} />
                     Génération déjà effectuée
@@ -1037,12 +1065,13 @@ export function DashboardQuickGenerate() {
                   </>
                 )}
               </button>
-              {!isGenerating && (hasGenerated || (generatedImages.length > 0 && listingData)) && (
+              {!isGenerating && (hasGenerated || (displayImages.length > 0 && listingData)) && (
                 <button
                   onClick={() => {
                     // Reset tout l'état pour permettre une nouvelle génération
                     setHasGenerated(false);
                     setGeneratedImages([]);
+                    generatedImagesRef.current = [];
                     setListingData(null);
                     setSourceImagePreview(null);
                     setError(null);
@@ -1095,7 +1124,7 @@ export function DashboardQuickGenerate() {
                 Le listing et les images arrivent dans quelques secondes
               </p>
             </motion.div>
-          ) : (listingData || generatedImages.length > 0) ? (
+          ) : (listingData || displayImages.length > 0) ? (
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 20 }}
@@ -1238,13 +1267,13 @@ export function DashboardQuickGenerate() {
               )}
 
               {/* Images Section */}
-              {generatedImages.length > 0 && (
+              {displayImages.length > 0 && (
                 <div className="bg-black rounded-xl border border-white/10 p-6">
                   <h3 className="text-xl font-bold text-white mb-6">
-                    {generatedImages.length} image{generatedImages.length > 1 ? 's' : ''} générée{generatedImages.length > 1 ? 's' : ''}
+                    {displayImages.length} image{displayImages.length > 1 ? 's' : ''} générée{displayImages.length > 1 ? 's' : ''}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {generatedImages.map((img, index) => (
+                    {displayImages.map((img, index) => (
                       <motion.div
                         key={img.id}
                         initial={{ opacity: 0, scale: 0.9 }}
@@ -1282,7 +1311,7 @@ export function DashboardQuickGenerate() {
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 mt-6">
                     {/* Download All Button */}
-                    {generatedImages.length > 1 && (
+                    {displayImages.length > 1 && (
                       <button
                         onClick={downloadAllImages}
                         disabled={isDownloadingAll}
@@ -1296,7 +1325,7 @@ export function DashboardQuickGenerate() {
                         ) : (
                           <>
                             <Download size={18} />
-                            Tout télécharger ({generatedImages.length} images)
+                            Tout télécharger ({displayImages.length} images)
                           </>
                         )}
                       </button>
