@@ -103,10 +103,10 @@ export async function POST(request: NextRequest) {
     const bgDesc: string | null = s1[1] || null;
     if (!productDesc) return NextResponse.json({ error: 'IMAGE_ANALYSIS_FAILED' }, { status: 500 });
 
-    // Build prompt
-    let nanoPrompt = bgDesc
-      ? `Professional Etsy lifestyle product photography.\nMANDATORY BACKGROUND: "${bgDesc}"\nRules: Keep product IDENTICAL. Place naturally in described scene. Soft lighting, depth of field. NO text/logos/watermarks.`
-      : `Professional Etsy lifestyle product photography.\nRules: Keep product IDENTICAL. Create NEW cozy lifestyle background. Soft lighting, depth of field, warm atmosphere. NO text/logos/watermarks.`;
+    // Build a VERY safe, generic prompt to avoid provider safety refusals
+    let nanoPrompt = 'High-quality studio product photo of the item from the input image. ' +
+      'Keep the product identical. Use a simple, neutral background with soft lighting and a subtle shadow. ' +
+      'Absolutely NO text, logos, watermarks, faces, people, weapons, nudity or copyrighted characters.';
 
     const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down view', 'close-up detail', 'wide shot', 'three-quarter view', 'low angle', 'side profile'];
 
