@@ -89,6 +89,7 @@ export function DashboardQuickGenerate() {
   const [copiedMaterials, setCopiedMaterials] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
+  const [isPollingImages, setIsPollingImages] = useState(false);
 
   // Vérifier au montage si une génération rapide a déjà été effectuée
   useEffect(() => {
@@ -403,64 +404,13 @@ export function DashboardQuickGenerate() {
         };
       }
 
-      // Poll des images : on attend la fin avant d'afficher quoi que ce soit
-      const taskIds: string[] = data.imageTaskIds || [];
-      let allImages: GeneratedImage[] = [];
-
-      if (taskIds.length > 0) {
-        console.log(`[QUICK GENERATE] 🔄 Waiting for ${taskIds.length} image(s) before showing listing + images...`);
-        const pollResults = await Promise.all(
-          taskIds.map(async (taskId: string, index: number) => {
-            console.log(`[QUICK GENERATE] 📡 Polling task ${index + 1}/${taskIds.length} (${taskId.substring(0, 8)}...)`);
-            for (let attempt = 0; attempt < 12; attempt++) {
-              await new Promise(r => setTimeout(r, 3000));
-              try {
-                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
-                  headers: { 'Authorization': `Bearer ${token}` },
-                });
-                if (!res.ok) {
-                  console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/12 failed: ${res.status}`);
-                  continue;
-                }
-                const s = await res.json();
-                console.log(`[QUICK GENERATE] 📊 Task ${index + 1} status: ${s.status}`);
-                if (s.status === 'ready' && s.url) {
-                  console.log(`[QUICK GENERATE] ✅ Task ${index + 1} ready!`);
-                  return s.url;
-                }
-                if (s.status === 'error') {
-                  console.log(`[QUICK GENERATE] ❌ Task ${index + 1} error: ${s.message || 'Unknown error'}`);
-                  return null;
-                }
-              } catch (err: any) {
-                console.log(`[QUICK GENERATE] ⚠️ Poll ${attempt + 1}/12 exception: ${err.message}`);
-              }
-            }
-            console.log(`[QUICK GENERATE] ⏱️ Task ${index + 1} timeout after 12 attempts`);
-            return null;
-          })
-        );
-        pollResults.forEach((url, i) => {
-          if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
-        });
-        console.log(`[QUICK GENERATE] 📦 Images ready: ${allImages.length}/${taskIds.length}`);
-      }
-
-      // Tout afficher en même temps : listing + images
+      // Afficher le listing tout de suite pour éviter un chargement infini
       if (pendingListing) {
         setListingData(pendingListing);
         if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
         }
-      }
-      setGeneratedImages(allImages);
-      if (allImages.length > 0 && typeof window !== 'undefined') {
-        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-      }
-      if (taskIds.length > 0 && allImages.length === 0) {
-        setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
-      } else if (taskIds.length === 0 && pendingListing) {
-        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur « Générer de nouvelles images » pour réessayer.');
       }
       sessionStorage.setItem(storageKey, 'true');
       setIsGenerating(false);
@@ -469,8 +419,51 @@ export function DashboardQuickGenerate() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('subscription-refresh'));
       }
-      console.log('[QUICK GENERATE] ✅ Listing and images displayed together');
       clearTimeout(safetyTimeout);
+      console.log('[QUICK GENERATE] ✅ Listing affiché, polling des images en arrière-plan...');
+
+      // Poll des images en arrière-plan (jusqu'à ~2 min pour laisser Nanonbanana finir)
+      const taskIds: string[] = data.imageTaskIds || [];
+
+      if (taskIds.length > 0) {
+        const POLL_ATTEMPTS = 30;
+        const POLL_INTERVAL_MS = 4000;
+        setIsPollingImages(true);
+        (async () => {
+          let allImages: GeneratedImage[] = [];
+          const pollResults = await Promise.all(
+            taskIds.map(async (taskId: string, index: number) => {
+              for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+                await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+                try {
+                  const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                  });
+                  if (!res.ok) continue;
+                  const s = await res.json();
+                  if (s.status === 'ready' && s.url) return s.url;
+                  if (s.status === 'error') return null;
+                } catch {
+                  // continue
+                }
+              }
+              return null;
+            })
+          );
+          pollResults.forEach((url, i) => {
+            if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
+          });
+          setIsPollingImages(false);
+          setGeneratedImages(allImages);
+          if (allImages.length > 0 && typeof window !== 'undefined') {
+            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+          } else if (taskIds.length > 0) {
+            setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
+          }
+        })();
+      } else if (pendingListing) {
+        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur « Générer de nouvelles images » pour réessayer.');
+      }
       
     } catch (error: any) {
       console.error('[QUICK GENERATE] ❌ Error generating:', error);
@@ -1144,6 +1137,17 @@ export function DashboardQuickGenerate() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Génération des images en cours (polling en arrière-plan) */}
+              {listingData && isPollingImages && generatedImages.length === 0 && (
+                <div className="bg-black rounded-xl border border-white/10 p-8">
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loader2 size={40} className="text-[#00d4ff] animate-spin mb-4" />
+                    <p className="text-base font-semibold text-white">Génération des images en cours…</p>
+                    <p className="text-sm text-white/60 mt-2">Cela peut prendre 1 à 2 minutes. La page ne se ferme pas.</p>
+                  </div>
                 </div>
               )}
 

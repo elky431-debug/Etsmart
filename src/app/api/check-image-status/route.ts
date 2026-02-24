@@ -34,27 +34,35 @@ export async function GET(request: NextRequest) {
 
     for (const url of urls) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         const response = await fetch(url, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
             'Content-Type': 'application/json',
           },
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) continue;
 
         const data = await response.json();
 
         // Check for success
-        if (data.code === 200 || data.code === 0 || data.msg === 'success') {
+        if (data.code === 200 || data.code === 0 || data.msg === 'success' || data.success === true) {
           // Look for image URL in all possible locations
           const imageUrl = data.data?.response?.resultImageUrl
             || data.data?.response?.originImageUrl
+            || data.data?.response?.imageUrl
+            || data.data?.response?.url
             || data.data?.url
             || data.data?.image_url
             || data.data?.imageUrl
             || data.data?.images?.[0]?.url
+            || data.data?.result?.url
+            || data.data?.output?.url
             || data.url
             || data.image_url;
 
