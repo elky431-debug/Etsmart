@@ -458,22 +458,50 @@ export function DashboardQuickGenerate() {
       }
 
       const data = await response.json();
-      console.log('[QUICK GENERATE] Regenerated images:', data);
+      console.log('[QUICK GENERATE] Regenerated images (tasks):', data);
 
-      if (data.images && data.images.length > 0) {
-        const validImages = data.images.filter((img: any) => !img.error && img.url && img.url.trim() !== '');
-        if (validImages.length > 0) {
-          setGeneratedImages(prev => [...prev, ...validImages]);
-          // Mettre à jour sessionStorage
-          if (typeof window !== 'undefined') {
-            const allImages = [...generatedImages, ...validImages];
-            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-          }
-        } else {
-          setError('Aucune image valide générée. Réessayez.');
-        }
+      const taskIds: string[] = Array.isArray(data.imageTaskIds) ? data.imageTaskIds : [];
+
+      if (taskIds.length === 0) {
+        setError(data.error || 'La génération d\'images a échoué. Réessayez.');
       } else {
-        setError('La génération d\'images a échoué. Réessayez.');
+        const newImages: GeneratedImage[] = [];
+
+        // Poll chaque taskId jusqu'à 90s max (30 x 3s)
+        for (const taskId of taskIds) {
+          for (let i = 0; i < 30; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+              if (!res.ok) continue;
+              const statusData = await res.json();
+              if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
+                newImages.push({
+                  id: `regen-${Date.now()}-${newImages.length}`,
+                  url: statusData.url,
+                });
+                break;
+              }
+              if (statusData.status === 'error') {
+                break;
+              }
+            } catch {
+              // on réessaie à l'itération suivante
+            }
+          }
+        }
+
+        if (newImages.length > 0) {
+          setGeneratedImages(prev => {
+            const next = [...prev, ...newImages];
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
+            }
+            return next;
+          });
+        } else {
+          setError('La génération d\'images a échoué. Réessayez.');
+        }
       }
 
       // Refresh subscription
