@@ -152,36 +152,41 @@ export async function POST(request: NextRequest) {
       return { title, tags, materials: p.materials || '' };
     }).catch(() => ({ title: '', tags: [] as string[], materials: '' }));
 
-    // Submit images to Nanonbanana
+    // Submit images to Nanonbanana (même logique que /api/generate-images)
     const imageSubmits = Array.from({ length: quantity }, async (_, i) => {
       try {
         let prompt = `CAMERA ANGLE: ${VIEWS[i % VIEWS.length]}.\n\n${nanoPrompt}`;
         if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
-        const reqBody = {
-          type: 'IMAGETOIAMGE', prompt,
-          imageUrls: [imageDataUrl],
-          image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
-          numImages: 1,
-          callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-        };
-        const endpoints = ['https://api.nanobananaapi.ai/api/v1/nanobanana/generate', 'https://api.nanobanana.com/api/v1/nanobanana/generate'];
-        const auths = [
-          { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-          { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}`, 'X-API-Key': NANO_KEY },
-        ];
-        let resp: Response | null = null;
-        for (const ep of endpoints) {
-          for (const h of auths) {
-            try { resp = await fetch(ep, { method: 'POST', headers: h as any, body: JSON.stringify(reqBody) }); if (resp.status !== 403 && resp.status !== 404) break; } catch { continue; }
-          }
-          if (resp && resp.status !== 403 && resp.status !== 404) break;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+
+        const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
+          body: JSON.stringify({
+            type: 'IMAGETOIAMGE',
+            prompt,
+            imageUrls: [imageDataUrl],
+            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
+            numImages: 1,
+            callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => '');
+          console.error(`[GEN] Nanonbanana submit ${i} failed: ${resp.status} ${errText.substring(0, 200)}`);
+          throw new Error(`Submit failed: ${resp.status}`);
         }
-        if (!resp || !resp.ok) throw new Error(`Submit failed: ${resp?.status}`);
+
         const data = await resp.json();
-        const directUrl = data.data?.response?.resultImageUrl || data.data?.url || data.url;
-        if (directUrl) return { taskId: null, url: directUrl, index: i };
-        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id;
-        if (!taskId) throw new Error('No taskId');
+        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
+        console.log(`[GEN] Submitted image ${i + 1}: taskId=${taskId}`);
+        if (!taskId) throw new Error('No taskId returned from Nanonbanana');
         return { taskId, url: null, index: i };
       } catch (e: any) {
         return { taskId: null, url: null, index: i, error: e.message };
