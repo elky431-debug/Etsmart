@@ -404,13 +404,55 @@ export function DashboardQuickGenerate() {
         };
       }
 
-      // Afficher le listing tout de suite pour éviter un chargement infini
+      // Ne rien afficher encore : attendre la fin du polling pour tout afficher en même temps
+      const taskIds: string[] = data.imageTaskIds || [];
+      let allImages: GeneratedImage[] = [];
+
+      if (taskIds.length > 0) {
+        const POLL_ATTEMPTS = 30;
+        const POLL_INTERVAL_MS = 4000;
+        setIsPollingImages(true);
+        const pollResults = await Promise.all(
+          taskIds.map(async (taskId: string) => {
+            for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+              await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+              try {
+                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                  headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) continue;
+                const s = await res.json();
+                if (s.status === 'ready' && s.url) return s.url;
+                if (s.status === 'error') return null;
+              } catch {
+                // continue
+              }
+            }
+            return null;
+          })
+        );
+        pollResults.forEach((url, i) => {
+          if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
+        });
+        setIsPollingImages(false);
+      }
+
+      // Tout afficher en même temps : listing + images
       if (pendingListing) {
         setListingData(pendingListing);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(pendingListing));
         }
+      }
+      setGeneratedImages(allImages);
+      if (allImages.length > 0 && typeof window !== 'undefined') {
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+      }
+      if (taskIds.length > 0 && allImages.length === 0) {
+        setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
+      } else if (taskIds.length === 0 && pendingListing) {
+        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur « Générer de nouvelles images » pour réessayer.');
       }
       sessionStorage.setItem(storageKey, 'true');
       setIsGenerating(false);
@@ -420,50 +462,7 @@ export function DashboardQuickGenerate() {
         window.dispatchEvent(new CustomEvent('subscription-refresh'));
       }
       clearTimeout(safetyTimeout);
-      console.log('[QUICK GENERATE] ✅ Listing affiché, polling des images en arrière-plan...');
-
-      // Poll des images en arrière-plan (jusqu'à ~2 min pour laisser Nanonbanana finir)
-      const taskIds: string[] = data.imageTaskIds || [];
-
-      if (taskIds.length > 0) {
-        const POLL_ATTEMPTS = 30;
-        const POLL_INTERVAL_MS = 4000;
-        setIsPollingImages(true);
-        (async () => {
-          let allImages: GeneratedImage[] = [];
-          const pollResults = await Promise.all(
-            taskIds.map(async (taskId: string, index: number) => {
-              for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
-                await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-                try {
-                  const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                  });
-                  if (!res.ok) continue;
-                  const s = await res.json();
-                  if (s.status === 'ready' && s.url) return s.url;
-                  if (s.status === 'error') return null;
-                } catch {
-                  // continue
-                }
-              }
-              return null;
-            })
-          );
-          pollResults.forEach((url, i) => {
-            if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
-          });
-          setIsPollingImages(false);
-          setGeneratedImages(allImages);
-          if (allImages.length > 0 && typeof window !== 'undefined') {
-            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-          } else if (taskIds.length > 0) {
-            setError('⚠️ Les images n\'ont pas été prêtes à temps. Utilisez « Générer de nouvelles images » pour réessayer.');
-          }
-        })();
-      } else if (pendingListing) {
-        setError('⚠️ Le listing a été généré mais aucune tâche d\'image n\'a été créée. Cliquez sur « Générer de nouvelles images » pour réessayer.');
-      }
+      console.log('[QUICK GENERATE] ✅ Listing et images affichés en même temps');
       
     } catch (error: any) {
       console.error('[QUICK GENERATE] ❌ Error generating:', error);
@@ -489,6 +488,7 @@ export function DashboardQuickGenerate() {
     } finally {
       clearTimeout(safetyTimeout);
       setIsGenerating(false);
+      setIsPollingImages(false);
       console.log('[QUICK GENERATE] 🏁 Generation process finished (isGenerating set to false)');
     }
   };
@@ -1003,10 +1003,10 @@ export function DashboardQuickGenerate() {
             >
               <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
               <p className="text-lg font-semibold text-white">
-                Génération en cours...
+                {isPollingImages ? 'Listing prêt. Génération des images en cours…' : 'Génération en cours...'}
               </p>
               <p className="text-sm text-white/70 mt-2">
-                Le listing et les images s’afficheront ensemble dans quelques secondes
+                {isPollingImages ? 'Cela peut prendre 1 à 2 minutes. Le listing et les images s\'afficheront ensemble.' : "Le listing et les images s'afficheront ensemble."}
               </p>
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
