@@ -209,9 +209,10 @@ export async function POST(request: NextRequest) {
     // Wait for everything
     const [description, titleData, taskIds] = await Promise.all([descP, titleP, imageSubmitP]);
 
-    const title = titleData.title || productDesc.substring(0, 140);
-    const tags = titleData.tags.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'decor', 'special'];
-    const materials = titleData.materials || '';
+    const title = (titleData.title && String(titleData.title).trim()) || productDesc.substring(0, 140);
+    const rawTags = titleData.tags?.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'decor', 'special'];
+    const tags = rawTags.slice(0, 13).map((t: any) => (t && String(t).trim()).substring(0, 20)).filter(Boolean);
+    const materials = (titleData.materials && String(titleData.materials).trim()) || '';
 
     // Deduct credits
     try { await incrementAnalysisCount(user.id, 2.0); } catch (e) { console.error('[GEN] Quota err:', e); }
@@ -220,8 +221,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      listing: { title, description: description || productDesc, tags, materials },
-      imageTaskIds: taskIds,
+      listing: {
+        title: title || 'Untitled',
+        description: (description && String(description).trim()) || productDesc.substring(0, 500),
+        tags: tags.length > 0 ? tags : ['handmade', 'gift', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'decor', 'special'],
+        materials: materials || '',
+      },
+      imageTaskIds: Array.isArray(taskIds) ? taskIds : [],
     });
   } catch (error: any) {
     console.error(`[GEN] Fatal (${Date.now() - startTime}ms):`, error.message);

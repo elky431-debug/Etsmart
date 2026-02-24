@@ -59,7 +59,10 @@ export async function GET(request: NextRequest) {
             || data.image_url;
 
           if (imageUrl) {
-            return NextResponse.json({ status: 'ready', url: imageUrl });
+            const url = typeof imageUrl === 'string' ? imageUrl.trim() : String(imageUrl).trim();
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              return NextResponse.json({ status: 'ready', url });
+            }
           }
 
           // Check task status

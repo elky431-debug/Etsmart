@@ -47,6 +47,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
 import { analysisDb } from '@/lib/db/analyses';
+import { productDb } from '@/lib/db/products';
 import { useStore } from '@/store/useStore';
 import type { ProductAnalysis } from '@/types';
 import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
@@ -388,29 +389,49 @@ export default function DashboardPage() {
         console.log('🔄 Syncing local analyses to database...', localAnalyses.length);
         for (const localAnalysis of localAnalyses) {
           try {
-            // Vérifier si l'analyse existe déjà dans la DB
-            const exists = dbAnalyses.some(db => db.product.id === localAnalysis.product.id);
-            if (!exists) {
-              // Vérifier que product.id est un UUID valide
-              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-              if (!localAnalysis.product.id || !uuidRegex.test(localAnalysis.product.id)) {
-                console.warn('⚠️ Invalid product ID format, skipping sync:', localAnalysis.product.id);
-                continue;
-              }
-              
-              // Vérifier que user.id est un UUID valide
-              if (!user.id || !uuidRegex.test(user.id)) {
-                console.warn('⚠️ Invalid user ID format, skipping sync:', user.id);
-                continue;
-              }
-              
-              // Sauvegarder l'analyse locale dans la DB
-              await analysisDb.saveAnalysis(user.id, localAnalysis);
-              console.log('✅ Synced local analysis to database:', localAnalysis.product.title);
+            // Vérifier si l'analyse existe déjà dans la DB (par product.id ou par product.url pour éviter doublons)
+            const existsById = dbAnalyses.some(db => db.product.id === localAnalysis.product.id);
+            const existsByUrl = localAnalysis.product.url && dbAnalyses.some(db => db.product.url === localAnalysis.product.url);
+            if (existsById || existsByUrl) continue;
+
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!user.id || !uuidRegex.test(user.id)) {
+              console.warn('⚠️ Invalid user ID format, skipping sync:', user.id);
+              continue;
             }
+            
+            // product_analyses a une FK vers products — s'assurer que le produit existe en base
+            let productForAnalysis = localAnalysis.product;
+            const existingProductById = localAnalysis.product.id && uuidRegex.test(localAnalysis.product.id)
+              ? await productDb.getProduct(localAnalysis.product.id, user.id)
+              : null;
+            
+            if (existingProductById) {
+              productForAnalysis = existingProductById;
+            } else {
+              // Vérifier si un produit avec la même URL existe déjà (éviter doublon)
+              const productsByUser = await productDb.getProducts(user.id);
+              const existingByUrl = localAnalysis.product.url && productsByUser.find(p => p.url === localAnalysis.product.url);
+              if (existingByUrl) {
+                productForAnalysis = existingByUrl;
+                console.log('✅ Using existing product by URL for sync:', existingByUrl.title?.substring(0, 40));
+              } else {
+                try {
+                  const createdProduct = await productDb.createProduct(user.id, localAnalysis.product);
+                  productForAnalysis = createdProduct;
+                  console.log('✅ Created product in DB for sync:', createdProduct.title?.substring(0, 40));
+                } catch (createErr: any) {
+                  console.warn('⚠️ Could not create product before sync:', createErr?.message);
+                  continue;
+                }
+              }
+            }
+              
+            const analysisToSave = { ...localAnalysis, product: productForAnalysis };
+            await analysisDb.saveAnalysis(user.id, analysisToSave);
+            console.log('✅ Synced local analysis to database:', localAnalysis.product.title);
           } catch (syncError: any) {
             console.warn('⚠️ Error syncing local analysis:', syncError?.message);
-            // Continue avec les autres analyses
           }
         }
         
@@ -421,9 +442,11 @@ export default function DashboardPage() {
         // Fusionner avec les analyses locales et existantes pour ne rien perdre
         const mergedAnalyses = [...updatedAnalyses];
         
-        // Ajouter les analyses locales qui ne sont pas dans la DB
+        // Ajouter les analyses locales qui ne sont pas dans la DB (dédupliquer par product.id ou product.url)
         for (const localAnalysis of localAnalyses) {
-          const exists = mergedAnalyses.some(db => db.product.id === localAnalysis.product.id);
+          const exists = mergedAnalyses.some(
+            m => m.product.id === localAnalysis.product.id || (localAnalysis.product.url && m.product.url === localAnalysis.product.url)
+          );
           if (!exists) {
             console.log('➕ Adding local analysis to merged list:', localAnalysis.product.title);
             mergedAnalyses.push(localAnalysis);
