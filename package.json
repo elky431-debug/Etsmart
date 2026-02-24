@@ -6,6 +6,8 @@
     "dev": "next dev -p 3011",
     "dev:3010": "next dev -p 3010",
     "dev:3011": "next dev -p 3011",
+    "dev:3020": "next dev -p 3020",
+    "dev:3021": "next dev -p 3021",
     "build": "echo 'Building...' && next build",
     "start": "next start",
     "lint": "eslint",
