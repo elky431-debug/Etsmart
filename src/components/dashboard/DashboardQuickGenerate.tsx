@@ -404,13 +404,13 @@ export function DashboardQuickGenerate() {
         };
       }
 
-      // Ne rien afficher encore : attendre la fin du polling pour tout afficher en même temps
+      // Attendre les images puis tout afficher en même temps (polling rapide : 2 s)
       const taskIds: string[] = data.imageTaskIds || [];
       let allImages: GeneratedImage[] = [];
+      const POLL_INTERVAL_MS = 2000;
+      const POLL_ATTEMPTS = 35;
 
       if (taskIds.length > 0) {
-        const POLL_ATTEMPTS = 30;
-        const POLL_INTERVAL_MS = 4000;
         setIsPollingImages(true);
         const pollResults = await Promise.all(
           taskIds.map(async (taskId: string) => {
@@ -431,9 +431,9 @@ export function DashboardQuickGenerate() {
             return null;
           })
         );
-        pollResults.forEach((url, i) => {
-          if (url) allImages.push({ id: `img-${Date.now()}-${i}`, url });
-        });
+        allImages = pollResults
+          .filter((url): url is string => !!url)
+          .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
         setIsPollingImages(false);
       }
 
@@ -1006,7 +1006,7 @@ export function DashboardQuickGenerate() {
                 {isPollingImages ? 'Listing prêt. Génération des images en cours…' : 'Génération en cours...'}
               </p>
               <p className="text-sm text-white/70 mt-2">
-                {isPollingImages ? 'Cela peut prendre 1 à 2 minutes. Le listing et les images s\'afficheront ensemble.' : "Le listing et les images s'afficheront ensemble."}
+                {isPollingImages ? 'Tout s\'affichera ensemble dans 30 à 60 secondes.' : "Le listing et les images s'afficheront ensemble."}
               </p>
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
@@ -1146,7 +1146,7 @@ export function DashboardQuickGenerate() {
                   <div className="flex flex-col items-center justify-center py-8">
                     <Loader2 size={40} className="text-[#00d4ff] animate-spin mb-4" />
                     <p className="text-base font-semibold text-white">Génération des images en cours…</p>
-                    <p className="text-sm text-white/60 mt-2">Cela peut prendre 1 à 2 minutes. La page ne se ferme pas.</p>
+                    <p className="text-sm text-white/60 mt-2">Tout s'affichera ensemble dans 30 à 60 secondes.</p>
                   </div>
                 </div>
               )}
