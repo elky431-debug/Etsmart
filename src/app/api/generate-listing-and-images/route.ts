@@ -210,11 +210,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Poll serveur pour les tasks en cours (max 30s, 15 polls x 2s) pour laisser le temps à toutes les images
+    // Poll serveur pour les tasks en cours
+    // IMPORTANT: Netlify coupe la requête si elle dure trop longtemps,
+    // donc on reste raisonnable côté serveur (~12s max) et on laisse
+    // le frontend finir le polling si besoin.
     const stillPending: { taskId: string; index: number }[] = [];
     if (pendingTasks.length > 0) {
       const pollResults = await Promise.all(pendingTasks.map(async (task: any) => {
-        for (let i = 0; i < 15; i++) {
+        // 6 polls x 2s = 12s max par tâche côté serveur
+        for (let i = 0; i < 6; i++) {
           await new Promise(r => setTimeout(r, 2000));
           try {
             const paramName = i % 2 === 0 ? 'taskId' : 'task_id';
