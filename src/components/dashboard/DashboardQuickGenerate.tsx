@@ -219,10 +219,10 @@ export function DashboardQuickGenerate() {
     setPendingImagesCount(0);
 
     try {
-      // Compresser les images
+      // Compresser à 512x512 (NanoBanana crash au-delà sur Netlify sans sharp)
       let imageBase64: string;
       if (sourceImage) {
-        imageBase64 = await compressImageToBase64(sourceImage, 1024, 1024, 0.7);
+        imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
       } else {
         imageBase64 = sourceImagePreview!;
       }
@@ -237,40 +237,77 @@ export function DashboardQuickGenerate() {
       }
 
       // ═══════════════════════════════════════════════════════════════
-      // APPEL 1 — Listing (titre, description, tags, matériaux)
+      // LISTING + IMAGES EN PARALLÈLE
       // ═══════════════════════════════════════════════════════════════
-      console.log('[QUICK GENERATE] 🚀 Step 1: Generating listing...');
-      
-      const listingResponse = await fetch('/api/generate-listing-and-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ sourceImage: imageBase64 }),
-      });
+      console.log('[QUICK GENERATE] 🚀 Generating listing + images in parallel...');
 
-      if (!listingResponse.ok) {
-        let errorData: any;
-        try {
-          const text = await listingResponse.text();
-          errorData = text ? JSON.parse(text) : {};
-        } catch {
-          errorData = {};
+      const [listingResponse, imgResponse] = await Promise.all([
+        fetch('/api/generate-listing-and-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ sourceImage: imageBase64 }),
+        }),
+        fetch('/api/generate-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ sourceImage: imageBase64, backgroundImage: backgroundBase64, quantity, aspectRatio }),
+        }),
+      ]);
+
+      // Parse listing
+      let listing: ListingData | null = null;
+      if (listingResponse.ok) {
+        const listingResult = await listingResponse.json();
+        if (listingResult.listing) {
+          listing = {
+            title: listingResult.listing.title || '',
+            description: listingResult.listing.description || '',
+            tags: listingResult.listing.tags || [],
+            materials: listingResult.listing.materials || '',
+          };
         }
-        throw new Error(errorData.error || errorData.message || `Erreur ${listingResponse.status}`);
       }
 
-      const listingResult = await listingResponse.json();
-      console.log('[QUICK GENERATE] ✅ Listing ready');
+      // Parse image taskIds
+      let taskIds: string[] = [];
+      if (imgResponse.ok) {
+        const imgData = await imgResponse.json();
+        taskIds = imgData.imageTaskIds || [];
+        console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
+      }
 
-      const listing: ListingData | null = listingResult.listing ? {
-        title: listingResult.listing.title || '',
-        description: listingResult.listing.description || '',
-        tags: listingResult.listing.tags || [],
-        materials: listingResult.listing.materials || '',
-      } : null;
+      if (!listing && taskIds.length === 0) {
+        throw new Error('Échec de la génération. Réessayez.');
+      }
 
+      // Poll pour les images (attendre qu'au moins 1 soit prête, max 60s)
+      const readyImages: GeneratedImage[] = [];
+      if (taskIds.length > 0) {
+        setPendingImagesCount(taskIds.length);
+        const pollPromises = taskIds.map(async (taskId, idx) => {
+          for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+              if (!res.ok) continue;
+              const s = await res.json();
+              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
+                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
+              }
+              if (s.status === 'error') return null;
+            } catch { /* retry */ }
+          }
+          return null;
+        });
+
+        const results = await Promise.all(pollPromises);
+        for (const img of results) {
+          if (img) readyImages.push(img);
+        }
+        setPendingImagesCount(0);
+      }
+
+      // Afficher TOUT d'un coup
       if (listing) {
         setListingData(listing);
         if (typeof window !== 'undefined') {
@@ -278,78 +315,16 @@ export function DashboardQuickGenerate() {
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
         }
       }
+      setGeneratedImages(readyImages);
+      if (readyImages.length > 0 && typeof window !== 'undefined') {
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(readyImages));
+      }
       setHasGenerated(true);
 
-      // ═══════════════════════════════════════════════════════════════
-      // APPEL 2 — Images via /api/generate-images (fiable sur Netlify)
-      // ═══════════════════════════════════════════════════════════════
-      console.log('[QUICK GENERATE] 🚀 Step 2: Generating images...');
-      setPendingImagesCount(quantity);
-
-      const imgResponse = await fetch('/api/generate-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sourceImage: imageBase64,
-          backgroundImage: backgroundBase64,
-          quantity,
-          aspectRatio,
-        }),
-      });
-
-      if (imgResponse.ok) {
-        const imgData = await imgResponse.json();
-        const taskIds: string[] = imgData.imageTaskIds || [];
-        console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`, imgData);
-
-        if (taskIds.length > 0) {
-          (async () => {
-            for (const taskId of taskIds) {
-              for (let i = 0; i < 30; i++) {
-                await new Promise(r => setTimeout(r, 3000));
-                try {
-                  const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-                  if (!res.ok) continue;
-                  const statusData = await res.json();
-                  if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
-                    const newImg: GeneratedImage = {
-                      id: `img-poll-${Date.now()}-${taskId.substring(0, 8)}`,
-                      url: statusData.url,
-                    };
-                    setGeneratedImages(prev => {
-                      if (prev.some(img => img.url === newImg.url)) return prev;
-                      const next = [...prev, newImg];
-                      if (typeof window !== 'undefined') {
-                        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
-                      }
-                      return next;
-                    });
-                    setPendingImagesCount(c => Math.max(0, c - 1));
-                    break;
-                  }
-                  if (statusData.status === 'error') {
-                    setPendingImagesCount(c => Math.max(0, c - 1));
-                    break;
-                  }
-                } catch { /* retry */ }
-              }
-            }
-          })();
-        } else {
-          setPendingImagesCount(0);
-          setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
-        }
-      } else {
-        const errData = await imgResponse.json().catch(() => ({}));
-        console.error('[QUICK GENERATE] ❌ Image generation failed:', errData);
-        setPendingImagesCount(0);
-        setError(`⚠️ Images échouées: ${errData.message || errData.error || `Erreur ${imgResponse.status}`}. ${errData.debug ? `(sharp: ${errData.debug.sharpAvailable}, payload: ${errData.debug.payloadSizeKB}KB)` : ''}`);
+      if (readyImages.length === 0) {
+        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
       }
 
-      // Refresh subscription
       setTimeout(() => {
         refreshSubscription(true);
         if (typeof window !== 'undefined') {
@@ -380,10 +355,9 @@ export function DashboardQuickGenerate() {
     setError(null);
 
     try {
-      // ⚠️ Compresser les images côté frontend pour rester sous la limite 6MB de Netlify
       let imageBase64: string;
       if (sourceImage) {
-        imageBase64 = await compressImageToBase64(sourceImage, 1024, 1024, 0.7);
+        imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
       } else {
         imageBase64 = sourceImagePreview!;
       }
