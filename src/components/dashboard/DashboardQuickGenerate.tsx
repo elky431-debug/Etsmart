@@ -237,7 +237,7 @@ export function DashboardQuickGenerate() {
       }
 
       // ═══════════════════════════════════════════════════════════════
-      // LISTING + IMAGES EN PARALLÈLE
+      // LISTING + IMAGES EN PARALLÈLE — affichage progressif
       // ═══════════════════════════════════════════════════════════════
       console.log('[QUICK GENERATE] 🚀 Generating listing + images in parallel...');
 
@@ -254,21 +254,26 @@ export function DashboardQuickGenerate() {
         }),
       ]);
 
-      // Parse listing
-      let listing: ListingData | null = null;
+      // Afficher le listing immédiatement
       if (listingResponse.ok) {
         const listingResult = await listingResponse.json();
         if (listingResult.listing) {
-          listing = {
+          const listing: ListingData = {
             title: listingResult.listing.title || '',
             description: listingResult.listing.description || '',
             tags: listingResult.listing.tags || [],
             materials: listingResult.listing.materials || '',
           };
+          setListingData(listing);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(storageKey, 'true');
+            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          }
         }
       }
+      setHasGenerated(true);
 
-      // Parse image taskIds
+      // Lancer le polling images en arrière-plan
       let taskIds: string[] = [];
       if (imgResponse.ok) {
         const imgData = await imgResponse.json();
@@ -276,60 +281,39 @@ export function DashboardQuickGenerate() {
         console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
       }
 
-      if (!listing && taskIds.length === 0) {
-        throw new Error('Échec de la génération. Réessayez.');
-      }
-
-      // Poll pour les images (attendre qu'au moins 1 soit prête, max 60s)
-      const readyImages: GeneratedImage[] = [];
       if (taskIds.length > 0) {
         setPendingImagesCount(taskIds.length);
-        const pollPromises = taskIds.map(async (taskId, idx) => {
-          for (let i = 0; i < 20; i++) {
-            await new Promise(r => setTimeout(r, 3000));
-            try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-              if (!res.ok) continue;
-              const s = await res.json();
-              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
-                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
-              }
-              if (s.status === 'error') return null;
-            } catch { /* retry */ }
-          }
-          return null;
-        });
-
-        const results = await Promise.all(pollPromises);
-        for (const img of results) {
-          if (img) readyImages.push(img);
+        for (const taskId of taskIds) {
+          (async () => {
+            for (let i = 0; i < 25; i++) {
+              await new Promise(r => setTimeout(r, 3000));
+              try {
+                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+                if (!res.ok) continue;
+                const s = await res.json();
+                if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
+                  setGeneratedImages(prev => {
+                    if (prev.some(img => img.url === s.url)) return prev;
+                    const next = [...prev, { id: `img-${Date.now()}-${taskId.substring(0, 6)}`, url: s.url }];
+                    if (typeof window !== 'undefined') sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
+                    return next;
+                  });
+                  setPendingImagesCount(c => Math.max(0, c - 1));
+                  return;
+                }
+                if (s.status === 'error') { setPendingImagesCount(c => Math.max(0, c - 1)); return; }
+              } catch { /* retry */ }
+            }
+            setPendingImagesCount(c => Math.max(0, c - 1));
+          })();
         }
-        setPendingImagesCount(0);
-      }
-
-      // Afficher TOUT d'un coup
-      if (listing) {
-        setListingData(listing);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
-      }
-      setGeneratedImages(readyImages);
-      if (readyImages.length > 0 && typeof window !== 'undefined') {
-        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(readyImages));
-      }
-      setHasGenerated(true);
-
-      if (readyImages.length === 0) {
-        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+      } else if (!listingResponse.ok) {
+        throw new Error('Échec de la génération. Réessayez.');
       }
 
       setTimeout(() => {
         refreshSubscription(true);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('subscription-refresh'));
-        }
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
       }, 3000);
       
     } catch (error: any) {
