@@ -597,20 +597,27 @@ export function DashboardQuickGenerate() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white mb-2">Génération rapide</h1>
-          <p className="text-white/70 text-sm">Générez le listing et les images en une seule fois avec un seul screenshot</p>
+        <div className="mb-8 flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/25 flex-shrink-0">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Génération rapide</h1>
+            <p className="text-white/60 text-sm sm:text-base max-w-xl">
+              Générez le listing et les images en une seule fois à partir d’un seul screenshot produit.
+            </p>
+          </div>
         </div>
 
         {/* Upload Section */}
-        <div className="bg-black rounded-xl border border-white/10 mb-6">
-          <div className="p-6">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] mb-6 overflow-hidden">
+          <div className="p-6 sm:p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Image Upload */}
               <div>
-                <label className="block text-sm font-bold text-white mb-3">
+                <label className="block text-sm font-semibold text-white mb-3">
                   Screenshot du produit
                 </label>
                 <div
@@ -619,10 +626,10 @@ export function DashboardQuickGenerate() {
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                  className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 ${
                     isDragging
-                      ? 'border-[#00d4ff] bg-[#00d4ff]/5'
-                      : 'border-slate-300 hover:border-slate-400 bg-black'
+                      ? 'border-[#00d4ff] bg-[#00d4ff]/10'
+                      : 'border-white/20 hover:border-[#00c9b7]/50 hover:bg-white/[0.02] bg-black/40'
                   }`}
                 >
                   <input
@@ -663,11 +670,13 @@ export function DashboardQuickGenerate() {
                     </div>
                   ) : (
                     <>
-                      <Upload size={32} className="mx-auto mb-3 text-white/60" />
+                      <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                        <Upload size={28} className="text-[#00c9b7]" />
+                      </div>
                       <p className="text-sm text-white/80 mb-1">
                         Glissez-déposez un screenshot ou cliquez pour sélectionner
                       </p>
-                      <p className="text-xs text-white/60">
+                      <p className="text-xs text-white/50">
                         JPG / PNG • Max 10MB
                       </p>
                     </>
@@ -676,10 +685,10 @@ export function DashboardQuickGenerate() {
               </div>
 
               {/* Settings */}
-              <div className="space-y-4">
-                {/* Background Image Upload (optional) */}
+              <div className="space-y-5">
+                {/* Background Image Upload (optionnel) */}
                 <div>
-                  <label className="block text-sm font-bold text-white mb-2">
+                  <label className="block text-sm font-semibold text-white mb-2">
                     Fond personnalisé <span className="text-white/40 font-normal">(optionnel)</span>
                   </label>
                   <p className="text-xs text-white/50 mb-3">
@@ -687,10 +696,10 @@ export function DashboardQuickGenerate() {
                   </p>
                   <div
                     onClick={() => backgroundInputRef.current?.click()}
-                    className={`relative border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                    className={`relative border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 ${
                       backgroundImagePreview
-                        ? 'border-[#00d4ff]/40 bg-[#00d4ff]/5'
-                        : 'border-white/15 hover:border-white/30 bg-white/[0.02]'
+                        ? 'border-[#00d4ff]/50 bg-[#00d4ff]/10'
+                        : 'border-white/15 hover:border-[#00c9b7]/40 hover:bg-white/[0.02] bg-black/40'
                     }`}
                   >
                     <input
@@ -724,14 +733,14 @@ export function DashboardQuickGenerate() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 justify-center py-1">
-                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <ImageIcon size={16} className="text-white/40" />
+                        <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <ImageIcon size={20} className="text-[#00c9b7]" />
                         </div>
                         <div className="text-left">
-                          <p className="text-xs text-white/60">
+                          <p className="text-xs text-white/70">
                             Cliquez pour ajouter un fond
                           </p>
-                          <p className="text-[10px] text-white/30">
+                          <p className="text-[10px] text-white/40">
                             JPG / PNG • Max 10MB
                           </p>
                         </div>
@@ -741,18 +750,18 @@ export function DashboardQuickGenerate() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-white mb-3">
+                  <label className="block text-sm font-semibold text-white mb-3">
                     Quantité d'images
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex gap-2">
                     {[1, 2].map((qty) => (
                       <button
                         key={qty}
                         onClick={() => setQuantity(qty)}
-                        className={`py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                        className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                           quantity === qty
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                            : 'bg-black border border-white/10 text-white hover:border-white/20'
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                         }`}
                       >
                         {qty}
@@ -762,7 +771,7 @@ export function DashboardQuickGenerate() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-white mb-3">
+                  <label className="block text-sm font-semibold text-white mb-3">
                     Format
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -770,10 +779,10 @@ export function DashboardQuickGenerate() {
                       <button
                         key={ratio}
                         onClick={() => setAspectRatio(ratio)}
-                        className={`py-3 rounded-lg font-semibold text-sm transition-all ${
+                        className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                           aspectRatio === ratio
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                            : 'bg-black border border-white/10 text-white hover:border-white/20'
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                         }`}
                       >
                         {ratio}
@@ -786,11 +795,11 @@ export function DashboardQuickGenerate() {
             </div>
 
             {/* Generate Button */}
-            <div className="mt-6">
+            <div className="mt-8 pt-6 border-t border-white/10">
               <button
                 onClick={generateEverything}
                 disabled={isGenerating || !sourceImagePreview || hasGenerated || (generatedImages.length > 0 && !!listingData)}
-                className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/30 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-2xl hover:opacity-95 hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/25 flex items-center justify-center gap-3"
               >
                 {isGenerating ? (
                   <>
@@ -806,7 +815,7 @@ export function DashboardQuickGenerate() {
                   <>
                     <Sparkles size={20} />
                     GÉNÉRER LE LISTING ET LES IMAGES
-                    <span className="ml-2 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">2 crédits</span>
+                    <span className="ml-2 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold">2 crédits</span>
                   </>
                 )}
               </button>
@@ -829,7 +838,7 @@ export function DashboardQuickGenerate() {
                       });
                     }
                   }}
-                  className="w-full mt-3 py-3 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2"
+                  className="w-full mt-3 py-3 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-2xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2"
                 >
                   <RotateCcw size={18} />
                   Nouvelle génération

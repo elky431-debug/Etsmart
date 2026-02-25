@@ -639,22 +639,22 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   // Composant pour afficher le Niche Finder
   const NicheFinderSection = () => {
-    // Données des niches basées sur les images
+    // Données des niches basées sur les tendances Etsy (Product Ideas & Keywords)
     const niches = [
-      { niche: 'seagrass', competition: 8628, searchVolume: 60500 },
-      { niche: 'laptop wallpaper', competition: 8603, searchVolume: 201000 },
-      { niche: 'cattle dog', competition: 8602, searchVolume: 110000 },
-      { niche: 'coaching tools', competition: 8599, searchVolume: 6600 },
-      { niche: 'purple swimsuit', competition: 8594, searchVolume: 5400 },
-      { niche: 'modeling clay', competition: 8592, searchVolume: 60500 },
-      { niche: 'rider jacket', competition: 8589, searchVolume: 14800 },
-      { niche: 'barbiecore', competition: 8578, searchVolume: 6600 },
-      { niche: 'customised bag', competition: 8571, searchVolume: 14800 },
-      { niche: 'florida vacation', competition: 8560, searchVolume: 9900 },
+      { niche: 'fancy fonts', competition: 6832, searchVolume: 246000 },
+      { niche: 'quick games', competition: 6832, searchVolume: 22200 },
+      { niche: 'widgets', competition: 6831, searchVolume: 550000 },
+      { niche: 'breakfast club', competition: 6831, searchVolume: 368000 },
+      { niche: 'holz', competition: 6831, searchVolume: 74000 },
+      { niche: 'bunco', competition: 6831, searchVolume: 60500 },
+      { niche: 'radicalized', competition: 6831, searchVolume: 33100 },
+      { niche: 'insect clipart', competition: 6831, searchVolume: 8100 },
+      { niche: 'working girl', competition: 6830, searchVolume: 74000 },
+      { niche: 'chair legs', competition: 6830, searchVolume: 8100 },
     ];
 
-    const maxCompetition = 8700;
-    const maxSearchVolume = 201000;
+    const maxCompetition = 6840;
+    const maxSearchVolume = 550000;
 
     return (
       <div className="p-4 md:p-8 bg-black pb-8 md:pb-12">
@@ -739,7 +739,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             <td className="p-2 sm:p-3 md:p-4">
                               <div className="flex items-center gap-1.5 sm:gap-2">
                                 <span className="text-white font-medium text-sm sm:text-base">{item.niche}</span>
-                                {item.niche === 'barbiecore' && (
+                                {item.niche === 'breakfast club' && (
                                   <HelpCircle size={12} className="sm:w-3.5 sm:h-3.5 text-yellow-400 flex-shrink-0" />
                                 )}
                               </div>
@@ -1184,15 +1184,15 @@ The final image should look like a high-quality Etsy listing photo and naturally
     // Données des recherches tendances
     const trendingSearches = [
       { rank: 1, phrase: 'wall art', change: null },
-      { rank: 2, phrase: 'valentines', change: { type: 'up', value: 1 } },
-      { rank: 3, phrase: 'valentine', change: { type: 'up', value: 4 } },
-      { rank: 4, phrase: 'valentines day', change: { type: 'up', value: 1 } },
-      { rank: 5, phrase: 'rug', change: { type: 'up', value: 7 } },
-      { rank: 6, phrase: 'tshirt', change: { type: 'up', value: 8 } },
-      { rank: 7, phrase: 'leather jacket', change: { type: 'up', value: 18 } },
-      { rank: 8, phrase: 'rugs', change: { type: 'up', value: 18 } },
-      { rank: 9, phrase: 'highland cow', change: { type: 'down', value: 5 } },
-      { rank: 10, phrase: 'phone case', change: { type: 'down', value: 1 } },
+      { rank: 2, phrase: 'leather jacket', change: { type: 'up', value: 21 } },
+      { rank: 3, phrase: 'opal beads', change: { type: 'up', value: 'new' } },
+      { rank: 4, phrase: 'rug', change: { type: 'up', value: 2 } },
+      { rank: 5, phrase: 'rugs', change: { type: 'up', value: 5 } },
+      { rank: 6, phrase: 'st patricks day', change: { type: 'up', value: 48 } },
+      { rank: 7, phrase: 'blanket', change: { type: 'up', value: 23 } },
+      { rank: 8, phrase: 'tshirt', change: { type: 'down', value: 1 } },
+      { rank: 9, phrase: 'mug', change: { type: 'up', value: 4 } },
+      { rank: 10, phrase: 'valentine', change: { type: 'down', value: 6 } },
     ];
 
     // Événements à venir
@@ -1750,27 +1750,70 @@ The final image should look like a high-quality Etsy listing photo and naturally
         <div className="flex-1 overflow-auto bg-black">
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
             <div className="flex-1 min-h-[calc(100vh-4rem)]">
-              <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-8">
-                <div className="text-center max-w-2xl mx-auto w-full">
-                  <div className="relative mb-6 sm:mb-8">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mx-auto shadow-2xl shadow-[#00d4ff]/40 relative z-10">
-                      <Calculator className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
+              <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10">
+                <div className="max-w-5xl mx-auto w-full">
+                  <div className="relative px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-12 text-center bg-black">
+                    <div className="relative mb-6 sm:mb-8 flex flex-col items-center">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-xl shadow-[#00d4ff]/40">
+                        <Calculator className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
+                      </div>
+                    </div>
+
+                    <h2 className="relative text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">
+                      Analyse et Simulation
+                    </h2>
+                    <p className="relative text-white/70 text-sm sm:text-base md:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+                      Colle un lien produit Etsy ou un fournisseur, et laisse l’IA analyser la demande, la concurrence et ta marge
+                      pour te donner un verdict clair avant d’investir.
+                    </p>
+
+                    <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8 text-left">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <Sparkles className="w-4 h-4 text-[#00d4ff]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-white/60 mb-1">Étape 1</p>
+                          <p className="text-sm text-white">Ajoute ton produit</p>
+                          <p className="text-xs text-white/60">Colle un lien Etsy, Aliexpress ou ton fournisseur.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <TrendingUp className="w-4 h-4 text-[#00c9b7]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-white/60 mb-1">Étape 2</p>
+                          <p className="text-sm text-white">Laisse l’IA analyser</p>
+                          <p className="text-xs text-white/60">Demande réelle, saturation, pricing et potentiel de marge.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <Target className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-white/60 mb-1">Étape 3</p>
+                          <p className="text-sm text-white">Décide avec le verdict</p>
+                          <p className="text-xs text-white/60">Lancer, tester ou éviter, avec une projection sur 3 mois.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="relative flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        onClick={() => router.push('/app')}
+                        className="inline-flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold rounded-2xl text-sm sm:text-base cursor-pointer hover:opacity-90 transition-opacity shadow-lg shadow-[#00d4ff]/40"
+                      >
+                        <Calculator size={18} />
+                        <span>Nouvelle analyse</span>
+                        <ArrowRight size={16} />
+                      </button>
+                      <p className="text-[11px] sm:text-xs text-white/50">
+                        Toutes tes analyses précédentes restent accessibles dans le menu de gauche.
+                      </p>
                     </div>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
-                    Analyse et Simulation
-                  </h2>
-                  <p className="text-white/60 text-sm sm:text-base md:text-lg max-w-xl mx-auto mb-8 leading-relaxed">
-                    Sélectionnez une analyse dans l'historique pour voir les détails et la simulation
-                  </p>
-                  <button
-                    onClick={() => router.push('/app')}
-                    className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold rounded-2xl text-base cursor-pointer hover:opacity-90 transition-opacity"
-                  >
-                    <Calculator size={18} />
-                    <span>Nouvelle analyse</span>
-                    <ArrowRight size={16} />
-                  </button>
                 </div>
               </div>
             </div>

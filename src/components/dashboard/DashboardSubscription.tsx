@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, XCircle, Sparkles, Star, Rocket, AlertTriangle } from 'lucide-react';
+import { CreditCard, Check, Crown, Zap, TrendingUp, AlertCircle, RefreshCw, Sparkles, Star, Rocket, AlertTriangle } from 'lucide-react';
 import { PLANS, type Plan, type Subscription, type PlanId } from '@/types/subscription';
 import { getUserSubscription, getUsageStats } from '@/lib/subscriptions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +26,6 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
     resetDate: null as Date | null,
   });
   const [loading, setLoading] = useState(true);
-  const [canceling, setCanceling] = useState(false);
 
   const loadSubscription = async () => {
     if (!authUser?.id) {
@@ -338,45 +337,6 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
 
   // Filter other plans (exclude current plan)
   const otherPlans = PLANS.filter(p => p.id !== normalizedPlanId);
-
-  const handleCancelSubscription = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès à toutes les fonctionnalités premium à la fin de votre période de facturation.')) {
-      return;
-    }
-
-    setCanceling(true);
-    try {
-      const { supabase } = await import('@/lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        alert('Please sign in to cancel your subscription');
-        return;
-      }
-
-      const response = await fetch('/api/cancel-subscription', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to cancel subscription');
-      }
-
-      alert('Abonnement annulé avec succès. Vous conserverez l\'accès jusqu\'à la fin de votre période de facturation.');
-      loadSubscription();
-    } catch (error: any) {
-      console.error('Error canceling subscription:', error);
-      alert(error.message || 'Failed to cancel subscription. Please try again.');
-    } finally {
-      setCanceling(false);
-    }
-  };
 
   // Plan icons
   const getPlanIcon = (planId: string) => {
@@ -784,27 +744,6 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
                 </div>
               </div>
 
-              {/* Cancel/Resubscribe Button */}
-              <div className="pt-6 border-t border-white/10">
-                {subscription.cancel_at_period_end ? (
-                  <Link
-                    href="/dashboard?section=analyse-simulation"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    Subscribe again
-                  </Link>
-                ) : (
-                  <button
-                    onClick={handleCancelSubscription}
-                    disabled={canceling}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-red-400 hover:text-white hover:bg-red-500 rounded-lg border border-red-500/30 hover:border-red-500 transition-all disabled:opacity-50"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    {canceling ? 'Annulation...' : 'Annuler l\'abonnement'}
-                  </button>
-                )}
-              </div>
             </div>
           </motion.div>
 

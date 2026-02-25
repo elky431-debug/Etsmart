@@ -26,6 +26,7 @@ export function DashboardVideoGenerator() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPosition, setLogoPosition] = useState<LogoPosition>('BR');
   const [logoOpacity, setLogoOpacity] = useState<number>(70);
+  const [zoomSpeed, setZoomSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -311,6 +312,12 @@ export function DashboardVideoGenerator() {
         : 0;
       const totalImageDurationMs = imageDurationMs + TRANSITION_DURATION_MS;
 
+      // Intensité du zoom en fonction du choix utilisateur
+      const zoomAmount =
+        zoomSpeed === 'slow' ? 0.08 :
+        zoomSpeed === 'fast' ? 0.25 :
+        0.15;
+
       const renderFrame = (now: number) => {
         const elapsed = now - startTime;
         
@@ -392,9 +399,9 @@ export function DashboardVideoGenerator() {
           const nextAlpha = transitionProgress;
           
           // Zoom pour l'image actuelle (continue le zoom)
-          const currentZoom = 1 + 0.15;
+          const currentZoom = 1 + zoomAmount;
           // Zoom pour la prochaine image (commence à 1)
-          const nextZoom = 1 + 0.15 * transitionProgress;
+          const nextZoom = 1 + zoomAmount * transitionProgress;
 
           // Dessiner l'image actuelle qui disparaît
           drawImage(currentImg, currentAlpha, currentZoom);
@@ -404,7 +411,7 @@ export function DashboardVideoGenerator() {
         } else {
           // Affichage normal avec zoom progressif
           const t = periodElapsed / imageDurationMs;
-          const zoom = 1 + 0.15 * Math.min(1, t);
+          const zoom = 1 + zoomAmount * Math.min(1, t);
           drawImage(currentImg, 1, zoom);
         }
 
@@ -456,22 +463,27 @@ export function DashboardVideoGenerator() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="max-w-[1100px] mx-auto p-4 sm:p-6">
+      <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8 sm:py-10">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-xl font-semibold text-white mb-1">Générateur de Vidéo</h1>
-          <p className="text-sm text-white/60">
-            Transformez vos photos de produits en vidéos professionnelles prêtes pour Etsy.
-          </p>
-          <p className="text-xs text-[#00d4ff] mt-1 font-medium">
-            Gratuit • 0 crédits
-          </p>
+        <div className="mb-8 flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/25 flex-shrink-0">
+            <Play className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Générateur de Vidéo</h1>
+            <p className="text-sm sm:text-base text-white/70 max-w-xl">
+              Transformez vos photos de produits en vidéos professionnelles prêtes pour Etsy : logo, position, opacité et aperçu en direct.
+            </p>
+            <p className="text-xs text-[#00d4ff] mt-2 font-medium">
+              Gratuit • 0 crédits pour tester le générateur
+            </p>
+          </div>
         </div>
 
         {/* Main layout - 2 columns forced */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '20px' }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: '1.8fr 1fr' }}>
           {/* LEFT COLUMN - Video Preview */}
-          <div className="bg-[#0d1117] border border-white/10 rounded-xl p-5">
+          <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 sm:p-6">
             <h2 className="text-white font-semibold text-base mb-4">Aperçu Vidéo</h2>
             
             {/* Drop zone / Preview */}
@@ -481,12 +493,12 @@ export function DashboardVideoGenerator() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={!videoUrl && !currentImage ? handleClick : undefined}
-              className={`relative w-full rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+              className={`relative w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer ${
                 isDragging
                   ? 'border-[#00d4ff] bg-[#00d4ff]/5'
                   : videoUrl || currentImage
                     ? 'border-transparent bg-black'
-                    : 'border-[#00d4ff]/40 bg-[#0a0e14]'
+                    : 'border-[#00d4ff]/40 bg-black/40'
               }`}
               style={{ minHeight: '380px' }}
             >
@@ -537,9 +549,11 @@ export function DashboardVideoGenerator() {
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-center" style={{ minHeight: '380px' }}>
-                  <Upload className="w-10 h-10 text-[#00d4ff]/50 mb-4" />
-                  <p className="text-sm text-white/70 mb-1">Glissez vos images ou cliquez pour télécharger</p>
-                  <p className="text-xs text-white/40 mb-4">JPG, PNG, WebP • 30 Mo max</p>
+                  <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                    <Upload className="w-9 h-9 text-[#00c9b7]" />
+                  </div>
+                  <p className="text-sm text-white/80 mb-1">Glissez vos images ou cliquez pour télécharger</p>
+                  <p className="text-xs text-white/50 mb-4">JPG, PNG, WebP • 30 Mo max</p>
                   <button
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     className="px-5 py-2 bg-[#00d4ff] text-white text-sm font-medium rounded-lg hover:bg-[#00c9b7] transition-colors"
@@ -600,7 +614,7 @@ export function DashboardVideoGenerator() {
           {/* RIGHT COLUMN - Sidebar */}
           <div className="flex flex-col gap-4">
             {/* Images Section */}
-            <div className="bg-[#0d1117] border border-white/10 rounded-xl p-4">
+            <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-white font-semibold text-base">Images</h3>
@@ -653,7 +667,7 @@ export function DashboardVideoGenerator() {
             </div>
 
             {/* Logo + Position + Opacity — combined card */}
-            <div className="bg-[#0d1117] border border-white/10 rounded-xl p-4">
+            <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4">
               {/* Logo + Position side by side */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 {/* Logo */}
@@ -697,20 +711,49 @@ export function DashboardVideoGenerator() {
                 </div>
               </div>
 
-              {/* Opacity — below Logo+Position */}
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-white font-semibold text-base">Opacité</h3>
-                  <span className="text-sm text-white/50">{logoOpacity}%</span>
+              {/* Opacité & vitesse du zoom */}
+              <div className="mt-4 pt-4 border-t border-white/5 space-y-5">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold text-base">Opacité du logo</h3>
+                    <span className="text-sm text-white/50">{logoOpacity}%</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={logoOpacity}
+                      onChange={(e) => setLogoOpacity(Number(e.target.value))}
+                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer opacity-slider"
+                      style={{
+                        background: `linear-gradient(to right, #00d4ff 0%, #00d4ff ${logoOpacity}%, rgba(255,255,255,0.1) ${logoOpacity}%, rgba(255,255,255,0.1) 100%)`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="relative">
-                  <input type="range" min="0" max="100" value={logoOpacity}
-                    onChange={(e) => setLogoOpacity(Number(e.target.value))}
-                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer opacity-slider"
-                    style={{
-                      background: `linear-gradient(to right, #00d4ff 0%, #00d4ff ${logoOpacity}%, rgba(255,255,255,0.1) ${logoOpacity}%, rgba(255,255,255,0.1) 100%)`,
-                    }}
-                  />
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-white font-semibold text-base">Vitesse du zoom</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['slow', 'normal', 'fast'] as Array<'slow' | 'normal' | 'fast'>).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setZoomSpeed(mode)}
+                        className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                          zoomSpeed === mode
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-[0_0_10px_rgba(0,212,255,0.2)]'
+                            : 'bg-white/5 border border-white/10 text-white/70 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {mode === 'slow' && 'Lent'}
+                        {mode === 'normal' && 'Normal'}
+                        {mode === 'fast' && 'Rapide'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
