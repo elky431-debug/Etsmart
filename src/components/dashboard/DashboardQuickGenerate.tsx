@@ -219,7 +219,6 @@ export function DashboardQuickGenerate() {
     setPendingImagesCount(0);
 
     try {
-      // Compresser à 512x512 (NanoBanana crash au-delà sur Netlify sans sharp)
       let imageBase64: string;
       if (sourceImage) {
         imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
@@ -231,28 +230,66 @@ export function DashboardQuickGenerate() {
       const token = session?.access_token;
       if (!token) throw new Error('Authentification requise');
 
-      let backgroundBase64: string | undefined;
-      if (backgroundImage) {
-        backgroundBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+      // Vérifier quota via serveur
+      const quotaCheck = await fetch('/api/deduct-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount: 2 }),
+      });
+      if (!quotaCheck.ok) {
+        const err = await quotaCheck.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Crédits insuffisants');
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      // LISTING + IMAGES EN PARALLÈLE — affichage progressif
-      // ═══════════════════════════════════════════════════════════════
-      console.log('[QUICK GENERATE] 🚀 Generating listing + images in parallel...');
+      console.log('[QUICK GENERATE] 🚀 Generating listing + images...');
 
-      const [listingResponse, imgResponse] = await Promise.all([
-        fetch('/api/generate-listing-and-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ sourceImage: imageBase64 }),
-        }),
-        fetch('/api/generate-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ sourceImage: imageBase64, backgroundImage: backgroundBase64, quantity, aspectRatio }),
-        }),
-      ]);
+      // LISTING côté serveur (OpenAI)
+      const listingPromise = fetch('/api/generate-listing-and-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ sourceImage: imageBase64 }),
+      });
+
+      // IMAGES directement depuis le navigateur (bypass Netlify Lambda)
+      const NANO_KEY = '758a24cfaef8c64eed9164858b941ecc';
+      const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down view', 'close-up detail'];
+      const basePrompt = 'Professional Etsy lifestyle product photography. Keep product IDENTICAL. Create NEW cozy lifestyle background. Soft lighting, depth of field, warm atmosphere. NO text/logos/watermarks.';
+      const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
+      const imgSize = sizeMap[aspectRatio] || '1:1';
+
+      const submitImageFromBrowser = async (index: number): Promise<string | null> => {
+        const prompt = `CAMERA ANGLE: ${VIEWS[index % VIEWS.length]}.\n\n${basePrompt}`;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
+              body: JSON.stringify({
+                type: 'IMAGETOIAMGE',
+                prompt,
+                imageUrls: [imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`],
+                image_size: imgSize,
+                numImages: 1,
+                callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+              }),
+            });
+            const data = await resp.json();
+            console.log(`[BROWSER] NanoBanana image ${index + 1} attempt ${attempt + 1}:`, data);
+            const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
+            if (taskId) return taskId;
+            if (data.code === 500 && attempt < 2) { await new Promise(r => setTimeout(r, 1000)); continue; }
+            return null;
+          } catch (e) {
+            console.error(`[BROWSER] NanoBanana error attempt ${attempt + 1}:`, e);
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        return null;
+      };
+
+      // Soumettre images en parallèle depuis le navigateur
+      const imagePromises = Array.from({ length: quantity }, (_, i) => submitImageFromBrowser(i));
+      const [listingResponse, ...imageResults] = await Promise.all([listingPromise, ...imagePromises]);
 
       // Parser listing
       let listing: ListingData | null = null;
@@ -263,22 +300,12 @@ export function DashboardQuickGenerate() {
         }
       }
 
-      // Parser image taskIds
-      let taskIds: string[] = [];
-      let imgError = '';
-      if (imgResponse.ok) {
-        const imgData = await imgResponse.json();
-        taskIds = imgData.imageTaskIds || [];
-        console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
-      } else {
-        const errData = await imgResponse.json().catch(() => ({}));
-        imgError = errData.message || errData.error || `Erreur ${imgResponse.status}`;
-        console.error('[QUICK GENERATE] ❌ Image submit failed:', imgError);
-      }
+      const taskIds = imageResults.filter((id): id is string => id !== null);
+      console.log(`[QUICK GENERATE] ✅ Listing: ${!!listing}, Images submitted: ${taskIds.length}/${quantity}`);
 
-      if (!listing && taskIds.length === 0) throw new Error(imgError || 'Échec de la génération. Réessayez.');
+      if (!listing && taskIds.length === 0) throw new Error('Échec de la génération. Réessayez.');
 
-      // Afficher le listing IMMÉDIATEMENT, le spinner s'arrête
+      // Afficher listing immédiatement
       if (listing) {
         setListingData(listing);
         if (typeof window !== 'undefined') {
@@ -289,10 +316,10 @@ export function DashboardQuickGenerate() {
       setHasGenerated(true);
       setIsGenerating(false);
 
-      // Images : polling en arrière-plan avec timeout 45s
+      // Poll images en arrière-plan, afficher toutes ensemble
       if (taskIds.length > 0) {
         setPendingImagesCount(taskIds.length);
-        const deadline = Date.now() + 45000;
+        const deadline = Date.now() + 60000;
 
         Promise.all(taskIds.map(async (taskId, idx) => {
           while (Date.now() < deadline) {
@@ -320,8 +347,6 @@ export function DashboardQuickGenerate() {
             setError('⚠️ Les images n\'ont pas pu être générées. Cliquez sur "Générer de nouvelles images" pour réessayer.');
           }
         });
-      } else if (imgError) {
-        setError(`⚠️ ${imgError}. Cliquez sur "Générer de nouvelles images" pour réessayer.`);
       }
 
       setTimeout(() => {

@@ -24,10 +24,7 @@ export async function POST(request: NextRequest) {
     const { sourceImage } = body;
     if (!sourceImage) return NextResponse.json({ error: 'MISSING_IMAGE' }, { status: 400 });
 
-    const { getUserQuotaInfo } = await import('@/lib/subscription-quota');
-    const quotaInfo = await getUserQuotaInfo(user.id);
-    if (quotaInfo.status !== 'active') return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED' }, { status: 403 });
-    if (quotaInfo.remaining < 2) return NextResponse.json({ error: 'QUOTA_EXCEEDED' }, { status: 403 });
+    // Credits already deducted by frontend via /api/deduct-credits
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'OPENAI_API_KEY_MISSING' }, { status: 500 });
