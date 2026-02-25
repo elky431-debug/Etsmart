@@ -152,108 +152,53 @@ export async function POST(request: NextRequest) {
       return { title, tags, materials: p.materials || '' };
     }).catch(() => ({ title: '', tags: [] as string[], materials: '' }));
 
-    // Attendre le listing en parallèle
-    const [description, titleData] = await Promise.all([descPromise, titlePromise]);
+    // Submit images to NanoBanana IN PARALLEL with listing
+    const imageSubmitPromises = Array.from({ length: quantity }, (_, i) => {
+      let prompt = `CAMERA ANGLE: ${VIEWS[i % VIEWS.length]}.\n\n${nanoPrompt}`;
+      if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
 
-    // Submit images SEQUENTIALLY to NanoBanana (avoids rate limits + timeout issues on Netlify)
-    const imgResults: { taskId: string | null; url: string | null; index: number; error?: string }[] = [];
-    for (let i = 0; i < quantity; i++) {
-      try {
-        let prompt = `CAMERA ANGLE: ${VIEWS[i % VIEWS.length]}.\n\n${nanoPrompt}`;
-        if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-
-        console.log(`[GEN] Submitting image ${i + 1}/${quantity} to NanoBanana...`);
-        const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-          body: JSON.stringify({
-            type: 'IMAGETOIAMGE',
-            prompt,
-            imageUrls: [imageDataUrl],
-            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
-            numImages: 1,
-            callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
+      console.log(`[GEN] Submitting image ${i + 1}/${quantity} to NanoBanana...`);
+      return fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
+        body: JSON.stringify({
+          type: 'IMAGETOIAMGE',
+          prompt,
+          imageUrls: [imageDataUrl],
+          image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
+          numImages: 1,
+          callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+        }),
+      }).then(async resp => {
         if (!resp.ok) {
           const errText = await resp.text().catch(() => '');
           console.error(`[GEN] NanoBanana submit ${i} failed: ${resp.status} ${errText.substring(0, 200)}`);
-          imgResults.push({ taskId: null, url: null, index: i, error: `Submit failed: ${resp.status}` });
-        } else {
-          const data = await resp.json();
-          const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
-          console.log(`[GEN] Submitted image ${i + 1}: taskId=${taskId}`);
-          imgResults.push({ taskId, url: null, index: i });
+          return { taskId: null, index: i };
         }
-
-        if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
-      } catch (e: any) {
+        const data = await resp.json();
+        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
+        console.log(`[GEN] Submitted image ${i + 1}: taskId=${taskId}`);
+        return { taskId, index: i };
+      }).catch((e: any) => {
         console.error(`[GEN] NanoBanana submit ${i} error: ${e.message}`);
-        imgResults.push({ taskId: null, url: null, index: i, error: e.message });
-      }
-    }
+        return { taskId: null, index: i };
+      });
+    });
+
+    // Wait for listing + image submissions all at once
+    const [description, titleData, ...imgResults] = await Promise.all([
+      descPromise, titlePromise, ...imageSubmitPromises,
+    ]);
 
     const title = titleData.title || productDesc.substring(0, 140);
     const tags = titleData.tags.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
     const materials = titleData.materials || 'Various materials';
     const desc = description || productDesc;
 
-    // ═══════════════════════════════════════════════════════════
-    // STEP 3: Poll images serveur (max 20s)
-    // ═══════════════════════════════════════════════════════════
-    const finalImages: any[] = [];
-    const pendingTasks: any[] = [];
-
-    for (const r of imgResults) {
-      if (r.url) {
-        finalImages.push({ id: `img-${Date.now()}-${r.index}`, url: r.url });
-      } else if (r.taskId) {
-        pendingTasks.push(r);
-      }
-    }
-
-    // Poll serveur pour les tasks en cours
-    // IMPORTANT: Netlify coupe la requête si elle dure trop longtemps,
-    // donc on reste raisonnable côté serveur (~12s max) et on laisse
-    // le frontend finir le polling si besoin.
+    // Collect taskIds — NO server-side polling, frontend handles it via /api/check-image-status
     const stillPending: { taskId: string; index: number }[] = [];
-    if (pendingTasks.length > 0) {
-      const pollResults = await Promise.all(pendingTasks.map(async (task: any) => {
-        // 6 polls x 2s = 12s max par tâche côté serveur
-        for (let i = 0; i < 6; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          try {
-            const paramName = i % 2 === 0 ? 'taskId' : 'task_id';
-            const res = await fetch(
-              `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?${paramName}=${task.taskId}`,
-              { headers: { 'Authorization': `Bearer ${NANO_KEY}`, 'Content-Type': 'application/json' } }
-            );
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data.code === 200 || data.code === 0 || data.msg === 'success') {
-              const url = data.data?.response?.resultImageUrl || data.data?.response?.originImageUrl
-                || data.data?.url || data.data?.image_url || data.data?.imageUrl || data.url;
-              if (url) return { index: task.index, taskId: task.taskId, url };
-            }
-          } catch { /* continue */ }
-        }
-        return { index: task.index, taskId: task.taskId, url: null };
-      }));
-
-      for (const r of pollResults) {
-        if (r.url) {
-          finalImages.push({ id: `img-${Date.now()}-${r.index}`, url: r.url });
-        } else {
-          stillPending.push({ taskId: r.taskId, index: r.index });
-        }
-      }
+    for (const r of imgResults) {
+      if (r.taskId) stillPending.push({ taskId: r.taskId, index: r.index });
     }
 
     // Deduct credits
@@ -262,12 +207,12 @@ export async function POST(request: NextRequest) {
       quotaResult = await incrementAnalysisCount(user.id, 2.0);
     } catch { /* log */ }
 
-    console.log('[GEN] Done:', { listing: true, images: finalImages.length, pending: stillPending.length });
+    console.log('[GEN] Done:', { listing: true, pending: stillPending.length });
 
     return NextResponse.json({
       success: true,
       listing: { title, description: desc, tags, materials },
-      images: finalImages,
+      images: [],
       imageTasks: stillPending.map(t => ({ taskId: t.taskId, index: t.index })),
       quotaUpdated: !!quotaResult?.success,
       ...(quotaResult?.success ? { quota: { used: quotaResult.used, remaining: quotaResult.remaining, quota: quotaResult.quota } } : {}),
