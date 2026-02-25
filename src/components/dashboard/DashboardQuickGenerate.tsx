@@ -254,26 +254,21 @@ export function DashboardQuickGenerate() {
         }),
       ]);
 
-      // Afficher le listing immédiatement
+      // Parser le listing
+      let listing: ListingData | null = null;
       if (listingResponse.ok) {
         const listingResult = await listingResponse.json();
         if (listingResult.listing) {
-          const listing: ListingData = {
+          listing = {
             title: listingResult.listing.title || '',
             description: listingResult.listing.description || '',
             tags: listingResult.listing.tags || [],
             materials: listingResult.listing.materials || '',
           };
-          setListingData(listing);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem(storageKey, 'true');
-            sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          }
         }
       }
-      setHasGenerated(true);
 
-      // Lancer le polling images en arrière-plan
+      // Parser les taskIds images
       let taskIds: string[] = [];
       if (imgResponse.ok) {
         const imgData = await imgResponse.json();
@@ -281,34 +276,52 @@ export function DashboardQuickGenerate() {
         console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
       }
 
+      if (!listing && taskIds.length === 0) {
+        throw new Error('Échec de la génération. Réessayez.');
+      }
+
+      // Poll TOUTES les images en parallèle, attendre qu'elles soient TOUTES prêtes
+      const allImages: GeneratedImage[] = [];
       if (taskIds.length > 0) {
         setPendingImagesCount(taskIds.length);
-        for (const taskId of taskIds) {
-          (async () => {
-            for (let i = 0; i < 25; i++) {
-              await new Promise(r => setTimeout(r, 3000));
-              try {
-                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-                if (!res.ok) continue;
-                const s = await res.json();
-                if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
-                  setGeneratedImages(prev => {
-                    if (prev.some(img => img.url === s.url)) return prev;
-                    const next = [...prev, { id: `img-${Date.now()}-${taskId.substring(0, 6)}`, url: s.url }];
-                    if (typeof window !== 'undefined') sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
-                    return next;
-                  });
-                  setPendingImagesCount(c => Math.max(0, c - 1));
-                  return;
-                }
-                if (s.status === 'error') { setPendingImagesCount(c => Math.max(0, c - 1)); return; }
-              } catch { /* retry */ }
-            }
-            setPendingImagesCount(c => Math.max(0, c - 1));
-          })();
+        const pollResults = await Promise.all(taskIds.map(async (taskId, idx) => {
+          for (let i = 0; i < 25; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+              if (!res.ok) continue;
+              const s = await res.json();
+              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
+                setPendingImagesCount(c => Math.max(0, c - 1));
+                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
+              }
+              if (s.status === 'error') { setPendingImagesCount(c => Math.max(0, c - 1)); return null; }
+            } catch { /* retry */ }
+          }
+          setPendingImagesCount(c => Math.max(0, c - 1));
+          return null;
+        }));
+        for (const img of pollResults) {
+          if (img) allImages.push(img);
         }
-      } else if (!listingResponse.ok) {
-        throw new Error('Échec de la génération. Réessayez.');
+      }
+
+      // Afficher TOUT d'un coup : listing + images
+      if (listing) {
+        setListingData(listing);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+        }
+      }
+      setGeneratedImages(allImages);
+      if (allImages.length > 0 && typeof window !== 'undefined') {
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+      }
+      setHasGenerated(true);
+
+      if (allImages.length === 0 && taskIds.length > 0) {
+        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
       }
 
       setTimeout(() => {
