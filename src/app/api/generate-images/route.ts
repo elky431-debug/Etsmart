@@ -154,13 +154,22 @@ export async function POST(request: NextRequest) {
           console.error(`[IMAGE GEN] Nano submit ${index} failed in ${elapsed}ms: ${resp.status} ${errText.substring(0, 500)}`);
           return { taskId: null, error: `HTTP ${resp.status}: ${errText.substring(0, 200)}` };
         }
-        const data = await resp.json();
-        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
-        console.log(`[IMAGE GEN] Submitted image ${index + 1} in ${elapsed}ms: taskId=${taskId}`, JSON.stringify(data).substring(0, 300));
+        const rawText = await resp.text();
+        console.log(`[IMAGE GEN] Nano response ${index} in ${elapsed}ms: ${rawText.substring(0, 500)}`);
+        let data: any;
+        try { data = JSON.parse(rawText); } catch { 
+          return { taskId: null, error: `Invalid JSON: ${rawText.substring(0, 200)}` }; 
+        }
+        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id 
+          || data.task_id || data.taskId || data.id || null;
+        if (!taskId) {
+          return { taskId: null, error: `No taskId: ${rawText.substring(0, 200)}` };
+        }
         return { taskId };
       } catch (e: any) {
-        console.error(`[IMAGE GEN] Nano submit ${index} error: ${e.message}`);
-        return { taskId: null, error: e.message };
+        const msg = e?.message || e?.name || String(e) || 'fetch crashed';
+        console.error(`[IMAGE GEN] Nano submit ${index} error:`, msg, e?.stack?.substring(0, 200));
+        return { taskId: null, error: msg };
       }
     };
 
@@ -169,7 +178,7 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < quantity; i++) {
       const result = await submitImage(i);
       if (result.taskId) taskIds.push(result.taskId);
-      else if (result.error) errors.push(result.error);
+      else errors.push(result.error || 'no taskId returned');
       if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
     }
 
