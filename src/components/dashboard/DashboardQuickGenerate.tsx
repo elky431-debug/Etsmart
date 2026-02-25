@@ -254,59 +254,31 @@ export function DashboardQuickGenerate() {
         }),
       ]);
 
-      // Parser le listing
+      // Parser listing
       let listing: ListingData | null = null;
       if (listingResponse.ok) {
-        const listingResult = await listingResponse.json();
-        if (listingResult.listing) {
-          listing = {
-            title: listingResult.listing.title || '',
-            description: listingResult.listing.description || '',
-            tags: listingResult.listing.tags || [],
-            materials: listingResult.listing.materials || '',
-          };
+        const lr = await listingResponse.json();
+        if (lr.listing) {
+          listing = { title: lr.listing.title || '', description: lr.listing.description || '', tags: lr.listing.tags || [], materials: lr.listing.materials || '' };
         }
       }
 
-      // Parser les taskIds images
+      // Parser image taskIds
       let taskIds: string[] = [];
+      let imgError = '';
       if (imgResponse.ok) {
         const imgData = await imgResponse.json();
         taskIds = imgData.imageTaskIds || [];
         console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
+      } else {
+        const errData = await imgResponse.json().catch(() => ({}));
+        imgError = errData.message || errData.error || `Erreur ${imgResponse.status}`;
+        console.error('[QUICK GENERATE] ❌ Image submit failed:', imgError);
       }
 
-      if (!listing && taskIds.length === 0) {
-        throw new Error('Échec de la génération. Réessayez.');
-      }
+      if (!listing && taskIds.length === 0) throw new Error(imgError || 'Échec de la génération. Réessayez.');
 
-      // Poll TOUTES les images en parallèle, attendre qu'elles soient TOUTES prêtes
-      const allImages: GeneratedImage[] = [];
-      if (taskIds.length > 0) {
-        setPendingImagesCount(taskIds.length);
-        const pollResults = await Promise.all(taskIds.map(async (taskId, idx) => {
-          for (let i = 0; i < 25; i++) {
-            await new Promise(r => setTimeout(r, 3000));
-            try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-              if (!res.ok) continue;
-              const s = await res.json();
-              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
-                setPendingImagesCount(c => Math.max(0, c - 1));
-                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
-              }
-              if (s.status === 'error') { setPendingImagesCount(c => Math.max(0, c - 1)); return null; }
-            } catch { /* retry */ }
-          }
-          setPendingImagesCount(c => Math.max(0, c - 1));
-          return null;
-        }));
-        for (const img of pollResults) {
-          if (img) allImages.push(img);
-        }
-      }
-
-      // Afficher TOUT d'un coup : listing + images
+      // Afficher le listing IMMÉDIATEMENT, le spinner s'arrête
       if (listing) {
         setListingData(listing);
         if (typeof window !== 'undefined') {
@@ -314,14 +286,42 @@ export function DashboardQuickGenerate() {
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
         }
       }
-      setGeneratedImages(allImages);
-      if (allImages.length > 0 && typeof window !== 'undefined') {
-        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-      }
       setHasGenerated(true);
+      setIsGenerating(false);
 
-      if (allImages.length === 0 && taskIds.length > 0) {
-        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+      // Images : polling en arrière-plan avec timeout 45s
+      if (taskIds.length > 0) {
+        setPendingImagesCount(taskIds.length);
+        const deadline = Date.now() + 45000;
+
+        Promise.all(taskIds.map(async (taskId, idx) => {
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 3000));
+            if (Date.now() >= deadline) break;
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+              if (!res.ok) continue;
+              const s = await res.json();
+              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
+                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
+              }
+              if (s.status === 'error') return null;
+            } catch { /* retry */ }
+          }
+          return null;
+        })).then(results => {
+          const imgs = results.filter((r): r is GeneratedImage => r !== null);
+          setGeneratedImages(imgs);
+          setPendingImagesCount(0);
+          if (imgs.length > 0 && typeof window !== 'undefined') {
+            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(imgs));
+          }
+          if (imgs.length === 0) {
+            setError('⚠️ Les images n\'ont pas pu être générées. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+          }
+        });
+      } else if (imgError) {
+        setError(`⚠️ ${imgError}. Cliquez sur "Générer de nouvelles images" pour réessayer.`);
       }
 
       setTimeout(() => {

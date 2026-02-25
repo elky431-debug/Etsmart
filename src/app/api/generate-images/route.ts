@@ -124,72 +124,76 @@ export async function POST(request: NextRequest) {
 
     console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
 
-    // ── Submit image generation tasks to Nanonbanana ──────────
+    // ── Submit image generation tasks to NanoBanana (with retry) ──
     const payloadSize = imageDataUrl.length;
-    console.log(`[IMAGE GEN] Image payload size: ${(payloadSize / 1024).toFixed(0)}KB`);
+    console.log(`[IMAGE GEN] Image payload size: ${(payloadSize / 1024).toFixed(0)}KB, sharp: ${!!sharp}`);
 
-    const submitImage = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      try {
-        let prompt = `ANGLE: ${VIEWS[index % VIEWS.length]}. ${basePrompt}`;
-        if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
+    const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
+    const imgSize = sizeMap[aspectRatio] || '1:1';
 
-        const submitStart = Date.now();
-        const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-          body: JSON.stringify({
-            type: 'IMAGETOIAMGE',
-            prompt,
-            imageUrls: [imageDataUrl],
-            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
-            numImages: 1,
-            callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-          }),
-        });
-
-        const elapsed = Date.now() - submitStart;
-
-        if (!resp.ok) {
-          const errText = await resp.text().catch(() => '');
-          console.error(`[IMAGE GEN] Nano submit ${index} failed in ${elapsed}ms: ${resp.status} ${errText.substring(0, 500)}`);
-          return { taskId: null, error: `HTTP ${resp.status}: ${errText.substring(0, 200)}` };
-        }
-        const rawText = await resp.text();
-        console.log(`[IMAGE GEN] Nano response ${index} in ${elapsed}ms: ${rawText.substring(0, 500)}`);
-        let data: any;
-        try { data = JSON.parse(rawText); } catch { 
-          return { taskId: null, error: `Invalid JSON: ${rawText.substring(0, 200)}` }; 
-        }
-        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id 
-          || data.task_id || data.taskId || data.id || null;
-        if (!taskId) {
-          return { taskId: null, error: `No taskId: ${rawText.substring(0, 200)}` };
-        }
-        return { taskId };
-      } catch (e: any) {
-        const msg = e?.message || e?.name || String(e) || 'fetch crashed';
-        console.error(`[IMAGE GEN] Nano submit ${index} error:`, msg, e?.stack?.substring(0, 200));
-        return { taskId: null, error: msg };
+    const submitOnce = async (prompt: string): Promise<{ taskId: string | null; error?: string }> => {
+      const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
+        body: JSON.stringify({
+          type: 'IMAGETOIAMGE',
+          prompt,
+          imageUrls: [imageDataUrl],
+          image_size: imgSize,
+          numImages: 1,
+          callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+        }),
+      });
+      if (!resp.ok) {
+        const t = await resp.text().catch(() => '');
+        return { taskId: null, error: `HTTP ${resp.status}: ${t.substring(0, 150)}` };
       }
+      const raw = await resp.text();
+      let data: any;
+      try { data = JSON.parse(raw); } catch { return { taskId: null, error: `Bad JSON: ${raw.substring(0, 100)}` }; }
+      if (data.code && data.code !== 200 && data.code !== 0) {
+        return { taskId: null, error: `API ${data.code}: ${data.msg || 'error'}` };
+      }
+      const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || data.task_id || data.taskId || null;
+      if (!taskId) return { taskId: null, error: `No taskId in: ${raw.substring(0, 150)}` };
+      return { taskId };
+    };
+
+    const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
+      let prompt = `ANGLE: ${VIEWS[index % VIEWS.length]}. ${basePrompt}`;
+      if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const result = await submitOnce(prompt);
+          if (result.taskId) {
+            console.log(`[IMAGE GEN] Image ${index + 1} submitted (attempt ${attempt + 1}): ${result.taskId}`);
+            return result;
+          }
+          console.warn(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} failed: ${result.error}`);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+        } catch (e: any) {
+          console.error(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} crash: ${e?.message}`);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      return { taskId: null, error: 'All 3 attempts failed' };
     };
 
     const taskIds: string[] = [];
     const errors: string[] = [];
     for (let i = 0; i < quantity; i++) {
-      const result = await submitImage(i);
+      const result = await submitWithRetry(i);
       if (result.taskId) taskIds.push(result.taskId);
-      else errors.push(result.error || 'no taskId returned');
+      else errors.push(result.error || 'failed');
       if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
     }
 
-    console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} tasks in ${Date.now() - startTime}ms`);
+    console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
 
     if (taskIds.length === 0) {
-      const errDetail = errors.length > 0 ? errors[0] : 'Unknown error';
-      console.error(`[IMAGE GEN] ALL submissions failed. Errors: ${JSON.stringify(errors)}`);
       return NextResponse.json({ 
         error: 'IMAGE_SUBMIT_FAILED', 
-        message: `Échec soumission images: ${errDetail}`,
+        message: errors[0] || 'Submission failed',
         debug: { errors, payloadSizeKB: Math.round(payloadSize / 1024), sharpAvailable: !!sharp },
       }, { status: 500 });
     }
