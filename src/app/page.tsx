@@ -11,11 +11,15 @@ import {
   Target, 
   LineChart, 
   ShoppingBag,
+  Video,
+  Image as ImageIcon,
+  FileText,
   CheckCircle2,
   Globe,
   ArrowUpRight,
   Lock,
-  Loader2
+  Loader2,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
@@ -60,6 +64,28 @@ function AnimatedCard({ children, delay = 0, className = '' }: { children: React
   );
 }
 
+// Petit composant pour la FAQ
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(o => !o)}
+      className="w-full text-left bg-black border border-white/10 rounded-xl px-4 sm:px-6 py-3 sm:py-4 hover:border-white/20 transition-colors"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <p className="font-semibold text-sm sm:text-base text-white">{question}</p>
+        <span className="text-white/60 text-lg">{open ? '−' : '+'}</span>
+      </div>
+      {open && (
+        <p className="mt-2 text-xs sm:text-sm text-white/70">
+          {answer}
+        </p>
+      )}
+    </button>
+  );
+}
+
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -97,6 +123,21 @@ export default function HomePage() {
       icon: BarChart3,
       title: 'Verdict intelligent',
       description: 'Un verdict clair et actionnable : Lancer, Tester ou Éviter.',
+    },
+    {
+      icon: Video,
+      title: 'Vidéos produit par IA',
+      description: 'Génération de vidéos courtes pour mettre en valeur vos produits sur Etsy.',
+    },
+    {
+      icon: FileText,
+      title: 'Listing optimisé SEO',
+      description: 'Création de titres, descriptions et tags optimisés pour le référencement Etsy.',
+    },
+    {
+      icon: ImageIcon,
+      title: 'Images produit par IA',
+      description: 'Génération d’images lifestyle et visuels professionnels pour vos fiches produit.',
     },
   ];
 
@@ -296,6 +337,111 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Bloc social proof / témoignage (version Etscale adaptée à Etsmart) */}
+      <section className="py-14 sm:py-20 md:py-24 bg-black">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="bg-black rounded-2xl sm:rounded-3xl px-6 sm:px-8 md:px-12 py-8 sm:py-10 md:py-14">
+            <div className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)] gap-8 sm:gap-10 items-start">
+              <div>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-5 leading-tight">
+                  Plus de 75 vendeurs gagnent du temps et valident leurs produits avec{' '}
+                  <span className="text-[#00c9b7]">Etsmart</span>.
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg text-white/80 max-w-lg">
+                  Analyse de niche, listings SEO, images et vidéos par IA, espionnage concurrence — tout en un outil.
+                  Prenez les bonnes décisions plus vite, sans perdre des heures.
+                </p>
+              </div>
+              <div className="space-y-4 sm:space-y-5">
+                <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                  <div className="rounded-xl sm:rounded-2xl bg-[#0a0a0a] px-4 sm:px-5 py-4 sm:py-5">
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#00c9b7]">+500</p>
+                    <p className="text-xs sm:text-sm text-white/70 leading-snug mt-1">
+                      analyses, listings & visuels
+                    </p>
+                  </div>
+                  <div className="rounded-xl sm:rounded-2xl bg-[#0a0a0a] px-4 sm:px-5 py-4 sm:py-5">
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#00c9b7]">+75</p>
+                    <p className="text-xs sm:text-sm text-white/70 leading-snug mt-1">
+                      vendeurs actifs
+                    </p>
+                  </div>
+                  <div className="rounded-xl sm:rounded-2xl bg-[#0a0a0a] px-4 sm:px-5 py-4 sm:py-5">
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#00c9b7]">4,8/5</p>
+                    <p className="text-xs sm:text-sm text-white/70 leading-snug mt-1">
+                      satisfaction moyenne
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl sm:rounded-2xl bg-[#0a0a0a] px-5 sm:px-6 py-5 sm:py-6">
+                  <div className="flex items-center gap-1 text-[#00c9b7] text-base sm:text-lg mb-3">
+                    {'★★★★★'.split('').map((s, i) => (
+                      <span key={i}>★</span>
+                    ))}
+                  </div>
+                  <p className="text-sm sm:text-base md:text-lg text-white/90 mb-4 leading-relaxed">
+                    “Avant Etsmart, je perdais des heures sur l’analyse et les listings. Maintenant je valide mes idées,
+                    je génère mes visuels et je lance — tout en un endroit. Je sais quoi tester, pourquoi, et à quel prix.”
+                  </p>
+                    <p className="text-sm sm:text-base text-white/60">
+                    Clément — Vendeur Etsy
+                  </p>
+                </div>
+              </div>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* Section "système de décision" inspirée de la landing Etscale */}
+      <section className="py-16 sm:py-20 md:py-28 bg-black">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-5 leading-tight max-w-4xl mx-auto">
+              Etsmart est ton{' '}
+              <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">système de décision</span>
+              {' '}avant lancement.
+            </h2>
+            <p className="text-base sm:text-lg md:text-xl text-white/75 max-w-3xl mx-auto leading-relaxed">
+              Il analyse la demande réelle, la concurrence et ton pricing, projette ton potentiel sur 3 mois
+              et transforme une idée floue en plan d’action structuré.
+            </p>
+          </AnimatedSection>
+          <div className="grid md:grid-cols-3 gap-5 sm:gap-8">
+            <AnimatedCard delay={0}>
+              <div className="h-full rounded-2xl border border-[#00d4ff]/30 bg-black px-5 sm:px-8 py-6 sm:py-8 hover:border-[#00d4ff]/60 transition-colors">
+                <p className="text-sm font-bold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent mb-3">01</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">Analyse & score stratégique</h3>
+                <p className="text-sm sm:text-base text-white/70 leading-relaxed">
+                  Un score basé sur la demande réelle, la concurrence, la marge estimée et les zones à risque.
+                  Tout est expliqué simplement pour que tu saches où tu mets les pieds.
+                </p>
+              </div>
+            </AnimatedCard>
+            <AnimatedCard delay={0.1}>
+              <div className="h-full rounded-2xl border border-[#00d4ff]/30 bg-black px-5 sm:px-8 py-6 sm:py-8 hover:border-[#00d4ff]/60 transition-colors">
+                <p className="text-sm font-bold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent mb-3">02</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">Projection réaliste sur 3 mois</h3>
+                <p className="text-sm sm:text-base text-white/70 leading-relaxed">
+                  Trois scénarios cohérents (prudent, réaliste, optimiste) pour visualiser ton potentiel de ventes,
+                  ton chiffre d’affaires et ta marge avant d’investir.
+                </p>
+              </div>
+            </AnimatedCard>
+            <AnimatedCard delay={0.2}>
+              <div className="h-full rounded-2xl border border-[#00d4ff]/30 bg-black px-5 sm:px-8 py-6 sm:py-8 hover:border-[#00d4ff]/60 transition-colors">
+                <p className="text-sm font-bold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent mb-3">03</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">Verdict clair & plan d’action</h3>
+                <p className="text-sm sm:text-base text-white/70 leading-relaxed">
+                  Lancer, tester intelligemment ou éviter : Etsmart te donne un verdict clair avec des
+                  recommandations concrètes à appliquer sur ton listing et ta stratégie produit.
+                </p>
+              </div>
+            </AnimatedCard>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section id="features" className="py-12 sm:py-16 md:py-28 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -327,38 +473,50 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it works */}
+      {/* How it works - style CREIX */}
       <section id="how" className="py-12 sm:py-16 md:py-28 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-8 sm:mb-12 md:mb-16">
-              <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Comment ça marche</span>
-              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">
-                Analysez en 3 étapes
+            <div className="text-center mb-10 sm:mb-14">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00c9b7] border border-[#00c9b7] mb-4">
+                <Zap className="w-4 h-4 text-white" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-white">Simple & rapide</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+                Comment ça marche ?
               </h2>
             </div>
           </AnimatedSection>
 
           <div className="relative">
-            {/* Ligne conductrice */}
-            <div className="hidden md:block absolute top-8 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-            <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+            {/* Ligne conductrice entre les étapes - couleurs Etsmart */}
+            <div className="hidden md:block absolute top-16 left-[16.666%] right-[16.666%] h-px bg-gradient-to-r from-[#00d4ff]/40 via-[#00c9b7] to-[#00d4ff]/40" />
+            <div className="grid md:grid-cols-3 gap-8 sm:gap-10 relative">
               {[
-                { step: '01', icon: ShoppingBag, title: 'Choisissez votre niche', description: 'Sélectionnez une niche ou entrez la vôtre.' },
-                { step: '02', icon: Globe, title: 'Ajoutez vos produits', description: 'Collez un lien fournisseur ou importez vos produits.' },
-                { step: '03', icon: Sparkles, title: 'Obtenez votre verdict', description: 'Notre IA vous donne un verdict clair et actionnable.' },
+                { step: '01', icon: ShoppingBag, title: 'Choisissez votre niche', description: 'Sélectionnez une niche ou entrez la vôtre pour lancer l’analyse.' },
+                { step: '02', icon: Globe, title: 'Ajoutez vos produits', description: 'Collez un lien fournisseur ou importez vos produits en un clic.' },
+                { step: '03', icon: Sparkles, title: 'Obtenez votre verdict', description: 'L’IA vous donne un verdict clair : Lancer, Tester ou Éviter.' },
               ].map((item, index) => (
-                <AnimatedCard key={item.step} delay={index * 0.15}>
-                  <div className="relative p-4 sm:p-6 pt-8 sm:pt-10 rounded-lg border border-white/5 bg-transparent">
-                    <div className="absolute -top-4 sm:-top-5 left-4 sm:left-6 w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] shadow-[#00d4ff]/30">
-                      <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <AnimatedCard key={item.step} delay={index * 0.12}>
+                  <div className="relative flex flex-col items-center text-center pt-2">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 border-[#00c9b7] flex items-center justify-center mb-4 bg-[#00c9b7]/10">
+                      <item.icon className="w-6 h-6 sm:w-7 sm:h-7 text-[#00c9b7]" strokeWidth={1.5} />
                     </div>
-                    <div className="text-white/60 text-xs font-semibold mb-1.5 sm:mb-2">{item.step}</div>
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 sm:mb-2">{item.title}</h3>
-                    <p className="text-white/70 text-xs sm:text-sm">{item.description}</p>
+                    <span className="text-[10px] sm:text-xs font-semibold text-[#00c9b7]/90 mb-1">{item.step}</span>
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">{item.title}</h3>
+                    <p className="text-sm text-[#00c9b7]/95 leading-snug max-w-[220px] mx-auto">{item.description}</p>
                   </div>
                 </AnimatedCard>
               ))}
+            </div>
+            <div className="text-center mt-10 sm:mt-12">
+              <Link
+                href={user ? '/dashboard' : '/login'}
+                className="inline-flex items-center gap-2 font-semibold text-[#00c9b7] hover:text-[#00d4ff] transition-colors"
+              >
+                <span className="text-[#00c9b7]">Commencer maintenant</span>
+                <ArrowRight className="w-4 h-4 flex-shrink-0 text-[#00c9b7]" />
+              </Link>
             </div>
           </div>
         </div>
@@ -366,31 +524,25 @@ export default function HomePage() {
 
       {/* Pricing */}
       <section id="pricing" className="py-12 sm:py-16 md:py-28 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection>
-            <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <div className="text-center mb-8 sm:mb-12 md:mb-14">
               <span className="font-medium mb-2 sm:mb-3 block uppercase tracking-wider text-xs bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Tarifs</span>
-              <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white px-2">Des tarifs transparents</h2>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white px-2">Des tarifs clairs pour chaque étape</h2>
               <p className="text-white/70 text-sm sm:text-base max-w-2xl mx-auto mt-2 sm:mt-3 px-2">
-                Commencez gratuitement, passez à la vitesse supérieure quand vous êtes prêt.
+                Commencez petit, mettez à l’échelle quand vous avez trouvé vos winners.
               </p>
             </div>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             {PLANS.filter(p => p.id !== 'FREE').map((plan, index) => {
-              // Format features for display - show all real features
               const creditLine = plan.analysesPerMonth === -1 
                 ? 'Crédits illimités'
                 : `${plan.analysesPerMonth} crédits / mois`;
-              const features = [
-                creditLine,
-                ...plan.features.map(f => f.name),
-              ];
-              
-              // Format price for display
               const displayPrice = plan.price === 0 ? 'Sur devis' : `€${plan.price.toFixed(2)}`;
               const displayPeriod = plan.price === 0 ? '' : '/mois';
+              const isPopular = plan.id === 'SCALE';
               const handleSubscribe = async () => {
                 // Si l'utilisateur n'est pas connecté, rediriger vers login
                 if (!user) {
@@ -448,47 +600,99 @@ export default function HomePage() {
               return (
                 <AnimatedCard key={plan.name} delay={index * 0.15}>
                   <div
-                    className={`p-4 sm:p-6 rounded-lg border ${
-                      plan.popular ? 'border-[#00d4ff] bg-transparent' : 'border-white/5 bg-transparent'
+                    className={`relative h-full rounded-2xl border px-5 sm:px-6 py-5 sm:py-6 md:py-7 ${
+                      isPopular
+                        ? 'border-[#00d4ff] bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.18),_transparent_55%),_rgba(0,0,0,1)] shadow-[0_0_40px_rgba(0,212,255,0.25)]'
+                        : 'border-white/10 bg-[#020408]'
                     }`}
                   >
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2">{plan.name.replace('Etsmart ', '')}</h3>
+                    {isPopular && (
+                      <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/40 text-[10px] font-semibold uppercase tracking-wide text-[#00d4ff]">
+                        Plus populaire
+                      </div>
+                    )}
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-1">
+                      {plan.name.replace('Etsmart ', '')}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-white/60 mb-3">
+                      {plan.description || (isPopular ? 'Parfait pour scaler avec plusieurs tests par mois.' : 'Idéal pour démarrer et valider tes premiers produits.')}
+                    </p>
                     <div className="flex items-baseline gap-2 mb-3 sm:mb-4">
                       <span className="text-3xl sm:text-4xl font-bold text-white">{displayPrice}</span>
                       <span className="text-white/60 text-sm sm:text-base">{displayPeriod}</span>
                     </div>
-                    <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
-                      {features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-2 text-white/80 text-xs sm:text-sm">
-                          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00c9b7] flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-sm font-semibold text-[#00c9b7] mb-4">{creditLine}</p>
+                    <div className="flex items-center gap-2 text-white/70 text-xs sm:text-sm mb-5">
+                      <CheckCircle2 className="w-4 h-4 text-[#00c9b7] flex-shrink-0" />
+                      <span>Toutes les fonctionnalités incluses</span>
+                    </div>
                     <button 
                       onClick={handleSubscribe}
                       disabled={loadingPlan === plan.id}
-                      className={`w-full py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 bg-transparent hover:opacity-90 ${
-                        plan.popular ? 'border-[#00d4ff]' : ''
+                      className={`w-full py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isPopular
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black hover:opacity-90'
+                          : 'border border-white/20 text-white hover:border-[#00d4ff]/70'
                       }`}
-                      style={plan.popular ? {} : {
-                        borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
-                        borderImageSlice: 1,
-                      }}
                     >
                       {loadingPlan === plan.id ? (
                         <span className="flex items-center justify-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Chargement...</span>
+                          <span>Chargement...</span>
                         </span>
                       ) : (
-                        <span className="bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] bg-clip-text text-transparent">Choisir ce plan</span>
+                        <span>{isPopular ? 'Choisir ce plan' : 'Découvrir ce plan'}</span>
                       )}
                     </button>
                   </div>
                 </AnimatedCard>
               );
             })}
+          </div>
+
+          <AnimatedSection className="mt-10 sm:mt-12">
+            <p className="text-center text-white/50 text-xs sm:text-sm mb-3">Inclus dans tous les plans</p>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-white/60 text-xs sm:text-sm max-w-3xl mx-auto">
+              {PLANS.find(p => p.id === 'SMART')?.features.map(f => f.name).slice(0, 8).map((name) => (
+                <span key={name}>{name}</span>
+              ))}
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-12 sm:py-16 md:py-24 bg-black">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center mb-8 sm:mb-10">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2">
+              Les questions fréquentes
+            </h2>
+            <p className="text-xs sm:text-sm text-white/70">
+              Tout ce que les vendeurs me demandent avant d’utiliser Etsmart.
+            </p>
+          </AnimatedSection>
+          <div className="space-y-3 sm:space-y-4">
+            <FaqItem
+              question="Est‑ce que mes données restent privées ?"
+              answer="Oui. Tes données ne sont ni revendues ni partagées. Etsmart analyse uniquement les informations nécessaires pour générer le verdict et les projections."
+            />
+            <FaqItem
+              question="Puis‑je utiliser Etsmart sans boutique Etsy ?"
+              answer="Oui. Tu peux analyser un produit, une niche ou la concurrence même avant de créer ta boutique. C’est idéal pour valider une idée avant de te lancer."
+            />
+            <FaqItem
+              question="Comment est calculée la projection sur 3 mois ?"
+              answer="Elle repose sur la demande réelle, le niveau de concurrence, le pricing du marché et ta marge potentielle. L’IA génère trois scénarios cohérents : prudent, réaliste et optimiste."
+            />
+            <FaqItem
+              question="Est‑ce adapté aux débutants ?"
+              answer="Oui. L’analyse est automatique et le verdict est expliqué clairement. Tu sais quoi tester, pourquoi, et comment optimiser ton listing."
+            />
+            <FaqItem
+              question="Puis‑je annuler quand je veux ?"
+              answer="Oui. Le plan Pro est sans engagement. Tu peux annuler ton abonnement à tout moment, directement depuis ton espace compte."
+            />
           </div>
         </div>
       </section>

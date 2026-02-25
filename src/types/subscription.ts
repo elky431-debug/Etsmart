@@ -95,6 +95,7 @@ const ALL_FEATURES: PlanFeature[] = [
   { id: 'quick_generate', name: 'Génération rapide listing + images', available: true },
   { id: 'listing', name: 'Création de listings optimisés SEO', available: true },
   { id: 'images', name: 'Génération d\'images produit par IA', available: true },
+  { id: 'videos', name: 'Génération de vidéos produit par IA', available: true },
   { id: 'prompt_universel', name: 'Prompt universel pour vos visuels', available: true },
   { id: 'top_sellers', name: 'Découverte des top sellers Etsy', available: true },
   { id: 'trends', name: 'Tendances Etsy en temps réel', available: true },
