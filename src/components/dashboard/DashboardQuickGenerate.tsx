@@ -305,23 +305,13 @@ export function DashboardQuickGenerate() {
 
       if (!listing && taskIds.length === 0) throw new Error('Échec de la génération. Réessayez.');
 
-      // Afficher listing immédiatement
-      if (listing) {
-        setListingData(listing);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
-      }
-      setHasGenerated(true);
-      setIsGenerating(false);
-
-      // Poll images en arrière-plan, afficher toutes ensemble
+      // Poll TOUTES les images, attendre qu'elles soient prêtes
+      let allImages: GeneratedImage[] = [];
       if (taskIds.length > 0) {
         setPendingImagesCount(taskIds.length);
-        const deadline = Date.now() + 60000;
+        const deadline = Date.now() + 75000;
 
-        Promise.all(taskIds.map(async (taskId, idx) => {
+        const results = await Promise.all(taskIds.map(async (taskId, idx) => {
           while (Date.now() < deadline) {
             await new Promise(r => setTimeout(r, 3000));
             if (Date.now() >= deadline) break;
@@ -330,23 +320,34 @@ export function DashboardQuickGenerate() {
               if (!res.ok) continue;
               const s = await res.json();
               if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
+                setPendingImagesCount(c => Math.max(0, c - 1));
                 return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
               }
               if (s.status === 'error') return null;
             } catch { /* retry */ }
           }
           return null;
-        })).then(results => {
-          const imgs = results.filter((r): r is GeneratedImage => r !== null);
-          setGeneratedImages(imgs);
-          setPendingImagesCount(0);
-          if (imgs.length > 0 && typeof window !== 'undefined') {
-            sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(imgs));
-          }
-          if (imgs.length === 0) {
-            setError('⚠️ Les images n\'ont pas pu être générées. Cliquez sur "Générer de nouvelles images" pour réessayer.');
-          }
-        });
+        }));
+        allImages = results.filter((r): r is GeneratedImage => r !== null);
+        setPendingImagesCount(0);
+      }
+
+      // TOUT afficher d'un coup : listing + images ensemble
+      if (listing) {
+        setListingData(listing);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+        }
+      }
+      setGeneratedImages(allImages);
+      if (allImages.length > 0 && typeof window !== 'undefined') {
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+      }
+      setHasGenerated(true);
+
+      if (allImages.length === 0 && taskIds.length > 0) {
+        setError('⚠️ Les images n\'ont pas pu être générées. Cliquez sur "Générer de nouvelles images" pour réessayer.');
       }
 
       setTimeout(() => {
