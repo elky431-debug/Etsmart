@@ -152,15 +152,20 @@ export async function POST(request: NextRequest) {
       return { title, tags, materials: p.materials || '' };
     }).catch(() => ({ title: '', tags: [] as string[], materials: '' }));
 
-    // Submit images to Nanonbanana (même logique que /api/generate-images)
-    const imageSubmits = Array.from({ length: quantity }, async (_, i) => {
+    // Attendre le listing en parallèle
+    const [description, titleData] = await Promise.all([descPromise, titlePromise]);
+
+    // Submit images SEQUENTIALLY to NanoBanana (avoids rate limits + timeout issues on Netlify)
+    const imgResults: { taskId: string | null; url: string | null; index: number; error?: string }[] = [];
+    for (let i = 0; i < quantity; i++) {
       try {
         let prompt = `CAMERA ANGLE: ${VIEWS[i % VIEWS.length]}.\n\n${nanoPrompt}`;
         if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 6000);
+        const timeout = setTimeout(() => controller.abort(), 20000);
 
+        console.log(`[GEN] Submitting image ${i + 1}/${quantity} to NanoBanana...`);
         const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
@@ -168,7 +173,7 @@ export async function POST(request: NextRequest) {
             type: 'IMAGETOIAMGE',
             prompt,
             imageUrls: [imageDataUrl],
-            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : '1:1',
+            image_size: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
             numImages: 1,
             callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
           }),
@@ -179,22 +184,21 @@ export async function POST(request: NextRequest) {
 
         if (!resp.ok) {
           const errText = await resp.text().catch(() => '');
-          console.error(`[GEN] Nanonbanana submit ${i} failed: ${resp.status} ${errText.substring(0, 200)}`);
-          throw new Error(`Submit failed: ${resp.status}`);
+          console.error(`[GEN] NanoBanana submit ${i} failed: ${resp.status} ${errText.substring(0, 200)}`);
+          imgResults.push({ taskId: null, url: null, index: i, error: `Submit failed: ${resp.status}` });
+        } else {
+          const data = await resp.json();
+          const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
+          console.log(`[GEN] Submitted image ${i + 1}: taskId=${taskId}`);
+          imgResults.push({ taskId, url: null, index: i });
         }
 
-        const data = await resp.json();
-        const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
-        console.log(`[GEN] Submitted image ${i + 1}: taskId=${taskId}`);
-        if (!taskId) throw new Error('No taskId returned from Nanonbanana');
-        return { taskId, url: null, index: i };
+        if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
       } catch (e: any) {
-        return { taskId: null, url: null, index: i, error: e.message };
+        console.error(`[GEN] NanoBanana submit ${i} error: ${e.message}`);
+        imgResults.push({ taskId: null, url: null, index: i, error: e.message });
       }
-    });
-
-    // Attendre tout en parallèle
-    const [description, titleData, ...imgResults] = await Promise.all([descPromise, titlePromise, ...imageSubmits]);
+    }
 
     const title = titleData.title || productDesc.substring(0, 140);
     const tags = titleData.tags.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
