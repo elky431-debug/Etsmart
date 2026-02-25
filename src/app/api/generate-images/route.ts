@@ -125,15 +125,15 @@ export async function POST(request: NextRequest) {
     console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
 
     // ── Submit image generation tasks to Nanonbanana ──────────
-    // STRICT 6s timeout per submission, NO server-side polling
-    const submitImage = async (index: number): Promise<string | null> => {
+    const payloadSize = imageDataUrl.length;
+    console.log(`[IMAGE GEN] Image payload size: ${(payloadSize / 1024).toFixed(0)}KB`);
+
+    const submitImage = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
       try {
         let prompt = `ANGLE: ${VIEWS[index % VIEWS.length]}. ${basePrompt}`;
         if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 6000);
-
+        const submitStart = Date.now();
         const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
@@ -145,38 +145,44 @@ export async function POST(request: NextRequest) {
             numImages: 1,
             callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
           }),
-          signal: controller.signal,
         });
 
-        clearTimeout(timeout);
+        const elapsed = Date.now() - submitStart;
 
         if (!resp.ok) {
           const errText = await resp.text().catch(() => '');
-          console.error(`[IMAGE GEN] Nano submit ${index} failed: ${resp.status} ${errText.substring(0, 200)}`);
-          return null;
+          console.error(`[IMAGE GEN] Nano submit ${index} failed in ${elapsed}ms: ${resp.status} ${errText.substring(0, 500)}`);
+          return { taskId: null, error: `HTTP ${resp.status}: ${errText.substring(0, 200)}` };
         }
         const data = await resp.json();
         const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
-        console.log(`[IMAGE GEN] Submitted image ${index + 1}: taskId=${taskId}`);
-        return taskId;
+        console.log(`[IMAGE GEN] Submitted image ${index + 1} in ${elapsed}ms: taskId=${taskId}`, JSON.stringify(data).substring(0, 300));
+        return { taskId };
       } catch (e: any) {
         console.error(`[IMAGE GEN] Nano submit ${index} error: ${e.message}`);
-        return null;
+        return { taskId: null, error: e.message };
       }
     };
 
-    // Submit SEQUENTIALLY with small delay to avoid rate limits
     const taskIds: string[] = [];
+    const errors: string[] = [];
     for (let i = 0; i < quantity; i++) {
-      const taskId = await submitImage(i);
-      if (taskId) taskIds.push(taskId);
+      const result = await submitImage(i);
+      if (result.taskId) taskIds.push(result.taskId);
+      else if (result.error) errors.push(result.error);
       if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
     }
 
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} tasks in ${Date.now() - startTime}ms`);
 
     if (taskIds.length === 0) {
-      return NextResponse.json({ error: 'Échec de soumission des images. Réessayez.' }, { status: 500 });
+      const errDetail = errors.length > 0 ? errors[0] : 'Unknown error';
+      console.error(`[IMAGE GEN] ALL submissions failed. Errors: ${JSON.stringify(errors)}`);
+      return NextResponse.json({ 
+        error: 'IMAGE_SUBMIT_FAILED', 
+        message: `Échec soumission images: ${errDetail}`,
+        debug: { errors, payloadSizeKB: Math.round(payloadSize / 1024), sharpAvailable: !!sharp },
+      }, { status: 500 });
     }
 
     // ── Deduct credits ───────────────────────────────────────

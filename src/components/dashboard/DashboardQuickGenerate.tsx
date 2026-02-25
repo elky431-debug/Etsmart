@@ -303,7 +303,7 @@ export function DashboardQuickGenerate() {
       if (imgResponse.ok) {
         const imgData = await imgResponse.json();
         const taskIds: string[] = imgData.imageTaskIds || [];
-        console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`);
+        console.log(`[QUICK GENERATE] ✅ ${taskIds.length} image task(s) submitted`, imgData);
 
         if (taskIds.length > 0) {
           (async () => {
@@ -343,8 +343,10 @@ export function DashboardQuickGenerate() {
           setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
         }
       } else {
+        const errData = await imgResponse.json().catch(() => ({}));
+        console.error('[QUICK GENERATE] ❌ Image generation failed:', errData);
         setPendingImagesCount(0);
-        setError('⚠️ Le listing a été généré mais les images ont échoué. Cliquez sur "Générer de nouvelles images" pour réessayer.');
+        setError(`⚠️ Images échouées: ${errData.message || errData.error || `Erreur ${imgResponse.status}`}. ${errData.debug ? `(sharp: ${errData.debug.sharpAvailable}, payload: ${errData.debug.payloadSizeKB}KB)` : ''}`);
       }
 
       // Refresh subscription
