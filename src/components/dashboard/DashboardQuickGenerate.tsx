@@ -305,7 +305,7 @@ export function DashboardQuickGenerate() {
 
       if (!listing && taskIds.length === 0) throw new Error('Échec de la génération. Réessayez.');
 
-      // Poll TOUTES les images, attendre qu'elles soient prêtes
+      // Poll images DIRECTEMENT depuis le navigateur (Netlify bloque NanoBanana)
       let allImages: GeneratedImage[] = [];
       if (taskIds.length > 0) {
         setPendingImagesCount(taskIds.length);
@@ -316,14 +316,23 @@ export function DashboardQuickGenerate() {
             await new Promise(r => setTimeout(r, 3000));
             if (Date.now() >= deadline) break;
             try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+              const res = await fetch(
+                `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?taskId=${taskId}`,
+                { headers: { 'Authorization': `Bearer ${NANO_KEY}`, 'Content-Type': 'application/json' } }
+              );
               if (!res.ok) continue;
-              const s = await res.json();
-              if (s.status === 'ready' && s.url && String(s.url).startsWith('http')) {
-                setPendingImagesCount(c => Math.max(0, c - 1));
-                return { id: `img-${Date.now()}-${idx}`, url: s.url } as GeneratedImage;
+              const data = await res.json();
+              console.log(`[BROWSER POLL] Task ${taskId.substring(0, 8)}:`, data.code, data.msg);
+              if (data.code === 200 || data.code === 0 || data.msg === 'success') {
+                const url = data.data?.response?.resultImageUrl || data.data?.response?.originImageUrl
+                  || data.data?.url || data.data?.image_url || data.data?.imageUrl || data.url;
+                if (url && String(url).startsWith('http')) {
+                  setPendingImagesCount(c => Math.max(0, c - 1));
+                  return { id: `img-${Date.now()}-${idx}`, url } as GeneratedImage;
+                }
+                const status = data.data?.status || data.data?.state;
+                if (status === 'failed' || status === 'error') return null;
               }
-              if (s.status === 'error') return null;
             } catch { /* retry */ }
           }
           return null;
@@ -332,7 +341,7 @@ export function DashboardQuickGenerate() {
         setPendingImagesCount(0);
       }
 
-      // TOUT afficher d'un coup : listing + images ensemble
+      // TOUT afficher d'un coup
       if (listing) {
         setListingData(listing);
         if (typeof window !== 'undefined') {
