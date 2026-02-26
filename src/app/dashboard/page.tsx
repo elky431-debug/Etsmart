@@ -80,7 +80,8 @@ type DashboardSection =
   | 'top-etsy-sellers'
   | 'niche-finder'
   | 'banner'
-  | 'video-generator';
+  | 'video-generator'
+  | 'sales-management';
 
 interface MenuItem {
   id: DashboardSection;
@@ -229,7 +230,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'sales-management'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -237,7 +238,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner'].includes(lastSection)) {
+          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'sales-management'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
@@ -1419,6 +1420,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Boutique',
       items: [
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
+        { id: 'sales-management', label: 'Gestion des ventes', icon: DollarSign },
       ],
     },
     {
@@ -2032,6 +2034,56 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'niche-finder' && (
             <NicheFinderSection />
+          )}
+
+          {activeSection === 'sales-management' && (
+            <div className="p-4 md:p-8 bg-black">
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/40">
+                      <DollarSign className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-white">Gestion des ventes</h1>
+                      <p className="text-white/60 text-sm sm:text-base">
+                        Vue d&apos;ensemble de tes performances Etsy, de tes revenus et de tes produits qui se vendent le mieux.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:gap-6 md:grid-cols-3">
+                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wide text-white/50">Revenus du mois</span>
+                    <span className="text-2xl font-semibold text-white">—</span>
+                    <span className="text-xs text-white/40">Connecte tes données de vente pour voir tes revenus en temps réel.</span>
+                  </div>
+                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wide text-white/50">Produits gagnants</span>
+                    <span className="text-2xl font-semibold text-white">—</span>
+                    <span className="text-xs text-white/40">Etsmart mettra en avant les listings qui génèrent le plus de ventes.</span>
+                  </div>
+                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wide text-white/50">Taux de conversion</span>
+                    <span className="text-2xl font-semibold text-white">—</span>
+                    <span className="text-xs text-white/40">Bientôt : suivi du ratio vues ➝ ventes pour chaque produit.</span>
+                  </div>
+                </div>
+
+                <div className="mt-8 rounded-2xl border border-dashed border-white/15 bg-white/[0.01] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white mb-1">Connexion à Etsy à venir</h2>
+                    <p className="text-sm text-white/60">
+                      Cet onglet affichera automatiquement tes statistiques de ventes Etsy (CA, best-sellers, tendances...).
+                    </p>
+                  </div>
+                  <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-sm font-medium text-white/80 hover:text-white hover:border-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors">
+                    <span>Préparer mes données</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeSection === 'settings' && (
