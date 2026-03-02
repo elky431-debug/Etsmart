@@ -289,8 +289,15 @@ export default function CompetitorsClient() {
     // Check for error params
     const errorParam = searchParams.get('import');
     if (errorParam === 'error') {
-      const errorMessage = searchParams.get('message') || 'Erreur lors de l\'import';
-      setError(decodeURIComponent(errorMessage));
+      const rawMessage = searchParams.get('message');
+      let decoded = rawMessage ? decodeURIComponent(rawMessage) : 'Erreur lors de l\'import';
+      // Si le message ressemble à une page HTML (timeout proxy, etc.), ne pas afficher le HTML brut
+      const looksLikeHtml = /<[^>]+>/.test(decoded);
+      if (looksLikeHtml) {
+        console.error('[Competitors] Import error from extension (HTML message):', decoded);
+        decoded = 'Erreur de connexion ou timeout pendant l\'analyse des boutiques concurrentes. Veuillez réessayer l\'import depuis l\'extension.';
+      }
+      setError(decoded);
       setLoading(false);
       return;
     }
