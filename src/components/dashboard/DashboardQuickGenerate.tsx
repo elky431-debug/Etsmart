@@ -241,24 +241,40 @@ export function DashboardQuickGenerate() {
         throw new Error(err.error || err.message || 'Crédits insuffisants');
       }
 
-      console.log('[QUICK GENERATE] 🚀 Generating listing + images...');
+      console.log('[QUICK GENERATE] 🚀 Generating listing then images...');
 
-      // LISTING côté serveur (OpenAI)
-      const listingPromise = fetch('/api/generate-listing-and-images', {
+      // 1) LISTING d'abord (pour avoir le type de produit et adapter le décor)
+      const listingResponse = await fetch('/api/generate-listing-and-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ sourceImage: imageBase64 }),
       });
 
-      // IMAGES directement depuis le navigateur (bypass Netlify Lambda)
+      // Parser listing
+      let listing: ListingData | null = null;
+      if (listingResponse.ok) {
+        const lr = await listingResponse.json();
+        if (lr.listing) {
+          listing = { title: lr.listing.title || '', description: lr.listing.description || '', tags: lr.listing.tags || [], materials: lr.listing.materials || '' };
+        }
+      }
+
+      // 2) Prompt images : décor cohérent avec le produit, chaque image unique, produit clair
+      const productContext = listing?.title
+        ? `PRODUCT: ${listing.title.substring(0, 120)}. Background and setting MUST match this specific product — choose a setting where this product would naturally be found or displayed (e.g. garden for outdoor tools, kitchen for kitchenware, desk for office supplies, bathroom for toiletries, wall for wall art, living room for home decor). One clear focal product, instantly recognizable.`
+        : 'Product as single clear focal point. Background must match the product type — place it where it would naturally be found. Instantly recognizable.';
+      const basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible. ${productContext} Clean, simple, aesthetic setting. No text, no logos, no watermarks.`;
       const NANO_KEY = '758a24cfaef8c64eed9164858b941ecc';
-      const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down view', 'close-up detail'];
-      const basePrompt = 'Professional Etsy lifestyle product photography. Keep product IDENTICAL. Create NEW cozy lifestyle background. Soft lighting, depth of field, warm atmosphere. NO text/logos/watermarks.';
+      const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down flat lay', 'close-up detail shot'];
+      const LIGHTING = ['soft natural daylight', 'warm golden hour glow', 'bright airy studio light', 'dramatic side lighting with soft shadows'];
       const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
       const imgSize = sizeMap[aspectRatio] || '1:1';
 
       const submitImageFromBrowser = async (index: number): Promise<string | null> => {
-        const prompt = `CAMERA ANGLE: ${VIEWS[index % VIEWS.length]}.\n\n${basePrompt}`;
+        const view = VIEWS[index % VIEWS.length];
+        const light = LIGHTING[index % LIGHTING.length];
+        let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}.\n\n${basePrompt}`;
+        if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
@@ -287,19 +303,8 @@ export function DashboardQuickGenerate() {
         return null;
       };
 
-      // Soumettre images en parallèle depuis le navigateur
       const imagePromises = Array.from({ length: quantity }, (_, i) => submitImageFromBrowser(i));
-      const [listingResponse, ...imageResults] = await Promise.all([listingPromise, ...imagePromises]);
-
-      // Parser listing
-      let listing: ListingData | null = null;
-      if (listingResponse.ok) {
-        const lr = await listingResponse.json();
-        if (lr.listing) {
-          listing = { title: lr.listing.title || '', description: lr.listing.description || '', tags: lr.listing.tags || [], materials: lr.listing.materials || '' };
-        }
-      }
-
+      const imageResults = await Promise.all(imagePromises);
       const taskIds = imageResults.filter((id): id is string => id !== null);
       console.log(`[QUICK GENERATE] ✅ Listing: ${!!listing}, Images submitted: ${taskIds.length}/${quantity}`);
 
@@ -401,33 +406,14 @@ export function DashboardQuickGenerate() {
         throw new Error('Authentification requise');
       }
 
-      // Scènes variées pour forcer des résultats différents à chaque clic
-      const sceneVariations = [
-        'Place the product on a rustic wooden table in a cozy kitchen with warm morning sunlight streaming through a window. Add a coffee cup and fresh flowers nearby.',
-        'Show the product on a marble shelf in a modern minimalist living room with soft ambient lighting and green plants in the background.',
-        'Position the product on a vintage desk near a window overlooking a rainy day. Include old books and a candle for atmosphere.',
-        'Display the product on a soft white linen fabric in a bright, airy bedroom with natural daylight and dried eucalyptus nearby.',
-        'Place the product on a natural stone surface outdoors in a garden setting with bokeh flowers and golden hour sunlight.',
-        'Show the product on a dark slate surface with dramatic side lighting, creating elegant shadows. Minimal dark moody aesthetic.',
-        'Position the product on a wicker basket on a sunlit patio with terracotta pots and climbing ivy in the background.',
-        'Display the product on a pastel-colored surface in a Scandinavian-style room with soft diffused light from sheer curtains.',
-        'Place the product on weathered driftwood at a beach setting with soft ocean waves blurred in the background and warm sunset tones.',
-        'Show the product on a glass table in a luxurious setting with velvet fabric, gold accents, and soft candlelight reflections.',
-        'Position the product on a mossy forest floor with dappled sunlight filtering through tall trees and ferns.',
-        'Display the product on a colorful handwoven blanket in a bohemian-style room with macramé wall hangings and warm fairy lights.',
-      ];
-
-      const currentIndex = regenCountRef.current % sceneVariations.length;
-      regenCountRef.current++;
-      const selectedScene = sceneVariations[currentIndex];
-
       // Compresser le fond si présent (512x512 car utilisé uniquement pour description)
       let bgBase64: string | undefined;
       if (backgroundImage) {
         bgBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
       }
 
-      console.log(`[QUICK GENERATE] 🔄 Regenerating images with scene variation #${currentIndex + 1}...`, bgBase64 ? '(with custom background)' : '');
+      regenCountRef.current++;
+      console.log(`[QUICK GENERATE] 🔄 Regenerating images (round ${regenCountRef.current})...`, bgBase64 ? '(with custom background)' : '');
 
       const response = await fetch('/api/generate-images', {
         method: 'POST',
@@ -440,9 +426,10 @@ export function DashboardQuickGenerate() {
           backgroundImage: bgBase64,
           quantity,
           aspectRatio,
+          productTitle: listingData?.title || undefined,
           customInstructions: bgBase64 
-            ? `⚠️ MANDATORY: Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. DO NOT create any other background. The custom background is NON-NEGOTIABLE. Try a different camera angle or product placement within this same background (variation seed: ${Date.now()}).`
-            : `⚠️ MANDATORY: Create a COMPLETELY DIFFERENT scene from any previous generation. ${selectedScene} Use a unique camera angle (variation seed: ${Date.now()}).`,
+            ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
+            : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
         }),
       });
 

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle } = body;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
@@ -109,18 +109,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Build prompt ─────────────────────────────────────────
+    // ── Build prompt (décor cohérent avec le produit, produit clair et reconnaissable) ──
     let basePrompt: string;
+    const productContext = productTitle && String(productTitle).trim()
+      ? `PRODUCT: ${String(productTitle).trim().substring(0, 120)}. Background and setting MUST match this product (e.g. garden/lawn for outdoor tools, kitchen for kitchenware, desk for office, bathroom for toiletries). One clear focal product, instantly recognizable.`
+      : '';
     if (bgDesc) {
-      basePrompt = `Professional Etsy lifestyle photo. BACKGROUND: "${bgDesc}" Keep product IDENTICAL. Soft lighting. NO text/watermarks.`;
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. BACKGROUND: "${bgDesc}" Keep product IDENTICAL and clearly visible. Soft lighting. NO text/watermarks.`;
+    } else if (productContext) {
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible. ${productContext} Clean, simple, aesthetic setting. Soft natural lighting. No text, no logos, no watermarks.`;
     } else {
-      basePrompt = `Professional Etsy lifestyle photo. Keep product IDENTICAL. Cozy lifestyle background. Soft lighting. NO text/watermarks.`;
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep product IDENTICAL. Background must match the product type. One clear focal product, instantly recognizable. Clean, simple. NO text/watermarks.`;
     }
     if (customInstructions && customInstructions.trim()) {
       basePrompt += ` ${customInstructions.trim()}`;
     }
 
-    const VIEWS = ['frontal view', '45-degree angle', 'top-down', 'close-up', 'wide shot', 'three-quarter', 'low angle', 'side view'];
+    const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down flat lay', 'close-up detail shot', 'wide environmental shot', 'three-quarter angle', 'low angle looking up', 'side profile view'];
+    const LIGHTING = ['soft natural daylight', 'warm golden hour glow', 'bright airy studio light', 'dramatic side lighting with soft shadows', 'cool overcast diffused light', 'warm candlelit ambiance', 'clean backlit silhouette edge', 'neutral even lighting'];
 
     console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
 
@@ -160,7 +166,9 @@ export async function POST(request: NextRequest) {
     };
 
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      let prompt = `ANGLE: ${VIEWS[index % VIEWS.length]}. ${basePrompt}`;
+      const view = VIEWS[index % VIEWS.length];
+      const light = LIGHTING[(index + 3) % LIGHTING.length];
+      let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}. ${basePrompt}`;
       if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {

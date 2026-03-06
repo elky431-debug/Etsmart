@@ -38,7 +38,8 @@ import {
   ExternalLink,
   ArrowUpRight,
   Image as ImageIcon,
-  Play
+  Play,
+  Loader2
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -71,6 +72,7 @@ type DashboardSection =
   | 'listing'
   | 'images'
   | 'quick-generate'
+  | 'logo-generator'
   | 'profile'
   | 'settings'
   | 'subscription'
@@ -1420,6 +1422,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Boutique',
       items: [
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
+        { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
         { id: 'sales-management', label: 'Gestion des ventes', icon: DollarSign },
       ],
     },
@@ -1865,6 +1868,53 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <DashboardVideoGenerator />
           )}
 
+          {activeSection === 'logo-generator' && (
+            <div className="min-h-screen bg-black p-4 sm:p-6 md:p-8">
+              <div className="max-w-4xl mx-auto">
+                {/* Header - même interface que Bannière */}
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-8"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
+                      <ImageIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-3xl font-bold text-white">Création de logo</h1>
+                      <p className="text-white/70 text-sm mt-1">
+                        Créez un logo cohérent avec votre marque Etsy
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Maintenance Message - identique à Bannière */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-6">
+                    <Loader2 className="w-12 h-12 text-white animate-spin" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-3">
+                    En maintenance
+                  </h2>
+                  <p className="text-white/70 text-lg max-w-md">
+                    Cette fonctionnalité arrive bientôt ! Nous travaillons activement sur la génération de logos professionnels pour ta boutique Etsy.
+                  </p>
+                  <div className="mt-8 px-6 py-3 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30">
+                    <p className="text-[#00d4ff] text-sm font-semibold">
+                      Reste connecté pour être informé de la sortie
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          )}
+
           {activeSection === 'history' && !selectedAnalysis && (
             <>
               {isLoading ? (
@@ -2037,51 +2087,46 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'sales-management' && (
-            <div className="p-4 md:p-8 bg-black">
-              <div className="max-w-6xl mx-auto">
-                <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/40">
+            <div className="min-h-screen bg-black p-4 sm:p-6 md:p-8">
+              <div className="max-w-4xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-8"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
                       <DollarSign className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h1 className="text-2xl sm:text-3xl font-bold text-white">Gestion des ventes</h1>
-                      <p className="text-white/60 text-sm sm:text-base">
-                        Vue d&apos;ensemble de tes performances Etsy, de tes revenus et de tes produits qui se vendent le mieux.
+                      <h1 className="text-3xl font-bold text-white">Gestion des ventes</h1>
+                      <p className="text-white/70 text-sm mt-1">
+                        Suivez vos performances Etsy et vos revenus dans un seul endroit.
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="grid gap-4 md:gap-6 md:grid-cols-3">
-                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wide text-white/50">Revenus du mois</span>
-                    <span className="text-2xl font-semibold text-white">—</span>
-                    <span className="text-xs text-white/40">Connecte tes données de vente pour voir tes revenus en temps réel.</span>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-6">
+                    <Loader2 className="w-12 h-12 text-white animate-spin" />
                   </div>
-                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wide text-white/50">Produits gagnants</span>
-                    <span className="text-2xl font-semibold text-white">—</span>
-                    <span className="text-xs text-white/40">Etsmart mettra en avant les listings qui génèrent le plus de ventes.</span>
-                  </div>
-                  <div className="col-span-1 rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wide text-white/50">Taux de conversion</span>
-                    <span className="text-2xl font-semibold text-white">—</span>
-                    <span className="text-xs text-white/40">Bientôt : suivi du ratio vues ➝ ventes pour chaque produit.</span>
-                  </div>
-                </div>
-
-                <div className="mt-8 rounded-2xl border border-dashed border-white/15 bg-white/[0.01] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white mb-1">Connexion à Etsy à venir</h2>
-                    <p className="text-sm text-white/60">
-                      Cet onglet affichera automatiquement tes statistiques de ventes Etsy (CA, best-sellers, tendances...).
+                  <h2 className="text-2xl font-bold text-white mb-3">
+                    En maintenance
+                  </h2>
+                  <p className="text-white/70 text-lg max-w-md">
+                    Cette section affichera bientôt automatiquement vos statistiques de ventes Etsy (CA, best-sellers, tendances...).
+                  </p>
+                  <div className="mt-8 px-6 py-3 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30">
+                    <p className="text-[#00d4ff] text-sm font-semibold">
+                      Reste connecté pour être informé de la sortie
                     </p>
                   </div>
-                  <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-sm font-medium text-white/80 hover:text-white hover:border-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors">
-                    <span>Préparer mes données</span>
-                  </button>
-                </div>
+                </motion.div>
               </div>
             </div>
           )}
