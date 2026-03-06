@@ -56,7 +56,31 @@ export async function GET(request: NextRequest) {
     });
 
     if (customers.data.length === 0) {
-      console.log(`[Check Stripe] No customer found for: ${user.email}`);
+      console.log(`[Check Stripe] No customer found for: ${user.email}, checking DB for manual/renewed subscription...`);
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('subscription_plan, subscription_status, analysis_quota, analysis_used_this_month, current_period_end')
+        .eq('id', user.id)
+        .single();
+      const status = dbUser?.subscription_status;
+      const periodEnd = dbUser?.current_period_end ? new Date(dbUser.current_period_end) : null;
+      const isPeriodValid = periodEnd && periodEnd > new Date();
+      if (status === 'active' && isPeriodValid) {
+        const quota = dbUser?.analysis_quota ?? 100;
+        const used = parseFloat(String(dbUser?.analysis_used_this_month ?? 0)) || 0;
+        return NextResponse.json({
+          hasSubscription: true,
+          plan: (dbUser?.subscription_plan as PlanId) || 'PRO',
+          status: 'active',
+          cancelAtPeriodEnd: false,
+          quota,
+          used,
+          remaining: Math.max(0, quota - used),
+          periodStart: null,
+          periodEnd: periodEnd.toISOString(),
+          message: 'Active subscription from database (no Stripe customer)',
+        });
+      }
       return NextResponse.json({
         hasSubscription: false,
         message: 'No Stripe customer found',

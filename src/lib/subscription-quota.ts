@@ -423,20 +423,24 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       .eq('id', userId)
       .single();
     
+    const subscriptionStatus = user?.subscription_status ?? (user as any)?.subscriptionStatus;
+    const subscriptionPlan = user?.subscription_plan ?? (user as any)?.subscriptionPlan;
+    const isActiveFromDb = subscriptionStatus === 'active';
+    
     // If database says user has ACTIVE subscription, use it immediately (FAST PATH)
-    if (user && user.subscription_status === 'active') {
-      console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${user.subscription_plan}`);
+    if (user && isActiveFromDb) {
+      console.log(`[getUserQuotaInfo] ✅ DB says ACTIVE: ${subscriptionPlan}`);
       
       // Use the HIGHER value between PLAN_QUOTAS and DB value
       // This respects manual overrides (e.g. admin boosted quota from 200 to 600)
-      const planQuota = PLAN_QUOTAS[user.subscription_plan as PlanId] || 0;
-      const dbQuota = user.analysis_quota || 0;
+      const planQuota = PLAN_QUOTAS[(subscriptionPlan as PlanId)] || 0;
+      const dbQuota = user.analysis_quota ?? (user as any).analysisQuota ?? 0;
       
       // If DB quota is HIGHER than plan quota, it means an admin manually boosted it → respect it
       // If DB quota is LOWER than plan quota, it means DB is stale → use plan quota
       const quota = Math.max(planQuota, dbQuota) || 100;
       
-      console.log(`[getUserQuotaInfo] 📊 Quota check: plan=${user.subscription_plan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
+      console.log(`[getUserQuotaInfo] 📊 Quota check: plan=${subscriptionPlan}, planQuota=${planQuota}, dbQuota=${dbQuota}, finalQuota=${quota}`);
       
       // ⚠️ CRITICAL: Only auto-fix if DB quota is LOWER than plan quota AND DB quota is 0 or null (stale data)
       // Never downgrade a manually boosted quota (even if it's lower than plan quota, it might be intentional)
@@ -453,10 +457,10 @@ export async function getUserQuotaInfo(userId: string): Promise<{
         console.log(`[getUserQuotaInfo] ℹ️ DB quota (${dbQuota}) differs from plan quota (${planQuota}) - respecting DB value (manual override)`);
       }
       
-      const isUnlimited = isUnlimitedPlan(user.subscription_plan as PlanId) || quota === -1;
+      const isUnlimited = isUnlimitedPlan(subscriptionPlan as PlanId) || quota === -1;
       // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
       // Handle both string and number types from database
-      const rawUsed = user.analysis_used_this_month;
+      const rawUsed = user.analysis_used_this_month ?? (user as any).analysisUsedThisMonth;
       const used = typeof rawUsed === 'number' ? rawUsed : (rawUsed != null ? parseFloat(String(rawUsed)) : 0);
       const usedNum = isNaN(used) ? 0 : used;
       const remaining = isUnlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, quota - usedNum);
@@ -465,17 +469,19 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       
       let requiresUpgrade: PlanId | undefined;
       if (!isUnlimited && used >= quota) {
-        requiresUpgrade = getUpgradeSuggestion(user.subscription_plan as PlanId) || undefined;
+        requiresUpgrade = getUpgradeSuggestion(subscriptionPlan as PlanId) || undefined;
       }
       
+      const periodStart = user.current_period_start ?? (user as any).currentPeriodStart;
+      const periodEnd = user.current_period_end ?? (user as any).currentPeriodEnd;
       return {
-        plan: user.subscription_plan as PlanId,
+        plan: subscriptionPlan as PlanId,
         status: 'active',
         used: usedNum,
         quota: isUnlimited ? -1 : quota,
         remaining,
-        periodStart: user.current_period_start ? new Date(user.current_period_start) : null,
-        periodEnd: user.current_period_end ? new Date(user.current_period_end) : null,
+        periodStart: periodStart ? new Date(periodStart) : null,
+        periodEnd: periodEnd ? new Date(periodEnd) : null,
         requiresUpgrade,
       };
     }
