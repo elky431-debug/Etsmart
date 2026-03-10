@@ -114,6 +114,7 @@ CRITICAL RULES:
 - The description must be ready to copy-paste directly into Etsy
 - Make it LONG and DETAILED - aim for 300-500 words minimum
 - Be descriptive, engaging, and comprehensive
+- Do NOT use bullet points, asterisks (*), dashes (-) at the start of lines, or numbered lists (1., 2., 3., etc.). The description must be written as flowing paragraphs only.
 
 PRODUCT INFORMATION:
 - Product visual description: ${productVisualDescription}
@@ -126,65 +127,19 @@ ${buyerMirror ? `- Buyer mirror effect: ${buyerMirror}` : ''}
 ⚠️⚠️⚠️ FINAL REMINDER ⚠️⚠️⚠️
 Your description MUST describe the EXACT product type mentioned in the product visual description. If the product visual description says "watch", you MUST write about a watch. If it says "baby cradle", you MUST write about a baby cradle. Do NOT write about something else.
 
-REQUIRED STRUCTURE (follow exactly - expand each section with details):
+REQUIRED STRUCTURE (guideline – expand each idea in flowing paragraphs, NOT in a list):
 
-1. EMOTIONAL HOOK (2-3 sentences)
-   - Capture attention immediately
-   - Speak directly to emotion or main need
-   - Use vivid, engaging language
-   - Include 2-3 emojis here
-   - Example: "Looking for a meaningful gift that truly shows how much you care? ✨ This beautiful piece is designed to create lasting memories and bring joy to your loved ones. 💝"
-
-2. CLEAR PRODUCT PRESENTATION (3-4 sentences)
-   - Explain in detail what it is
-   - Describe its appearance, style, and design
-   - Mention materials, colors, dimensions if relevant
-   - Product type, main usage, key benefits for buyer
-   - Be specific and descriptive
-
-3. DETAILED FEATURES & BENEFITS (4-5 sentences or bullet points)
-   - List key features with explanations
-   - Explain why each feature matters to the buyer
-   - Connect features to real-world benefits
-   - Use bullet points with "-" for clarity
-   - Include 2-3 emojis in this section
-
-4. WHY PEOPLE BUY IT (FOR / BECAUSE) (3-4 sentences)
-   - Connect with real purchase motivation
-   - Natural, customer-oriented, emotional but credible
-   - Explain the emotional and practical reasons to buy
-   - Paint a picture of how it improves their life
-
-5. IDEAL FOR... (purchase contexts) (2-3 sentences)
-   - Help buyer project themselves
-   - List multiple use cases and occasions
-   - Examples: "Birthdays", "Anniversaries", "Gifts for pet lovers", "Special occasions", "Home decoration", "Personal use"
-   - Make it relatable and specific
-
-6. QUALITY & CRAFTSMANSHIP (2-3 sentences)
-   - Reassuring tone & confidence
-   - Reduce objections, increase conversion
-   - Mention perceived quality, ease of use, attention to detail
-   - Describe durability, finish, and overall quality
-   - DO NOT mention "handmade" if it's not true
-   - Include 2-3 emojis here
-
-8. USAGE & CARE (2-3 sentences)
-   - How to use the product
-   - Care instructions if relevant
-   - Tips for getting the most out of it
-
-9. SOFT CALL-TO-ACTION (Etsy-friendly) (1-2 sentences)
-   - Encourage purchase without aggressiveness
-   - Create urgency in a gentle way
-   - Example: "Add it to your cart and create a meaningful moment today. Perfect for yourself or as a thoughtful gift that will be cherished for years to come."
+- Start with an EMOTIONAL HOOK (2-3 sentences) to capture attention.
+- Move into a CLEAR PRODUCT PRESENTATION (3-4 sentences) describing appearance, style, usage, and key benefits.
+- Naturally weave in DETAILED FEATURES & BENEFITS inside the paragraphs instead of bullet points.
+- Explain WHY PEOPLE BUY IT, IDEAL OCCASIONS, and QUALITY & CRAFTSMANSHIP in continuous text.
+- End with gentle USAGE/Care notes (if relevant) and a SOFT CALL-TO-ACTION.
 
 OUTPUT FORMAT:
 - Return ONLY the final description text
 - No explanations, no comments, no meta-text
 - Just the ready-to-use description
-- Use proper paragraph breaks for readability
-- Use bullet points with "-" for features/benefits sections
+- Use paragraph breaks for readability, but absolutely no bullet points, asterisks (*), or numbered lists at the start of lines
 - Minimum 300 words, aim for 400-500 words
 - MUST include at least 8-12 emojis (strategically placed, relevant to content - more emojis make it more engaging and attractive)
 - Make it comprehensive, detailed, and engaging

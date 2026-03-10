@@ -109,43 +109,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Build prompt (décor cohérent avec le produit, produit clair et reconnaissable) ──
-    let basePrompt: string;
+    // ── Build prompt ──
     const productContext = productTitle && String(productTitle).trim()
-      ? `PRODUCT: ${String(productTitle).trim().substring(0, 120)}. Background and setting MUST match this product (e.g. garden/lawn for outdoor tools, kitchen for kitchenware, desk for office, bathroom for toiletries). One clear focal product, instantly recognizable.`
-      : '';
-    if (bgDesc) {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. BACKGROUND: "" Keep product IDENTICAL and clearly visible. Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. Soft lighting. NO text/watermarks.`;
-    } else if (productContext) {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible.  Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. Clean, simple, aesthetic setting. Soft natural lighting. No text, no logos, no watermarks.`;
-    } else {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep product IDENTICAL. Background must match the product type. Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. One clear focal product, instantly recognizable. Clean, simple. NO text/watermarks.`;
-    }
-    if (customInstructions && customInstructions.trim()) {
-      basePrompt += ` ${customInstructions.trim()}`;
-    }
+      ? `PRODUCT: ${String(productTitle).trim().substring(0, 140)}.`
+      : 'PRODUCT: main item from the reference image.';
 
-    const VIEWS = [
-      'wide room view showing the full environment around the product',
-      'medium three-quarter angle focusing on the entire product',
-      'tight close-up crop focusing only on a portion of the product and its textures',
-      'side profile angle showing depth and perspective of the product',
-      'low angle looking slightly up at the product to give it presence',
-      'top-down flat lay looking directly down on the product',
-      'angled view from above looking toward the product at 45 degrees',
-      'frontal eye-level view centered on the product',
+    const IMAGE_PROMPTS = [
+      `${productContext} Entame un processus de modification avec toutes mes règles imposées pour l'image ci jointe sans modifier un seul pixel de l'objet principal sous aucun prétexte. Il doit garder la même forme, mêmes détails exacts que sur l'image, même apparence. Il t'est interdit de le modifier. Modifie absolument l'arrière-plan, il faut que le rendu soit original et unique. Modifie tous les éléments qui sont différents du produit et modifie entièrement les éléments présents toujours pour un rendu réaliste et respectueux des conditions de vente d'Etsy, le tout pour recréer un espace original, esthétique, cosy, chaleureux et professionnel. Génère l'image au format carré absolument. RÈGLES GLOBALES : Pas de watermark, pas de texte marketing sur l'image, pas de style trop "IA", rendu photo réaliste type Etsy haut de gamme, cohérence visuelle entre les images, toujours privilégier la lisibilité, la chaleur et la crédibilité.`,
     ];
-    const LIGHTING = ['soft natural daylight', 'warm golden hour glow', 'bright airy studio light', 'dramatic side lighting with soft shadows', 'cool overcast diffused light', 'warm candlelit ambiance', 'clean backlit silhouette edge', 'neutral even lighting'];
-    const VARIATIONS = [
-      'Make this image a wide shot where the product occupies less of the frame and more of the background environment is visible.',
-      'Make this image a medium shot, with the product centered and filling most of the frame, background slightly blurred.',
-      'Make this image a close-up or detail shot, cropping tightly on part of the product and blurring most of the background.',
-      'Make this image a side-angle composition, moving the camera to the side so the product is seen in strong perspective with background elements arranged differently.',
-      'Make this image use a low viewpoint so the product looks taller and more prominent, with the background rearranged.',
-      'Make this image a flat-lay style shot looking straight down at the product with props arranged differently around it.',
-      'Make this image an angled overhead view where the camera is above and to the side, changing the perceived depth and layout.',
-      'Make this image keep the camera at eye level but change the background composition and prop placement significantly compared to other images.',
-    ];
+    const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
 
     console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
 
@@ -185,14 +157,12 @@ export async function POST(request: NextRequest) {
     };
 
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      const view = VIEWS[index % VIEWS.length];
-      const light = LIGHTING[(index + 3) % LIGHTING.length];
-      const variation = VARIATIONS[index % VARIATIONS.length];
-      let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}. ${variation} ${basePrompt}`;
-      if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
+      let finalPrompt = IMAGE_PROMPTS[index % IMAGE_PROMPTS.length];
+      if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
+      if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const result = await submitOnce(prompt);
+          const result = await submitOnce(finalPrompt);
           if (result.taskId) {
             console.log(`[IMAGE GEN] Image ${index + 1} submitted (attempt ${attempt + 1}): ${result.taskId}`);
             return result;
