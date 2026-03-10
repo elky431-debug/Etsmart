@@ -60,12 +60,25 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are an expert Etsy copywriter.' },
-            { role: 'user', content: `Generate an Etsy product description in ENGLISH:\n\n${productDesc}\n\nRules: 8-12 emojis, warm tone, 300-500 words. Structure: 1)Hook 2)Product 3)Features 4)Why buy 5)Ideal for 6)Quality 7)Care 8)CTA. ONLY the description.` },
+            {
+              role: 'system',
+              content:
+                'You are an expert in Etsy SEO and high-converting product descriptions. You always write in natural, warm, human ENGLISH, with a smooth, sales-oriented tone that is never robotic and never keyword-stuffed.',
+            },
+            {
+              role: 'user',
+              content:
+                `Based on this visual product description (in English):\n\n${productDesc}\n\nWrite a FULL ETSY PRODUCT LISTING DESCRIPTION in ENGLISH.\n\nRequirements:\n- SEO-friendly but very pleasant to read, fluid and persuasive.\n- Warm, reassuring, human tone that speaks directly to the buyer.\n- Do NOT sound robotic. Do NOT stuff keywords.\n- Clearly highlight the BENEFITS for the buyer, not just the features.\n- Length target: between 300 and 500 words (MINIMUM ~280 words).\n- Include between 6 and 10 relevant emojis spread naturally in the text (not all at the beginning or end).\n\nStyle guidelines:\n- Natural, conversational, and professional.\n- Focus on how the product improves the customer’s life, solves a problem, or creates an emotion.\n- Keep paragraphs short for readability.\n\nSuggested structure (adapt intelligently):\n1) Short emotional hook.\n2) Clear explanation of what the product is and who it is for.\n3) Key features + concrete benefits for the buyer.\n4) Ideas for usage / gift occasions / room or context.\n5) Quality, materials, and reassurance.\n6) Soft call-to-action encouraging the visitor to add to cart.\n\nReturn ONLY the final description text (no title section, no JSON, no extra commentary).`,
+            },
           ],
-          temperature: 0.7, max_tokens: 1500,
+          temperature: 0.75,
+          max_tokens: 1500,
         }),
-      }).then(async r => { if (!r.ok) return ''; const d = await r.json(); return d.choices?.[0]?.message?.content?.trim() || ''; }).catch(() => ''),
+      }).then(async r => {
+        if (!r.ok) return '';
+        const d = await r.json();
+        return d.choices?.[0]?.message?.content?.trim() || '';
+      }).catch(() => ''),
 
       fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

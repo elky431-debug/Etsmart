@@ -115,18 +115,37 @@ export async function POST(request: NextRequest) {
       ? `PRODUCT: ${String(productTitle).trim().substring(0, 120)}. Background and setting MUST match this product (e.g. garden/lawn for outdoor tools, kitchen for kitchenware, desk for office, bathroom for toiletries). One clear focal product, instantly recognizable.`
       : '';
     if (bgDesc) {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. BACKGROUND: "${bgDesc}" Keep product IDENTICAL and clearly visible. Soft lighting. NO text/watermarks.`;
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. BACKGROUND: "" Keep product IDENTICAL and clearly visible. Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. Soft lighting. NO text/watermarks.`;
     } else if (productContext) {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible. ${productContext} Clean, simple, aesthetic setting. Soft natural lighting. No text, no logos, no watermarks.`;
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible.  Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. Clean, simple, aesthetic setting. Soft natural lighting. No text, no logos, no watermarks.`;
     } else {
-      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep product IDENTICAL. Background must match the product type. One clear focal product, instantly recognizable. Clean, simple. NO text/watermarks.`;
+      basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep product IDENTICAL. Background must match the product type. Each generated image must use a different composition, camera framing, and background layout so that no two images look like the same scene. One clear focal product, instantly recognizable. Clean, simple. NO text/watermarks.`;
     }
     if (customInstructions && customInstructions.trim()) {
       basePrompt += ` ${customInstructions.trim()}`;
     }
 
-    const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down flat lay', 'close-up detail shot', 'wide environmental shot', 'three-quarter angle', 'low angle looking up', 'side profile view'];
+    const VIEWS = [
+      'wide room view showing the full environment around the product',
+      'medium three-quarter angle focusing on the entire product',
+      'tight close-up crop focusing only on a portion of the product and its textures',
+      'side profile angle showing depth and perspective of the product',
+      'low angle looking slightly up at the product to give it presence',
+      'top-down flat lay looking directly down on the product',
+      'angled view from above looking toward the product at 45 degrees',
+      'frontal eye-level view centered on the product',
+    ];
     const LIGHTING = ['soft natural daylight', 'warm golden hour glow', 'bright airy studio light', 'dramatic side lighting with soft shadows', 'cool overcast diffused light', 'warm candlelit ambiance', 'clean backlit silhouette edge', 'neutral even lighting'];
+    const VARIATIONS = [
+      'Make this image a wide shot where the product occupies less of the frame and more of the background environment is visible.',
+      'Make this image a medium shot, with the product centered and filling most of the frame, background slightly blurred.',
+      'Make this image a close-up or detail shot, cropping tightly on part of the product and blurring most of the background.',
+      'Make this image a side-angle composition, moving the camera to the side so the product is seen in strong perspective with background elements arranged differently.',
+      'Make this image use a low viewpoint so the product looks taller and more prominent, with the background rearranged.',
+      'Make this image a flat-lay style shot looking straight down at the product with props arranged differently around it.',
+      'Make this image an angled overhead view where the camera is above and to the side, changing the perceived depth and layout.',
+      'Make this image keep the camera at eye level but change the background composition and prop placement significantly compared to other images.',
+    ];
 
     console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
 
@@ -168,7 +187,8 @@ export async function POST(request: NextRequest) {
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
       const view = VIEWS[index % VIEWS.length];
       const light = LIGHTING[(index + 3) % LIGHTING.length];
-      let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}. ${basePrompt}`;
+      const variation = VARIATIONS[index % VARIATIONS.length];
+      let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}. ${variation} ${basePrompt}`;
       if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {

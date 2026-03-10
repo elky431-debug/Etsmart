@@ -263,17 +263,29 @@ export function DashboardQuickGenerate() {
       const productContext = listing?.title
         ? `PRODUCT: ${listing.title.substring(0, 120)}. Background and setting MUST match this specific product — choose a setting where this product would naturally be found or displayed (e.g. garden for outdoor tools, kitchen for kitchenware, desk for office supplies, bathroom for toiletries, wall for wall art, living room for home decor). One clear focal product, instantly recognizable.`
         : 'Product as single clear focal point. Background must match the product type — place it where it would naturally be found. Instantly recognizable.';
-      const basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible. ${productContext} Clean, simple, aesthetic setting. No text, no logos, no watermarks.`;
+      const basePrompt = `Professional Etsy product photo. Hyper realistic, photorealistic, real photograph — must NOT look AI-generated or synthetic. Keep the product IDENTICAL and clearly visible.  Each generated image must use a clearly different composition, camera distance (wide shot vs medium vs close-up), and background arrangement so that no two images look like the same scene. Clean, simple, aesthetic setting. No text, no logos, no watermarks.`;
       const NANO_KEY = '758a24cfaef8c64eed9164858b941ecc';
-      const VIEWS = ['frontal eye-level view', '45-degree angle', 'top-down flat lay', 'close-up detail shot'];
+      const VIEWS = [
+        'wide room view showing the full environment around the product',
+        'medium three-quarter angle focusing on the entire product',
+        'tight close-up crop focusing only on a portion of the product and its textures',
+        'side profile angle showing depth and perspective of the product',
+      ];
       const LIGHTING = ['soft natural daylight', 'warm golden hour glow', 'bright airy studio light', 'dramatic side lighting with soft shadows'];
+      const VARIATIONS = [
+        'Make this image a wide shot where the product occupies less of the frame and more of the background environment is visible.',
+        'Make this image a medium shot, with the product centered and filling most of the frame, background slightly blurred.',
+        'Make this image a close-up or detail shot, cropping tightly on part of the product and blurring most of the background.',
+        'Make this image a side-angle composition, moving the camera to the side so the product is seen in strong perspective with background elements arranged differently.',
+      ];
       const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
       const imgSize = sizeMap[aspectRatio] || '1:1';
 
       const submitImageFromBrowser = async (index: number): Promise<string | null> => {
         const view = VIEWS[index % VIEWS.length];
         const light = LIGHTING[index % LIGHTING.length];
-        let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}.\n\n${basePrompt}`;
+        const variation = VARIATIONS[index % VARIATIONS.length];
+        let prompt = `IMAGE ${index + 1} — MUST be visually UNIQUE and DIFFERENT from all other images. CAMERA: ${view}. LIGHTING: ${light}. ${variation}\n\n${basePrompt}`;
         if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
