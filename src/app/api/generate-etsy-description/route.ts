@@ -109,7 +109,7 @@ CRITICAL RULES:
 - Avoid promises of "fast shipping"
 - Avoid trademarked brand names
 - Keep it generic and legally safe
-- MUST include at least 8-12 emojis strategically placed throughout the description (use relevant emojis that enhance the message - more emojis make it more engaging and attractive)
+- MUST include at least 12-18 emojis strategically placed throughout the description (use relevant emojis that enhance the message - more emojis make it more engaging and attractive)
 - Warm, human, natural tone
 - The description must be ready to copy-paste directly into Etsy
 - Make it LONG and DETAILED - aim for 300-500 words minimum
@@ -141,7 +141,7 @@ OUTPUT FORMAT:
 - Just the ready-to-use description
 - Use paragraph breaks for readability, but absolutely no bullet points, asterisks (*), or numbered lists at the start of lines
 - Minimum 300 words, aim for 400-500 words
-- MUST include at least 8-12 emojis (strategically placed, relevant to content - more emojis make it more engaging and attractive)
+- MUST include at least 12-18 emojis (strategically placed, relevant to content - more emojis make it more engaging and attractive)
 - Make it comprehensive, detailed, and engaging
 
 Generate the description now:`;
