@@ -128,11 +128,23 @@ export async function POST(request: NextRequest) {
 
     // ── Build prompt ──
     const productContext = productTitle && String(productTitle).trim()
-      ? `PRODUCT: ${String(productTitle).trim().substring(0, 140)}.`
-      : 'PRODUCT: main item from the reference image.';
+      ? `Nous générons les visuels pour un produit Etsy : ${String(productTitle).trim().substring(0, 140)}.`
+      : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.';
+
+    const globalRules =
+      'RÈGLES GLOBALES : ne JAMAIS modifier la forme ni les détails du produit principal, uniquement le décor et la mise en scène. AUCUN watermark, AUCUN texte marketing (sauf si dimensions demandées), rendu photo réaliste type Etsy haut de gamme, lumière douce et naturelle, tons chauds, cohérence visuelle entre toutes les images, aucune apparence trop IA, toujours privilégier la lisibilité, la chaleur et la crédibilité.';
 
     const IMAGE_PROMPTS = [
-      `${productContext} Entame un processus de modification avec toutes mes règles imposées pour l'image ci jointe sans modifier un seul pixel de l'objet principal sous aucun prétexte. Il doit garder la même forme, mêmes détails exacts que sur l'image, même apparence. Il t'est interdit de le modifier. Modifie absolument l'arrière-plan, il faut que le rendu soit original et unique. Modifie tous les éléments qui sont différents du produit et modifie entièrement les éléments présents toujours pour un rendu réaliste et respectueux des conditions de vente d'Etsy, le tout pour recréer un espace original, esthétique, cosy, chaleureux et professionnel. La photo doit avoir le rendu d'une vraie photo prise avec un appareil photo reflex professionnel (objectif 35mm ou 50mm), avec une lumière douce naturelle, des ombres cohérentes, des textures nettes et AUCUN effet plastique, AUCUN flou ou glow artificiel, AUCUN sur-lissage de la matière, AUCUNE couleur fluo ou irréaliste, AUCUN effet HDR exagéré. Ajoute de très légères imperfections naturelles (plis, micro-ombres, légères irrégularités) pour renforcer le réalisme. Génère l'image au format carré absolument. RÈGLES GLOBALES : Pas de watermark, pas de texte marketing sur l'image, pas de style trop "IA", rendu photo réaliste type Etsy haut de gamme, cohérence visuelle entre les images, toujours privilégier la lisibilité, la chaleur et la crédibilité.`,
+      // 1️⃣ Vue éloignée / ambiance
+      `${productContext} GÉNÈRE UNE PHOTO PRODUIT AVEC ANGLE DE VUE ÉLOIGNÉ. Le produit est placé dans un environnement complet et réaliste (intérieur chaleureux, lumière douce, décor cohérent avec le produit). On doit voir la pièce ou l'espace autour du produit pour montrer comment il s'intègre dans un vrai contexte de vie (home decor, lifestyle, usage naturel). Le produit reste bien visible, mais intégré dans la scène. Style : photo Etsy professionnelle, naturelle, non artificielle, sans effet studio agressif. ${globalRules}`,
+      // 2️⃣ Vue intermédiaire
+      `${productContext} GÉNÈRE UNE PHOTO PRODUIT AVEC ANGLE INTERMÉDIAIRE. Le produit occupe le centre de l'image, avec une partie de l'environnement encore visible autour. Objectif : mettre en valeur clairement la forme, le design et les proportions générales du produit, tout en gardant un décor sobre et cohérent. Lumière chaude, rendu réaliste, style Etsy premium, fond simple et élégant.`,
+      // 3️⃣ Zoom / détail
+      `${productContext} GÉNÈRE UNE PHOTO ZOOMÉE SUR LE PRODUIT. Focus sur les détails importants : texture, matière, finitions, qualité perçue. Le fond doit être flou ou très simple pour ne pas détourner l'attention. Objectif : rassurer l'acheteur sur la qualité et le soin apporté au produit. Style : photo nette, naturelle, sans sur‑retouche ni effet plastique.`,
+      // 4️⃣ Photo avec mensurations
+      `${productContext} GÉNÈRE UNE IMAGE AVEC MENSURATIONS / DIMENSIONS DU PRODUIT. Le produit est affiché proprement au centre, et les dimensions (hauteur, largeur, profondeur ou longueur) sont indiquées avec des traits fins et du texte discret mais parfaitement lisible, dans un style graphique simple et professionnel. L'image doit rester esthétique, fond clair et propre, comme une fiche produit technique sur Etsy.`,
+      // 5️⃣ Image stratégique
+      `${productContext} GÉNÈRE UNE IMAGE STRATÉGIQUE SUPPLÉMENTAIRE POUR LA FICHE ETSY. Choisis automatiquement l'option la plus pertinente : soit une mise en situation alternative, soit un angle original, soit un focus sur l'usage (avant / après, détail clé en action). L'objectif est d'augmenter la compréhension du produit et la confiance de l'acheteur, toujours dans un style chaleureux, réaliste et professionnel. ${globalRules}`,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
 
