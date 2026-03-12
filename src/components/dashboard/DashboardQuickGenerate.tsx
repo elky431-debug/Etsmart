@@ -22,6 +22,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+type ImageEngine = 'flash' | 'pro';
+type ImageStyle = 'realistic' | 'studio' | 'lifestyle' | 'illustration';
 
 interface GeneratedImage {
   url: string;
@@ -74,6 +76,8 @@ export function DashboardQuickGenerate() {
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [engine, setEngine] = useState<ImageEngine>('flash');
+  const [style, setStyle] = useState<ImageStyle>('realistic');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
@@ -426,6 +430,8 @@ export function DashboardQuickGenerate() {
           backgroundImage: bgBase64,
           quantity,
           aspectRatio,
+          engine,
+          style,
           productTitle: listingData?.title || undefined,
           customInstructions: bgBase64 
             ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
@@ -741,7 +747,7 @@ export function DashboardQuickGenerate() {
                     Quantité d'images
                   </label>
                   <div className="flex gap-2">
-                    {[1, 2].map((qty) => (
+                    {[1, 2, 5].map((qty) => (
                       <button
                         key={qty}
                         onClick={() => setQuantity(qty)}
@@ -774,6 +780,60 @@ export function DashboardQuickGenerate() {
                       >
                         {ratio}
                         {ratio === '1:1' && ' (Etsy)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-3">
+                    Moteur
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setEngine('flash')}
+                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                        engine === 'flash'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                          : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      Flash
+                    </button>
+                    <button
+                      onClick={() => setEngine('pro')}
+                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                        engine === 'pro'
+                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                          : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      Pro
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-3">
+                    Style d'image
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: 'realistic', label: 'Photo réaliste' },
+                      { id: 'studio', label: 'Studio produit' },
+                      { id: 'lifestyle', label: 'Lifestyle' },
+                      { id: 'illustration', label: 'Illustration' },
+                    ] as { id: ImageStyle; label: string }[]).map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setStyle(s.id)}
+                        className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                          style === s.id
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {s.label}
                       </button>
                     ))}
                   </div>

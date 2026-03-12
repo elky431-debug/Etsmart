@@ -116,6 +116,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
+
+    // Style presets pour moduler le rendu
+    const STYLE_SUFFIX: Record<string, string> = {
+      realistic: ' Style: photo produit ultra réaliste, éclairage naturel doux, rendu Etsy haut de gamme.',
+      studio: ' Style: photo studio produit sur fond neutre propre, lumière contrôlée, ombres douces.',
+      lifestyle: ' Style: scène lifestyle avec le produit dans un environnement réel cohérent, mise en scène naturelle.',
+      illustration: ' Style: illustration digitale propre, légèrement stylisée, couleurs harmonieuses, mais produit parfaitement reconnaissable.',
+    };
+
     // ── Build prompt ──
     const productContext = productTitle && String(productTitle).trim()
       ? `PRODUCT: ${String(productTitle).trim().substring(0, 140)}.`
@@ -135,18 +145,34 @@ export async function POST(request: NextRequest) {
     const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
     const imgSize = sizeMap[aspectRatio] || '1:1';
 
-    const submitOnce = async (prompt: string): Promise<{ taskId: string | null; error?: string }> => {
-      const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
+    const submitOnce = async (prompt: string, engineToUse: 'flash' | 'pro'): Promise<{ taskId: string | null; error?: string }> => {
+      const url =
+        engineToUse === 'pro'
+          ? 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate-pro'
+          : 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate';
+
+      const body: any =
+        engineToUse === 'pro'
+          ? {
+              prompt,
+              imageUrls: [imageDataUrl],
+              resolution: '1K',
+              aspectRatio: imgSize,
+              callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+            }
+          : {
+              type: 'IMAGETOIAMGE',
+              prompt,
+              imageUrls: [imageDataUrl],
+              image_size: imgSize,
+              numImages: 1,
+              callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
+            };
+
+      const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-        body: JSON.stringify({
-          type: 'IMAGETOIAMGE',
-          prompt,
-          imageUrls: [imageDataUrl],
-          image_size: imgSize,
-          numImages: 1,
-          callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-        }),
+        body: JSON.stringify(body),
       });
       if (!resp.ok) {
         const t = await resp.text().catch(() => '');
@@ -166,10 +192,12 @@ export async function POST(request: NextRequest) {
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
       let finalPrompt = IMAGE_PROMPTS[index % IMAGE_PROMPTS.length];
       if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
+      const styleSuffix = style && STYLE_SUFFIX[style] ? STYLE_SUFFIX[style] : STYLE_SUFFIX.realistic;
+      finalPrompt += ` ${styleSuffix}`;
       if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const result = await submitOnce(finalPrompt);
+          const result = await submitOnce(finalPrompt, engineSafe);
           if (result.taskId) {
             console.log(`[IMAGE GEN] Image ${index + 1} submitted (attempt ${attempt + 1}): ${result.taskId}`);
             return result;

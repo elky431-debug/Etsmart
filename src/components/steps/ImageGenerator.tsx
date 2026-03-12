@@ -49,6 +49,8 @@ interface ImageGeneratorProps {
 }
 
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+type ImageEngine = 'flash' | 'pro';
+type ImageStyle = 'realistic' | 'studio' | 'lifestyle' | 'illustration';
 
 interface GeneratedImage {
   url: string;
@@ -70,6 +72,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [customInstructions, setCustomInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [engine, setEngine] = useState<ImageEngine>('flash');
+  const [style, setStyle] = useState<ImageStyle>('realistic');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -268,6 +272,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           customInstructions: customInstructions.trim() || undefined,
           quantity,
           aspectRatio,
+          engine,
+          style,
           skipListingGeneration: true, // ⚠️ ALWAYS true - Image generation is independent, always 0.25 credit
         }),
       });
@@ -642,8 +648,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               <label className="block text-sm font-bold text-white mb-3">
                 Quantité
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[1, 2].map((qty) => (
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 5].map((qty) => (
                   <button
                     key={qty}
                     onClick={() => setQuantity(qty)}
@@ -691,10 +697,61 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Nanonbanana</p>
-                    <p className="text-xs text-white/70">Image-to-Image • Génération</p>
+                    <p className="text-xs text-white/70">
+                      Image-to-Image • {engine === 'flash' ? 'Flash (rapide)' : 'Pro (qualité maximale)'}
+                    </p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
                 </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setEngine('flash')}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      engine === 'flash'
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
+                  >
+                    Flash
+                  </button>
+                  <button
+                    onClick={() => setEngine('pro')}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      engine === 'pro'
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
+                  >
+                    Pro
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* G. Image Style */}
+            <div>
+              <label className="block text-sm font-bold text-white mb-3">
+                Style d'image
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { id: 'realistic', label: 'Photo réaliste' },
+                  { id: 'studio', label: 'Studio produit' },
+                  { id: 'lifestyle', label: 'Lifestyle' },
+                  { id: 'illustration', label: 'Illustration' },
+                ] as { id: ImageStyle; label: string }[]).map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setStyle(s.id)}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      style === s.id
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
             </div>
             </div>
