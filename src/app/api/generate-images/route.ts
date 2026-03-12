@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.';
 
     const globalRules =
-      'RÈGLES GLOBALES : ne JAMAIS modifier la forme ni les détails du produit principal, uniquement le décor et la mise en scène. AUCUN watermark, AUCUN texte marketing (sauf si dimensions demandées), rendu photo réaliste type Etsy haut de gamme, lumière douce et naturelle, tons chauds, cohérence visuelle entre toutes les images, aucune apparence trop IA, toujours privilégier la lisibilité, la chaleur et la crédibilité.';
+      'RÈGLES GLOBALES : ne JAMAIS modifier la forme ni les détails du produit principal, uniquement le décor et la mise en scène. Analyse le type de produit et son univers (figurine manga, jouet enfant, accessoire gaming, déco murale, tapis, affiche, bijou, ustensile de cuisine, etc.) à partir de l\'image de référence et choisis un environnement PARFAITEMENT COHÉRENT avec ce produit. Exemple : figurine ou personnage manga → bureau ou étagère otaku moderne, setup gaming, posters ou manga en arrière‑plan ; jouet enfant → chambre d\'enfant ; déco bohème → salon bohème lumineux ; affiche → mur propre avec encadrement adapté ; tapis → sol et mobilier cohérents, etc. Interdiction d\'utiliser un décor générique de salon/canapé/couverture qui n\'a aucun rapport avec le produit. AUCUN watermark, AUCUN texte marketing (sauf si dimensions demandées), rendu photo réaliste type Etsy haut de gamme, lumière douce et naturelle, cohérence visuelle entre toutes les images, aucune apparence trop IA, toujours privilégier la lisibilité, la chaleur et la crédibilité.';
 
     const IMAGE_PROMPTS = [
       // 1️⃣ Vue éloignée / ambiance
