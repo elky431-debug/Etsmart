@@ -101,7 +101,14 @@ export async function POST(request: NextRequest) {
     if (quotaInfo.status !== 'active') return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED' }, { status: 403 });
     if (quotaInfo.remaining < 2) return NextResponse.json({ error: 'QUOTA_EXCEEDED' }, { status: 403 });
 
-    const NANO_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
+    const NANO_KEY = process.env.NANONBANANA_API_KEY;
+    if (!NANO_KEY) {
+      console.error('[Banner] NANONBANANA_API_KEY manquante');
+      return NextResponse.json(
+        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API bannière manquante côté serveur.' },
+        { status: 500 },
+      );
+    }
 
     // Build premium aesthetic prompt
     const logoInstruction = logo 

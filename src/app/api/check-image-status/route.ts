@@ -24,7 +24,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'taskId required' }, { status: 400 });
     }
 
-    const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
+    const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY;
+    if (!NANONBANANA_API_KEY) {
+      console.error('[CHECK STATUS] NANONBANANA_API_KEY manquante');
+      return NextResponse.json(
+        { status: 'error', message: 'Clé API image manquante côté serveur.' },
+        { status: 500 },
+      );
+    }
 
     // Check both parameter formats
     const urls = [

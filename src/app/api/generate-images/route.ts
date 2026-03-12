@@ -51,7 +51,14 @@ export async function POST(request: NextRequest) {
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
-    const NANO_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
+    const NANO_KEY = process.env.NANONBANANA_API_KEY;
+    if (!NANO_KEY) {
+      console.error('[IMAGE GEN] NANONBANANA_API_KEY manquante');
+      return NextResponse.json(
+        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API image manquante côté serveur.' },
+        { status: 500 },
+      );
+    }
 
     // ── Compress source image ────────────────────────────────
     let imageForAPI: string;

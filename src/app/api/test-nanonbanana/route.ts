@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(request: NextRequest) {
   try {
-    const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY || '758a24cfaef8c64eed9164858b941ecc';
+    const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY;
     
     if (!NANONBANANA_API_KEY) {
       return NextResponse.json(
