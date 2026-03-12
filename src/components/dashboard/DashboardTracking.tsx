@@ -125,6 +125,17 @@ export function DashboardTracking() {
     setLoading(true);
 
     try {
+      // Si aucun code pays sélectionné mais que des résultats existent, utiliser le premier match
+      let countryCode = effectiveCountry;
+      if (!countryCode) {
+        const firstMatch = countryMatches[0];
+        if (firstMatch) {
+          countryCode = firstMatch.code;
+          setCountry(firstMatch.code);
+          setCountryInput(firstMatch.name);
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) {
@@ -134,7 +145,7 @@ export function DashboardTracking() {
 
       const body: Record<string, unknown> = { type, carrier };
       if (type === 'intl') {
-        body.country = effectiveCountry.toUpperCase().slice(0, 2);
+        body.country = (countryCode || '').toUpperCase().slice(0, 2);
         if (state.trim()) body.state = state.toUpperCase().slice(0, 2);
         if (city.trim()) body.city = city.trim();
       } else {
@@ -188,7 +199,8 @@ export function DashboardTracking() {
   const originStr = (r: TracktacoSuccess) => [r.originCity, r.originState, r.originCountry].filter(Boolean).join(', ') || '—';
   const destStr = (r: TracktacoSuccess) => [r.destCity, r.destState, r.destCountry].filter(Boolean).join(', ') || '—';
 
-  const canSubmit = effectiveCountry.trim().length >= 2;
+  // Autoriser le clic dès qu'il y a du texte dans le champ pays
+  const canSubmit = countryInput.trim().length >= 1;
 
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-zinc-900/80 border-2 border-zinc-700 text-white placeholder-zinc-500 hover:border-zinc-600 focus:border-[#00d4ff] focus:ring-4 focus:ring-[#00d4ff]/25 focus:outline-none text-sm transition-all duration-200';
   const labelClass = 'block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2';
