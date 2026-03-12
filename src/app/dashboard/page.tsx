@@ -39,7 +39,8 @@ import {
   ArrowUpRight,
   Image as ImageIcon,
   Play,
-  Loader2
+  Loader2,
+  Package
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -64,6 +65,7 @@ import { DashboardSubscription } from '@/components/dashboard/DashboardSubscript
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { DashboardBanner } from '@/components/dashboard/DashboardBanner';
 import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGenerator';
+import { DashboardTracking } from '@/components/dashboard/DashboardTracking';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'analyze'
@@ -83,7 +85,7 @@ type DashboardSection =
   | 'niche-finder'
   | 'banner'
   | 'video-generator'
-  | 'sales-management';
+  | 'tracking';
 
 interface MenuItem {
   id: DashboardSection;
@@ -137,6 +139,7 @@ export default function DashboardPage() {
           'competitors',
           'banner',
           'video-generator',
+          'tracking',
         ].includes(lastSection)
       ) {
         setActiveSection(lastSection);
@@ -232,7 +235,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'sales-management'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -240,7 +243,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-          if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'sales-management'].includes(lastSection)) {
+        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
@@ -1423,7 +1426,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       items: [
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
         { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
-        { id: 'sales-management', label: 'Gestion des ventes', icon: DollarSign },
+        { id: 'tracking', label: 'Numéro de suivi', icon: Package },
       ],
     },
     {
@@ -2086,49 +2089,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <NicheFinderSection />
           )}
 
-          {activeSection === 'sales-management' && (
-            <div className="min-h-screen bg-black p-4 sm:p-6 md:p-8">
-              <div className="max-w-4xl mx-auto">
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                      <DollarSign className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-3xl font-bold text-white">Gestion des ventes</h1>
-                      <p className="text-white/70 text-sm mt-1">
-                        Suivez vos performances Etsy et vos revenus dans un seul endroit.
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
-                >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-6">
-                    <Loader2 className="w-12 h-12 text-white animate-spin" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-3">
-                    En maintenance
-                  </h2>
-                  <p className="text-white/70 text-lg max-w-md">
-                    Cette section affichera bientôt automatiquement vos statistiques de ventes Etsy (CA, best-sellers, tendances...).
-                  </p>
-                  <div className="mt-8 px-6 py-3 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30">
-                    <p className="text-[#00d4ff] text-sm font-semibold">
-                      Reste connecté pour être informé de la sortie
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
+          {activeSection === 'tracking' && (
+            <DashboardTracking />
           )}
 
           {activeSection === 'settings' && (

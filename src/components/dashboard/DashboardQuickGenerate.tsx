@@ -232,17 +232,33 @@ export function DashboardQuickGenerate() {
 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) throw new Error('Authentification requise');
+      if (!token) {
+        setError('Authentification requise pour utiliser la génération rapide.');
+        setIsGenerating(false);
+        return;
+      }
 
       // Vérifier quota via serveur
       const quotaCheck = await fetch('/api/deduct-credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amount: 2 }),
+        body: JSON.stringify({ amount: 2, reason: 'quick-generate' }),
       });
       if (!quotaCheck.ok) {
-        const err = await quotaCheck.json().catch(() => ({}));
-        throw new Error(err.error || err.message || 'Crédits insuffisants');
+        let fallbackMessage = 'Crédits insuffisants ou erreur de quota.';
+        try {
+          const err = await quotaCheck.json();
+          const code = err?.error;
+          const msg = err?.message;
+          if (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED') {
+            setError(msg || fallbackMessage);
+            setIsGenerating(false);
+            return;
+          }
+          // Pour les autres erreurs (ex: INTERNAL_ERROR), on ignore simplement côté UI
+        } catch {
+          // ignore JSON parse error, continuer la génération
+        }
       }
 
       console.log('[QUICK GENERATE] 🚀 Generating listing then images...');
@@ -254,17 +270,47 @@ export function DashboardQuickGenerate() {
         body: JSON.stringify({ sourceImage: imageBase64 }),
       });
 
-      // Parser listing
+      // Parser listing – si échec, on arrête tout (on ne génère PAS les images seules)
       let listing: ListingData | null = null;
-      if (listingResponse.ok) {
-        const lr = await listingResponse.json();
-        if (lr.listing) {
-          listing = { title: lr.listing.title || '', description: lr.listing.description || '', tags: lr.listing.tags || [], materials: lr.listing.materials || '' };
+      if (!listingResponse.ok) {
+        let message = 'Erreur lors de la génération du listing. Réessayez.';
+        try {
+          const lr = await listingResponse.json();
+          if (lr?.message || lr?.error) {
+            message = lr.message || lr.error || message;
+          }
+        } catch {
+          // ignore parse error, garder message par défaut
+        }
+        setError(message);
+        setIsGenerating(false);
+        return;
+      } else {
+        try {
+          const lr = await listingResponse.json();
+          if (lr?.listing) {
+            listing = {
+              title: lr.listing.title || '',
+              description: lr.listing.description || '',
+              tags: lr.listing.tags || [],
+              materials: lr.listing.materials || '',
+            };
+          }
+        } catch {
+          setError('Réponse listing invalide. Réessayez.');
+          setIsGenerating(false);
+          return;
         }
       }
 
+      if (!listing) {
+        setError('Impossible de générer le listing. Réessayez dans quelques instants.');
+        setIsGenerating(false);
+        return;
+      }
+
       // 2) Prompt images – angle intermédiaire (produit + environnement)
-      const productContext = listing?.title
+      const productContext = listing.title
         ? `PRODUCT: ${listing.title.substring(0, 140)}.`
         : 'PRODUCT: main item from the reference image.';
 

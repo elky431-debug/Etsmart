@@ -134,19 +134,25 @@ export function useSubscription() {
         console.error('[useSubscription] Stripe direct check failed:', stripeErr);
       }
       
-      // Fallback to regular subscription endpoint
+      // Fallback to regular subscription endpoint (same API as before)
       const response = await fetch('/api/user/subscription', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
       
+      const data = await response.json().catch(() => ({}));
+      console.log('[useSubscription] Subscription fallback response:', response.status, data);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch subscription');
+        // Ne pas crasher : afficher l'état "pas d'abo" au lieu d'une erreur bloquante
+        if (mountedRef.current) {
+          setError(null);
+          setSubscription(null);
+        }
+        return;
       }
       
-      const data = await response.json();
-      console.log('[useSubscription] Subscription data:', data);
       // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
       if (mountedRef.current) {
         setSubscription({
