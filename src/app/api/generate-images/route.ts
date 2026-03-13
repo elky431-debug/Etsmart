@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, engine, style } = body;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
+    const engineSafe: 'flash' | 'pro' = (engine === 'pro' ? 'pro' : 'flash');
 
     // Style presets pour moduler le rendu
     const STYLE_SUFFIX: Record<string, string> = {
