@@ -358,7 +358,10 @@ export function DashboardQuickGenerate() {
       const taskIds = imageResults.filter((id): id is string => id !== null);
       console.log(`[QUICK GENERATE] ✅ Listing: ${!!listing}, Images submitted: ${taskIds.length}/${quantity}`);
 
-      if (!listing && taskIds.length === 0) throw new Error('Échec de la génération. Réessayez.');
+      // Si aucune image n'a pu être soumise, on considère la génération complète comme un échec
+      if (taskIds.length === 0) {
+        throw new Error('La génération des images a échoué. Aucun visuel n’a pu être soumis.');
+      }
 
       // Poll images DIRECTEMENT depuis le navigateur (Netlify bloque NanoBanana)
       let allImages: GeneratedImage[] = [];
@@ -396,23 +399,21 @@ export function DashboardQuickGenerate() {
         setPendingImagesCount(0);
       }
 
-      // TOUT afficher d'un coup
-      if (listing) {
-        setListingData(listing);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
+      // TOUT afficher d'un coup uniquement si on a au moins une image valide
+      if (allImages.length === 0) {
+        throw new Error('La génération des images a échoué. Réessayez dans quelques instants.');
       }
+
+      setListingData(listing);
       setGeneratedImages(allImages);
-      if (allImages.length > 0 && typeof window !== 'undefined') {
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(storageKey, 'true');
+        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
         sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
       }
-      setHasGenerated(true);
 
-      if (allImages.length === 0 && taskIds.length > 0) {
-        setError('⚠️ Les images n\'ont pas pu être générées. Cliquez sur "Générer de nouvelles images" pour réessayer.');
-      }
+      setHasGenerated(true);
 
       setTimeout(() => {
         refreshSubscription(true);
