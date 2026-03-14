@@ -55,16 +55,105 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
     const NANO_KEY = process.env.NANONBANANA_API_KEY;
-    if (!NANO_KEY) {
-      console.error('[IMAGE GEN] NANONBANANA_API_KEY manquante');
+    const useGemini = !!GEMINI_KEY;
+
+    if (!useGemini && !NANO_KEY) {
+      console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY)');
       return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API image manquante côté serveur.' },
+        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API image manquante. Définissez GEMINI_API_KEY ou NANONBANANA_API_KEY.' },
         { status: 500 },
       );
     }
 
-    // ── Compress source image ────────────────────────────────
+    // ── GEMINI (Imagen / generateContent) : texte → images, retour direct ──
+    if (useGemini) {
+      const productDesc = (productTitle && String(productTitle).trim())
+        ? String(productTitle).trim().substring(0, 200)
+        : 'product from the listing';
+      const styleHint = style === 'studio' ? 'Studio product photo on clean neutral background.' : style === 'lifestyle' ? 'Lifestyle scene with product in a real environment.' : style === 'illustration' ? 'Clean digital illustration style.' : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
+      const prompt = `Generate a professional e-commerce product photo. Product: ${productDesc}. ${styleHint} No watermark, no text on image. Single square image, high quality.`;
+      const numImages = Math.min(Math.max(quantity, 1), 4);
+      const model = 'gemini-2.0-flash-exp';
+      try {
+        const imageDataUrls: string[] = [];
+        for (let i = 0; i < numImages; i++) {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_KEY!,
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  responseModalities: ['IMAGE', 'TEXT'],
+                },
+              }),
+            }
+          );
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error(`[IMAGE GEN] Gemini ${model} error:`, res.status, errText.substring(0, 200));
+            if (imageDataUrls.length === 0) {
+              return NextResponse.json({
+                success: false,
+                imageTaskIds: [],
+                imageDataUrls: [],
+                error: 'IMAGE_SUBMIT_FAILED',
+                message: 'Le service Google (Gemini) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).',
+              });
+            }
+            break;
+          }
+          const data = await res.json();
+          const parts = data?.candidates?.[0]?.content?.parts ?? [];
+          for (const part of parts) {
+            if (part.inlineData?.data) {
+              const mime = part.inlineData?.mimeType || 'image/png';
+              imageDataUrls.push(`data:${mime};base64,${part.inlineData.data}`);
+            }
+          }
+          if (i < numImages - 1) await new Promise(r => setTimeout(r, 400));
+        }
+        if (imageDataUrls.length === 0) {
+          return NextResponse.json({
+            success: false,
+            imageTaskIds: [],
+            imageDataUrls: [],
+            error: 'IMAGE_SUBMIT_FAILED',
+            message: 'Gemini n\'a pas renvoyé d\'image. Réessayez ou vérifiez la facturation Google.',
+          });
+        }
+        if (!skipCreditDeduction) {
+          try {
+            await incrementAnalysisCount(user.id, 1.0);
+          } catch (e: any) {
+            console.error(`[IMAGE GEN] Credit deduction error: ${e.message}`);
+          }
+        }
+        console.log(`[IMAGE GEN] Gemini: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
+        return NextResponse.json({
+          success: true,
+          imageTaskIds: [],
+          imageDataUrls,
+        });
+      } catch (e: any) {
+        console.error('[IMAGE GEN] Gemini fatal:', e.message);
+        return NextResponse.json({
+          success: false,
+          imageTaskIds: [],
+          imageDataUrls: [],
+          error: 'IMAGE_SUBMIT_FAILED',
+          message: e.message || 'Erreur lors de l\'appel à Gemini. Vérifiez GEMINI_API_KEY.',
+        });
+      }
+    }
+
+    // ── Compress source image (NanoBanana) ────────────────────────────────
     let imageForAPI: string;
     try {
       let b64 = sourceImage;
@@ -240,11 +329,12 @@ export async function POST(request: NextRequest) {
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
 
     if (taskIds.length === 0) {
-      return NextResponse.json({ 
-        error: 'IMAGE_SUBMIT_FAILED', 
+      return NextResponse.json({
+        success: false,
+        imageTaskIds: [],
+        error: 'IMAGE_SUBMIT_FAILED',
         message: 'Le service d\'images n\'a pas accepté la requête. Vérifiez que la clé API (NANONBANANA_API_KEY) est valide et que le service est disponible.',
-        debug: { errors, payloadSizeKB: Math.round(payloadSize / 1024), sharpAvailable: !!sharp },
-      }, { status: 500 });
+      });
     }
 
     // ── Deduct credits (sauf si déjà déduits côté client, ex. génération rapide) ──

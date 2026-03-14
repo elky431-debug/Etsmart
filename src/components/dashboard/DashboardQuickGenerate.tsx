@@ -325,10 +325,19 @@ export function DashboardQuickGenerate() {
         }),
       });
 
+      let imagesData: any = {};
+      try {
+        imagesData = await imagesResponse.json();
+      } catch {
+        imagesData = {};
+      }
+      const imageTaskIds: string[] = imagesData?.imageTaskIds ?? [];
+      const imageDataUrls: string[] = imagesData?.imageDataUrls ?? [];
+      const apiMessage = imagesData?.message;
+
       if (!imagesResponse.ok) {
-        const errBody = await imagesResponse.json().catch(() => ({}));
-        const code = errBody?.error;
-        const msg = errBody?.message || 'Erreur lors de la soumission des images.';
+        const code = imagesData?.error;
+        const msg = apiMessage || 'Erreur lors de la soumission des images.';
         if (imagesResponse.status === 403 && (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')) {
           setError(msg);
           setIsGenerating(false);
@@ -337,7 +346,7 @@ export function DashboardQuickGenerate() {
         setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
-        setError('La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
+        setError(msg || 'La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
@@ -346,20 +355,31 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      let imageTaskIds: string[] = [];
-      try {
-        const imagesData = await imagesResponse.json();
-        imageTaskIds = imagesData?.imageTaskIds || [];
-      } catch {
-        imageTaskIds = [];
+      console.log(`[QUICK GENERATE] Listing OK, images submitted: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls`);
+
+      if (imageDataUrls.length > 0) {
+        const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
+        setListingData(listing);
+        setGeneratedImages(directImages);
+        setHasGenerated(true);
+        setError(directImages.length < quantity ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.` : null);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(directImages));
+        }
+        setTimeout(() => {
+          refreshSubscription(true);
+          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
+        }, 3000);
+        return;
       }
-      console.log(`[QUICK GENERATE] Listing OK, images submitted: ${imageTaskIds.length}/${quantity}`);
 
       if (imageTaskIds.length === 0) {
         setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
-        setError('La génération des images a échoué. Aucun visuel n’a pu être soumis. Vous pouvez quand même utiliser le listing généré, puis cliquer sur « Générer de nouvelles images » pour réessayer plus tard.');
+        setError(apiMessage || 'La génération des images a échoué. Aucun visuel n\'a pu être soumis. Utilisez le listing puis « Générer de nouvelles images » pour réessayer.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
@@ -508,9 +528,17 @@ export function DashboardQuickGenerate() {
       console.log('[QUICK GENERATE] Regenerated images (tasks):', data);
 
       const taskIds: string[] = Array.isArray(data.imageTaskIds) ? data.imageTaskIds : [];
+      const dataUrls: string[] = Array.isArray(data.imageDataUrls) ? data.imageDataUrls : [];
 
-      if (taskIds.length === 0) {
-        setError(data.error || 'La génération d\'images a échoué. Réessayez.');
+      if (dataUrls.length > 0) {
+        const newImages: GeneratedImage[] = dataUrls.map((url, i) => ({ id: `regen-${Date.now()}-${i}`, url }));
+        setGeneratedImages(prev => {
+          const next = [...prev, ...newImages];
+          if (typeof window !== 'undefined') sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
+          return next;
+        });
+      } else if (taskIds.length === 0) {
+        setError(data.message || data.error || 'La génération d\'images a échoué. Réessayez.');
       } else {
         const newImages: GeneratedImage[] = [];
 
