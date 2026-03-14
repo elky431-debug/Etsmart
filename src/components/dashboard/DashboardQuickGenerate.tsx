@@ -328,12 +328,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // Afficher le listing tout de suite pour que l’utilisateur le voie pendant la génération des images
-      setListingData(listing);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-      }
-
+      // On n’affiche rien tant qu’on n’a pas listing + images (ou erreur) pour tout montrer en même temps
       // 2) Images via le backend
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imagesResponse = await fetch('/api/generate-images', {
@@ -371,11 +366,13 @@ export function DashboardQuickGenerate() {
           setIsGenerating(false);
           return;
         }
+        setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
         setError(msg || 'La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
         return;
@@ -385,6 +382,7 @@ export function DashboardQuickGenerate() {
 
       if (imageDataUrls.length > 0) {
         const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
+        setListingData(listing);
         setGeneratedImages(directImages);
         setHasGenerated(true);
         setError(directImages.length < quantity ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.` : null);
@@ -401,11 +399,13 @@ export function DashboardQuickGenerate() {
       }
 
       if (imageTaskIds.length === 0) {
+        setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
         setError(apiMessage || 'La génération des images a échoué. Aucun visuel n\'a pu être soumis. Utilisez le listing puis « Générer de nouvelles images » pour réessayer.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
         return;
@@ -435,13 +435,15 @@ export function DashboardQuickGenerate() {
       allImages = results.filter((r): r is GeneratedImage => r !== null);
       setPendingImagesCount(0);
 
-      // Listing déjà affiché ; on met à jour les images et le statut
+      // Tout afficher en même temps : listing + images (ou message)
+      setListingData(listing);
       if (allImages.length === 0) {
         setGeneratedImages([]);
         setHasGenerated(true);
         setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
       } else {
@@ -450,6 +452,7 @@ export function DashboardQuickGenerate() {
         setError(allImages.length < quantity ? `Vous avez reçu ${allImages.length} image${allImages.length > 1 ? 's' : ''} sur ${quantity}. Cliquez sur « Générer de nouvelles images » pour en ajouter.` : null);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
         }
       }
@@ -1017,7 +1020,7 @@ export function DashboardQuickGenerate() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {isGenerating && !listingData ? (
+          {isGenerating ? (
             <motion.div
               key="generating"
               initial={{ opacity: 0 }}
@@ -1027,10 +1030,10 @@ export function DashboardQuickGenerate() {
             >
               <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
               <p className="text-lg font-semibold text-white">
-                Génération du listing...
+                Génération du listing et des images...
               </p>
               <p className="text-sm text-white/70 mt-2">
-                Le listing et les images arrivent dans quelques secondes
+                Tout arrive en même temps dans quelques secondes
               </p>
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
