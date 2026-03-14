@@ -293,9 +293,31 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         throw new Error(`${data.error}${details}`);
       }
       
-      // New flow: API returns taskIds, poll for results client-side
-      const taskIds: string[] = data.imageTaskIds || [];
+      // Gemini/Imagen : l’API renvoie directement imageDataUrls (pas de polling)
+      const imageDataUrls: string[] = data.imageDataUrls || [];
+      if (imageDataUrls.length > 0) {
+        const validImages = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
+        setGeneratedImages(validImages);
+        setHasGeneratedImage(true);
+        const refreshCredits = async () => {
+          try {
+            await refreshSubscription(true);
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
+          } catch (err) {
+            console.error('[IMAGE GENERATION] Refresh subscription error:', err);
+          }
+        };
+        setTimeout(() => { refreshCredits(); setTimeout(refreshCredits, 1000); setTimeout(refreshCredits, 2000); }, 3000);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
+        }
+        if (data.warning) console.warn('[IMAGE GENERATION]', data.warning);
+        return;
+      }
       
+      // NanoBanana : API renvoie taskIds, on poll pour récupérer les URLs
+      const taskIds: string[] = data.imageTaskIds || [];
       if (taskIds.length === 0) {
         throw new Error('Aucune image soumise. Réessayez.');
       }

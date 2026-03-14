@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, tags, materials, engine, style, skipCreditDeduction } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, tags, materials, engine, style, skipCreditDeduction, productContext } = body;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
@@ -67,71 +67,150 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── GEMINI (Imagen API :predict) : texte → images, retour direct ──
+    // ── GEMINI (image + texte) : moteur prioritaire (3 refs -> 5 angles) ──
     if (useGemini) {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
         : 'product from the listing';
       const tagsList = Array.isArray(tags) ? tags.slice(0, 15).join(', ') : '';
       const materialsStr = (materials && String(materials).trim()) ? String(materials).trim().substring(0, 150) : '';
-      const extra = [];
-      if (tagsList) extra.push(`Keywords: ${tagsList}`);
-      if (materialsStr) extra.push(`Materials: ${materialsStr}`);
-      const keywordPart = extra.length ? ` ${extra.join('. ')}.` : '';
-      const styleHint = style === 'studio' ? 'Studio product photo on clean neutral background.' : style === 'lifestyle' ? 'Lifestyle scene with product in a real environment.' : style === 'illustration' ? 'Clean digital illustration style.' : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
-      const prompt = `A photo of ${productDesc}.${keywordPart} ${styleHint} Do not modify the main product, keep same shape and details. Only change the background to an original, aesthetic, cozy, warm and professional Etsy-style space. Realistic, respectful of Etsy selling conditions. Square format, no watermark, no text on image.`;
-      const numImages = Math.min(Math.max(quantity, 1), 4);
-      const model = 'imagen-4.0-generate-001';
+      const keywordPart = [tagsList && `Keywords: ${tagsList}`, materialsStr && `Materials: ${materialsStr}`].filter(Boolean).join('. ') || '';
+      const styleHint =
+        style === 'studio'
+          ? 'Studio product photo on clean neutral background.'
+          : style === 'lifestyle'
+            ? 'Lifestyle scene with product in a real environment.'
+            : style === 'illustration'
+              ? 'Clean digital illustration style.'
+              : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
+
+      const refInputs: string[] = [];
+      if (typeof sourceImage === 'string' && sourceImage.trim().length > 0) {
+        refInputs.push(sourceImage.startsWith('data:image/') ? sourceImage : `data:image/jpeg;base64,${sourceImage}`);
+      }
+      if (productContext && typeof productContext === 'object' && Array.isArray(productContext.referenceImages)) {
+        for (const ref of productContext.referenceImages.slice(0, 2)) {
+          if (typeof ref === 'string' && ref.trim().length > 0) refInputs.push(ref.trim());
+        }
+      }
+
+      const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
+        try {
+          const raw = input.trim();
+          const dataUrl = raw.startsWith('data:image/') ? raw : `data:image/jpeg;base64,${raw}`;
+          const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+          if (!m) return null;
+          let mime = m[1];
+          let b64 = m[2];
+          if (sharp) {
+            const buf = Buffer.from(b64, 'base64');
+            // Compression légère pour accélérer et éviter des requêtes trop lourdes
+            const c = await sharp(buf).resize(768, 768, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 72, mozjpeg: true }).toBuffer();
+            mime = 'image/jpeg';
+            b64 = c.toString('base64');
+          }
+          return { inlineData: { mimeType: mime, data: b64 } };
+        } catch {
+          return null;
+        }
+      };
+
+      const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map(toInlineImagePart))).filter((p): p is { inlineData: { mimeType: string; data: string } } => !!p);
+      if (inlineImageParts.length === 0) {
+        return NextResponse.json({
+          success: false,
+          imageTaskIds: [],
+          imageDataUrls: [],
+          error: 'IMAGE_SUBMIT_FAILED',
+          message: 'Gemini n\'a reçu aucune image de référence valide.',
+        });
+      }
+
+      const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
+      const realismBoost =
+        engineSafe === 'pro'
+          ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
+          : 'Fast realistic render with clean natural lighting.';
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle.`;
+      const IMAGE_PROMPTS_GEMINI = [
+        `${baseContext} IMAGE 1: wide contextual shot with premium Etsy realism, clean composition, natural light, strong depth and crisp details. NO text, NO measurement overlay.`,
+        `${baseContext} IMAGE 2: medium shot centered on product, balanced background, high sharpness and realistic shadows/reflections. NO text, NO measurement overlay.`,
+        `${baseContext} IMAGE 3: close-up detail shot (materials, texture, finishes), ultra clean and sharp focus, realistic micro-textures. NO text, NO measurement overlay.`,
+        `${baseContext} IMAGE 4 (MANDATORY MEASUREMENTS): create a clean product-sheet style image with visible dimension arrows and numeric labels on the product. If a reference image includes measurements, replicate that measurement style and keep it clearly readable. This image MUST include measurements (do not return a plain lifestyle shot).`,
+        `${baseContext} IMAGE 5: strategic conversion-focused angle, premium realistic lighting, coherent perspective, very clean output. NO text, NO measurement overlay.`,
+      ];
+      const numImages = Math.min(Math.max(quantity, 1), 5);
+      const promptsToUse = IMAGE_PROMPTS_GEMINI.slice(0, numImages);
+      const modelCandidates =
+        engineSafe === 'pro'
+          ? [
+              'gemini-3-pro-image-preview',
+              'nano-banana-pro-preview',
+              'gemini-3.1-flash-image-preview',
+              'gemini-2.5-flash-image',
+            ]
+          : [
+              'gemini-2.5-flash-image',
+              'gemini-3.1-flash-image-preview',
+              'gemini-3-pro-image-preview',
+              'nano-banana-pro-preview',
+            ];
+      console.log(`[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, models=${modelCandidates.join(',')}`);
+
+      const generateOne = async (prompt: string): Promise<string | null> => {
+        const imagePartSets = [
+          inlineImageParts,
+          [inlineImageParts[0]].filter(Boolean),
+        ];
+        for (const partsForAttempt of imagePartSets) {
+          for (const model of modelCandidates) {
+          try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY! },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [{ text: prompt }, ...partsForAttempt],
+                  },
+                ],
+                generationConfig: {
+                  responseModalities: ['TEXT', 'IMAGE'],
+                },
+              }),
+            });
+            if (!res.ok) {
+              const t = await res.text().catch(() => '');
+              console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
+              continue;
+            }
+            const data = await res.json();
+            const parts = data?.candidates?.[0]?.content?.parts || [];
+            for (const part of parts) {
+              const b64 = part?.inlineData?.data;
+              const mime = part?.inlineData?.mimeType || 'image/png';
+              if (typeof b64 === 'string' && b64.length > 100) {
+                return `data:${mime};base64,${b64}`;
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
+          }
+        }
+        }
+        return null;
+      };
+
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': GEMINI_KEY!,
-            },
-            body: JSON.stringify({
-              instances: [{ prompt }],
-              parameters: {
-                sampleCount: numImages,
-                aspectRatio: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
-              },
-            }),
-          }
-        );
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error(`[IMAGE GEN] Imagen ${model} error:`, res.status, errText.substring(0, 300));
-          const isQuota = /quota|exceeded|limit/i.test(errText);
-          const message = isQuota
-            ? 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
-            : 'Le service Google (Imagen) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).';
-          return NextResponse.json({
-            success: false,
-            imageTaskIds: [],
-            imageDataUrls: [],
-            error: isQuota ? 'QUOTA_EXCEEDED' : 'IMAGE_SUBMIT_FAILED',
-            message,
-          });
-        }
-        const data = await res.json();
-        const imageDataUrls: string[] = [];
-        const predictions = data?.predictions ?? [];
-        for (const pred of predictions) {
-          const b64 = pred?.bytesBase64Encoded ?? pred?.image?.bytesBase64Encoded ?? pred?.bytesBase64 ?? pred?.imageBytes;
-          if (b64 && typeof b64 === 'string') {
-            imageDataUrls.push(`data:image/png;base64,${b64}`);
-          }
-        }
+        const imageDataUrls = (await Promise.all(promptsToUse.map((p) => generateOne(p)))).filter((u): u is string => !!u);
         if (imageDataUrls.length === 0) {
-          console.error('[IMAGE GEN] Imagen response had no images:', JSON.stringify(data).substring(0, 500));
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: 'Imagen n\'a pas renvoyé d\'image. Réessayez ou vérifiez la facturation Google.',
+            message: 'Gemini n\'a pas renvoyé d\'image. Vérifie la clé et les permissions image generation.',
           });
         }
         if (!skipCreditDeduction) {
@@ -141,25 +220,24 @@ export async function POST(request: NextRequest) {
             console.error(`[IMAGE GEN] Credit deduction error: ${e.message}`);
           }
         }
-        console.log(`[IMAGE GEN] Imagen: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
+        console.log(`[IMAGE GEN] Gemini image-edit: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
         return NextResponse.json({
           success: true,
           imageTaskIds: [],
           imageDataUrls,
         });
       } catch (e: any) {
-        console.error('[IMAGE GEN] Imagen fatal:', e.message);
+        console.error('[IMAGE GEN] Gemini fatal:', e.message);
         const raw = (e?.message || '').toString();
         const isQuota = /quota|exceeded|limit/i.test(raw);
-        const message = isQuota
-          ? 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
-          : (raw || 'Erreur lors de l\'appel à Imagen. Vérifiez GEMINI_API_KEY.');
         return NextResponse.json({
           success: false,
           imageTaskIds: [],
           imageDataUrls: [],
           error: isQuota ? 'QUOTA_EXCEEDED' : 'IMAGE_SUBMIT_FAILED',
-          message,
+          message: isQuota
+            ? 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
+            : (raw || 'Erreur Gemini image generation.'),
         });
       }
     }
@@ -231,30 +309,52 @@ export async function POST(request: NextRequest) {
     };
 
     // ── Build prompt ──
-    let productContext = productTitle && String(productTitle).trim()
-      ? `Nous générons les visuels pour un produit Etsy : ${String(productTitle).trim().substring(0, 140)}.`
-      : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.';
     const tagsStr = Array.isArray(tags) && tags.length ? ` Tags / mots-clés : ${tags.slice(0, 15).join(', ')}.` : '';
     const materialsStrNano = (materials && String(materials).trim()) ? ` Matériaux : ${String(materials).trim().substring(0, 120)}.` : '';
-    if (tagsStr || materialsStrNano) productContext += tagsStr + materialsStrNano;
+    const productContextText = (productTitle && String(productTitle).trim()
+      ? `Nous générons les visuels pour un produit Etsy : ${String(productTitle).trim().substring(0, 140)}.`
+      : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.')
+      + tagsStr
+      + materialsStrNano;
 
     const produitRef = (productTitle && String(productTitle).trim()) ? String(productTitle).trim().substring(0, 80) : 'le produit';
-    const PROMPT_IMAGE_ETSMART = `Entame un processus de modification avec toutes mes règles imposées pour l'image ci jointe sans modifier un seul pixel de l'objet principal (ici ${produitRef}) sous aucun prétexte. Il doit garder la même forme, mêmes détails exacts que sur l'image, même apparence. Il t'est interdit de le modifier. Modifie absolument l'arrière-plan, il faut que le rendu soit original et unique. Modifie tous les éléments qui sont différents du produit et modifie entièrement les éléments présents toujours pour un rendu réaliste et respectueux des conditions de vente d'Etsy, le tout pour recréer un espace original, esthétique, cosy, chaleureux et professionnel. Génère l'image au format carré absolument.`;
+    const reglesCommunes = `RÈGLE ABSOLUE : l'objet principal (${produitRef}) doit garder sa FORME EXACTE et ses COULEURS EXACTES. Rond reste rond, ovale reste ovale, courbe reste courbe—ne jamais le rendre carré ou rectangulaire. Même forme, mêmes proportions, mêmes couleurs, mêmes matières. Tu ne modifies que l'arrière-plan et le décor. Rendu réaliste, Etsy, cosy, professionnel. Format carré.`;
 
     const IMAGE_PROMPTS = [
-      PROMPT_IMAGE_ETSMART,
-      PROMPT_IMAGE_ETSMART,
-      PROMPT_IMAGE_ETSMART,
-      PROMPT_IMAGE_ETSMART,
-      PROMPT_IMAGE_ETSMART,
+      `${productContextText} IMAGE 1 – VUE ÉLOIGNÉE : plan large, produit dans son environnement complet, contexte et ambiance. ${reglesCommunes}`,
+      `${productContextText} IMAGE 2 – ANGLE INTERMÉDIAIRE : produit au centre, environnement visible. ${reglesCommunes}`,
+      `${productContextText} IMAGE 3 – ZOOM DÉTAIL : gros plan sur le produit, texture et finitions. ${reglesCommunes}`,
+      `${productContextText} IMAGE 4 – MENSURATIONS : dimensions clairement visibles, style fiche produit. ${reglesCommunes}`,
+      `${productContextText} IMAGE 5 – IMAGE STRATÉGIQUE : angle ou mise en situation à valeur ajoutée. ${reglesCommunes}`,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
 
-    console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s)...`);
-
-    // ── Submit image generation tasks to NanoBanana (with retry) ──
-    const payloadSize = imageDataUrl.length;
-    console.log(`[IMAGE GEN] Image payload size: ${(payloadSize / 1024).toFixed(0)}KB, sharp: ${!!sharp}`);
+    // ── Images de référence (contexte) : 1 principale + jusqu'à 2 en plus (compressées si data URL) ──
+    const baseImageUrls: string[] = [imageDataUrl];
+    if (productContext && typeof productContext === 'object' && Array.isArray(productContext.referenceImages)) {
+      for (const ref of productContext.referenceImages.slice(0, 2)) {
+        if (typeof ref !== 'string' || !ref.trim()) continue;
+        const trimmed = ref.trim();
+        if (trimmed.startsWith('data:image/')) {
+          try {
+            const base64Part = trimmed.includes(',') ? trimmed.split(',')[1] : trimmed;
+            const buf = Buffer.from(base64Part, 'base64');
+            if (buf.length > 300 * 1024 && sharp) {
+              const c = await sharp(buf).resize(320, 320, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer();
+              baseImageUrls.push(`data:image/jpeg;base64,${c.toString('base64')}`);
+            } else {
+              baseImageUrls.push(trimmed);
+            }
+          } catch {
+            baseImageUrls.push(trimmed);
+          }
+        } else {
+          baseImageUrls.push(trimmed);
+        }
+      }
+    }
+    const payloadSize = baseImageUrls.reduce((s, u) => s + u.length, 0);
+    console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s), refs: ${baseImageUrls.length}, payload: ${(payloadSize / 1024).toFixed(0)}KB`);
 
     const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
     const imgSize = sizeMap[aspectRatio] || '1:1';
@@ -269,7 +369,7 @@ export async function POST(request: NextRequest) {
         engineToUse === 'pro'
           ? {
               prompt,
-              imageUrls: [imageDataUrl],
+              imageUrls: baseImageUrls,
               resolution: '1K',
               aspectRatio: imgSize,
               callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
@@ -277,7 +377,7 @@ export async function POST(request: NextRequest) {
           : {
               type: 'IMAGETOIAMGE',
               prompt,
-              imageUrls: [imageDataUrl],
+              imageUrls: baseImageUrls,
               image_size: imgSize,
               numImages: 1,
               callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
@@ -332,7 +432,7 @@ export async function POST(request: NextRequest) {
       const result = await submitWithRetry(i);
       if (result.taskId) taskIds.push(result.taskId);
       else errors.push(result.error || 'failed');
-      if (i < quantity - 1) await new Promise(r => setTimeout(r, 150));
+      if (i < quantity - 1) await new Promise(r => setTimeout(r, 80));
     }
 
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
