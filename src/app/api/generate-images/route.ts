@@ -103,12 +103,16 @@ export async function POST(request: NextRequest) {
         if (!res.ok) {
           const errText = await res.text();
           console.error(`[IMAGE GEN] Imagen ${model} error:`, res.status, errText.substring(0, 300));
+          const isQuota = /quota|exceeded|limit/i.test(errText);
+          const message = isQuota
+            ? 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
+            : 'Le service Google (Imagen) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).';
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
-            error: 'IMAGE_SUBMIT_FAILED',
-            message: 'Le service Google (Imagen) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).',
+            error: isQuota ? 'QUOTA_EXCEEDED' : 'IMAGE_SUBMIT_FAILED',
+            message,
           });
         }
         const data = await res.json();
@@ -145,12 +149,17 @@ export async function POST(request: NextRequest) {
         });
       } catch (e: any) {
         console.error('[IMAGE GEN] Imagen fatal:', e.message);
+        const raw = (e?.message || '').toString();
+        const isQuota = /quota|exceeded|limit/i.test(raw);
+        const message = isQuota
+          ? 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
+          : (raw || 'Erreur lors de l\'appel à Imagen. Vérifiez GEMINI_API_KEY.');
         return NextResponse.json({
           success: false,
           imageTaskIds: [],
           imageDataUrls: [],
-          error: 'IMAGE_SUBMIT_FAILED',
-          message: e.message || 'Erreur lors de l\'appel à Imagen. Vérifiez GEMINI_API_KEY.',
+          error: isQuota ? 'QUOTA_EXCEEDED' : 'IMAGE_SUBMIT_FAILED',
+          message,
         });
       }
     }

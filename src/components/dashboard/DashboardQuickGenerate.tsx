@@ -37,6 +37,13 @@ interface ListingData {
   materials: string;
 }
 
+const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+function normalizeQuotaMessage(msg: string | undefined | null): string {
+  if (!msg) return QUOTA_MESSAGE_FR;
+  if (/the quota has been exceeded|quota.*exceeded|crédits.*insuffisant/i.test(msg)) return QUOTA_MESSAGE_FR;
+  return msg;
+}
+
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -106,7 +113,12 @@ export function DashboardQuickGenerate() {
         const savedListing = sessionStorage.getItem(`${storageKey}-listing`);
         if (savedImages) {
           try {
-            const images = JSON.parse(savedImages);
+            const raw = JSON.parse(savedImages);
+            const images: GeneratedImage[] = Array.isArray(raw)
+              ? raw
+                  .filter((img: any) => img && typeof img.url === 'string')
+                  .map((img: any, i: number) => ({ id: img.id && typeof img.id === 'string' ? img.id : `saved-${i}`, url: img.url }))
+              : [];
             setGeneratedImages(images);
           } catch (e) {
             console.error('Error parsing saved images:', e);
@@ -114,7 +126,13 @@ export function DashboardQuickGenerate() {
         }
         if (savedListing) {
           try {
-            const listing = JSON.parse(savedListing);
+            const raw = JSON.parse(savedListing);
+            const listing: ListingData = {
+              title: typeof raw?.title === 'string' ? raw.title : '',
+              description: typeof raw?.description === 'string' ? raw.description : '',
+              tags: Array.isArray(raw?.tags) ? raw.tags : (typeof raw?.tags === 'string' ? raw.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
+              materials: typeof raw?.materials === 'string' ? raw.materials : (raw?.materials != null ? String(raw.materials) : ''),
+            };
             setListingData(listing);
           } catch (e) {
             console.error('Error parsing saved listing:', e);
@@ -530,7 +548,15 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        console.error('[QUICK GENERATE] Invalid JSON from generate-images:', parseErr);
+        setError('Réponse du serveur invalide. Réessayez.');
+        setIsRegeneratingImages(false);
+        return;
+      }
       console.log('[QUICK GENERATE] Regenerated images (tasks):', data);
 
       const taskIds: string[] = Array.isArray(data.imageTaskIds) ? data.imageTaskIds : [];
@@ -595,7 +621,8 @@ export function DashboardQuickGenerate() {
 
     } catch (error: any) {
       console.error('Error regenerating images:', error);
-      setError(error.message || 'Erreur lors de la régénération des images');
+      const msg = error?.message && typeof error.message === 'string' ? error.message : 'Erreur lors de la régénération des images';
+      setError(normalizeQuotaMessage(msg));
     } finally {
       setIsRegeneratingImages(false);
     }
@@ -1082,7 +1109,7 @@ export function DashboardQuickGenerate() {
                   )}
 
                   {/* Tags */}
-                  {listingData.tags && listingData.tags.length > 0 && (
+                  {Array.isArray(listingData.tags) && listingData.tags.length > 0 && (
                     <div className="p-5 rounded-xl bg-black border border-white/10">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -1161,6 +1188,7 @@ export function DashboardQuickGenerate() {
                   <h3 className="text-xl font-bold text-white mb-2">Aucune image générée</h3>
                   <p className="text-sm text-white/70 mb-4">Le listing est prêt. Génère les images pour compléter.</p>
                   <button
+                    type="button"
                     onClick={regenerateImages}
                     disabled={isRegeneratingImages || !sourceImagePreview}
                     className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1254,6 +1282,7 @@ export function DashboardQuickGenerate() {
 
                     {/* Regenerate Images Button */}
                     <button
+                      type="button"
                       onClick={regenerateImages}
                       disabled={isRegeneratingImages || !sourceImagePreview}
                       className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
