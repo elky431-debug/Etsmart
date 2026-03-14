@@ -358,9 +358,18 @@ export function DashboardQuickGenerate() {
       const taskIds = imageResults.filter((id): id is string => id !== null);
       console.log(`[QUICK GENERATE] ✅ Listing: ${!!listing}, Images submitted: ${taskIds.length}/${quantity}`);
 
-      // Si aucune image n'a pu être soumise, on considère la génération complète comme un échec
+      // Si aucune image n'a pu être soumise, on garde le listing mais on informe clairement l'utilisateur
       if (taskIds.length === 0) {
-        throw new Error('La génération des images a échoué. Aucun visuel n’a pu être soumis.');
+        setListingData(listing);
+        setGeneratedImages([]);
+        setHasGenerated(true);
+        setError('La génération des images a échoué. Aucun visuel n’a pu être soumis. Vous pouvez quand même utiliser le listing généré, puis cliquer sur « Générer de nouvelles images » pour réessayer plus tard.');
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.removeItem(`${storageKey}-images`);
+        }
+        return;
       }
 
       // Poll images DIRECTEMENT depuis le navigateur (Netlify bloque NanoBanana)
@@ -399,21 +408,27 @@ export function DashboardQuickGenerate() {
         setPendingImagesCount(0);
       }
 
-      // TOUT afficher d'un coup uniquement si on a au moins une image valide
+      // Si le polling n'a pas réussi à récupérer d'images, on garde le listing et on affiche un message
       if (allImages.length === 0) {
-        throw new Error('La génération des images a échoué. Réessayez dans quelques instants.');
+        setListingData(listing);
+        setGeneratedImages([]);
+        setHasGenerated(true);
+        setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Utilisez le listing et cliquez sur « Générer de nouvelles images » pour relancer uniquement les images.');
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.removeItem(`${storageKey}-images`);
+        }
+      } else {
+        setListingData(listing);
+        setGeneratedImages(allImages);
+        setHasGenerated(true);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+        }
       }
-
-      setListingData(listing);
-      setGeneratedImages(allImages);
-
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(storageKey, 'true');
-        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
-      }
-
-      setHasGenerated(true);
 
       setTimeout(() => {
         refreshSubscription(true);
