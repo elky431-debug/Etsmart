@@ -251,7 +251,8 @@ export function DashboardQuickGenerate() {
           const code = err?.error;
           const msg = err?.message;
           if (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED') {
-            setError(msg || fallbackMessage);
+            const quotaMsg = /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? (msg || fallbackMessage) : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+            setError(quotaMsg);
             setIsGenerating(false);
             return;
           }
@@ -319,6 +320,8 @@ export function DashboardQuickGenerate() {
           quantity,
           aspectRatio,
           productTitle: listing.title || '',
+          tags: listing.tags,
+          materials: listing.materials,
           engine,
           style,
           skipCreditDeduction: true,
@@ -339,7 +342,8 @@ export function DashboardQuickGenerate() {
         const code = imagesData?.error;
         const msg = apiMessage || 'Erreur lors de la soumission des images.';
         if (imagesResponse.status === 403 && (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')) {
-          setError(msg);
+          const quotaMsg = /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? msg : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+          setError(quotaMsg);
           setIsGenerating(false);
           return;
         }
@@ -504,6 +508,8 @@ export function DashboardQuickGenerate() {
           engine,
           style,
           productTitle: listingData?.title || undefined,
+          tags: listingData?.tags,
+          materials: listingData?.materials,
           customInstructions: bgBase64 
             ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
             : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
@@ -1146,6 +1152,32 @@ export function DashboardQuickGenerate() {
                     <p className="text-base font-semibold text-white">Génération des images en cours...</p>
                     <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
                   </div>
+                </div>
+              )}
+
+              {/* Listing OK but no images yet: force image generation CTA */}
+              {!isGenerating && listingData && generatedImages.length === 0 && (
+                <div className="bg-black rounded-xl border border-amber-500/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-2">Aucune image générée</h3>
+                  <p className="text-sm text-white/70 mb-4">Le listing est prêt. Génère les images pour compléter.</p>
+                  <button
+                    onClick={regenerateImages}
+                    disabled={isRegeneratingImages || !sourceImagePreview}
+                    className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRegeneratingImages ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" />
+                        Génération des images en cours...
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={20} />
+                        Générer les images
+                        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">1 crédit</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 

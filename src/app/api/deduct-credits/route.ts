@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (quotaInfo.remaining < amount) {
       return NextResponse.json({
         error: 'QUOTA_EXCEEDED',
-        message: 'Not enough credits remaining.',
+        message: 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle pour avoir plus de crédits.',
         used: quotaInfo.used,
         quota: quotaInfo.quota,
         remaining: quotaInfo.remaining,
