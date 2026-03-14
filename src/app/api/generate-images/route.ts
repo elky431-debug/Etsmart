@@ -67,65 +67,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── GEMINI (Imagen / generateContent) : texte → images, retour direct ──
+    // ── GEMINI (Imagen API :predict) : texte → images, retour direct ──
     if (useGemini) {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
         : 'product from the listing';
       const styleHint = style === 'studio' ? 'Studio product photo on clean neutral background.' : style === 'lifestyle' ? 'Lifestyle scene with product in a real environment.' : style === 'illustration' ? 'Clean digital illustration style.' : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
-      const prompt = `Generate a professional e-commerce product photo. Product: ${productDesc}. ${styleHint} No watermark, no text on image. Single square image, high quality.`;
+      const prompt = `A photo of ${productDesc}. ${styleHint} Professional e-commerce product image, square format, no watermark, no text on image.`;
       const numImages = Math.min(Math.max(quantity, 1), 4);
-      const model = 'gemini-2.0-flash-exp';
+      const model = 'imagen-4.0-generate-001';
       try {
-        const imageDataUrls: string[] = [];
-        for (let i = 0; i < numImages; i++) {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_KEY!,
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': GEMINI_KEY!,
+            },
+            body: JSON.stringify({
+              instances: [{ prompt }],
+              parameters: {
+                sampleCount: numImages,
+                aspectRatio: aspectRatio === '16:9' ? '16:9' : aspectRatio === '9:16' ? '9:16' : aspectRatio === '4:3' ? '4:3' : aspectRatio === '3:4' ? '3:4' : '1:1',
               },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  responseModalities: ['IMAGE', 'TEXT'],
-                },
-              }),
-            }
-          );
-          if (!res.ok) {
-            const errText = await res.text();
-            console.error(`[IMAGE GEN] Gemini ${model} error:`, res.status, errText.substring(0, 200));
-            if (imageDataUrls.length === 0) {
-              return NextResponse.json({
-                success: false,
-                imageTaskIds: [],
-                imageDataUrls: [],
-                error: 'IMAGE_SUBMIT_FAILED',
-                message: 'Le service Google (Gemini) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).',
-              });
-            }
-            break;
+            }),
           }
-          const data = await res.json();
-          const parts = data?.candidates?.[0]?.content?.parts ?? [];
-          for (const part of parts) {
-            if (part.inlineData?.data) {
-              const mime = part.inlineData?.mimeType || 'image/png';
-              imageDataUrls.push(`data:${mime};base64,${part.inlineData.data}`);
-            }
-          }
-          if (i < numImages - 1) await new Promise(r => setTimeout(r, 400));
-        }
-        if (imageDataUrls.length === 0) {
+        );
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[IMAGE GEN] Imagen ${model} error:`, res.status, errText.substring(0, 300));
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: 'Gemini n\'a pas renvoyé d\'image. Réessayez ou vérifiez la facturation Google.',
+            message: 'Le service Google (Imagen) n\'a pas pu générer les images. Vérifiez GEMINI_API_KEY et la facturation (peut prendre 5–15 min après activation).',
+          });
+        }
+        const data = await res.json();
+        const imageDataUrls: string[] = [];
+        const predictions = data?.predictions ?? [];
+        for (const pred of predictions) {
+          const b64 = pred?.bytesBase64Encoded ?? pred?.image?.bytesBase64Encoded ?? pred?.bytesBase64 ?? pred?.imageBytes;
+          if (b64 && typeof b64 === 'string') {
+            imageDataUrls.push(`data:image/png;base64,${b64}`);
+          }
+        }
+        if (imageDataUrls.length === 0) {
+          console.error('[IMAGE GEN] Imagen response had no images:', JSON.stringify(data).substring(0, 500));
+          return NextResponse.json({
+            success: false,
+            imageTaskIds: [],
+            imageDataUrls: [],
+            error: 'IMAGE_SUBMIT_FAILED',
+            message: 'Imagen n\'a pas renvoyé d\'image. Réessayez ou vérifiez la facturation Google.',
           });
         }
         if (!skipCreditDeduction) {
@@ -135,20 +131,20 @@ export async function POST(request: NextRequest) {
             console.error(`[IMAGE GEN] Credit deduction error: ${e.message}`);
           }
         }
-        console.log(`[IMAGE GEN] Gemini: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
+        console.log(`[IMAGE GEN] Imagen: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
         return NextResponse.json({
           success: true,
           imageTaskIds: [],
           imageDataUrls,
         });
       } catch (e: any) {
-        console.error('[IMAGE GEN] Gemini fatal:', e.message);
+        console.error('[IMAGE GEN] Imagen fatal:', e.message);
         return NextResponse.json({
           success: false,
           imageTaskIds: [],
           imageDataUrls: [],
           error: 'IMAGE_SUBMIT_FAILED',
-          message: e.message || 'Erreur lors de l\'appel à Gemini. Vérifiez GEMINI_API_KEY.',
+          message: e.message || 'Erreur lors de l\'appel à Imagen. Vérifiez GEMINI_API_KEY.',
         });
       }
     }
