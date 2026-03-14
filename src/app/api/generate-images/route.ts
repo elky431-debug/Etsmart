@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, engine, style, skipCreditDeduction } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, tags, materials, engine, style, skipCreditDeduction } = body;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
@@ -72,8 +72,14 @@ export async function POST(request: NextRequest) {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
         : 'product from the listing';
+      const tagsList = Array.isArray(tags) ? tags.slice(0, 15).join(', ') : '';
+      const materialsStr = (materials && String(materials).trim()) ? String(materials).trim().substring(0, 150) : '';
+      const extra = [];
+      if (tagsList) extra.push(`Keywords: ${tagsList}`);
+      if (materialsStr) extra.push(`Materials: ${materialsStr}`);
+      const keywordPart = extra.length ? ` ${extra.join('. ')}.` : '';
       const styleHint = style === 'studio' ? 'Studio product photo on clean neutral background.' : style === 'lifestyle' ? 'Lifestyle scene with product in a real environment.' : style === 'illustration' ? 'Clean digital illustration style.' : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
-      const prompt = `A photo of ${productDesc}. ${styleHint} Professional e-commerce product image, square format, no watermark, no text on image.`;
+      const prompt = `A photo of ${productDesc}.${keywordPart} ${styleHint} Do not modify the main product, keep same shape and details. Only change the background to an original, aesthetic, cozy, warm and professional Etsy-style space. Realistic, respectful of Etsy selling conditions. Square format, no watermark, no text on image.`;
       const numImages = Math.min(Math.max(quantity, 1), 4);
       const model = 'imagen-4.0-generate-001';
       try {
@@ -216,24 +222,22 @@ export async function POST(request: NextRequest) {
     };
 
     // ── Build prompt ──
-    const productContext = productTitle && String(productTitle).trim()
+    let productContext = productTitle && String(productTitle).trim()
       ? `Nous générons les visuels pour un produit Etsy : ${String(productTitle).trim().substring(0, 140)}.`
       : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.';
+    const tagsStr = Array.isArray(tags) && tags.length ? ` Tags / mots-clés : ${tags.slice(0, 15).join(', ')}.` : '';
+    const materialsStrNano = (materials && String(materials).trim()) ? ` Matériaux : ${String(materials).trim().substring(0, 120)}.` : '';
+    if (tagsStr || materialsStrNano) productContext += tagsStr + materialsStrNano;
 
-    const globalRules =
-      'RÈGLES GLOBALES : ne JAMAIS modifier la forme ni les détails du produit principal, uniquement le décor et la mise en scène. Analyse le type de produit et son univers (figurine manga, jouet enfant, accessoire gaming, déco murale, tapis, affiche, bijou, ustensile de cuisine, etc.) à partir de l\'image de référence et choisis un environnement PARFAITEMENT COHÉRENT avec ce produit. Exemple : figurine ou personnage manga → bureau ou étagère otaku moderne, setup gaming, posters ou manga en arrière‑plan ; jouet enfant → chambre d\'enfant ; déco bohème → salon bohème lumineux ; affiche → mur propre avec encadrement adapté ; tapis → sol et mobilier cohérents, etc. Interdiction d\'utiliser un décor générique de salon/canapé/couverture qui n\'a aucun rapport avec le produit. AUCUN watermark, AUCUN texte marketing (sauf si dimensions demandées), rendu photo réaliste type Etsy haut de gamme, lumière douce et naturelle, cohérence visuelle entre toutes les images, aucune apparence trop IA, toujours privilégier la lisibilité, la chaleur et la crédibilité.';
+    const produitRef = (productTitle && String(productTitle).trim()) ? String(productTitle).trim().substring(0, 80) : 'le produit';
+    const PROMPT_IMAGE_ETSMART = `Entame un processus de modification avec toutes mes règles imposées pour l'image ci jointe sans modifier un seul pixel de l'objet principal (ici ${produitRef}) sous aucun prétexte. Il doit garder la même forme, mêmes détails exacts que sur l'image, même apparence. Il t'est interdit de le modifier. Modifie absolument l'arrière-plan, il faut que le rendu soit original et unique. Modifie tous les éléments qui sont différents du produit et modifie entièrement les éléments présents toujours pour un rendu réaliste et respectueux des conditions de vente d'Etsy, le tout pour recréer un espace original, esthétique, cosy, chaleureux et professionnel. Génère l'image au format carré absolument.`;
 
     const IMAGE_PROMPTS = [
-      // 1️⃣ Vue éloignée / ambiance
-      `${productContext} GÉNÈRE UNE PHOTO PRODUIT AVEC ANGLE DE VUE ÉLOIGNÉ. Le produit est placé dans un environnement complet et réaliste (intérieur chaleureux, lumière douce, décor cohérent avec le produit). On doit voir la pièce ou l'espace autour du produit pour montrer comment il s'intègre dans un vrai contexte de vie (home decor, lifestyle, usage naturel). Le produit reste bien visible, mais intégré dans la scène. Style : photo Etsy professionnelle, naturelle, non artificielle, sans effet studio agressif. ${globalRules}`,
-      // 2️⃣ Vue intermédiaire
-      `${productContext} GÉNÈRE UNE PHOTO PRODUIT AVEC ANGLE INTERMÉDIAIRE. Le produit occupe le centre de l'image, avec une partie de l'environnement encore visible autour. Objectif : mettre en valeur clairement la forme, le design et les proportions générales du produit, tout en gardant un décor sobre et cohérent. Lumière chaude, rendu réaliste, style Etsy premium, fond simple et élégant.`,
-      // 3️⃣ Zoom / détail
-      `${productContext} GÉNÈRE UNE PHOTO ZOOMÉE SUR LE PRODUIT. Focus sur les détails importants : texture, matière, finitions, qualité perçue. Le fond doit être flou ou très simple pour ne pas détourner l'attention. Objectif : rassurer l'acheteur sur la qualité et le soin apporté au produit. Style : photo nette, naturelle, sans sur‑retouche ni effet plastique.`,
-      // 4️⃣ Photo avec mensurations
-      `${productContext} GÉNÈRE UNE IMAGE AVEC MENSURATIONS / DIMENSIONS DU PRODUIT. Le produit est affiché proprement au centre, et les dimensions (hauteur, largeur, profondeur ou longueur) sont indiquées avec des traits fins et du texte discret mais parfaitement lisible, dans un style graphique simple et professionnel. L'image doit rester esthétique, fond clair et propre, comme une fiche produit technique sur Etsy.`,
-      // 5️⃣ Image stratégique
-      `${productContext} GÉNÈRE UNE IMAGE STRATÉGIQUE SUPPLÉMENTAIRE POUR LA FICHE ETSY. Choisis automatiquement l'option la plus pertinente : soit une mise en situation alternative, soit un angle original, soit un focus sur l'usage (avant / après, détail clé en action). L'objectif est d'augmenter la compréhension du produit et la confiance de l'acheteur, toujours dans un style chaleureux, réaliste et professionnel. ${globalRules}`,
+      PROMPT_IMAGE_ETSMART,
+      PROMPT_IMAGE_ETSMART,
+      PROMPT_IMAGE_ETSMART,
+      PROMPT_IMAGE_ETSMART,
+      PROMPT_IMAGE_ETSMART,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
 
