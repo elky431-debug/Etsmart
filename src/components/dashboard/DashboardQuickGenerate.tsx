@@ -328,6 +328,12 @@ export function DashboardQuickGenerate() {
         return;
       }
 
+      // Afficher le listing tout de suite pour que l’utilisateur le voie pendant la génération des images
+      setListingData(listing);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+      }
+
       // 2) Images via le backend
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imagesResponse = await fetch('/api/generate-images', {
@@ -365,13 +371,11 @@ export function DashboardQuickGenerate() {
           setIsGenerating(false);
           return;
         }
-        setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
         setError(msg || 'La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
         return;
@@ -381,7 +385,6 @@ export function DashboardQuickGenerate() {
 
       if (imageDataUrls.length > 0) {
         const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
-        setListingData(listing);
         setGeneratedImages(directImages);
         setHasGenerated(true);
         setError(directImages.length < quantity ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.` : null);
@@ -398,13 +401,11 @@ export function DashboardQuickGenerate() {
       }
 
       if (imageTaskIds.length === 0) {
-        setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
         setError(apiMessage || 'La génération des images a échoué. Aucun visuel n\'a pu être soumis. Utilisez le listing puis « Générer de nouvelles images » pour réessayer.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
         return;
@@ -434,29 +435,21 @@ export function DashboardQuickGenerate() {
       allImages = results.filter((r): r is GeneratedImage => r !== null);
       setPendingImagesCount(0);
 
-      // Si le polling n'a pas réussi à récupérer d'images, on garde le listing et on affiche un message
+      // Listing déjà affiché ; on met à jour les images et le statut
       if (allImages.length === 0) {
-        setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
-        setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Utilisez le listing et cliquez sur « Générer de nouvelles images » pour relancer uniquement les images.');
+        setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
       } else {
-        setListingData(listing);
         setGeneratedImages(allImages);
         setHasGenerated(true);
-        if (allImages.length < quantity) {
-          setError(`Vous avez reçu ${allImages.length} image${allImages.length > 1 ? 's' : ''} sur ${quantity}. Cliquez sur « Générer de nouvelles images » pour en ajouter.`);
-        } else {
-          setError(null);
-        }
+        setError(allImages.length < quantity ? `Vous avez reçu ${allImages.length} image${allImages.length > 1 ? 's' : ''} sur ${quantity}. Cliquez sur « Générer de nouvelles images » pour en ajouter.` : null);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
         }
       }
@@ -1024,7 +1017,7 @@ export function DashboardQuickGenerate() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {isGenerating ? (
+          {isGenerating && !listingData ? (
             <motion.div
               key="generating"
               initial={{ opacity: 0 }}
@@ -1034,7 +1027,7 @@ export function DashboardQuickGenerate() {
             >
               <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
               <p className="text-lg font-semibold text-white">
-                Génération en cours...
+                Génération du listing...
               </p>
               <p className="text-sm text-white/70 mt-2">
                 Le listing et les images arrivent dans quelques secondes
@@ -1187,25 +1180,39 @@ export function DashboardQuickGenerate() {
                 <div className="bg-black rounded-xl border border-amber-500/30 p-6">
                   <h3 className="text-xl font-bold text-white mb-2">Aucune image générée</h3>
                   <p className="text-sm text-white/70 mb-4">Le listing est prêt. Génère les images pour compléter.</p>
-                  <button
-                    type="button"
-                    onClick={regenerateImages}
-                    disabled={isRegeneratingImages || !sourceImagePreview}
-                    className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRegeneratingImages ? (
-                      <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Génération des images en cours...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon size={20} />
-                        Générer les images
-                        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">1 crédit</span>
-                      </>
-                    )}
-                  </button>
+                  {!sourceImagePreview ? (
+                    <>
+                      <p className="text-sm text-amber-400/90 mb-4">L’image produit n’est plus disponible (page rechargée). Importe à nouveau une photo du produit ci-dessus pour débloquer le bouton.</p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full py-4 bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold rounded-xl hover:bg-amber-500/30 flex items-center justify-center gap-2"
+                      >
+                        <Upload size={20} />
+                        Importer une image produit
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={regenerateImages}
+                      disabled={isRegeneratingImages}
+                      className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isRegeneratingImages ? (
+                        <>
+                          <Loader2 size={20} className="animate-spin" />
+                          Génération des images en cours...
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon size={20} />
+                          Générer les images
+                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">1 crédit</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
 
