@@ -309,57 +309,53 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // 2) Prompt images – angle intermédiaire (produit + environnement)
-      const productContext = listing.title
-        ? `PRODUCT: ${listing.title.substring(0, 140)}.`
-        : 'PRODUCT: main item from the reference image.';
+      // 2) Images via le backend
+      const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+      const imagesResponse = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          sourceImage: imagePayload,
+          quantity,
+          aspectRatio,
+          productTitle: listing.title || '',
+          engine,
+          style,
+          skipCreditDeduction: true,
+        }),
+      });
 
-      const IMAGE_PROMPTS = [
-        `${productContext} Entame un processus de modification avec toutes mes règles imposées pour l'image ci jointe sans modifier un seul pixel de l'objet principal sous aucun prétexte. Il doit garder la même forme, mêmes détails exacts que sur l'image, même apparence. Il t'est interdit de le modifier. Modifie absolument l'arrière-plan, il faut que le rendu soit original et unique. Modifie tous les éléments qui sont différents du produit et modifie entièrement les éléments présents toujours pour un rendu réaliste et respectueux des conditions de vente d'Etsy, le tout pour recréer un espace original, esthétique, cosy, chaleureux et professionnel. La photo doit avoir le rendu d'une vraie photo prise avec un appareil photo reflex professionnel (objectif 35mm ou 50mm), avec une lumière douce naturelle, des ombres cohérentes, des textures nettes et AUCUN effet plastique, AUCUN flou ou glow artificiel, AUCUN sur-lissage de la matière, AUCUNE couleur fluo ou irréaliste, AUCUN effet HDR exagéré. Ajoute de très légères imperfections naturelles (plis, micro-ombres, légères irrégularités) pour renforcer le réalisme. Génère l'image au format carré absolument. RÈGLES GLOBALES : Pas de watermark, pas de texte marketing sur l'image, pas de style trop "IA", rendu photo réaliste type Etsy haut de gamme, cohérence visuelle entre les images, toujours privilégier la lisibilité, la chaleur et la crédibilité.`,
-      ];
-
-      const NANO_KEY = '758a24cfaef8c64eed9164858b941ecc';
-      const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
-      const imgSize = sizeMap[aspectRatio] || '1:1';
-
-      const submitImageFromBrowser = async (index: number): Promise<string | null> => {
-        let prompt = IMAGE_PROMPTS[index % IMAGE_PROMPTS.length];
-        if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const resp = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-              body: JSON.stringify({
-                type: 'IMAGETOIAMGE',
-                prompt,
-                imageUrls: [imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`],
-                image_size: imgSize,
-                numImages: 1,
-                callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-              }),
-            });
-            const data = await resp.json();
-            console.log(`[BROWSER] NanoBanana image ${index + 1} attempt ${attempt + 1}:`, data);
-            const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || null;
-            if (taskId) return taskId;
-            if (data.code === 500 && attempt < 2) { await new Promise(r => setTimeout(r, 1000)); continue; }
-            return null;
-          } catch (e) {
-            console.error(`[BROWSER] NanoBanana error attempt ${attempt + 1}:`, e);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
-          }
+      if (!imagesResponse.ok) {
+        const errBody = await imagesResponse.json().catch(() => ({}));
+        const code = errBody?.error;
+        const msg = errBody?.message || 'Erreur lors de la soumission des images.';
+        if (imagesResponse.status === 403 && (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')) {
+          setError(msg);
+          setIsGenerating(false);
+          return;
         }
-        return null;
-      };
+        setListingData(listing);
+        setGeneratedImages([]);
+        setHasGenerated(true);
+        setError('La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.removeItem(`${storageKey}-images`);
+        }
+        return;
+      }
 
-      const imagePromises = Array.from({ length: quantity }, (_, i) => submitImageFromBrowser(i));
-      const imageResults = await Promise.all(imagePromises);
-      const taskIds = imageResults.filter((id): id is string => id !== null);
-      console.log(`[QUICK GENERATE] ✅ Listing: ${!!listing}, Images submitted: ${taskIds.length}/${quantity}`);
+      let imageTaskIds: string[] = [];
+      try {
+        const imagesData = await imagesResponse.json();
+        imageTaskIds = imagesData?.imageTaskIds || [];
+      } catch {
+        imageTaskIds = [];
+      }
+      console.log(`[QUICK GENERATE] Listing OK, images submitted: ${imageTaskIds.length}/${quantity}`);
 
-      // Si aucune image n'a pu être soumise, on garde le listing mais on informe clairement l'utilisateur
-      if (taskIds.length === 0) {
+      if (imageTaskIds.length === 0) {
         setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
@@ -372,41 +368,29 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // Poll images DIRECTEMENT depuis le navigateur (Netlify bloque NanoBanana)
       let allImages: GeneratedImage[] = [];
-      if (taskIds.length > 0) {
-        setPendingImagesCount(taskIds.length);
-        const deadline = Date.now() + 75000;
+      setPendingImagesCount(imageTaskIds.length);
+      const deadline = Date.now() + 60000; // 60s max, polling toutes les 1.5s
 
-        const results = await Promise.all(taskIds.map(async (taskId, idx) => {
-          while (Date.now() < deadline) {
-            await new Promise(r => setTimeout(r, 3000));
-            if (Date.now() >= deadline) break;
-            try {
-              const res = await fetch(
-                `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?taskId=${taskId}`,
-                { headers: { 'Authorization': `Bearer ${NANO_KEY}`, 'Content-Type': 'application/json' } }
-              );
-              if (!res.ok) continue;
-              const data = await res.json();
-              console.log(`[BROWSER POLL] Task ${taskId.substring(0, 8)}:`, data.code, data.msg);
-              if (data.code === 200 || data.code === 0 || data.msg === 'success') {
-                const url = data.data?.response?.resultImageUrl || data.data?.response?.originImageUrl
-                  || data.data?.url || data.data?.image_url || data.data?.imageUrl || data.url;
-                if (url && String(url).startsWith('http')) {
-                  setPendingImagesCount(c => Math.max(0, c - 1));
-                  return { id: `img-${Date.now()}-${idx}`, url } as GeneratedImage;
-                }
-                const status = data.data?.status || data.data?.state;
-                if (status === 'failed' || status === 'error') return null;
-              }
-            } catch { /* retry */ }
-          }
-          return null;
-        }));
-        allImages = results.filter((r): r is GeneratedImage => r !== null);
-        setPendingImagesCount(0);
-      }
+      const results = await Promise.all(imageTaskIds.map(async (taskId, idx) => {
+        while (Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 1500));
+          if (Date.now() >= deadline) break;
+          try {
+            const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data.status === 'ready' && data.url && String(data.url).startsWith('http')) {
+              setPendingImagesCount(c => Math.max(0, c - 1));
+              return { id: `img-${Date.now()}-${idx}`, url: data.url } as GeneratedImage;
+            }
+            if (data.status === 'error') return null;
+          } catch { /* retry */ }
+        }
+        return null;
+      }));
+      allImages = results.filter((r): r is GeneratedImage => r !== null);
+      setPendingImagesCount(0);
 
       // Si le polling n'a pas réussi à récupérer d'images, on garde le listing et on affiche un message
       if (allImages.length === 0) {
@@ -423,6 +407,11 @@ export function DashboardQuickGenerate() {
         setListingData(listing);
         setGeneratedImages(allImages);
         setHasGenerated(true);
+        if (allImages.length < quantity) {
+          setError(`Vous avez reçu ${allImages.length} image${allImages.length > 1 ? 's' : ''} sur ${quantity}. Cliquez sur « Générer de nouvelles images » pour en ajouter.`);
+        } else {
+          setError(null);
+        }
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
@@ -509,7 +498,10 @@ export function DashboardQuickGenerate() {
         } catch {
           errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
         }
-        throw new Error(errorData.error || errorData.message || `Erreur ${response.status}`);
+        const message = errorData.message || (errorData.error === 'IMAGE_SUBMIT_FAILED' ? 'Le service d\'images n\'a pas accepté la requête. Vérifiez la clé API (NANONBANANA_API_KEY).' : errorData.error) || `Erreur ${response.status}`;
+        setError(message);
+        setIsRegeneratingImages(false);
+        return;
       }
 
       const data = await response.json();
@@ -522,10 +514,10 @@ export function DashboardQuickGenerate() {
       } else {
         const newImages: GeneratedImage[] = [];
 
-        // Poll chaque taskId jusqu'à 90s max (30 x 3s)
+        // Poll chaque taskId jusqu'à 60s max (40 x 1.5s)
         for (const taskId of taskIds) {
-          for (let i = 0; i < 30; i++) {
-            await new Promise(r => setTimeout(r, 3000));
+          for (let i = 0; i < 40; i++) {
+            await new Promise(r => setTimeout(r, 1500));
             try {
               const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
               if (!res.ok) continue;

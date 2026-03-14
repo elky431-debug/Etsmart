@@ -39,17 +39,21 @@ export async function POST(request: NextRequest) {
     if (quotaInfo.status !== 'active') {
       return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required.' }, { status: 403 });
     }
-    if (quotaInfo.remaining < 1) {
-      return NextResponse.json({ error: 'QUOTA_EXCEEDED', message: 'Insufficient quota. You need 1 credit.' }, { status: 403 });
-    }
 
     // ── Parse body ───────────────────────────────────────────
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, engine, style } = body;
+    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, engine, style, skipCreditDeduction } = body;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
+
+    // Quand skipCreditDeduction est true (ex: génération rapide), on ne vérifie pas le quota restant ni on ne déduit (déjà fait côté client).
+    if (!skipCreditDeduction) {
+      if (quotaInfo.remaining < 1) {
+        return NextResponse.json({ error: 'QUOTA_EXCEEDED', message: 'Insufficient quota. You need 1 credit.' }, { status: 403 });
+      }
+    }
 
     const NANO_KEY = process.env.NANONBANANA_API_KEY;
     if (!NANO_KEY) {
@@ -215,10 +219,10 @@ export async function POST(request: NextRequest) {
             return result;
           }
           console.warn(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} failed: ${result.error}`);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+          if (attempt < 2) await new Promise(r => setTimeout(r, 500));
         } catch (e: any) {
           console.error(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} crash: ${e?.message}`);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+          if (attempt < 2) await new Promise(r => setTimeout(r, 500));
         }
       }
       return { taskId: null, error: 'All 3 attempts failed' };
@@ -230,7 +234,7 @@ export async function POST(request: NextRequest) {
       const result = await submitWithRetry(i);
       if (result.taskId) taskIds.push(result.taskId);
       else errors.push(result.error || 'failed');
-      if (i < quantity - 1) await new Promise(r => setTimeout(r, 300));
+      if (i < quantity - 1) await new Promise(r => setTimeout(r, 150));
     }
 
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
@@ -238,21 +242,25 @@ export async function POST(request: NextRequest) {
     if (taskIds.length === 0) {
       return NextResponse.json({ 
         error: 'IMAGE_SUBMIT_FAILED', 
-        message: errors[0] || 'Submission failed',
+        message: 'Le service d\'images n\'a pas accepté la requête. Vérifiez que la clé API (NANONBANANA_API_KEY) est valide et que le service est disponible.',
         debug: { errors, payloadSizeKB: Math.round(payloadSize / 1024), sharpAvailable: !!sharp },
       }, { status: 500 });
     }
 
-    // ── Deduct credits ───────────────────────────────────────
-    try {
-      const result = await incrementAnalysisCount(user.id, 1.0);
-      if (result.success) {
-        console.log(`[IMAGE GEN] ✅ 1 credit deducted. Used: ${result.used}/${result.quota}`);
-      } else {
-        console.error(`[IMAGE GEN] ❌ Credit deduction failed: ${result.error}`);
+    // ── Deduct credits (sauf si déjà déduits côté client, ex. génération rapide) ──
+    if (!skipCreditDeduction) {
+      try {
+        const result = await incrementAnalysisCount(user.id, 1.0);
+        if (result.success) {
+          console.log(`[IMAGE GEN] ✅ 1 credit deducted. Used: ${result.used}/${result.quota}`);
+        } else {
+          console.error(`[IMAGE GEN] ❌ Credit deduction failed: ${result.error}`);
+        }
+      } catch (e: any) {
+        console.error(`[IMAGE GEN] ❌ Credit deduction error: ${e.message}`);
       }
-    } catch (e: any) {
-      console.error(`[IMAGE GEN] ❌ Credit deduction error: ${e.message}`);
+    } else {
+      console.log(`[IMAGE GEN] Skip credit deduction (quick-generate).`);
     }
 
     // ── Return task IDs for client-side polling ──────────────
