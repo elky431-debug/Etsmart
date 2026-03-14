@@ -6,7 +6,7 @@ export function NewFeatureAnnouncement() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const storageKey = "etsmart-feature-image-gen-v1-seen";
+    const storageKey = "etsmart-feature-listing-image-v2-seen";
     const seen = sessionStorage.getItem(storageKey);
     if (!seen) {
       setVisible(true);
@@ -25,7 +25,7 @@ export function NewFeatureAnnouncement() {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-white">Nouvelle fonctionnalité</p>
           <p className="mt-1 text-xs leading-relaxed text-white/80">
-            Generation d'image amelioree: meilleures qualites, angles plus utiles et gestion avancee des references.
+            Listings et generation d'image ameliores: resultats plus opti, plus propres et plus performants.
           </p>
         </div>
         <button
