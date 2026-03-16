@@ -79,9 +79,11 @@ export function DashboardQuickGenerate() {
   
   const [sourceImage, setSourceImage] = useState<File | null>(null);
   const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(null);
+  const [extraSourceImages, setExtraSourceImages] = useState<File[]>([]);
+  const [extraSourcePreviews, setExtraSourcePreviews] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(5);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyle>('realistic');
@@ -101,6 +103,19 @@ export function DashboardQuickGenerate() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
   const [pendingImagesCount, setPendingImagesCount] = useState(0);
+
+  // Éviter QuotaExceeded : ne pas sauver les images en base64 (trop lourd) dans sessionStorage
+  const saveImagesToSession = useCallback((images: GeneratedImage[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const json = JSON.stringify(images);
+      const maxBytes = 1.5 * 1024 * 1024; // ~1,5 Mo (sessionStorage ~5 Mo total)
+      if (json.length > maxBytes) return; // images en data URL = trop volumineux, on ne persiste pas
+      sessionStorage.setItem(`${storageKey}-images`, json);
+    } catch {
+      // QuotaExceededError ou autre : on ignore, les images restent en state
+    }
+  }, [storageKey]);
 
   // Vérifier au montage si une génération rapide a déjà été effectuée
   useEffect(() => {
@@ -171,37 +186,43 @@ export function DashboardQuickGenerate() {
     e.stopPropagation();
     setIsDragging(false);
     dragCounterRef.current = 0;
-
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith('image/')) {
-        handleFileSelect(file);
-      }
+      const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+      if (files.length) handleFileSelect(files);
     }
   }, []);
 
-  const handleFileSelect = (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      alert('L\'image est trop grande. Taille maximum : 10MB');
+  const handleFileSelect = (incoming: File | File[]) => {
+    const files = Array.isArray(incoming) ? incoming : [incoming];
+    const existing: File[] = sourceImage ? [sourceImage] : [];
+    if (extraSourceImages.length) existing.push(...extraSourceImages);
+    const merged = [...existing, ...files].filter((f) => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024).slice(0, 3);
+    if (merged.length === 0) {
+      alert('Ajoute au moins une image (JPG/PNG, max 10 Mo).');
       return;
     }
-
-    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i)) {
-      alert('Format non supporté. Utilisez JPG ou PNG.');
-      return;
-    }
-
-    setSourceImage(file);
+    const [main, ...rest] = merged;
+    setSourceImage(main);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setSourceImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    reader.onload = (e) => setSourceImagePreview(e.target?.result as string);
+    reader.readAsDataURL(main);
+    setExtraSourceImages(rest);
+    if (rest.length === 0) {
+      setExtraSourcePreviews([]);
+    } else {
+      Promise.all(
+        rest.map((file) => new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve((r.result as string) || '');
+          r.readAsDataURL(file);
+        }))
+      ).then((urls) => setExtraSourcePreviews(urls));
+    }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      handleFileSelect(e.target.files[0]);
+      handleFileSelect(Array.from(e.target.files));
     }
   };
 
@@ -344,6 +365,12 @@ export function DashboardQuickGenerate() {
           engine,
           style,
           skipCreditDeduction: true,
+          productContext: {
+            title: listing.title || '',
+            category: '',
+            niche: '',
+            referenceImages: extraSourcePreviews.slice(0, 2),
+          },
         }),
       });
 
@@ -389,7 +416,7 @@ export function DashboardQuickGenerate() {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(directImages));
+          saveImagesToSession(directImages);
         }
         setTimeout(() => {
           refreshSubscription(true);
@@ -417,7 +444,7 @@ export function DashboardQuickGenerate() {
 
       const results = await Promise.all(imageTaskIds.map(async (taskId, idx) => {
         while (Date.now() < deadline) {
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 1000));
           if (Date.now() >= deadline) break;
           try {
             const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
@@ -453,7 +480,7 @@ export function DashboardQuickGenerate() {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(allImages));
+          saveImagesToSession(allImages);
         }
       }
 
@@ -544,6 +571,12 @@ export function DashboardQuickGenerate() {
           productTitle: listingData?.title || undefined,
           tags: safeTags,
           materials: safeMaterials,
+          productContext: {
+            title: listingData?.title || '',
+            category: '',
+            niche: '',
+            referenceImages: extraSourcePreviews.slice(0, 2),
+          },
           customInstructions: bgBase64 
             ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
             : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
@@ -584,7 +617,7 @@ export function DashboardQuickGenerate() {
           .map((url, i) => ({ id: `regen-${Date.now()}-${i}`, url }));
         setGeneratedImages(prev => {
           const next = [...prev, ...newImages];
-          if (typeof window !== 'undefined') sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
+          if (typeof window !== 'undefined') saveImagesToSession(next);
           return next;
         });
       } else if (taskIds.length === 0) {
@@ -595,7 +628,7 @@ export function DashboardQuickGenerate() {
         // Poll chaque taskId jusqu'à 60s max (40 x 1.5s)
         for (const taskId of taskIds) {
           for (let i = 0; i < 40; i++) {
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1000));
             try {
               const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
               if (!res.ok) continue;
@@ -619,9 +652,7 @@ export function DashboardQuickGenerate() {
         if (newImages.length > 0) {
           setGeneratedImages(prev => {
             const next = [...prev, ...newImages];
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
-            }
+            if (typeof window !== 'undefined') saveImagesToSession(next);
             return next;
           });
         } else {
@@ -746,6 +777,9 @@ export function DashboardQuickGenerate() {
                 <label className="block text-sm font-semibold text-white mb-3">
                   Screenshot du produit
                 </label>
+                <p className="text-xs text-white/50 mb-2">
+                  Jusqu&apos;à 3 images (elles s&apos;ajoutent) : 1 vue générale, 1 détail/intérieur, 1 avec dimensions si dispo.
+                </p>
                 <div
                   onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
@@ -761,7 +795,8 @@ export function DashboardQuickGenerate() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/jpg,image/png"
+                    accept="image/*"
+                    multiple
                     onChange={handleFileInputChange}
                     className="hidden"
                   />
@@ -772,11 +807,20 @@ export function DashboardQuickGenerate() {
                         alt="Source"
                         className="w-full h-48 object-cover rounded-lg mb-3"
                       />
+                      {extraSourcePreviews.length > 0 && (
+                        <div className="flex gap-2 mb-3">
+                          {extraSourcePreviews.slice(0, 2).map((preview, idx) => (
+                            <img key={idx} src={preview} alt={`Ref ${idx + 2}`} className="w-16 h-16 object-cover rounded-md border border-white/10" />
+                          ))}
+                        </div>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSourceImage(null);
                           setSourceImagePreview(null);
+                          setExtraSourceImages([]);
+                          setExtraSourcePreviews([]);
                           setGeneratedImages([]);
                           setListingData(null);
                           setError(null);

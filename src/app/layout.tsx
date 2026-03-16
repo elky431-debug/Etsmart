@@ -3,6 +3,7 @@ import { Sora, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ScrollRestoration } from "@/components/ScrollRestoration";
+import { NewFeatureAnnouncement } from "@/components/NewFeatureAnnouncement";
 
 const sora = Sora({ 
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ScrollRestoration />
+          <NewFeatureAnnouncement />
           {children}
         </AuthProvider>
       </body>
