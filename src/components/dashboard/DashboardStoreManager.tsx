@@ -94,59 +94,9 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 }
 
 // Données mock initiales
-const INITIAL_SHOPS = [{ id: '1', name: 'MarbleMuseStore', color: '#ef4444' }];
-const INITIAL_PRODUCTS = [
-  {
-    id: '1',
-    name: '1 morceau, pots de fleurs décorés',
-    description: '-',
-    image: '/examples/placeholder-product.jpg',
-    supplierUrl: '',
-    supplierPrice: 0,
-    shippingCost: 0,
-    sellingPrice: 0,
-  },
-  {
-    id: '2',
-    name: '1 pièce, pots de fleurs décorés de poupé',
-    description: '-',
-    image: '/examples/placeholder-product.jpg',
-    supplierUrl: '',
-    supplierPrice: 0,
-    shippingCost: 0,
-    sellingPrice: 0,
-  },
-  {
-    id: '3',
-    name: 'Pot de fleur avec visage souriant',
-    description: '-',
-    image: '/examples/placeholder-product.jpg',
-    supplierUrl: '',
-    supplierPrice: 0,
-    shippingCost: 0,
-    sellingPrice: 0,
-  },
-  {
-    id: '4',
-    name: 'Pot de fleurs carré succulentes',
-    description: '-',
-    image: '/examples/placeholder-product.jpg',
-    supplierUrl: '',
-    supplierPrice: 0,
-    shippingCost: 0,
-    sellingPrice: 0,
-  },
-  {
-    id: '5',
-    name: 'visage de fille Pot de fleurs',
-    description: '-',
-    image: '/examples/placeholder-product.jpg',
-    supplierUrl: '',
-    supplierPrice: 0,
-    shippingCost: 0,
-    sellingPrice: 0,
-  },
-];
+// On ne met plus de boutique ni de produits par défaut : l'utilisateur doit tout créer lui-même.
+const INITIAL_SHOPS: { id: string; name: string; color?: string }[] = [];
+const INITIAL_PRODUCTS: Product[] = [];
 
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const MONTH_LABELS = ['Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Jan', 'Fév', 'Mar'];
@@ -210,12 +160,22 @@ type Product = {
 };
 
 export function DashboardStoreManager() {
-  const [shops, setShops] = useState<{ id: string; name: string; color?: string }[]>(() =>
-    loadFromStorage(STORAGE_KEY_SHOPS, INITIAL_SHOPS)
-  );
-  const [products, setProducts] = useState<Product[]>(() =>
-    loadFromStorage(STORAGE_KEY_PRODUCTS, INITIAL_PRODUCTS)
-  );
+  const [shops, setShops] = useState<{ id: string; name: string; color?: string }[]>(() => {
+    const stored = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    // Migration: si l'ancienne boutique mock unique existe encore, on la retire pour forcer la création
+    if (stored.length === 1 && stored[0].id === '1' && stored[0].name === 'MarbleMuseStore') {
+      return [];
+    }
+    return stored;
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    const stored = loadFromStorage<Product[]>(STORAGE_KEY_PRODUCTS, INITIAL_PRODUCTS);
+    // Migration: si les anciens produits mock avec prix à 0 existent encore, on les supprime au premier chargement
+    if (stored.length && stored.every((p) => p.supplierPrice === 0 && p.shippingCost === 0 && p.sellingPrice === 0)) {
+      return [];
+    }
+    return stored;
+  });
   const [transactions, setTransactions] = useState<Transaction[]>(() =>
     loadFromStorage(STORAGE_KEY_TRANSACTIONS, [])
   );
@@ -229,7 +189,8 @@ export function DashboardStoreManager() {
     const storedShops = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
     const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_SELECTED_SHOP) : null;
     if (savedId && storedShops.some((s) => s.id === savedId)) return savedId;
-    return storedShops.length > 0 ? storedShops[0].id : null;
+    // Ne pas sélectionner automatiquement une boutique : l'utilisateur doit choisir/créer
+    return null;
   });
 
   // Persister boutiques, produits, transactions et boutique sélectionnée
