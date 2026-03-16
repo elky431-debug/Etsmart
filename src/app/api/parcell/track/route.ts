@@ -35,6 +35,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 1 crédit requis pour une recherche ParcelsApp
+    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    if (quotaInfo.status !== 'active') {
+      return NextResponse.json(
+        { error: 'SUBSCRIPTION_REQUIRED', message: 'Un abonnement actif est requis pour utiliser le suivi.' },
+        { status: 403 }
+      );
+    }
+    if (quotaInfo.remaining < 1) {
+      return NextResponse.json(
+        { error: 'QUOTA_EXCEEDED', message: 'Crédits insuffisants. Il faut au moins 1 crédit pour suivre un colis.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const trackingNumber =
       typeof body.trackingNumber === 'string'
@@ -198,6 +214,19 @@ export async function POST(request: NextRequest) {
     const events = Array.isArray(first?.events) ? first.events : stateEvents;
     const dateExpected = first?.estimatedDelivery ?? first?.deliveryDate ?? first?.dateExpected ?? null;
 
+    // Déduire 1 crédit après une recherche réussie
+    let creditsRemaining: number | null = null;
+    try {
+      const deduction = await incrementAnalysisCount(user.id, 1.0);
+      if (deduction.success) {
+        creditsRemaining = Math.max(0, (deduction.quota ?? 0) - (deduction.used ?? 0));
+      } else {
+        console.error('[PARCELSAPP] Échec déduction crédit :', deduction.error);
+      }
+    } catch (err: any) {
+      console.error('[PARCELSAPP] Erreur déduction crédit :', err?.message || err);
+    }
+
     return NextResponse.json({
       success: true,
       trackingNumber,
@@ -207,6 +236,7 @@ export async function POST(request: NextRequest) {
       dateExpected: dateExpected ?? null,
       origin: first?.origin ?? null,
       destination: first?.destination ?? null,
+      creditsRemaining,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Erreur serveur';
