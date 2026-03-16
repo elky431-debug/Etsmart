@@ -476,8 +476,8 @@ export function DashboardQuickGenerate() {
   const regenCountRef = useRef(0);
 
   const regenerateImages = async () => {
-    if (!sourceImagePreview) {
-      alert('Aucune image source disponible');
+    if (!sourceImagePreview || typeof sourceImagePreview !== 'string' || sourceImagePreview.length < 50) {
+      setError('Aucune image source valide. Importe une photo du produit ci-dessus.');
       return;
     }
 
@@ -487,23 +487,43 @@ export function DashboardQuickGenerate() {
     try {
       let imageBase64: string;
       if (sourceImage) {
-        imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
+        try {
+          imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
+        } catch (e) {
+          setError('Impossible de lire l’image. Réimporte une photo.');
+          setIsRegeneratingImages(false);
+          return;
+        }
       } else {
-        imageBase64 = sourceImagePreview!;
+        imageBase64 = String(sourceImagePreview).trim();
+      }
+      if (!imageBase64 || imageBase64.length < 50) {
+        setError('Image source invalide. Réimporte une photo du produit.');
+        setIsRegeneratingImages(false);
+        return;
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
       if (!token) {
-        throw new Error('Authentification requise');
+        setError('Authentification requise. Reconnecte-toi.');
+        setIsRegeneratingImages(false);
+        return;
       }
 
       // Compresser le fond si présent (512x512 car utilisé uniquement pour description)
       let bgBase64: string | undefined;
       if (backgroundImage) {
-        bgBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+        try {
+          bgBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+        } catch {
+          bgBase64 = undefined;
+        }
       }
+
+      const safeTags = listingData?.tags != null && Array.isArray(listingData.tags) ? listingData.tags : [];
+      const safeMaterials = listingData?.materials != null ? String(listingData.materials) : '';
 
       regenCountRef.current++;
       console.log(`[QUICK GENERATE] 🔄 Regenerating images (round ${regenCountRef.current})...`, bgBase64 ? '(with custom background)' : '');
@@ -522,8 +542,8 @@ export function DashboardQuickGenerate() {
           engine,
           style,
           productTitle: listingData?.title || undefined,
-          tags: listingData?.tags,
-          materials: listingData?.materials,
+          tags: safeTags,
+          materials: safeMaterials,
           customInstructions: bgBase64 
             ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
             : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
@@ -559,7 +579,9 @@ export function DashboardQuickGenerate() {
       const dataUrls: string[] = Array.isArray(data.imageDataUrls) ? data.imageDataUrls : [];
 
       if (dataUrls.length > 0) {
-        const newImages: GeneratedImage[] = dataUrls.map((url, i) => ({ id: `regen-${Date.now()}-${i}`, url }));
+        const newImages: GeneratedImage[] = dataUrls
+          .filter((url): url is string => typeof url === 'string' && url.length > 10)
+          .map((url, i) => ({ id: `regen-${Date.now()}-${i}`, url }));
         setGeneratedImages(prev => {
           const next = [...prev, ...newImages];
           if (typeof window !== 'undefined') sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(next));
@@ -1198,7 +1220,14 @@ export function DashboardQuickGenerate() {
                   ) : (
                     <button
                       type="button"
-                      onClick={regenerateImages}
+                      onClick={() => {
+                        try {
+                          regenerateImages();
+                        } catch (e) {
+                          console.error('[QUICK GENERATE] Regenerate sync error:', e);
+                          setError('Erreur inattendue. Réessayez.');
+                        }
+                      }}
                       disabled={isRegeneratingImages}
                       className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-xl hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -1232,9 +1261,9 @@ export function DashboardQuickGenerate() {
                     </p>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {generatedImages.map((img, index) => (
+                    {generatedImages.filter((img) => img && typeof img.url === 'string' && img.url.length > 0).map((img, index) => (
                       <motion.div
-                        key={img.id}
+                        key={img.id || `img-${index}`}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.1 }}
@@ -1293,7 +1322,14 @@ export function DashboardQuickGenerate() {
                     {/* Regenerate Images Button */}
                     <button
                       type="button"
-                      onClick={regenerateImages}
+                      onClick={() => {
+                        try {
+                          regenerateImages();
+                        } catch (e) {
+                          console.error('[QUICK GENERATE] Regenerate sync error:', e);
+                          setError('Erreur inattendue. Réessayez.');
+                        }
+                      }}
                       disabled={isRegeneratingImages || !sourceImagePreview}
                       className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 hover:border-[#00d4ff]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

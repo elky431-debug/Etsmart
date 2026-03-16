@@ -40,7 +40,8 @@ import {
   Image as ImageIcon,
   Play,
   Loader2,
-  Package
+  Package,
+  Store
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -66,6 +67,8 @@ import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { DashboardBanner } from '@/components/dashboard/DashboardBanner';
 import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGenerator';
 import { DashboardTracking } from '@/components/dashboard/DashboardTracking';
+import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreManager';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'analyze'
@@ -85,7 +88,8 @@ type DashboardSection =
   | 'niche-finder'
   | 'banner'
   | 'video-generator'
-  | 'tracking';
+  | 'tracking'
+  | 'store-manager';
 
 interface MenuItem {
   id: DashboardSection;
@@ -173,6 +177,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false); // Commencer à false
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [quickGenerateKey, setQuickGenerateKey] = useState(0);
 
   // Force sync subscription from Stripe on page load
   useEffect(() => {
@@ -235,7 +240,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking'].includes(section)) {
+      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking', 'store-manager'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -243,7 +248,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking'].includes(lastSection)) {
+        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking', 'store-manager'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
@@ -1424,6 +1429,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Boutique',
       items: [
+        { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
         { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
         { id: 'tracking', label: 'Numéro de suivi', icon: Package },
@@ -1828,7 +1834,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'quick-generate' && (
-            <DashboardQuickGenerate />
+            <ErrorBoundary key={quickGenerateKey} onReset={() => setQuickGenerateKey((k) => k + 1)}>
+              <DashboardQuickGenerate />
+            </ErrorBoundary>
           )}
 
           {activeSection === 'listing' && selectedAnalysis && (
@@ -2091,6 +2099,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'tracking' && (
             <DashboardTracking />
+          )}
+
+          {activeSection === 'store-manager' && (
+            <DashboardStoreManager />
           )}
 
           {activeSection === 'settings' && (
