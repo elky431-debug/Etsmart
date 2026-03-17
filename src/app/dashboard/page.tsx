@@ -32,6 +32,7 @@ import {
   ArrowDown,
   HelpCircle,
   Crown,
+  BookText,
   Star,
   Globe,
   ChevronUp,
@@ -41,7 +42,8 @@ import {
   Play,
   Loader2,
   Package,
-  Store
+  Store,
+  KeyRound
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -53,9 +55,9 @@ import { analysisDb } from '@/lib/db/analyses';
 import { productDb } from '@/lib/db/products';
 import { useStore } from '@/store/useStore';
 import type { ProductAnalysis } from '@/types';
-import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardAnalysisDetail } from '@/components/dashboard/DashboardAnalysisDetail';
 import { DashboardAnalysisSimulation } from '@/components/dashboard/DashboardAnalysisSimulation';
+import { DashboardHistory } from '@/components/dashboard/DashboardHistory';
 import { DashboardListing } from '@/components/dashboard/DashboardListing';
 import { DashboardImage } from '@/components/dashboard/DashboardImage';
 import { DashboardQuickGenerate } from '@/components/dashboard/DashboardQuickGenerate';
@@ -69,14 +71,19 @@ import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGe
 import { DashboardTracking } from '@/components/dashboard/DashboardTracking';
 import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreManager';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
+import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
+import { DashboardHome } from '@/components/dashboard/DashboardHome';
+import KeywordResearchClient from '@/app/dashboard/keyword-research/KeywordResearchClient';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
+  | 'dashboard-home'
   | 'analyze'
-  | 'history'
   | 'analyse-simulation'
   | 'listing'
   | 'images'
   | 'quick-generate'
+  | 'keyword-research'
   | 'logo-generator'
   | 'profile'
   | 'settings'
@@ -89,7 +96,8 @@ type DashboardSection =
   | 'banner'
   | 'video-generator'
   | 'tracking'
-  | 'store-manager';
+  | 'store-manager'
+  | 'shop-story';
 
 interface MenuItem {
   id: DashboardSection;
@@ -118,7 +126,7 @@ export default function DashboardPage() {
   const CACHE_KEY = 'etsmart-analyses-cache';
   
   // ⚠️ FIX HYDRATION: Initialiser avec une valeur fixe pour éviter les différences serveur/client
-  const [activeSection, setActiveSection] = useState<DashboardSection>('analyse-simulation');
+  const [activeSection, setActiveSection] = useState<DashboardSection>('dashboard-home');
   
   // Charger la section depuis localStorage uniquement côté client après le montage
   useEffect(() => {
@@ -132,11 +140,14 @@ export default function DashboardPage() {
         lastSection !== 'history' &&
         [
           'analyze',
+          'dashboard-home',
           'analysis',
           'analyse-simulation',
           'listing',
           'images',
           'quick-generate',
+          'logo-generator',
+          'keyword-research',
           'profile',
           'settings',
           'subscription',
@@ -144,6 +155,8 @@ export default function DashboardPage() {
           'banner',
           'video-generator',
           'tracking',
+          'store-manager',
+          'shop-story',
         ].includes(lastSection)
       ) {
         setActiveSection(lastSection);
@@ -155,26 +168,27 @@ export default function DashboardPage() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
   // Sous-onglet actif dans la section "analyse-simulation" : 'analyse' ou 'simulation'
   const [activeSubTab, setActiveSubTab] = useState<'analyse' | 'simulation'>('analyse');
-  // Initialiser avec les données du cache localStorage si disponibles
-  const [analyses, setAnalyses] = useState<ProductAnalysis[]>(() => {
-    if (typeof window === 'undefined') return [];
+  // ⚠️ FIX HYDRATION: Toujours initialiser à [] (serveur = client). Restaurer le cache dans un useEffect.
+  const [analyses, setAnalyses] = useState<ProductAnalysis[]>([]);
+  const [isLoading, setIsLoading] = useState(false); // Commencer à false
+
+  // Restaurer le cache localStorage après hydratation (évite mismatch serveur/client)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const { analyses: cachedAnalyses, timestamp } = JSON.parse(cached);
         const now = Date.now();
-        if (cachedAnalyses && cachedAnalyses.length > 0 && (now - timestamp) < CACHE_DURATION) {
-          console.log('📊 Initializing with localStorage cache:', cachedAnalyses.length);
+        if (cachedAnalyses?.length > 0 && (now - timestamp) < CACHE_DURATION) {
           lastLoadTimeRef.current = timestamp;
-          return cachedAnalyses;
+          setAnalyses(cachedAnalyses);
         }
       }
     } catch (e) {
-      console.warn('⚠️ Error initializing from localStorage:', e);
+      console.warn('⚠️ Error restoring analyses cache:', e);
     }
-    return [];
-  });
-  const [isLoading, setIsLoading] = useState(false); // Commencer à false
+  }, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [quickGenerateKey, setQuickGenerateKey] = useState(0);
@@ -240,7 +254,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'history', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking', 'store-manager'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'logo-generator', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -248,53 +262,31 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (lastSection && lastSection !== 'history' && ['analyze', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'tracking', 'store-manager'].includes(lastSection)) {
+        if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'logo-generator', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
-            // Par défaut, rediriger vers "Analyse et Simulation" si aucune section n'est spécifiée
-            setActiveSection('analyse-simulation');
+            // Par défaut, afficher la home dashboard
+            setActiveSection('dashboard-home');
           }
         } catch (e) {
           // En cas d'erreur, utiliser la section par défaut
-          setActiveSection('analyse-simulation');
+          setActiveSection('dashboard-home');
         }
       }
     }
   }, []);
 
-  // ⚠️ CRITICAL: Rediriger vers 'analyse-simulation' si on est sur la page d'historique vide après rafraîchissement
-  useEffect(() => {
-    if (typeof window === 'undefined' || !user) return;
-    
-    // Si on est sur la section 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
-    if (activeSection === 'history' && analyses.length === 0 && !isLoading) {
-      console.log('[Dashboard] No analyses found on history page, redirecting to analyse-simulation section');
-      setActiveSection('analyse-simulation');
-      // Nettoyer localStorage pour éviter de revenir sur 'history' au prochain refresh
-      try {
-        localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
-      } catch (e) {
-        console.warn('⚠️ Error updating last dashboard section:', e);
-      }
-    }
-  }, [activeSection, analyses.length, isLoading, user]);
+  // L'onglet d'historique dédié a été supprimé : plus de redirection spéciale nécessaire
 
   // ⚠️ SUPPRIMÉ: La réinitialisation automatique a été retirée
   // L'utilisateur peut naviguer librement entre les onglets du dashboard
   // Pour démarrer une nouvelle analyse, utiliser le bouton "Nouvelle analyse"
 
   // Sauvegarder la dernière section visitée dans localStorage
-  // ⚠️ CRITICAL: Ne JAMAIS sauvegarder 'history' comme dernière section si elle est vide
   useEffect(() => {
     if (typeof window !== 'undefined' && activeSection) {
       try {
-        // Ne sauvegarder 'history' que si on a des analyses, sinon sauvegarder 'analyse-simulation'
-        if (activeSection === 'history' && analyses.length === 0) {
-          console.log('[Dashboard] History section is empty, saving analyse-simulation instead');
-          localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
-        } else {
-          localStorage.setItem('etsmart-last-dashboard-section', activeSection);
-        }
+        localStorage.setItem('etsmart-last-dashboard-section', activeSection);
       } catch (e) {
         console.warn('⚠️ Error saving last dashboard section:', e);
       }
@@ -541,7 +533,7 @@ export default function DashboardPage() {
 
   const handleBackToHistory = () => {
     setSelectedAnalysis(null);
-    setActiveSection('history');
+    setActiveSection('analyse-simulation');
   };
 
   const handleDeleteAnalysis = async (productId: string) => {
@@ -1407,40 +1399,38 @@ The final image should look like a high-quality Etsy listing photo and naturally
     );
   };
 
+  const topMenuItems: MenuItem[] = [
+    { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
+    { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
+  ];
+
   const menuCategories: MenuCategory[] = [
     {
-      label: 'Analyser',
-      items: [
-    { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
-        { id: 'competitors', label: 'Boutiques concurrents', icon: Target },
-        { id: 'history', label: 'Historique', icon: History },
-      ],
-    },
-    {
-      label: 'Composer',
+      label: 'Création de listings',
       items: [
         { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
+        { id: 'images', label: 'Image', icon: Sparkles },
         { id: 'listing', label: 'Listing', icon: FileText },
-        { id: 'images', label: 'Images', icon: Sparkles },
         { id: 'video-generator', label: 'Vidéo', icon: Play },
-        { id: 'prompt-universel', label: 'Prompt universel', icon: PenTool },
       ],
     },
     {
-      label: 'Boutique',
+      label: 'Analyse',
       items: [
-        { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
-        { id: 'banner', label: 'Bannière', icon: ImageIcon },
-        { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
-        { id: 'tracking', label: 'Numéro de suivi', icon: Package },
-      ],
-    },
-    {
-      label: 'Brainstorm',
-      items: [
+        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+        { id: 'keyword-research', label: 'Keyword Research', icon: KeyRound },
+        { id: 'competitors', label: 'Analyse boutique', icon: Target },
         { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
         { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
         { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
+      ],
+    },
+    {
+      label: 'Branding',
+      items: [
+        { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
+        { id: 'banner', label: 'Bannière', icon: ImageIcon },
+        { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
       ],
     },
   ];
@@ -1491,14 +1481,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
       {/* Sidebar - Hidden on mobile, shown on lg+ */}
       <aside className="group fixed left-0 top-0 h-screen z-40 hidden lg:flex">
         {/* Sidebar Container */}
-        <div className="relative bg-black border-r border-black/20 w-16 group-hover:w-64 transition-all duration-300 ease-in-out overflow-hidden">
+        <div className="relative bg-black border-r border-black/20 w-16 group-hover:w-64 transition-[width] duration-300 ease-out overflow-hidden">
           {/* Logo */}
           <div className="p-4 border-b border-black/30">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 <Logo size="sm" showText={false} />
               </div>
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap overflow-hidden text-white font-bold text-lg">
+              <span className="opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75 whitespace-nowrap overflow-hidden text-white font-bold text-lg">
                 Etsmart
               </span>
             </div>
@@ -1506,15 +1496,46 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {/* Navigation Items - Structure avec flex pour séparer le contenu et le footer */}
           <div className="flex flex-col h-[calc(100vh-4rem)]">
-            <nav className="flex-1 flex flex-col p-2 space-y-4 overflow-y-auto">
+            <nav className="flex-1 flex flex-col p-2 space-y-2.5 overflow-y-auto">
               {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
               {!selectedAnalysis && (
                 <>
+                  <div className="space-y-1 pb-2 border-b border-white/10">
+                    {topMenuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setSelectedAnalysis(null);
+                          }}
+                          className={`
+                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                            ${isActive
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={20} className="flex-shrink-0" />
+                          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {item.label}
+                          </span>
+                          {isActive && (
+                            <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {/* Catégories */}
                   {menuCategories.map((category) => (
-                    <div key={category.label} className="space-y-1">
-                      <div className="px-3 py-1.5">
-                        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div key={category.label} className="space-y-1 py-0.5">
+                      <div className="max-h-0 overflow-hidden px-3 py-0 opacity-0 transition-all duration-300 group-hover:max-h-10 group-hover:py-1.5 group-hover:opacity-100">
+                        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
                           {category.label}
                         </span>
                       </div>
@@ -1526,18 +1547,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <button
                     key={item.id}
                     onClick={() => {
-                      // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
-                      if (item.id === 'history' && analyses.length === 0) {
-                        console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
-                        setActiveSection('analyse-simulation');
-                        try {
-                          localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
-                        } catch (e) {
-                          console.warn('⚠️ Error saving last dashboard section:', e);
-                        }
-                      } else {
                       setActiveSection(item.id);
-                      }
                       setSelectedAnalysis(null);
                     }}
                     className={`
@@ -1549,7 +1559,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     `}
                   >
                     <Icon size={20} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
                       {item.label}
                     </span>
                     {isActive && (
@@ -1583,7 +1593,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                           `}
                         >
                           <Icon size={20} className="flex-shrink-0" />
-                          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
                             {item.label}
                           </span>
                           {isActive && (
@@ -1604,7 +1614,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item w-full"
               >
                 <Home size={20} className="flex-shrink-0" />
-                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
                   Retour à l'accueil
                 </span>
               </Link>
@@ -1614,7 +1624,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
               >
                 <LogOut size={20} className="flex-shrink-0" />
-                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
                   Déconnexion
                 </span>
               </button>
@@ -1646,6 +1656,41 @@ The final image should look like a high-quality Etsy listing photo and naturally
                 className="border-t border-white/10 bg-black"
               >
                 <div className="p-4 space-y-6">
+                  <div className="space-y-2 pb-4 border-b border-white/10">
+                    {topMenuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id && !selectedAnalysis;
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setSelectedAnalysis(null);
+                            setIsMenuOpen(false);
+                            if (typeof window !== 'undefined') {
+                              try {
+                                localStorage.setItem('etsmart-last-dashboard-section', item.id);
+                              } catch (e) {
+                                console.warn('⚠️ Error saving last dashboard section:', e);
+                              }
+                            }
+                          }}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
+                            ${isActive
+                              ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
+                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }
+                          `}
+                        >
+                          <Icon size={20} className="flex-shrink-0" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {/* Catégories */}
                   {menuCategories.map((category) => (
                     <div key={category.label} className="space-y-2">
@@ -1662,16 +1707,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     <button
                       key={item.id}
                       onClick={() => {
-                        // ⚠️ CRITICAL: Si on clique sur 'history' et qu'il n'y a pas d'analyses, rediriger vers 'analyse-simulation'
-                        if (item.id === 'history' && analyses.length === 0) {
-                          console.log('[Dashboard] History clicked but no analyses, redirecting to analyse-simulation');
-                          setActiveSection('analyse-simulation');
-                          try {
-                            localStorage.setItem('etsmart-last-dashboard-section', 'analyse-simulation');
-                          } catch (e) {
-                            console.warn('⚠️ Error saving last dashboard section:', e);
-                          }
-                        } else {
+                        if (item.href) {
+                          router.push(item.href);
+                          setIsMenuOpen(false);
+                          return;
+                        }
                         setActiveSection(item.id);
                           // Sauvegarder la section dans localStorage
                           if (typeof window !== 'undefined') {
@@ -1681,7 +1721,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
                               console.warn('⚠️ Error saving last dashboard section:', e);
                             }
                           }
-                        }
                         setSelectedAnalysis(null);
                         setIsMenuOpen(false);
                       }}
@@ -1762,6 +1801,15 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">
+          {activeSection === 'dashboard-home' && (
+            <DashboardHome
+              onNavigate={(section) => {
+                setActiveSection(section as DashboardSection);
+                setSelectedAnalysis(null);
+              }}
+            />
+          )}
+
           {activeSection === 'analyse-simulation' && !selectedAnalysis && (
             <div className="flex-1 min-h-[calc(100vh-4rem)]">
               <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10">
@@ -1823,11 +1871,29 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         <span>Nouvelle analyse</span>
                         <ArrowRight size={16} />
                       </button>
-                      <p className="text-[11px] sm:text-xs text-white/50">
-                        Toutes tes analyses précédentes restent accessibles dans le menu de gauche.
-                      </p>
+                    </div>
+
+                    {/* Hint pour l'historique sous la ligne de flottaison */}
+                    <div className="mt-6 flex flex-col items-center gap-1 text-white/60 text-xs sm:text-sm">
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className="w-4 h-4 animate-bounce text-[#00d4ff]" />
+                        <span>Fais défiler vers le bas pour voir tout ton historique</span>
+                        <ChevronDown className="w-4 h-4 animate-bounce text-[#00d4ff] hidden sm:inline" />
+                      </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Historique sous la zone Analyse et Simulation */}
+              <div className="border-t border-white/10 bg-black px-4 sm:px-6 lg:px-8 py-8">
+                <div className="max-w-7xl mx-auto">
+                  <DashboardHistory
+                    analyses={analyses}
+                    onAnalysisClick={handleAnalysisClick}
+                    onDeleteAnalysis={handleDeleteAnalysis}
+                    onRefresh={loadAnalyses}
+                  />
                 </div>
               </div>
             </div>
@@ -1880,74 +1946,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'logo-generator' && (
-            <div className="min-h-screen bg-black p-4 sm:p-6 md:p-8">
-              <div className="max-w-4xl mx-auto">
-                {/* Header - même interface que Bannière */}
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
-                      <ImageIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-3xl font-bold text-white">Création de logo</h1>
-                      <p className="text-white/70 text-sm mt-1">
-                        Créez un logo cohérent avec votre marque Etsy
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Maintenance Message - identique à Bannière */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
-                >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center mb-6">
-                    <Loader2 className="w-12 h-12 text-white animate-spin" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-3">
-                    En maintenance
-                  </h2>
-                  <p className="text-white/70 text-lg max-w-md">
-                    Cette fonctionnalité arrive bientôt ! Nous travaillons activement sur la génération de logos professionnels pour ta boutique Etsy.
-                  </p>
-                  <div className="mt-8 px-6 py-3 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30">
-                    <p className="text-[#00d4ff] text-sm font-semibold">
-                      Reste connecté pour être informé de la sortie
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'history' && !selectedAnalysis && (
-            <>
-              {isLoading ? (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-white/10 rounded w-1/4"></div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-48 bg-white/10 rounded-lg"></div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <DashboardHistory
-                  analyses={analyses}
-                  onAnalysisClick={handleAnalysisClick}
-                  onDeleteAnalysis={handleDeleteAnalysis}
-                  onRefresh={loadAnalyses}
-                />
-              )}
-            </>
+            <DashboardLogoGenerator />
           )}
 
           {activeSection === 'analyse-simulation' && selectedAnalysis && (
@@ -2036,6 +2035,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           )}
 
+          {activeSection === 'keyword-research' && (
+            <div className="min-h-screen bg-black">
+              <KeywordResearchClient />
+            </div>
+          )}
+
 
           {activeSection === 'competitors' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2103,6 +2108,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'store-manager' && (
             <DashboardStoreManager />
+          )}
+
+          {activeSection === 'shop-story' && (
+            <DashboardShopStory />
           )}
 
           {activeSection === 'settings' && (

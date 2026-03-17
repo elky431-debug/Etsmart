@@ -6,7 +6,7 @@ export function NewFeatureAnnouncement() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const storageKey = "etsmart-feature-listing-image-v2-seen";
+    const storageKey = "etsmart-feature-keyword-research-v1-seen";
     const seen = sessionStorage.getItem(storageKey);
     if (!seen) {
       setVisible(true);
@@ -25,7 +25,7 @@ export function NewFeatureAnnouncement() {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-white">Nouvelle fonctionnalité</p>
           <p className="mt-1 text-xs leading-relaxed text-white/80">
-            Listings et generation d'image ameliores: resultats plus opti, plus propres et plus performants.
+            Nouvelle feature Keyword Research: analyse un mot-cle Etsy, estime demande/concurrence et detecte les opportunites.
           </p>
         </div>
         <button

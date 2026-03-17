@@ -1,258 +1,294 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import * as cheerio from 'cheerio';
+import sharp from 'sharp';
 
-export const maxDuration = 25;
+export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-export async function POST(request: NextRequest) {
-  const startTime = Date.now();
-  try {
-    // Auth
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-    const supabase = createSupabaseAdminClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+async function scrapeEtsyContext(url: string): Promise<{
+  shopName: string;
+  listingTitle: string;
+  description: string;
+  imageUrl: string;
+}> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml',
+      'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+    },
+    cache: 'no-store',
+  });
 
-    // Body
-    let body: any;
-    try { body = await request.json(); } catch { return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 }); }
-    const { shopName, shopDescription, niche, logo, color = '#3b82f6' } = body;
-    
-    if (!shopName || !shopDescription || !niche) {
-      return NextResponse.json({ error: 'MISSING_FIELDS' }, { status: 400 });
-    }
+  if (!res.ok) throw new Error(`SCRAPE_FAILED_${res.status}`);
+  const html = await res.text();
+  const $ = cheerio.load(html);
 
-    // Convert hex color to descriptive color scheme
-    const hexToColorDescription = (hex: string): string => {
-      // Remove # if present
-      hex = hex.replace('#', '');
-      
-      // Convert to RGB
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      
-      // Convert to HSL
-      const rNorm = r / 255;
-      const gNorm = g / 255;
-      const bNorm = b / 255;
-      const max = Math.max(rNorm, gNorm, bNorm);
-      const min = Math.min(rNorm, gNorm, bNorm);
-      const delta = max - min;
-      
-      let h = 0;
-      if (delta !== 0) {
-        if (max === rNorm) {
-          h = ((gNorm - bNorm) / delta) % 6;
-        } else if (max === gNorm) {
-          h = (bNorm - rNorm) / delta + 2;
-        } else {
-          h = (rNorm - gNorm) / delta + 4;
-        }
-      }
-      h = Math.round(h * 60);
-      if (h < 0) h += 360;
-      
-      const l = (max + min) / 2;
-      const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
-      
-      // Generate color description based on hue
-      const hueNames: Record<number, string> = {
-        0: 'vibrant red',
-        15: 'warm orange-red',
-        30: 'bright orange',
-        45: 'golden orange',
-        60: 'sunny yellow',
-        75: 'lime yellow',
-        90: 'fresh green',
-        120: 'emerald green',
-        150: 'turquoise',
-        180: 'ocean cyan',
-        210: 'sky blue',
-        240: 'deep blue',
-        270: 'royal purple',
-        300: 'vibrant magenta',
-        330: 'pink rose',
-      };
-      
-      const getHueName = (hue: number): string => {
-        const keys = Object.keys(hueNames).map(Number).sort((a, b) => a - b);
-        for (let i = keys.length - 1; i >= 0; i--) {
-          if (hue >= keys[i]) {
-            return hueNames[keys[i]];
+  let shopName = $('meta[property="og:site_name"]').attr('content')?.trim() || '';
+  let listingTitle = $('meta[property="og:title"]').attr('content')?.trim() || '';
+  let description = $('meta[property="og:description"]').attr('content')?.trim() || '';
+  let imageUrl = $('meta[property="og:image"]').attr('content')?.trim() || '';
+
+  $('script[type="application/ld+json"]').each((_, el) => {
+    const content = $(el).html();
+    if (!content) return;
+    try {
+      const parsed = JSON.parse(content);
+      const nodes = Array.isArray(parsed) ? parsed : [parsed];
+      for (const node of nodes) {
+        const product =
+          node?.['@type'] === 'Product'
+            ? node
+            : node?.mainEntity?.['@type'] === 'Product'
+            ? node.mainEntity
+            : null;
+        if (product) {
+          if (!listingTitle && product.name) listingTitle = String(product.name).trim();
+          if (!description && product.description) description = String(product.description).trim();
+          if (!imageUrl && product.image) {
+            imageUrl = Array.isArray(product.image) ? String(product.image[0] || '') : String(product.image);
           }
         }
-        return hueNames[0];
-      };
-      
-      const hueName = getHueName(h);
-      const lightnessDesc = l > 0.7 ? 'light' : l < 0.3 ? 'deep dark' : l < 0.5 ? 'rich' : 'bright';
-      const saturationDesc = s > 0.7 ? 'vibrant' : s > 0.4 ? 'saturated' : 'soft muted';
-      
-      return `${lightnessDesc} ${saturationDesc} ${hueName} gradient with complementary tones`;
-    };
-    
-    const colorScheme = hexToColorDescription(color);
+        const org = node?.['@type'] === 'Organization' ? node : null;
+        if (org && !shopName && org.name) shopName = String(org.name).trim();
+      }
+    } catch {
+      // ignore malformed json
+    }
+  });
 
-    // Quota check
-    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
-    const quotaInfo = await getUserQuotaInfo(user.id);
-    if (quotaInfo.status !== 'active') return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED' }, { status: 403 });
-    if (quotaInfo.remaining < 2) return NextResponse.json({ error: 'QUOTA_EXCEEDED' }, { status: 403 });
+  shopName = shopName || $('h1').first().text().trim() || 'Etsy Shop';
+  listingTitle = listingTitle || $('h1').first().text().trim() || 'Handmade Product';
+  description = description || 'Handmade product crafted with care.';
 
-    const NANO_KEY = process.env.NANONBANANA_API_KEY;
-    if (!NANO_KEY) {
-      console.error('[Banner] NANONBANANA_API_KEY manquante');
+  return { shopName, listingTitle, description, imageUrl };
+}
+
+async function imageUrlToBase64(url: string): Promise<string | null> {
+  if (!/^https?:\/\//i.test(url)) return null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'image/*,*/*;q=0.8',
+      },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const ct = res.headers.get('content-type') || 'image/jpeg';
+    if (!ct.startsWith('image/')) return null;
+    const b = Buffer.from(await res.arrayBuffer());
+    return `data:${ct};base64,${b.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+function parseDataUrl(input: string): { mimeType: string; data: string } | null {
+  const m = input.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!m) return null;
+  return { mimeType: m[1], data: m[2] };
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+    const supabase = createSupabaseAdminClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_KEY) {
       return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API bannière manquante côté serveur.' },
-        { status: 500 },
+        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY missing on server.' },
+        { status: 500 }
       );
     }
 
-    // Build premium aesthetic prompt
-    const logoInstruction = logo 
-      ? `Left side: elegant brand logo integration, clean and professional.` 
-      : `Left side: sophisticated typographic treatment for "${shopName}" in bold modern font.`;
-    
-    let prompt = `Premium luxury Etsy shop banner, 3360x840px wide panoramic format. Color palette: ${colorScheme}, sophisticated and elegant. ${logoInstruction} Center-right: artistic product staging for ${niche} niche, beautifully arranged with depth and dimension. Subtle geometric patterns or abstract elements in background. Professional lighting with soft shadows and highlights. Minimalist design with generous white space. High-end e-commerce aesthetic, magazine-quality composition. Clean typography hierarchy. No clutter, no watermarks. Commercial ready, top 1% Etsy seller quality. Shop name: "${shopName}". Tagline derived from: ${shopDescription.substring(0, 120)}.`;
+    const body = await request.json().catch(() => ({}));
+    const providedShopName = String(body?.shopName || '').trim();
+    const etsyUrl = String(body?.etsyUrl || '').trim();
+    const modelPreference = String(body?.modelPreference || 'auto').toLowerCase();
+    const productImage = String(body?.productImage || '').trim();
 
-    // Cap prompt at 1800 chars max (same as working image generation)
-    if (prompt.length > 1800) prompt = prompt.substring(0, 1800);
-
-    // Submit to Nanonbanana - Use IMAGETOIAMGE (requires imageUrls)
-    // Create a minimal white image as base (1x1 pixel white PNG in base64)
-    // This is required because IMAGETOIAMGE always needs imageUrls
-    const minimalWhiteImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    
-    let taskId: string | null = null;
-    try {
-      const submitBody: any = {
-        type: 'IMAGETOIAMGE',
-        prompt,
-        imageUrls: [minimalWhiteImage], // Always provide a base image (IMAGETOIAMGE requires it)
-        image_size: '16:9',
-        numImages: 1,
-        callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-      };
-
-      console.log('[Banner] Prompt length:', prompt.length);
-      console.log('[Banner] Has logo input:', !!logo, '(using minimal white base image for IMAGETOIAMGE)');
-      console.log('[Banner] Request body (truncated):', JSON.stringify({ ...submitBody, imageUrls: ['[BASE64_IMAGE]'] }, null, 2));
-      
-      const submitRes = await fetch('https://api.nanobananaapi.ai/api/v1/nanobanana/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${NANO_KEY}`,
-        },
-        body: JSON.stringify(submitBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!submitRes.ok) {
-        const errorText = await submitRes.text();
-        console.error('[Banner] Nanonbanana error:', submitRes.status, errorText);
-        throw new Error(`Nanonbanana failed: ${submitRes.status}`);
-      }
-
-      const submitData = await submitRes.json();
-      console.log('[Banner] Response:', JSON.stringify(submitData));
-      
-      // Extract task_id from various possible response structures
-      taskId = submitData.data?.task_id || 
-               submitData.data?.taskId || 
-               submitData.data?.id || 
-               submitData.task_id || 
-               submitData.taskId || 
-               submitData.id ||
-               submitData.result?.task_id ||
-               submitData.result?.taskId ||
-               (submitData.data && typeof submitData.data === 'string' ? submitData.data : null) ||
-               null;
-      
-      if (!taskId) {
-        console.error('[Banner] No task_id. Full response:', JSON.stringify(submitData));
-        throw new Error(submitData.error || submitData.message || 'No task_id from Nanonbanana');
-      }
-
-      console.log(`[Banner] Task submitted: ${taskId}`);
-    } catch (e: any) {
-      clearTimeout(timeout);
-      console.error('[Banner] Submit error:', e.message);
-      return NextResponse.json({ error: 'GENERATION_FAILED', message: e.message }, { status: 500 });
+    if (!etsyUrl && !productImage) {
+      return NextResponse.json(
+        { error: 'MISSING_INPUT', message: 'Provide either an Etsy URL or a product image.' },
+        { status: 400 }
+      );
     }
 
-    // Poll for result (max 15 seconds server-side, then return taskId for client polling)
-    let bannerUrl: string | null = null;
-    const maxPollTime = 15000;
-    const pollStart = Date.now();
+    let shopName = 'Etsy Shop';
+    let listingTitle = 'Handmade Product';
+    let description = 'Handmade products crafted with care.';
+    let referenceImageData = productImage || '';
 
-    while (Date.now() - pollStart < maxPollTime) {
-      await new Promise(r => setTimeout(r, 1500));
+    if (etsyUrl) {
+      const context = await scrapeEtsyContext(etsyUrl);
+      shopName = context.shopName || shopName;
+      listingTitle = context.listingTitle || listingTitle;
+      description = context.description || description;
+      if (!referenceImageData && context.imageUrl) {
+        const fromUrl = await imageUrlToBase64(context.imageUrl);
+        if (fromUrl) referenceImageData = fromUrl;
+      }
+    }
+    if (providedShopName) {
+      shopName = providedShopName;
+    }
 
+    const hasReferenceImage = Boolean(referenceImageData);
+    const productContext = `${listingTitle} ${description}`.toLowerCase();
+    const isLampNiche = /(lamp|lampe|lighting|luminaire|light)/i.test(productContext);
+    const isWoodCraft = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(productContext);
+    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(productContext);
+
+    let paletteInstruction =
+      'Use a tasteful neutral palette that matches the product. Prefer soft cream, warm gray, and subtle accent tones.';
+    if (isLampNiche) {
+      paletteInstruction =
+        'Use a warm beige palette: light beige, cream, sand, warm taupe, and soft golden highlights. Avoid dominant blue tones.';
+    } else if (isWoodCraft) {
+      paletteInstruction =
+        'Use warm natural tones: beige, linen, tan, walnut brown, and off-white. Keep colors earthy and premium.';
+    } else if (isPastelNiche) {
+      paletteInstruction =
+        'Use soft pastel neutrals: cream, light beige, dusty rose, and muted warm gray. Keep it delicate and clean.';
+    }
+
+    const prompt = `Create one Etsy shop banner in a clean, simple, premium style (4:1 ratio).
+Target export: 1200x300.
+
+Main objective:
+- The banner must clearly represent the shop and its products.
+- Put the shop name "${shopName}" in the CENTER, readable and elegant.
+- Keep composition simple and focused, not overloaded.
+
+Design direction:
+- ${paletteInstruction}
+- Product-focused visual: show relevant products matching "${listingTitle}".
+- Products should be visible and aesthetically arranged (not tiny, not chaotic).
+- Typography must be clear and centered for the shop name.
+- Add soft lighting and depth, but keep it minimal and clean.
+
+Context:
+- Shop name: ${shopName}
+- Product focus: ${listingTitle}
+- Description summary: ${description.slice(0, 240)}
+${hasReferenceImage ? '- A product reference image is provided by the user; keep similar product style and palette.' : ''}
+
+Strict rules:
+- no watermark
+- no random symbols or abstract circles unrelated to the brand
+- no collage/grid/screenshot look
+- avoid clutter
+- one coherent hero banner ready for Etsy`;
+
+    const userParts: Array<Record<string, unknown>> = [{ text: prompt }];
+    const parsedRef = referenceImageData ? parseDataUrl(referenceImageData) : null;
+    if (parsedRef) {
+      userParts.push({
+        inlineData: {
+          mimeType: parsedRef.mimeType,
+          data: parsedRef.data,
+        },
+      });
+    }
+
+    const modelCandidates =
+      modelPreference === 'pro'
+        ? ['gemini-3-pro-image-preview']
+        : modelPreference === 'flash'
+        ? ['gemini-3.1-flash-image-preview']
+        : ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'];
+
+    let b64: string | null = null;
+    for (const model of modelCandidates) {
       try {
-        const statusRes = await fetch(
-          `https://api.nanobananaapi.ai/api/v1/nanobanana/record-info?taskId=${encodeURIComponent(taskId)}&task_id=${encodeURIComponent(taskId)}`,
-          { headers: { 'Authorization': `Bearer ${NANO_KEY}` } }
-        );
-
-        if (!statusRes.ok) continue;
-
-        const d = await statusRes.json();
-        const status = d.data?.status || d.status || '';
-        
-        // Check if completed
-        if (['completed', 'done', 'success'].includes(status)) {
-          // Extract image URL from various possible locations
-          bannerUrl = d.data?.response?.resultImageUrl ||
-                     d.data?.response?.originImageUrl ||
-                     d.data?.url ||
-                     d.data?.image_url ||
-                     d.data?.imageUrl ||
-                     d.data?.images?.[0]?.url ||
-                     d.data?.result?.url ||
-                     d.url ||
-                     d.image_url ||
-                     null;
-          
-          if (bannerUrl) {
-            console.log(`[Banner] Image ready in ${Date.now() - pollStart}ms: ${bannerUrl.substring(0, 80)}...`);
-            break;
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': GEMINI_KEY,
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: userParts,
+                },
+              ],
+              generationConfig: {
+                responseModalities: ['TEXT', 'IMAGE'],
+              },
+            }),
           }
-        }
-
-        if (['failed', 'error'].includes(status)) {
-          console.error('[Banner] Generation failed:', JSON.stringify(d));
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const imagePart = parts.find((p: any) => typeof p?.inlineData?.data === 'string');
+        if (imagePart?.inlineData?.data) {
+          b64 = imagePart.inlineData.data;
           break;
         }
-      } catch (e: any) {
-        // Continue polling
+      } catch {
+        // try next model
       }
     }
 
-    // Deduct credits
-    await incrementAnalysisCount(user.id, 2);
-
-    if (bannerUrl) {
-      console.log(`[Banner] Success in ${Date.now() - startTime}ms`);
-      return NextResponse.json({ success: true, bannerUrl });
+    if (!b64) {
+      return NextResponse.json(
+        { error: 'GENERATION_FAILED', message: 'No banner generated with Gemini.' },
+        { status: 500 }
+      );
     }
 
-    // Return taskId for client-side polling
-    console.log(`[Banner] Returning taskId for client polling after ${Date.now() - startTime}ms`);
-    return NextResponse.json({ success: true, taskId });
+    const raw = Buffer.from(b64, 'base64');
+    const foreground = await sharp(raw).resize(1200, 300, { fit: 'inside' }).toBuffer();
+    const background = await sharp(raw)
+      .resize(1200, 300, { fit: 'cover' })
+      .blur(10)
+      .modulate({ brightness: 0.6, saturation: 0.9 })
+      .toBuffer();
+    const fgMeta = await sharp(foreground).metadata();
+    const fgW = fgMeta.width || 1200;
+    const fgH = fgMeta.height || 300;
+    const bannerBuffer = await sharp(background)
+      .composite([
+        {
+          input: foreground,
+          left: Math.max(0, Math.floor((1200 - fgW) / 2)),
+          top: Math.max(0, Math.floor((300 - fgH) / 2)),
+          blend: 'over',
+        },
+      ])
+      .png({ quality: 92 })
+      .toBuffer();
 
-  } catch (error: any) {
-    console.error('[Banner] Error:', error);
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      bannerDataUrl: `data:image/png;base64,${bannerBuffer.toString('base64')}`,
+      meta: {
+        width: 1200,
+        height: 300,
+        shopName,
+        listingTitle,
+        modelPreference,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: 'INTERNAL_ERROR', message }, { status: 500 });
   }
 }

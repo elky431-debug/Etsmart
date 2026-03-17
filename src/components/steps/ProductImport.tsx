@@ -739,7 +739,20 @@ export function ProductImport() {
                 Tous les produits doivent avoir un prix renseigné
               </motion.div>
             )}
-            {/* ⚠️ SUPPRIMÉ: Le bouton "Analyser" a été supprimé - l'analyse démarre automatiquement à l'étape 3 */}
+            <motion.button
+              onClick={() => {
+                if (products.length === 0) return;
+                if (products.some(p => p.price === 0)) return;
+                setStep(3);
+              }}
+              whileHover={{ scale: products.length > 0 && !products.some(p => p.price === 0) ? 1.03 : 1 }}
+              whileTap={{ scale: products.length > 0 && !products.some(p => p.price === 0) ? 0.97 : 1 }}
+              disabled={products.length === 0 || products.some(p => p.price === 0)}
+              className="inline-flex items-center gap-2 px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold text-sm sm:text-base shadow-lg shadow-[#00d4ff]/30 disabled:opacity-40 disabled:cursor-not-allowed btn-mobile"
+            >
+              <Zap size={18} />
+              Lancer l&apos;analyse
+            </motion.button>
           </div>
         </motion.div>
 

@@ -151,14 +151,15 @@ IMPORTANT:
 - Utilise les données réelles fournies, notamment le revenu total calculé: ${totalRevenue.toFixed(2)}€
 - Les tags optimisés doivent être spécifiques à la niche de cette boutique (pas génériques)`;
 
-    // Timeout pour l'appel OpenAI (50 secondes max)
+    // Timeout pour l'appel OpenAI (45 secondes max, pour rester sous la limite plateforme)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     let completion;
     try {
       completion = await openai.chat.completions.create({
-        model: 'gpt-4o-2024-11-20',
+        // Modèle stable et supporté en production
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -170,7 +171,8 @@ IMPORTANT:
           },
         ],
         temperature: 0.3,
-        max_tokens: 6000,
+        // 4k tokens suffisent largement pour la structure JSON demandée
+        max_tokens: 4000,
         response_format: { type: 'json_object' },
       }, {
         signal: controller.signal,

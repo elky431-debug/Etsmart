@@ -29,6 +29,7 @@ import {
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 import { supabase } from '@/lib/supabase';
+import { computeListingScore, computeShopScore } from '@/lib/etsy/score-system';
 
 interface ShopListing {
   title: string;
@@ -65,6 +66,7 @@ interface ShopAnalysisData {
       patterns: string[];
       opportunities: string[];
     };
+    optimizedTags?: string[];
     strengths: string[];
     weaknesses: string[];
     strategies: string[];
@@ -79,10 +81,17 @@ interface ShopAnalysisData {
     shopAge?: string;
     location?: string;
     listings: ShopListing[];
+    listingsCount?: number;
     totalRevenue?: number;
     monthlyRevenue?: number;
     description?: string;
   };
+}
+
+interface UsedTag {
+  tag: string;
+  count: number;
+  percentage: number;
 }
 
 export default function ShopAnalyzeClient() {
@@ -371,7 +380,7 @@ export default function ShopAnalyzeClient() {
   }, [analyzing]);
 
   // Extraire les tags optimisés pour le type de boutique
-  const getMostUsedTags = () => {
+  const getMostUsedTags = (): UsedTag[] => {
     // Utiliser les tags optimisés depuis l'analyse AI si disponibles
     if (analysisData?.analysis?.optimizedTags && analysisData.analysis.optimizedTags.length > 0) {
       return analysisData.analysis.optimizedTags.map((tag: string, idx: number) => ({
@@ -823,6 +832,47 @@ export default function ShopAnalyzeClient() {
 
   const mostUsedTags = getMostUsedTags();
   const listings = analysisData.rawData?.listings || [];
+  const shopAveragePrice = calculateAveragePrice();
+  const mainKeyword = (analysisData.analysis?.optimizedTags?.[0] || shop.shopName || '').toString();
+
+  const shopScore = computeShopScore({
+    name: shop.shopName || analysisData.shop.name,
+    averagePrice: shopAveragePrice,
+    rating: metrics.rating,
+    reviewsCount: metrics.reviewCount,
+    salesCount: metrics.totalSales,
+    listings: listings.map((l) => ({
+      title: l.title,
+      price: l.price,
+      images: l.images || [],
+    })),
+  });
+
+  const listingScores = listings.map((listing) =>
+    computeListingScore(
+      {
+        title: listing.title,
+        price: listing.price,
+        images: listing.images || [],
+      },
+      {
+        mainKeyword,
+        shopAveragePrice,
+      }
+    )
+  );
+
+  const scoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const scoreBar = (score: number) => {
+    if (score >= 80) return 'bg-emerald-500';
+    if (score >= 60) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
 
   return (
     <div className="min-h-screen bg-black">
@@ -897,9 +947,50 @@ export default function ShopAnalyzeClient() {
               <ExternalLink size={16} />
             </a>
           </div>
-          </div>
+        </div>
 
-            {/* Tabs */}
+        {/* Score global boutique */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+            <div className="lg:w-72">
+              <p className="text-white/60 text-xs uppercase tracking-wide mb-2">Shop Score</p>
+              <div className="flex items-end gap-3">
+                <span className={`text-5xl font-black ${scoreColor(shopScore.global.score)}`}>
+                  {shopScore.global.score}
+                </span>
+                <span className="text-white/60 text-xl mb-1">/100</span>
+                <span className={`text-2xl font-bold mb-1 ${scoreColor(shopScore.global.score)}`}>
+                  {shopScore.global.grade}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-white/65">
+                Score transparent basé sur SEO, branding, catalogue, pricing et confiance.
+              </p>
+            </div>
+
+            <div className="flex-1 grid sm:grid-cols-2 gap-3">
+              {Object.entries(shopScore.subScores).map(([key, value]) => (
+                <div key={key} className="rounded-xl border border-white/10 bg-black/30 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs uppercase tracking-wide text-white/60">{key}</p>
+                    <p className={`text-sm font-bold ${scoreColor(value.score)}`}>{value.score}/100</p>
+                  </div>
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                    <div className={`h-full ${scoreBar(value.score)}`} style={{ width: `${value.score}%` }} />
+                  </div>
+                  <p className="text-xs text-white/70">{value.explanation}</p>
+                  <ul className="mt-2 space-y-1">
+                    {value.improvements.slice(0, 2).map((tip, idx) => (
+                      <li key={idx} className="text-[11px] text-white/55">• {tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 border-b border-white/10">
           <button
             onClick={() => setActiveTab('overview')}
@@ -1009,7 +1100,7 @@ export default function ShopAnalyzeClient() {
                   Tags les Plus Utilisés
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {mostUsedTags.map((tag, idx) => (
+                  {mostUsedTags.map((tag: UsedTag, idx: number) => (
                     <div
                       key={idx}
                       className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-sm"
@@ -1334,18 +1425,15 @@ export default function ShopAnalyzeClient() {
               </div>
             ) : (
               listings.map((listing, idx) => {
-                const scores = calculateListingScores(listing, idx);
-                const gradeColors: { [key: string]: string } = {
-                  'A+': 'text-green-400',
-                  'A': 'text-green-400',
-                  'A-': 'text-green-400',
-                  'B+': 'text-blue-400',
-                  'B': 'text-blue-400',
-                  'B-': 'text-yellow-400',
-                  'C+': 'text-yellow-400',
-                  'C': 'text-orange-400',
-                  'D': 'text-red-400'
-                };
+                const scoring = listingScores[idx];
+                const subScoreRows = [
+                  { key: 'Titre', value: scoring.subScores.title },
+                  { key: 'Tags', value: scoring.subScores.tags },
+                  { key: 'Images', value: scoring.subScores.images },
+                  { key: 'Prix', value: scoring.subScores.price },
+                  { key: 'Complétude', value: scoring.subScores.completeness },
+                  { key: 'Fraîcheur', value: scoring.subScores.freshness },
+                ];
 
                 return (
                   <div
@@ -1353,7 +1441,6 @@ export default function ShopAnalyzeClient() {
                     className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-[#00d4ff]/30 transition-all"
                   >
                     <div className="flex flex-col sm:flex-row gap-6">
-                      {/* Listing Image */}
                       <div className="relative w-full sm:w-48 h-48 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                         {listing.images && listing.images[0] ? (
                           <img
@@ -1366,14 +1453,13 @@ export default function ShopAnalyzeClient() {
                             <ImageIcon className="w-12 h-12 text-white/30" />
                           </div>
                         )}
-                        <div className={`absolute top-2 left-2 text-3xl font-bold ${gradeColors[scores.grade] || 'text-white'}`}>
-                          {scores.grade}
+                        <div className={`absolute top-2 left-2 text-3xl font-bold ${scoreColor(scoring.global.score)}`}>
+                          {scoring.global.grade}
                         </div>
-            </div>
+                      </div>
 
-                      {/* Listing Details */}
                       <div className="flex-1">
-                        <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex items-start justify-between gap-4 mb-4">
                           <div className="flex-1">
                             <h3 className="text-lg font-bold text-white mb-1 line-clamp-2">
                               {listing.title}
@@ -1387,183 +1473,51 @@ export default function ShopAnalyzeClient() {
                               Voir le listing
                               <ExternalLink size={14} />
                             </a>
-              </div>
+                          </div>
                           <div className="text-right">
-                            <div className="text-xl font-bold text-white">{listing.price.toFixed(2)} €</div>
-                            {listing.sales && (
-                              <div className="text-sm text-white/70">{listing.sales} ventes</div>
-                            )}
-            </div>
-          </div>
+                            <div className={`text-3xl font-black ${scoreColor(scoring.global.score)}`}>
+                              {scoring.global.score}/100
+                            </div>
+                            <div className={`text-lg font-bold ${scoreColor(scoring.global.score)}`}>
+                              {scoring.global.grade}
+                            </div>
+                            <div className="text-sm text-white/70 mt-1">{listing.price.toFixed(2)} €</div>
+                          </div>
+                        </div>
 
-                        {/* Performance Metrics */}
                         <div className="space-y-3">
-                          {/* Conseils généraux */}
-                          {scores.generalTips && scores.generalTips.length > 0 && (
-                            <div className="bg-white/5 rounded-lg p-3 mb-2">
-                              {scores.generalTips.map((tip, tipIdx) => (
-                                <div key={tipIdx} className="text-xs text-white/70 mb-1">{tip}</div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <FileText className="w-4 h-4" />
-                              <span>TITLE</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+                          {subScoreRows.map((row) => (
+                            <div key={row.key} className="rounded-lg bg-black/30 border border-white/10 p-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm text-white/80">{row.key}</span>
+                                <span className={`text-sm font-semibold ${scoreColor(row.value.score)}`}>
+                                  {row.value.score}/100
+                                </span>
+                              </div>
+                              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
                                 <div
-                                  className={`h-full ${
-                                    scores.title >= 80 ? 'bg-green-500' : scores.title >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.title}%` }}
+                                  className={`h-full ${scoreBar(row.value.score)}`}
+                                  style={{ width: `${row.value.score}%` }}
                                 />
                               </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.title}/100</span>
+                              <p className="text-xs text-white/70">{row.value.explanation}</p>
+                              <ul className="mt-2 space-y-1">
+                                {row.value.improvements.slice(0, 3).map((tip, tipIdx) => (
+                                  <li key={tipIdx} className="text-xs text-white/55">
+                                    • {tip}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                          </div>
-                          {scores.feedback.title.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.title.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <Tag className="w-4 h-4" />
-                              <span>TAGS</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    scores.tags >= 80 ? 'bg-green-500' : scores.tags >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.tags}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.tags}/100</span>
-                            </div>
-                          </div>
-                          {scores.feedback.tags.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.tags.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <ImageIcon className="w-4 h-4" />
-                              <span>IMAGES</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    scores.images >= 80 ? 'bg-green-500' : scores.images >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.images}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.images}/100</span>
-                            </div>
-                          </div>
-                          {scores.feedback.images.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.images.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <Video className="w-4 h-4" />
-                              <span>VIDEO</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    scores.video >= 80 ? 'bg-green-500' : scores.video >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.video}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.video}/100</span>
-                            </div>
-                          </div>
-                          {scores.feedback.video.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.video.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-          </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <Package className="w-4 h-4" />
-                              <span>MATERIALS</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    scores.materials >= 80 ? 'bg-green-500' : scores.materials >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.materials}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.materials}/100</span>
-                            </div>
-                          </div>
-                          {scores.feedback.materials.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.materials.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-          </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <FileText className="w-4 h-4" />
-                              <span>DESCRIPTION</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    scores.description >= 80 ? 'bg-green-500' : scores.description >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${scores.description}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-white/70 w-12 text-right">{scores.description}/100</span>
-                            </div>
-                          </div>
-                          {scores.feedback.description.length > 0 && (
-                            <div className="ml-6 text-xs text-white/50 space-y-1">
-                              {scores.feedback.description.map((fb, fbIdx) => (
-                                <div key={fbIdx}>• {fb}</div>
-                              ))}
-                            </div>
-                          )}
+                          ))}
                         </div>
                       </div>
                     </div>
-            </div>
+                  </div>
                 );
               })
-          )}
-        </div>
+            )}
+          </div>
         )}
       </main>
     </div>
