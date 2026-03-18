@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
 import { fetchRankHeroKeywordResearch, RankHeroKeywordError } from '@/lib/keyword-research/scrape-rankhero-keyword';
+import { fetchAluraKeywordResearch, AluraKeywordResearchError } from '@/lib/keyword-research/scrape-alura-keyword';
 import {
   buildKeywordResult,
   computeKeywordMetrics,
+  computeKeywordScores,
+  fallbackStrategicInsights,
   computeScoresFromAluraOverview,
   generateKeywordSuggestions,
 } from '@/lib/keyword-research/score-keyword';
 import { generateKeywordInsights } from '@/lib/keyword-research/generate-insights';
 import { insertKeywordResearchHistory } from '@/lib/keyword-research/history';
+import { scrapeEtsyKeywordListings, EtsyScrapeUnavailableError } from '@/lib/keyword-research/scrape-etsy-search';
 import type { EtsyKeywordListing, KeywordMetrics } from '@/lib/keyword-research/types';
 
 const KEYWORD_RESEARCH_CREDIT_COST = Number.parseFloat(
@@ -92,44 +96,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { sourceUrl, overview, listings, suggestions: providerSuggestions } =
-      await fetchRankHeroKeywordResearch(keyword);
+    // 1) Provider primary (RankHero). 2) Provider secondary (Alura scraping) if configured.
+    // 3) Fallback scraping Etsy. Goal: never hard-fail on provider errors.
+    let sourceUrl = '';
+    let listings: EtsyKeywordListing[] = [];
+    let suggestions: string[] = [];
+    let metrics: KeywordMetrics;
+    let scores: ReturnType<typeof computeKeywordScores>;
+    let dataSource: 'rankhero' | 'alura' | 'etsy' = 'etsy';
+    let aluraOverview: Awaited<ReturnType<typeof fetchRankHeroKeywordResearch>>['overview'] | null = null;
 
-    const metrics = buildMetricsFromRankHero(listings, overview);
-    const scores = computeScoresFromAluraOverview(keyword, overview, listings);
-    const suggestions =
-      providerSuggestions.length >= 3
-        ? providerSuggestions.slice(0, 12)
-        : [...providerSuggestions, ...generateKeywordSuggestions(keyword)].slice(0, 12);
+    // Attempt RankHero
+    try {
+      const provider = await fetchRankHeroKeywordResearch(keyword);
+      sourceUrl = provider.sourceUrl;
+      listings = provider.listings;
+      suggestions = provider.suggestions.slice(0, 12);
+      aluraOverview = provider.overview;
+      metrics = buildMetricsFromRankHero(listings, provider.overview);
+      scores = computeScoresFromAluraOverview(keyword, provider.overview, listings);
+      dataSource = 'rankhero';
+    } catch (e) {
+      // RankHero is flaky (403 / WAF). Ignore and fallback.
+      const err = e as unknown;
+      if (!(err instanceof RankHeroKeywordError)) {
+        console.warn('[KEYWORD_RESEARCH] RankHero failed, falling back:', err);
+      }
+
+      // Attempt Alura scraping when configured
+      try {
+        const alura = await fetchAluraKeywordResearch(keyword, 24);
+        sourceUrl = alura.sourceUrl;
+        listings = alura.listings;
+        suggestions =
+          alura.similarKeywords.length >= 3
+            ? alura.similarKeywords.slice(0, 12)
+            : [...alura.similarKeywords, ...generateKeywordSuggestions(keyword)].slice(0, 12);
+        aluraOverview = alura.overview;
+        metrics = buildMetricsFromRankHero(listings, alura.overview);
+        scores = computeScoresFromAluraOverview(keyword, alura.overview, listings);
+        dataSource = 'alura';
+      } catch (aluraErr) {
+        if (aluraErr instanceof AluraKeywordResearchError) {
+          console.warn('[KEYWORD_RESEARCH] Alura failed, falling back:', {
+            code: aluraErr.code,
+            message: aluraErr.message,
+          });
+        } else {
+          console.warn('[KEYWORD_RESEARCH] Alura failed, falling back:', aluraErr);
+        }
+
+        // Final fallback: scrape Etsy search directly.
+        const etsy = await scrapeEtsyKeywordListings(keyword, 24);
+        sourceUrl = etsy.sourceUrl;
+        listings = etsy.listings;
+        suggestions = generateKeywordSuggestions(keyword).slice(0, 12);
+        metrics = computeKeywordMetrics(listings, etsy.marketSizeEstimate);
+        scores = computeKeywordScores(keyword, listings, metrics);
+        dataSource = 'etsy';
+        aluraOverview = null;
+      }
+    }
 
     const strategicInsights = await generateKeywordInsights({
       keyword,
       listings,
       metrics,
       scores,
-      aluraOverview: overview,
-    });
+      aluraOverview: aluraOverview ?? undefined,
+    }).catch(() => null);
 
-    if (!strategicInsights?.summary) {
-      return NextResponse.json(
-        {
-          error: 'AI_ANALYSIS_FAILED',
-          message: "L'analyse stratégique n'a pas pu être générée.",
-        },
-        { status: 502 }
-      );
-    }
+    const finalInsights =
+      strategicInsights?.summary ? strategicInsights : fallbackStrategicInsights(keyword, metrics, scores);
 
     const result = buildKeywordResult({
       keyword,
       sourceUrl,
-      dataSource: 'rankhero',
+      dataSource,
       listings,
       metrics,
       scores,
-      strategicInsights,
+      strategicInsights: finalInsights,
       suggestions,
-      aluraOverview: overview,
+      aluraOverview,
     });
 
     const historyItem = await insertKeywordResearchHistory(supabase, user.id, result);
@@ -159,28 +208,13 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('[KEYWORD_RESEARCH] analyze error:', error);
     const e = error as { name?: string; message?: string; code?: string };
-    let providerCode: string | null = null;
-    if (error instanceof RankHeroKeywordError) {
-      providerCode = error.code;
-    } else if (
-      e.name === 'RankHeroKeywordError' &&
-      typeof e.code === 'string' &&
-      ['CONFIG', 'AUTH', 'HTTP', 'PARSE', 'EMPTY'].includes(e.code)
-    ) {
-      providerCode = e.code;
-    }
-    if (providerCode && typeof e.message === 'string') {
-      const status =
-        providerCode === 'CONFIG'
-          ? 503
-          : providerCode === 'AUTH'
-            ? 401
-            : providerCode === 'EMPTY'
-              ? 422
-              : 502;
+    if (error instanceof EtsyScrapeUnavailableError) {
       return NextResponse.json(
-        { error: `RANKHERO_${providerCode}`, message: e.message },
-        { status }
+        {
+          error: 'SERVICE_UNAVAILABLE',
+          message: "Le service est temporairement indisponible. Réessaie dans quelques instants.",
+        },
+        { status: 503 }
       );
     }
     const detail =
