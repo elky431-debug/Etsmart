@@ -254,7 +254,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'logo-generator', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         // Récupérer la dernière section visitée depuis localStorage
@@ -262,7 +262,7 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'logo-generator', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
+        if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, afficher la home dashboard
@@ -1399,8 +1399,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
     );
   };
 
+  // Items affichés tout en haut du menu latéral
   const topMenuItems: MenuItem[] = [
-    { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
+    // { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
     { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
   ];
 
@@ -1425,14 +1426,15 @@ The final image should look like a high-quality Etsy listing photo and naturally
         { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
       ],
     },
-    {
-      label: 'Branding',
-      items: [
-        { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
-        { id: 'banner', label: 'Bannière', icon: ImageIcon },
-        { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
-      ],
-    },
+    // Section Branding masquée temporairement (maintenance)
+    // {
+    //   label: 'Branding',
+    //   items: [
+    //     { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
+    //     { id: 'banner', label: 'Bannière', icon: ImageIcon },
+    //     { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
+    //   ],
+    // },
   ];
 
   const otherMenuItems: MenuItem[] = [
@@ -1943,10 +1945,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'video-generator' && (
             <DashboardVideoGenerator />
-          )}
-
-          {activeSection === 'logo-generator' && (
-            <DashboardLogoGenerator />
           )}
 
           {activeSection === 'analyse-simulation' && selectedAnalysis && (

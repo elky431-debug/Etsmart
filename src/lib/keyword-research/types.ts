@@ -17,6 +17,55 @@ export interface EtsyKeywordListing {
   shopName: string | null;
   isBestSeller: boolean;
   hasFreeShipping: boolean;
+  /** Données Alura (listing tab) */
+  aluraMonthlySales?: number | null;
+  aluraViews?: number | null;
+  aluraFavorites?: number | null;
+}
+
+/** Point mensuel (courbe volume Etsy / Google) */
+export interface AluraVolumeMonth {
+  year: string;
+  month: string;
+  monthlySearches: string;
+}
+
+/**
+ * Overview API Alura v3 (`results` dans la réponse JSON).
+ * Champs remplis par le parseur ; anciennes analyses peuvent avoir partiellement null.
+ */
+export interface AluraOverviewMetrics {
+  /** Score Alura 0–100 (identique à l’app) */
+  keywordScore: number | null;
+  /** Volume recherche Etsy / mois (ex. 29 258) */
+  etsyVolumeMonthly: number | null;
+  /** Volume Google / mois */
+  googleVolumeMonthly: number | null;
+  competingListings: number | null;
+  /** Taux conversion moyen top listings (ex. 0.0221 → 2.21 %) */
+  avgConversionRate: number | null;
+  competitionLevel: string | null;
+  competitionGoogle: string | null;
+  searchCompetitionRatio: string | null;
+  viewsTopListings: number | null;
+  avgViewsPerListing: number | null;
+  avgFavorers: number | null;
+  salesTotal: number | null;
+  avgSalesPerListing: number | null;
+  revenueTotal: number | null;
+  avgRevenuePerListing: number | null;
+  avgPriceUsd: number | null;
+  avgListingAgeDays: number | null;
+  avgReviewCount: number | null;
+  avgReviewScore: number | null;
+  etsyChangeQr: string | null;
+  etsyChangeYr: string | null;
+  googleChangeQr: string | null;
+  googleChangeYr: string | null;
+  longTailKeyword: boolean | null;
+  etsyVolumes: AluraVolumeMonth[];
+  googleVolumes: AluraVolumeMonth[];
+  listingsAnalyzed: number | null;
 }
 
 export interface KeywordMetrics {
@@ -49,21 +98,27 @@ export interface KeywordStrategicInsights {
   verdictExplanation: string;
 }
 
+export type KeywordDataSource = 'etsy' | 'alura' | 'rankhero';
+
 export interface KeywordResearchResult {
   keyword: string;
   sourceUrl: string;
   generatedAt: string;
+  dataSource: KeywordDataSource;
   metrics: KeywordMetrics;
   scores: KeywordScores;
   listings: EtsyKeywordListing[];
   strategicInsights: KeywordStrategicInsights;
   suggestions: string[];
+  /** Présent si dataSource === 'alura' */
+  aluraOverview?: AluraOverviewMetrics | null;
 }
 
 export interface KeywordResearchHistoryItem {
   id: string;
   keyword: string;
   sourceUrl: string;
+  dataSource?: KeywordDataSource;
   demandScore: number;
   competitionScore: number;
   opportunityScore: number;
@@ -74,8 +129,10 @@ export interface KeywordResearchHistoryItem {
   averageReviews: number;
   listingsCount: number;
   topShopsConcentration: number;
+  marketSizeEstimate?: number | null;
   createdAt: string;
   strategicInsights?: KeywordStrategicInsights | null;
   suggestions?: string[] | null;
   rawListings?: EtsyKeywordListing[] | null;
+  aluraOverview?: AluraOverviewMetrics | null;
 }

@@ -5,13 +5,15 @@ import { KeywordResearchHistoryItem } from '@/lib/keyword-research/types';
 import { difficultyBadgeClass, verdictBadgeClass } from '@/lib/keyword-research/formatters';
 
 interface Props {
-  history: KeywordResearchHistoryItem[];
+  items: KeywordResearchHistoryItem[];
   loading: boolean;
   onSelect: (item: KeywordResearchHistoryItem) => void;
   selectedId?: string | null;
 }
 
-export function KeywordResearchHistory({ history, loading, onSelect, selectedId }: Props) {
+export function KeywordResearchHistory({ items, loading, onSelect, selectedId }: Props) {
+  const history = items ?? [];
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
       <div className="flex items-center justify-between mb-4">

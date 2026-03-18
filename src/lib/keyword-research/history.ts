@@ -6,6 +6,7 @@ interface KeywordHistoryRow {
   user_id: string;
   keyword: string;
   source_url: string;
+  data_source?: string | null;
   demand_score: number;
   competition_score: number;
   opportunity_score: number;
@@ -16,9 +17,11 @@ interface KeywordHistoryRow {
   average_reviews: number;
   top_shops_concentration: number;
   listings_count: number;
+  market_size_estimate?: number | null;
   raw_listings: unknown;
   ai_analysis: unknown;
   suggestions: unknown;
+  alura_overview?: unknown;
   created_at: string;
 }
 
@@ -33,10 +36,12 @@ function isMissingKeywordHistoryTable(error: { code?: string; message?: string }
 }
 
 function mapRow(row: KeywordHistoryRow): KeywordResearchHistoryItem {
+  const ds = row.data_source as KeywordResearchHistoryItem['dataSource'] | undefined;
   return {
     id: row.id,
     keyword: row.keyword,
     sourceUrl: row.source_url,
+    dataSource: ds === 'alura' || ds === 'etsy' ? ds : undefined,
     demandScore: row.demand_score,
     competitionScore: row.competition_score,
     opportunityScore: row.opportunity_score,
@@ -47,12 +52,49 @@ function mapRow(row: KeywordHistoryRow): KeywordResearchHistoryItem {
     averageReviews: row.average_reviews,
     topShopsConcentration: row.top_shops_concentration,
     listingsCount: row.listings_count,
+    marketSizeEstimate: row.market_size_estimate ?? null,
     rawListings: (row.raw_listings as KeywordResearchHistoryItem['rawListings']) || null,
     strategicInsights:
       (row.ai_analysis as KeywordResearchHistoryItem['strategicInsights']) || null,
     suggestions: (row.suggestions as string[]) || null,
+    aluraOverview: (row.alura_overview as KeywordResearchHistoryItem['aluraOverview']) || null,
     createdAt: row.created_at,
   };
+}
+
+const baseHistoryInsert = (userId: string, result: KeywordResearchResult) => ({
+  user_id: userId,
+  keyword: result.keyword,
+  source_url: result.sourceUrl,
+  demand_score: result.scores.demandScore,
+  competition_score: result.scores.competitionScore,
+  opportunity_score: result.scores.opportunityScore,
+  saturation_level: result.scores.saturationLevel,
+  difficulty: result.scores.difficulty,
+  verdict: result.scores.verdict,
+  average_price: result.metrics.averagePrice,
+  average_reviews: result.metrics.averageReviewCount,
+  top_shops_concentration: result.metrics.topShopsConcentration,
+  listings_count: result.metrics.listingsCount,
+  raw_listings: result.listings,
+  ai_analysis: result.strategicInsights,
+  suggestions: result.suggestions,
+});
+
+/** PostgREST / Postgres : colonnes optionnelles pas encore migrées */
+function shouldRetryInsertWithoutExtendedColumns(error: { message?: string; code?: string } | null): boolean {
+  if (!error?.message) return false;
+  const m = error.message.toLowerCase();
+  return (
+    m.includes('data_source') ||
+    m.includes('alura_overview') ||
+    m.includes('market_size_estimate') ||
+    (m.includes('column') &&
+      (m.includes('does not exist') ||
+        m.includes('unknown') ||
+        m.includes('could not find') ||
+        m.includes('schema cache')))
+  );
 }
 
 export async function insertKeywordResearchHistory(
@@ -60,28 +102,26 @@ export async function insertKeywordResearchHistory(
   userId: string,
   result: KeywordResearchResult
 ): Promise<KeywordResearchHistoryItem> {
-  const { data, error } = await supabase
+  const extended = {
+    ...baseHistoryInsert(userId, result),
+    data_source: result.dataSource,
+    market_size_estimate: result.metrics.marketSizeEstimate ?? null,
+    alura_overview: result.aluraOverview ?? null,
+  };
+
+  let { data, error } = await supabase
     .from('keyword_research_history')
-    .insert({
-      user_id: userId,
-      keyword: result.keyword,
-      source_url: result.sourceUrl,
-      demand_score: result.scores.demandScore,
-      competition_score: result.scores.competitionScore,
-      opportunity_score: result.scores.opportunityScore,
-      saturation_level: result.scores.saturationLevel,
-      difficulty: result.scores.difficulty,
-      verdict: result.scores.verdict,
-      average_price: result.metrics.averagePrice,
-      average_reviews: result.metrics.averageReviewCount,
-      top_shops_concentration: result.metrics.topShopsConcentration,
-      listings_count: result.metrics.listingsCount,
-      raw_listings: result.listings,
-      ai_analysis: result.strategicInsights,
-      suggestions: result.suggestions,
-    })
+    .insert(extended)
     .select('*')
     .single();
+
+  if (error && shouldRetryInsertWithoutExtendedColumns(error)) {
+    ({ data, error } = await supabase
+      .from('keyword_research_history')
+      .insert(baseHistoryInsert(userId, result))
+      .select('*')
+      .single());
+  }
 
   if (error || !data) {
     if (isMissingKeywordHistoryTable(error)) {

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import {
+  AluraOverviewMetrics,
   EtsyKeywordListing,
   KeywordMetrics,
   KeywordScores,
@@ -37,8 +38,9 @@ export async function generateKeywordInsights(params: {
   listings: EtsyKeywordListing[];
   metrics: KeywordMetrics;
   scores: KeywordScores;
+  aluraOverview?: AluraOverviewMetrics | null;
 }): Promise<KeywordStrategicInsights> {
-  const { keyword, listings, metrics, scores } = params;
+  const { keyword, listings, metrics, scores, aluraOverview } = params;
 
   const fallback = fallbackStrategicInsights(keyword, metrics, scores);
   if (!openai) return fallback;
@@ -53,11 +55,36 @@ export async function generateKeywordInsights(params: {
     bestSeller: l.isBestSeller,
   }));
 
+  const aluraBlock =
+    aluraOverview != null
+      ? `
+Données Alura (API officielle) :
+${JSON.stringify(
+  {
+    keywordScore: aluraOverview.keywordScore,
+    etsyVolumeMonthly: aluraOverview.etsyVolumeMonthly,
+    googleVolumeMonthly: aluraOverview.googleVolumeMonthly,
+    competingListings: aluraOverview.competingListings,
+    avgConversionRate: aluraOverview.avgConversionRate,
+    competitionLevel: aluraOverview.competitionLevel,
+    viewsTopListings: aluraOverview.viewsTopListings,
+    avgSalesPerListing: aluraOverview.avgSalesPerListing,
+    salesTotal: aluraOverview.salesTotal,
+    avgPriceUsd: aluraOverview.avgPriceUsd,
+    avgListingAgeDays: aluraOverview.avgListingAgeDays,
+    etsyChangeYr: aluraOverview.etsyChangeYr,
+  },
+  null,
+  2
+)}
+`
+      : '';
+
   const prompt = `
 Analyse ce keyword Etsy et retourne UNIQUEMENT du JSON valide.
 
 Keyword: ${keyword}
-
+${aluraBlock}
 Scores:
 - globalScore: ${scores.globalScore}/100
 - intentScore: ${scores.intentScore}/100

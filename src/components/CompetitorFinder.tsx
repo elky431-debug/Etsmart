@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, AlertCircle, Loader2, ExternalLink, Store, Sparkles, Coins } from 'lucide-react';
+import { Search, AlertCircle, Loader2, ExternalLink, Store, Sparkles, Coins, Clock } from 'lucide-react';
 import { computeListingScore, computeShopScore } from '@/lib/etsy/score-system';
 
 interface CompetitorFinderProps {
@@ -127,58 +127,65 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Analyse boutique Etsy</h2>
             <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
-              Mets un nom ou lien de boutique. L&apos;API scrape Etsy puis génère l&apos;analyse et les scores sur cette page.
+              Cette fonctionnalité est actuellement en maintenance. Nous améliorons l&apos;analyse des boutiques Etsy
+              pour te donner des insights encore plus précis.
             </p>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/25 text-[#00d4ff] text-sm font-medium mt-4">
-              <Coins size={14} />
-              4 crédits par analyse
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-600/80 text-slate-200 text-sm font-medium mt-4">
+              <Clock size={14} />
+              Bientôt de retour
             </div>
           </div>
 
-          <div className="space-y-5 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
-                Nom ou lien de la boutique <span className="text-[#00d4ff]">*</span>
-              </label>
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5 group-focus-within:text-[#00d4ff] transition-colors" />
-                <input
-                  type="text"
-                  value={shopInput}
-                  onChange={(e) => setShopInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleStartAnalysis()}
-                  placeholder="Ex: silvermoonshop ou https://www.etsy.com/shop/silvermoonshop"
-                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
-                />
+          {/* Mode maintenance : on masque le formulaire et les résultats */}
+          {false && (
+            <>
+              {/* Formulaire d'analyse (désactivé pour maintenance) */}
+              <div className="space-y-5 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-white/70 mb-2">
+                    Nom ou lien de la boutique <span className="text-[#00d4ff]">*</span>
+                  </label>
+                  <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5 group-focus-within:text-[#00d4ff] transition-colors" />
+                    <input
+                      type="text"
+                      value={shopInput}
+                      onChange={(e) => setShopInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleStartAnalysis()}
+                      placeholder="Ex: silvermoonshop ou https://www.etsy.com/shop/silvermoonshop"
+                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {error && (
-            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-300 flex-1">{error}</p>
-            </div>
+              {error && (
+                <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-300 flex-1">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleStartAnalysis}
+                disabled={loading || !shopInput.trim()}
+                className="group relative w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-[#00d4ff]/20 transition-all overflow-hidden"
+              >
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Analyse en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>Analyser cette boutique</span>
+                  </>
+                )}
+              </button>
+            </>
           )}
-
-          <button
-            onClick={handleStartAnalysis}
-            disabled={loading || !shopInput.trim()}
-            className="group relative w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-[#00d4ff]/20 transition-all overflow-hidden"
-          >
-            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Analyse en cours...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                <span>Analyser cette boutique</span>
-              </>
-            )}
-          </button>
 
           {analysisData && shopScore && (
             <div className="mt-6 space-y-4">

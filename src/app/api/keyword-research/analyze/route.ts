@@ -1,22 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
-import {
-  EtsyScrapeUnavailableError,
-  scrapeEtsyKeywordListings,
-} from '@/lib/keyword-research/scrape-etsy-search';
+import { fetchRankHeroKeywordResearch, RankHeroKeywordError } from '@/lib/keyword-research/scrape-rankhero-keyword';
 import {
   buildKeywordResult,
   computeKeywordMetrics,
-  computeKeywordScores,
+  computeScoresFromAluraOverview,
   generateKeywordSuggestions,
 } from '@/lib/keyword-research/score-keyword';
 import { generateKeywordInsights } from '@/lib/keyword-research/generate-insights';
 import { insertKeywordResearchHistory } from '@/lib/keyword-research/history';
+import type { EtsyKeywordListing, KeywordMetrics } from '@/lib/keyword-research/types';
 
 const KEYWORD_RESEARCH_CREDIT_COST = Number.parseFloat(
   process.env.KEYWORD_RESEARCH_CREDIT_COST || '1'
 );
+
+function buildMetricsFromRankHero(
+  listings: EtsyKeywordListing[],
+  overview: Awaited<ReturnType<typeof fetchRankHeroKeywordResearch>>['overview']
+): KeywordMetrics {
+  if (listings.length) {
+    const m = computeKeywordMetrics(listings, overview.competingListings);
+    return {
+      ...m,
+      averagePrice: overview.avgPriceUsd ?? m.averagePrice,
+      averageReviewCount: overview.avgReviewCount ?? m.averageReviewCount,
+      marketSizeEstimate: overview.competingListings ?? m.marketSizeEstimate,
+      listingsCount: overview.competingListings ?? m.listingsCount,
+    };
+  }
+  return {
+    averagePrice: overview.avgPriceUsd ?? 0,
+    averageReviewCount: overview.avgReviewCount ?? 0,
+    topShopsConcentration: 0,
+    listingsCount: overview.competingListings ?? overview.listingsAnalyzed ?? 0,
+    marketSizeEstimate: overview.competingListings,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,26 +92,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { sourceUrl, listings, marketSizeEstimate } = await scrapeEtsyKeywordListings(keyword, 24);
-    if (!listings.length) {
-      return NextResponse.json(
-        {
-          error: 'NO_DATA',
-          message: 'Aucune donnée exploitable trouvée pour ce mot-clé.',
-        },
-        { status: 422 }
-      );
-    }
+    const { sourceUrl, overview, listings, suggestions: providerSuggestions } =
+      await fetchRankHeroKeywordResearch(keyword);
 
-    const metrics = computeKeywordMetrics(listings, marketSizeEstimate);
-    const scores = computeKeywordScores(keyword, listings, metrics);
-    const suggestions = generateKeywordSuggestions(keyword);
+    const metrics = buildMetricsFromRankHero(listings, overview);
+    const scores = computeScoresFromAluraOverview(keyword, overview, listings);
+    const suggestions =
+      providerSuggestions.length >= 3
+        ? providerSuggestions.slice(0, 12)
+        : [...providerSuggestions, ...generateKeywordSuggestions(keyword)].slice(0, 12);
 
     const strategicInsights = await generateKeywordInsights({
       keyword,
       listings,
       metrics,
       scores,
+      aluraOverview: overview,
     });
 
     if (!strategicInsights?.summary) {
@@ -106,11 +123,13 @@ export async function POST(request: NextRequest) {
     const result = buildKeywordResult({
       keyword,
       sourceUrl,
+      dataSource: 'rankhero',
       listings,
       metrics,
       scores,
       strategicInsights,
       suggestions,
+      aluraOverview: overview,
     });
 
     const historyItem = await insertKeywordResearchHistory(supabase, user.id, result);
@@ -137,21 +156,39 @@ export async function POST(request: NextRequest) {
         remaining: deduction.remaining,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[KEYWORD_RESEARCH] analyze error:', error);
-    if (error instanceof EtsyScrapeUnavailableError) {
+    const e = error as { name?: string; message?: string; code?: string };
+    let providerCode: string | null = null;
+    if (error instanceof RankHeroKeywordError) {
+      providerCode = error.code;
+    } else if (
+      e.name === 'RankHeroKeywordError' &&
+      typeof e.code === 'string' &&
+      ['CONFIG', 'AUTH', 'HTTP', 'PARSE', 'EMPTY'].includes(e.code)
+    ) {
+      providerCode = e.code;
+    }
+    if (providerCode && typeof e.message === 'string') {
+      const status =
+        providerCode === 'CONFIG'
+          ? 503
+          : providerCode === 'AUTH'
+            ? 401
+            : providerCode === 'EMPTY'
+              ? 422
+              : 502;
       return NextResponse.json(
-        {
-          error: 'SCRAPE_UNAVAILABLE',
-          message: error.message,
-        },
-        { status: 503 }
+        { error: `RANKHERO_${providerCode}`, message: e.message },
+        { status }
       );
     }
+    const detail =
+      error instanceof Error ? error.message.slice(0, 400) : 'Erreur inconnue';
     return NextResponse.json(
       {
-        error: 'ANALYZE_FAILED',
-        message: "Impossible d'analyser ce mot-clé pour le moment. Réessaie dans quelques instants.",
+        error: 'INTERNAL_ERROR',
+        message: detail || 'Erreur serveur keyword research.',
       },
       { status: 500 }
     );

@@ -1,4 +1,5 @@
 import {
+  AluraOverviewMetrics,
   BuyerIntentLevel,
   EtsyKeywordListing,
   KeywordShape,
@@ -360,23 +361,95 @@ export function generateKeywordSuggestions(keyword: string): string[] {
   return Array.from(new Set(patterns)).slice(0, 10);
 }
 
+/**
+ * Scores : le **score global** = `keyword_score` Alura (0–100).
+ * Demand / Competition / Opportunity = lecture complémentaire à partir des mêmes données.
+ */
+export function computeScoresFromAluraOverview(
+  keyword: string,
+  overview: AluraOverviewMetrics,
+  listings: EtsyKeywordListing[]
+): KeywordScores {
+  const topConc = listings.length ? computeTopShopsConcentration(listings) : 35;
+  const ev = overview.etsyVolumeMonthly ?? 0;
+  const demandScore = Math.round(clamp(18 + Math.log10(Math.max(ev, 1) + 1) * 15, 12, 98));
+
+  const level = (overview.competitionLevel || '').toLowerCase();
+  let competitionScore = 55;
+  if (level === 'low') competitionScore = 30;
+  else if (level === 'medium') competitionScore = 56;
+  else if (level === 'high') competitionScore = 80;
+  else if (level.includes('very')) competitionScore = 90;
+  else {
+    const cl = overview.competingListings ?? 0;
+    competitionScore = Math.round(clamp(Math.log10(cl + 10) * 19, 18, 92));
+  }
+
+  const intentScore = computeIntentScore(keyword);
+  const conv = overview.avgConversionRate ?? 0;
+  const convBoost = conv >= 0.03 ? 10 : conv >= 0.02 ? 6 : conv >= 0.015 ? 3 : 0;
+
+  const fromAlura =
+    overview.keywordScore != null && Number.isFinite(overview.keywordScore)
+      ? Math.round(clamp(overview.keywordScore, 0, 100))
+      : null;
+
+  const opportunityFirst = computeOpportunityScore(demandScore, competitionScore, intentScore);
+  const globalScore =
+    fromAlura ?? Math.round(computeGlobalScore(opportunityFirst, demandScore, intentScore));
+
+  const opportunityScore = Math.round(
+    clamp(globalScore * 0.5 + demandScore * 0.22 + (100 - competitionScore) * 0.18 + convBoost, 10, 98)
+  );
+
+  const saturationLevel: KeywordScores['saturationLevel'] =
+    level === 'low' ? 'Low' : level === 'medium' ? 'Medium' : level === 'high' || level.includes('very') ? 'High' : toSaturationLevel(competitionScore);
+
+  const difficulty: KeywordScores['difficulty'] =
+    level === 'low' ? 'Easy' : level === 'medium' ? 'Medium' : level === 'high' || level.includes('very') ? 'Hard' : toDifficultyLevel(competitionScore, topConc);
+
+  const verdict: KeywordScores['verdict'] =
+    globalScore >= 75 && level !== 'high' && !level.includes('very')
+      ? 'Launch'
+      : globalScore >= 40
+        ? 'Test'
+        : 'Avoid';
+
+  return {
+    globalScore,
+    intentScore,
+    demandScore,
+    competitionScore,
+    opportunityScore,
+    saturationLevel,
+    difficulty,
+    buyerIntentLevel: toBuyerIntentLevel(intentScore),
+    keywordShape: overview.longTailKeyword ? 'Long-tail' : toKeywordShape(keyword),
+    verdict,
+  };
+}
+
 export function buildKeywordResult(params: {
   keyword: string;
   sourceUrl: string;
+  dataSource: KeywordResearchResult['dataSource'];
   listings: EtsyKeywordListing[];
   metrics: KeywordMetrics;
   scores: KeywordScores;
   strategicInsights: KeywordStrategicInsights;
   suggestions: string[];
+  aluraOverview?: AluraOverviewMetrics | null;
 }): KeywordResearchResult {
   return {
     keyword: params.keyword,
     sourceUrl: params.sourceUrl,
+    dataSource: params.dataSource,
     listings: params.listings,
     metrics: params.metrics,
     scores: params.scores,
     strategicInsights: params.strategicInsights,
     suggestions: params.suggestions,
     generatedAt: new Date().toISOString(),
+    aluraOverview: params.aluraOverview,
   };
 }
