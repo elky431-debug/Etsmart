@@ -138,8 +138,9 @@ export default function DashboardPage() {
     
     try {
       const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
-      // Keyword Research est masqué en production (bug) : on évite de rester bloqué sur cette section
-      if (!isLocalEnv && lastSection === 'keyword-research') {
+      // Si l'utilisateur était resté sur Keyword Research, on évite de le re-lock dessus au refresh.
+      // (Keyword Research peut être buggy sur prod; en local on garde l'accès manuel via le menu.)
+      if (lastSection === 'keyword-research') {
         setActiveSection('dashboard-home');
         return;
       }
@@ -263,7 +264,7 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
-      } else if (!isLocalEnv && section === 'keyword-research') {
+      } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
       } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
         setActiveSection(section as DashboardSection);
