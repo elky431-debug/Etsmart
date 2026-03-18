@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
             'Authorization': `Bearer ${NANONBANANA_API_KEY}`,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(8000),
         });
 
         if (!response.ok) continue;

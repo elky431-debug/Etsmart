@@ -383,10 +383,16 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       
       console.log('[IMAGE GENERATION] Polling for', taskIds.length, 'image(s)...');
       
+      // Polling parameters:
+      // - Keep user experience fast: don't let each task wait indefinitely.
+      // - Server-side /api/check-image-status also has network timeouts.
+      const MAX_POLL_ATTEMPTS = 10;
+      const POLL_INTERVAL_MS = 2000;
+
       const pollResults = await Promise.all(
         taskIds.map(async (taskId: string) => {
-          for (let attempt = 0; attempt < 20; attempt++) {
-            await new Promise(r => setTimeout(r, 3000));
+          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
             try {
               const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
