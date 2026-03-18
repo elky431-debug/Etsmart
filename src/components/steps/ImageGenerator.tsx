@@ -308,9 +308,41 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-        const errorMessage = errorData.error || errorData.message || `Erreur ${response.status}`;
-        console.error('[IMAGE GENERATION] API Error:', response.status, errorData);
+        // Some Next/Netlify failures may return HTML (not JSON). In that case, response.json()
+        // would throw and we'd lose the real reason. We fallback to response.text().
+        let errorMessage = `Erreur ${response.status}`;
+        let errorData: any = null;
+        let rawText = '';
+
+        try {
+          rawText = await response.text();
+          if (rawText) {
+            // Try parse JSON from the returned body (sometimes it is JSON with non-2xx).
+            try {
+              errorData = JSON.parse(rawText);
+            } catch {
+              // keep errorData null
+            }
+          }
+        } catch {
+          // ignore - we'll use status only
+        }
+
+        if (errorData && typeof errorData === 'object') {
+          errorMessage =
+            errorData.error ||
+            errorData.message ||
+            errorData.detail ||
+            `Erreur ${response.status}`;
+        } else if (response.status === 413) {
+          errorMessage = "Image trop lourde (payload trop grand). Essaie avec une image plus petite.";
+        } else if (rawText && rawText.trim().length > 0) {
+          // Keep it short to avoid dumping HTML.
+          const snippet = rawText.trim().slice(0, 180);
+          errorMessage = `Erreur ${response.status}: ${snippet}`;
+        }
+
+        console.error('[IMAGE GENERATION] API Error:', response.status, errorData || rawText || '(empty)');
         throw new Error(errorMessage);
       }
 
