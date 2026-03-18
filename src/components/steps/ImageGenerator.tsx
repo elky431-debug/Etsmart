@@ -98,6 +98,35 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   };
   const displayError = error && !isTechnicalError(error) ? error : null;
 
+  // sessionStorage quota is very small. For some engines (Gemini/Imagen) we may receive
+  // `data:image/...` URLs (base64). Persisting those blobs will quickly exceed quota and crash.
+  const persistGeneratedImages = (images: GeneratedImage[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+      // Never persist base64/data URLs into sessionStorage.
+      const safeImages = images.filter((img) => !img.url.startsWith('data:image/'));
+      if (safeImages.length === 0) return;
+      const payload = JSON.stringify(safeImages);
+
+      sessionStorage.setItem(storageKey, 'true');
+      // Avoid quota issues even for signed URLs.
+      if (payload.length <= 15_000) {
+        sessionStorage.setItem(`${storageKey}-images`, payload);
+      } else {
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify([]));
+      }
+    } catch (e) {
+      // Quota exceeded or blocked storage: silently ignore to avoid breaking the client.
+      console.warn('[IMAGE GENERATION] sessionStorage persist skipped:', e);
+      try {
+        sessionStorage.setItem(storageKey, 'true');
+        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify([]));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   // Nettoyer toute erreur technique AVANT le premier affichage (évite flash avec cache ancien)
   useLayoutEffect(() => {
     setError((prev) => {
@@ -308,10 +337,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           }
         };
         setTimeout(() => { refreshCredits(); setTimeout(refreshCredits, 1000); setTimeout(refreshCredits, 2000); }, 3000);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
-        }
+        persistGeneratedImages(validImages);
         if (data.warning) console.warn('[IMAGE GENERATION]', data.warning);
         return;
       }
@@ -381,11 +407,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         setTimeout(refreshCredits, 3000);
       }, 3000);
       
-      // Sauvegarder dans sessionStorage que l'image a été générée
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(storageKey, 'true');
-        sessionStorage.setItem(`${storageKey}-images`, JSON.stringify(validImages));
-      }
+      // Sauvegarder dans sessionStorage que l'image a été générée (lightweight only)
+      persistGeneratedImages(validImages);
       
       if (failedCount > 0) {
         setError(`${failedCount} image(s) n'ont pas pu être générée(s). ${validImages.length} image(s) générée(s) avec succès.`);

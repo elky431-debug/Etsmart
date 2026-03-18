@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
-import { fetchRankHeroKeywordResearch, RankHeroKeywordError } from '@/lib/keyword-research/scrape-rankhero-keyword';
-import { fetchAluraKeywordResearch, AluraKeywordResearchError } from '@/lib/keyword-research/scrape-alura-keyword';
 import {
   buildKeywordResult,
   computeKeywordMetrics,
   computeKeywordScores,
   fallbackStrategicInsights,
-  computeScoresFromAluraOverview,
   generateKeywordSuggestions,
 } from '@/lib/keyword-research/score-keyword';
 import { generateKeywordInsights } from '@/lib/keyword-research/generate-insights';
@@ -19,29 +16,6 @@ import type { EtsyKeywordListing, KeywordMetrics } from '@/lib/keyword-research/
 const KEYWORD_RESEARCH_CREDIT_COST = Number.parseFloat(
   process.env.KEYWORD_RESEARCH_CREDIT_COST || '1'
 );
-
-function buildMetricsFromRankHero(
-  listings: EtsyKeywordListing[],
-  overview: Awaited<ReturnType<typeof fetchRankHeroKeywordResearch>>['overview']
-): KeywordMetrics {
-  if (listings.length) {
-    const m = computeKeywordMetrics(listings, overview.competingListings);
-    return {
-      ...m,
-      averagePrice: overview.avgPriceUsd ?? m.averagePrice,
-      averageReviewCount: overview.avgReviewCount ?? m.averageReviewCount,
-      marketSizeEstimate: overview.competingListings ?? m.marketSizeEstimate,
-      listingsCount: overview.competingListings ?? m.listingsCount,
-    };
-  }
-  return {
-    averagePrice: overview.avgPriceUsd ?? 0,
-    averageReviewCount: overview.avgReviewCount ?? 0,
-    topShopsConcentration: 0,
-    listingsCount: overview.competingListings ?? overview.listingsAnalyzed ?? 0,
-    marketSizeEstimate: overview.competingListings,
-  };
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,74 +70,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1) Provider primary (RankHero). 2) Provider secondary (Alura scraping) if configured.
-    // 3) Fallback scraping Etsy. Goal: never hard-fail on provider errors.
-    let sourceUrl = '';
-    let listings: EtsyKeywordListing[] = [];
-    let suggestions: string[] = [];
-    let metrics: KeywordMetrics;
-    let scores: ReturnType<typeof computeKeywordScores>;
-    let dataSource: 'rankhero' | 'alura' | 'etsy' = 'etsy';
-    let aluraOverview: Awaited<ReturnType<typeof fetchRankHeroKeywordResearch>>['overview'] | null = null;
-
-    // Attempt RankHero
-    try {
-      const provider = await fetchRankHeroKeywordResearch(keyword);
-      sourceUrl = provider.sourceUrl;
-      listings = provider.listings;
-      suggestions = provider.suggestions.slice(0, 12);
-      aluraOverview = provider.overview;
-      metrics = buildMetricsFromRankHero(listings, provider.overview);
-      scores = computeScoresFromAluraOverview(keyword, provider.overview, listings);
-      dataSource = 'rankhero';
-    } catch (e) {
-      // RankHero is flaky (403 / WAF). Ignore and fallback.
-      const err = e as unknown;
-      if (!(err instanceof RankHeroKeywordError)) {
-        console.warn('[KEYWORD_RESEARCH] RankHero failed, falling back:', err);
-      }
-
-      // Attempt Alura scraping when configured
-      try {
-        const alura = await fetchAluraKeywordResearch(keyword, 24);
-        sourceUrl = alura.sourceUrl;
-        listings = alura.listings;
-        suggestions =
-          alura.similarKeywords.length >= 3
-            ? alura.similarKeywords.slice(0, 12)
-            : [...alura.similarKeywords, ...generateKeywordSuggestions(keyword)].slice(0, 12);
-        aluraOverview = alura.overview;
-        metrics = buildMetricsFromRankHero(listings, alura.overview);
-        scores = computeScoresFromAluraOverview(keyword, alura.overview, listings);
-        dataSource = 'alura';
-      } catch (aluraErr) {
-        if (aluraErr instanceof AluraKeywordResearchError) {
-          console.warn('[KEYWORD_RESEARCH] Alura failed, falling back:', {
-            code: aluraErr.code,
-            message: aluraErr.message,
-          });
-        } else {
-          console.warn('[KEYWORD_RESEARCH] Alura failed, falling back:', aluraErr);
-        }
-
-        // Final fallback: scrape Etsy search directly.
-        const etsy = await scrapeEtsyKeywordListings(keyword, 24);
-        sourceUrl = etsy.sourceUrl;
-        listings = etsy.listings;
-        suggestions = generateKeywordSuggestions(keyword).slice(0, 12);
-        metrics = computeKeywordMetrics(listings, etsy.marketSizeEstimate);
-        scores = computeKeywordScores(keyword, listings, metrics);
-        dataSource = 'etsy';
-        aluraOverview = null;
-      }
-    }
+    // Source unique : recherche Etsy (scraping HTML du search Etsy.com)
+    // → pas de RankHero / Alura, uniquement données officielles Etsy.
+    const etsy = await scrapeEtsyKeywordListings(keyword, 24);
+    const sourceUrl = etsy.sourceUrl;
+    const listings = etsy.listings;
+    const suggestions = generateKeywordSuggestions(keyword).slice(0, 12);
+    const metrics = computeKeywordMetrics(listings, etsy.marketSizeEstimate);
+    const scores = computeKeywordScores(keyword, listings, metrics);
+    const dataSource: 'etsy' = 'etsy';
 
     const strategicInsights = await generateKeywordInsights({
       keyword,
       listings,
       metrics,
       scores,
-      aluraOverview: aluraOverview ?? undefined,
+      aluraOverview: undefined,
     }).catch(() => null);
 
     const finalInsights =
@@ -178,7 +100,7 @@ export async function POST(request: NextRequest) {
       scores,
       strategicInsights: finalInsights,
       suggestions,
-      aluraOverview,
+      aluraOverview: null,
     });
 
     const historyItem = await insertKeywordResearchHistory(supabase, user.id, result);
