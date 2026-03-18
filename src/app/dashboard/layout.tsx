@@ -10,9 +10,16 @@ import { Paywall } from '@/components/paywall/Paywall';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
+  const hostname =
+    typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
   const isLocalEnv =
-    typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1';
+
+  // En dev (NODE_ENV=development), on laisse le dashboard accessible même si l'hostname n'est pas "localhost".
+  const isDashboardAllowed = process.env.NODE_ENV !== 'production' || isLocalEnv;
 
   // Vérifier si on est sur une page d'analyse (extension) - BYPASS COMPLET
   const isCompetitorsPage = pathname?.includes('/competitors');
@@ -71,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Dashboard UI uniquement en local.
   // En production, on affiche une maintenance jusqu'à stabilisation.
-  if (!isLocalEnv && !shouldBypassProtection) {
+  if (!isDashboardAllowed && !shouldBypassProtection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black px-4">
         <div className="text-center max-w-xl">
