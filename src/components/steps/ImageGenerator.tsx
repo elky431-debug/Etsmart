@@ -329,10 +329,11 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         }
 
         if (errorData && typeof errorData === 'object') {
+          // Prefer human-readable messages over error codes.
           errorMessage =
-            errorData.error ||
-            errorData.message ||
-            errorData.detail ||
+            (typeof errorData.message === 'string' && errorData.message) ||
+            (typeof errorData.detail === 'string' && errorData.detail) ||
+            (typeof errorData.error === 'string' && errorData.error) ||
             `Erreur ${response.status}`;
         } else if (response.status === 413) {
           errorMessage = "Image trop lourde (payload trop grand). Essaie avec une image plus petite.";
