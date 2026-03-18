@@ -825,16 +825,6 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   </>
                 )}
               </button>
-              {!isGenerating && (hasGeneratedImage || generatedImages.length > 0) && (
-                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                  <p className="text-xs text-center text-amber-800 font-medium">
-                    ⚠️ Il n'est plus possible de générer d'autres images pour ce produit.
-                  </p>
-                  <p className="text-xs text-center text-amber-700 mt-1">
-                    Pour générer d'autres variations, utilisez le prompt avec une IA externe.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </div>
