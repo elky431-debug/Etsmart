@@ -38,15 +38,15 @@ export default function LoginPage() {
             const data = await response.json();
             
             // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
-            // Toujours rediriger vers le dashboard Analyse et Simulation
-            router.push('/dashboard?section=analyse-simulation');
+            // Toujours rediriger vers le dashboard d'actions
+            router.push('/dashboard?section=dashboard-home');
           } else {
-            router.push('/dashboard?section=analyse-simulation');
+            router.push('/dashboard?section=dashboard-home');
           }
         } catch (error) {
           console.error('Error checking subscription:', error);
           // En cas d'erreur, rediriger quand même vers le dashboard
-          router.push('/dashboard?section=analyse-simulation');
+          router.push('/dashboard?section=dashboard-home');
         }
       };
       
@@ -92,14 +92,14 @@ export default function LoginPage() {
             const data = await response.json();
             
             // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-            // Toujours rediriger vers le dashboard Analyse et Simulation
-            router.push('/dashboard?section=analyse-simulation');
+            // Toujours rediriger vers le dashboard d'actions
+            router.push('/dashboard?section=dashboard-home');
           } else {
-            router.push('/dashboard?section=analyse-simulation');
+            router.push('/dashboard?section=dashboard-home');
           }
         } catch (error) {
           console.error('Error checking subscription:', error);
-          router.push('/dashboard?section=analyse-simulation');
+          router.push('/dashboard?section=dashboard-home');
         }
       };
       

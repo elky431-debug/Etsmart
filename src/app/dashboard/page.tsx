@@ -1414,7 +1414,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   // Items affichés tout en haut du menu latéral
   const topMenuItems: MenuItem[] = [
-    // { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
+    { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
     { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
   ];
 

@@ -9,17 +9,6 @@ import { Paywall } from '@/components/paywall/Paywall';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  
-  const hostname =
-    typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-  const isLocalEnv =
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '0.0.0.0' ||
-    hostname === '::1';
-
-  // En dev (NODE_ENV=development), on laisse le dashboard accessible même si l'hostname n'est pas "localhost".
-  const isDashboardAllowed = process.env.NODE_ENV !== 'production' || isLocalEnv;
 
   // Vérifier si on est sur une page d'analyse (extension) - BYPASS COMPLET
   const isCompetitorsPage = pathname?.includes('/competitors');
@@ -75,22 +64,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // RENDER LOGIC - ORDER MATTERS!
   // The DEFAULT is paywall/loading, children only show when EXPLICITLY active
   // ═══════════════════════════════════════════════════════════════════════
-
-  // Dashboard UI uniquement en local.
-  // En production, on affiche une maintenance jusqu'à stabilisation.
-  if (!isDashboardAllowed && !shouldBypassProtection) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black px-4">
-        <div className="text-center max-w-xl">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/25" />
-          <h1 className="mt-6 text-2xl font-bold text-white">Dashboard en maintenance</h1>
-          <p className="mt-3 text-white/60 text-sm sm:text-base">
-            Pour l'instant, le dashboard est accessible uniquement en local (localhost / 127.0.0.1) pendant la phase d'amélioration.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // 0. ⚠️ BYPASS COMPLET: Pages d'analyse (extension) → afficher DIRECTEMENT
   if (shouldBypassProtection) {

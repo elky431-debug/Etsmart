@@ -33,8 +33,8 @@ export default function RegisterPage() {
     try {
       await signUp(email, password, name);
       // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-      // Rediriger vers le dashboard Analyse et Simulation
-      router.push('/dashboard?section=analyse-simulation');
+      // Rediriger vers le dashboard d'actions
+      router.push('/dashboard?section=dashboard-home');
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue lors de la création du compte');
       setIsLoading(false);
