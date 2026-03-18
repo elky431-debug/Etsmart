@@ -298,9 +298,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Always use the Flash endpoint.
-    // Pro generation (generate-pro) can be significantly slower/less reliable, so we map it to flash.
-    const engineSafe: 'flash' | 'pro' = 'flash';
+    // Respect the engine selected in the UI (flash/pro).
+    const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
 
     // Style presets pour moduler le rendu
     const STYLE_SUFFIX: Record<string, string> = {

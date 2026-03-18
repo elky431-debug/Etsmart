@@ -43,6 +43,7 @@ import {
   Loader2,
   Package,
   Store,
+  Truck,
   KeyRound
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -1439,6 +1440,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   const otherMenuItems: MenuItem[] = [
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
+    { id: 'tracking', label: 'Suivi colis (Tracktaco/Parcell App)', icon: Truck },
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];

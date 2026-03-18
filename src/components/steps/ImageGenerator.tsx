@@ -67,6 +67,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(
     analysis.product.images[0] || null
   );
+  const [extraSourceImages, setExtraSourceImages] = useState<File[]>([]);
+  const [extraSourcePreviews, setExtraSourcePreviews] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [customInstructions, setCustomInstructions] = useState('');
@@ -79,6 +81,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const extraSourceInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -224,6 +227,42 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
     }
   };
 
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('File read failed'));
+      reader.readAsDataURL(file);
+    });
+
+  const handleExtraSourceInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const valid = files
+      .filter((f) => /^image\/(jpeg|jpg|png)$/i.test(f.type))
+      .filter((f) => f.size <= 10 * 1024 * 1024);
+
+    const remaining = Math.max(0, 2 - extraSourceImages.length); // total 3 refs = 1 source + 2 extras
+    const selected = valid.slice(0, remaining);
+    if (!selected.length) return;
+
+    try {
+      const previews = await Promise.all(selected.map((f) => fileToDataUrl(f)));
+      setExtraSourceImages((prev) => [...prev, ...selected]);
+      setExtraSourcePreviews((prev) => [...prev, ...previews]);
+    } catch (err) {
+      console.error('[IMAGE GENERATION] Failed to read extra references:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const removeExtraSourceAt = (index: number) => {
+    setExtraSourceImages((prev) => prev.filter((_, i) => i !== index));
+    setExtraSourcePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleBackgroundSelect = (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       alert('L\'image de fond est trop grande. Taille maximum : 10MB');
@@ -287,6 +326,20 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         console.log('[IMAGE GENERATION] ✅ Background image compressed:', Math.round(backgroundBase64.length / 1024), 'KB');
       }
 
+      // Up to 2 extra references (total 3 with source) to mimic quick-generate flow.
+      const extraReferenceImages: string[] = [];
+      for (let i = 0; i < Math.min(extraSourceImages.length, 2); i++) {
+        try {
+          const compressed = await compressImageToBase64(extraSourceImages[i], 512, 512, 0.6);
+          extraReferenceImages.push(compressed);
+        } catch {
+          const fallbackPreview = extraSourcePreviews[i];
+          if (fallbackPreview && fallbackPreview.startsWith('data:image/')) {
+            extraReferenceImages.push(fallbackPreview);
+          }
+        }
+      }
+
       console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)', backgroundBase64 ? '(with custom background)' : '');
       
       const response = await fetch('/api/generate-images', {
@@ -303,6 +356,11 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           aspectRatio,
           engine,
           style,
+          productTitle: analysis.product.title || undefined,
+          productContext: {
+            title: analysis.product.title || '',
+            referenceImages: extraReferenceImages,
+          },
           skipListingGeneration: true, // ⚠️ ALWAYS true - Image generation is independent, always 0.25 credit
         }),
       });
@@ -632,6 +690,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         e.stopPropagation();
                         setSourceImage(null);
                         setSourceImagePreview(null);
+                        setExtraSourceImages([]);
+                        setExtraSourcePreviews([]);
                         setGeneratedImages([]); // Supprimer aussi les images générées
                         setError(null); // Supprimer les erreurs
                       }}
@@ -651,6 +711,51 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                       JPG / PNG • Max 10MB
                     </p>
                   </>
+                )}
+              </div>
+
+              {/* Extra reference images (up to 2) */}
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-white/60">
+                    Références supplémentaires (optionnel) - max 2
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => extraSourceInputRef.current?.click()}
+                    disabled={extraSourceImages.length >= 2}
+                    className="text-xs px-2 py-1 rounded border border-white/20 text-white/80 disabled:opacity-40"
+                  >
+                    + Ajouter
+                  </button>
+                  <input
+                    ref={extraSourceInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    multiple
+                    onChange={handleExtraSourceInputChange}
+                    className="hidden"
+                  />
+                </div>
+                {extraSourcePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {extraSourcePreviews.map((preview, idx) => (
+                      <div key={`extra-ref-${idx}`} className="relative rounded-lg overflow-hidden border border-white/10">
+                        <img src={preview} alt={`Référence ${idx + 1}`} className="w-full h-20 object-cover bg-white/5" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeExtraSourceAt(idx);
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                          title="Supprimer la référence"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -785,15 +890,31 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Nanonbanana</p>
-                    <p className="text-xs text-white/70">Image-to-Image • Pro (rapide)</p>
+                    <p className="text-xs text-white/70">
+                      Image-to-Image • {engine === 'flash' ? 'Flash (rapide)' : 'Pro (qualité maximale)'}
+                    </p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
                 </div>
-                {/* Pro option uniquement: on force le moteur à utiliser l'endpoint Flash (évite les longues tâches generate-pro). */}
-                <div className="mt-4 grid grid-cols-1 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setEngine('flash')}
-                    className="py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg"
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      engine === 'flash'
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
+                    type="button"
+                  >
+                    Flash
+                  </button>
+                  <button
+                    onClick={() => setEngine('pro')}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      engine === 'pro'
+                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
+                        : 'bg-black border border-white/10 text-white hover:border-white/20'
+                    }`}
                     type="button"
                   >
                     Pro
