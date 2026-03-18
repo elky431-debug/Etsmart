@@ -423,6 +423,18 @@ export async function POST(request: NextRequest) {
           if (attempt < 2) await new Promise(r => setTimeout(r, 500));
         }
       }
+
+      // Fallback: if "pro" fails to submit, try "flash" so the user still gets images.
+      // This prevents the whole flow from failing when Nanobanana Pro is temporarily unstable.
+      if (engineSafe === 'pro') {
+        const fallback = await submitOnce(finalPrompt, 'flash');
+        if (fallback.taskId) {
+          console.warn(`[IMAGE GEN] Pro fallback to Flash succeeded for image ${index + 1}: ${fallback.taskId}`);
+          return fallback;
+        }
+        return { taskId: null, error: fallback.error || 'Pro submit failed and flash fallback failed' };
+      }
+
       return { taskId: null, error: 'All 3 attempts failed' };
     };
 
