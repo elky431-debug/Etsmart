@@ -375,58 +375,24 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         return;
       }
       
-      // NanoBanana : API renvoie taskIds, on poll pour récupérer les URLs
+      // NanoBanana : API renvoie taskIds.
+      // On ne doit pas "bloquer" l'UI en attendant que tout soit prêt.
+      // Ici on poll en background et on affiche dès qu'une image est prête.
       const taskIds: string[] = data.imageTaskIds || [];
       if (taskIds.length === 0) {
         throw new Error('Aucune image soumise. Réessayez.');
       }
-      
-      console.log('[IMAGE GENERATION] Polling for', taskIds.length, 'image(s)...');
-      
-      // Polling parameters:
-      // - Keep user experience fast: don't let each task wait indefinitely.
-      // - Server-side /api/check-image-status also has network timeouts.
-      const MAX_POLL_ATTEMPTS = 10;
-      const POLL_INTERVAL_MS = 2000;
 
-      const pollResults = await Promise.all(
-        taskIds.map(async (taskId: string) => {
-          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-            try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-              });
-              if (!res.ok) continue;
-              const s = await res.json();
-              if (s.status === 'ready' && s.url) return s.url;
-              if (s.status === 'error') return null;
-            } catch { /* retry */ }
-          }
-          return null;
-        })
-      );
-      
-      const validImages = pollResults
-        .filter((url): url is string => !!url)
-        .map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
-      
-      const failedCount = taskIds.length - validImages.length;
-      
-      if (validImages.length === 0) {
-        throw new Error('Aucune image générée. Réessayez.');
-      }
-      
-      setGeneratedImages(validImages);
-      setHasGeneratedImage(true);
-      
-      // ⚠️ CRITICAL: Refresh subscription to update credit count
-      // Wait for database to sync, then refresh multiple times to ensure the update is picked up
+      console.log('[IMAGE GENERATION] Polling (background) for', taskIds.length, 'image(s)...');
+
+      // Polling parameters (fast UX):
+      const MAX_POLL_ATTEMPTS = 8;
+      const POLL_INTERVAL_MS = 1500;
+
       const refreshCredits = async () => {
         try {
           console.log('[IMAGE GENERATION] 🔄 Refreshing subscription credits...');
           await refreshSubscription(true);
-          // Dispatch event to notify DashboardSubscription to refresh
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('subscription-refresh'));
           }
@@ -435,8 +401,55 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           console.error('❌ [IMAGE GENERATION] Error refreshing subscription after image generation:', err);
         }
       };
-      
-      // Wait 3 seconds for database to sync, then refresh multiple times
+
+      const readyImages: { id: string; url: string }[] = [];
+      let completedCount = 0;
+
+      // Start pollers without awaiting them.
+      for (const taskId of taskIds) {
+        (async () => {
+          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+            try {
+              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+              });
+              if (!res.ok) continue;
+              const s = await res.json();
+
+              if (s.status === 'ready' && s.url) {
+                const img = {
+                  id: `img-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                  url: s.url as string,
+                };
+                readyImages.push(img);
+                setGeneratedImages([...readyImages]);
+                setHasGeneratedImage(true);
+                setError(null);
+                persistGeneratedImages([...readyImages]);
+                return;
+              }
+
+              if (s.status === 'error') return;
+            } catch {
+              // retry
+            }
+          }
+
+          // Task not ready within attempts
+          completedCount += 1;
+          if (completedCount === taskIds.length) {
+            const failedCount = taskIds.length - readyImages.length;
+            if (readyImages.length === 0) {
+              setError('Aucune image générée. Réessayez.');
+            } else if (failedCount > 0) {
+              setError(`${failedCount} image(s) n'ont pas pu être générée(s). ${readyImages.length} image(s) générée(s) avec succès.`);
+            }
+          }
+        })();
+      }
+
+      // Wait 3 seconds for database sync, then refresh multiple times
       console.log('[IMAGE GENERATION] ⏳ Waiting 3 seconds for database sync before refreshing credits...');
       setTimeout(() => {
         console.log('[IMAGE GENERATION] 🔄 Starting credit refresh sequence...');
@@ -445,17 +458,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         setTimeout(refreshCredits, 2000);
         setTimeout(refreshCredits, 3000);
       }, 3000);
-      
-      // Sauvegarder dans sessionStorage que l'image a été générée (lightweight only)
-      persistGeneratedImages(validImages);
-      
-      if (failedCount > 0) {
-        setError(`${failedCount} image(s) n'ont pas pu être générée(s). ${validImages.length} image(s) générée(s) avec succès.`);
-      }
-      
-      if (data.warning) {
-        console.warn('[IMAGE GENERATION]', data.warning);
-      }
+
+      if (data.warning) console.warn('[IMAGE GENERATION]', data.warning);
     } catch (err: any) {
       console.error('Error generating images:', err);
       const rawMessage = (err?.message || 'Erreur lors de la génération des images') as string;
