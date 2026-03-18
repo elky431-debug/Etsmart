@@ -116,6 +116,9 @@ export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const isMobile = useIsMobile();
+  const isLocalEnv =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   
   // 🔒 Protection is handled by dashboard/layout.tsx
   // Only use useSubscription for data (quota display, credit checks, etc.)
@@ -135,6 +138,11 @@ export default function DashboardPage() {
     
     try {
       const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
+      // Keyword Research est masqué en production (bug) : on évite de rester bloqué sur cette section
+      if (!isLocalEnv && lastSection === 'keyword-research') {
+        setActiveSection('dashboard-home');
+        return;
+      }
       // Ne jamais utiliser 'history' comme section par défaut au refresh
       if (
         lastSection &&
@@ -255,6 +263,8 @@ export default function DashboardPage() {
         window.history.replaceState({}, '', newUrl);
         
         return () => clearTimeout(timer);
+      } else if (!isLocalEnv && section === 'keyword-research') {
+        setActiveSection('dashboard-home');
       } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
@@ -263,7 +273,9 @@ export default function DashboardPage() {
         try {
           const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
           // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
+        if (!isLocalEnv && lastSection === 'keyword-research') {
+            setActiveSection('dashboard-home');
+          } else if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
             setActiveSection(lastSection);
           } else {
             // Par défaut, afficher la home dashboard
@@ -1420,7 +1432,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Analyse',
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
-        { id: 'keyword-research', label: 'Keyword Research', icon: KeyRound },
+        ...(isLocalEnv
+          ? [{ id: 'keyword-research', label: 'Keyword Research', icon: KeyRound } as MenuItem]
+          : []),
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
         { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
         { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
@@ -2035,7 +2049,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           )}
 
-          {activeSection === 'keyword-research' && (
+          {isLocalEnv && activeSection === 'keyword-research' && (
             <div className="min-h-screen bg-black">
               <KeywordResearchClient />
             </div>

@@ -40,6 +40,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Keyword Research est masqué en production (bug côté route).
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        {
+          error: 'FEATURE_DISABLED',
+          message: 'Keyword Research est temporairement indisponible sur le site.',
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const keyword = typeof body.keyword === 'string' ? body.keyword.trim() : '';
     if (!keyword || keyword.length < 2) {

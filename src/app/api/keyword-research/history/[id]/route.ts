@@ -30,6 +30,17 @@ export async function GET(
       );
     }
 
+    // Keyword Research est masqué en production (bug côté route).
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        {
+          error: 'FEATURE_DISABLED',
+          message: 'Keyword Research est temporairement indisponible sur le site.',
+        },
+        { status: 503 }
+      );
+    }
+
     const item = await getKeywordResearchById(supabase, user.id, id);
     if (!item) {
       return NextResponse.json(
