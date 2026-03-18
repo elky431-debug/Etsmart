@@ -781,30 +781,16 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Nanonbanana</p>
-                    <p className="text-xs text-white/70">
-                      Image-to-Image • {engine === 'flash' ? 'Flash (rapide)' : 'Pro (qualité maximale)'}
-                    </p>
+                    <p className="text-xs text-white/70">Image-to-Image • Pro (rapide)</p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                {/* Pro option uniquement: on force le moteur à utiliser l'endpoint Flash (évite les longues tâches generate-pro). */}
+                <div className="mt-4 grid grid-cols-1 gap-2">
                   <button
                     onClick={() => setEngine('flash')}
-                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                      engine === 'flash'
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'bg-black border border-white/10 text-white hover:border-white/20'
-                    }`}
-                  >
-                    Flash
-                  </button>
-                  <button
-                    onClick={() => setEngine('pro')}
-                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                      engine === 'pro'
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'bg-black border border-white/10 text-white hover:border-white/20'
-                    }`}
+                    className="py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg"
+                    type="button"
                   >
                     Pro
                   </button>
