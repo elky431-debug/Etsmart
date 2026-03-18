@@ -75,7 +75,6 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
-import KeywordResearchClient from '@/app/dashboard/keyword-research/KeywordResearchClient';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -1433,9 +1432,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Analyse',
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
-        ...(isLocalEnv
-          ? [{ id: 'keyword-research', label: 'Keyword Research', icon: KeyRound } as MenuItem]
-          : []),
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
         { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
         { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
@@ -2050,11 +2046,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           )}
 
-          {isLocalEnv && activeSection === 'keyword-research' && (
-            <div className="min-h-screen bg-black">
-              <KeywordResearchClient />
-            </div>
-          )}
+          {/* Keyword Research temporairement masqué (bug) */}
 
 
           {activeSection === 'competitors' && (
