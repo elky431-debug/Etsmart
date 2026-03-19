@@ -83,8 +83,21 @@ export function DashboardLogoGenerator({
           productImage: productImageDataUrl,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.message || data?.error || 'Generation logo echouee');
+      let data: any = null;
+      let rawText = '';
+      try {
+        rawText = await res.text();
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        data = null;
+      }
+      if (!res.ok) {
+        const msg =
+          (data && (data.message || data.error)) ||
+          (rawText ? rawText.slice(0, 160) : '') ||
+          'Generation logo echouee';
+        throw new Error(msg);
+      }
       if (!data?.imageDataUrl) throw new Error('Aucun logo genere');
       setLogoUrl(data.imageDataUrl);
     } catch (e: unknown) {

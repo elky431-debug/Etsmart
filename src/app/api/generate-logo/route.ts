@@ -122,43 +122,53 @@ export async function POST(request: NextRequest) {
     const accentColor = String(palette?.accent ?? '#00c9b7');
     const backgroundColor = String(palette?.background ?? '#0b0b0b');
 
-    // Step 2: generate logo image (text-to-image) with OpenAI
-    const logoPrompt = [
-      'Create ONE square logo (1:1) for an Etsy shop.',
-      'ABSOLUTE RULES:',
-      '- icon/symbol only, NO text, NO letters, NO words, NO watermark',
-      '- refined and polished: subtle depth (soft gradient/shading), clear focal point, enough detail (not a flat silhouette)',
-      `- palette: main ${mainColor}, accent ${accentColor}, background ${backgroundColor}`,
-      `- motif idea: ${motif}`,
-      '- MANDATORY: solid opaque background. NO transparency.',
-      '- no mockup, no business card, no 3D scene, no decorative clutter',
-      '- output must look like a real professional logo asset (usable on a shop page, packaging, favicon)',
-    ].join('\n');
-
-    const imageResponse = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt: logoPrompt,
-      size: '1024x1024',
+    // Step 2: generate SVG logo with OpenAI (fast + Netlify-friendly), then rasterize to PNG.
+    // This avoids slow image generation calls that may time out in production.
+    const svgResp = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.4,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a world-class logo designer. Output ONLY valid JSON with key "svg". The SVG must be 1024x1024, square, with an opaque background (no transparency). No text allowed.',
+        },
+        {
+          role: 'user',
+          content: `Create ONE square logo icon for an Etsy shop.\n\nConstraints:\n- NO text, NO letters, NO words, NO watermark\n- Icon/symbol only\n- Refined: subtle depth (gradients/shading), not a flat silhouette\n- Strong silhouette, scalable\n- Opaque background required (solid or soft gradient)\n\nPalette:\n- main: ${mainColor}\n- accent: ${accentColor}\n- background: ${backgroundColor}\n\nMotif idea (inspired by product): ${motif}\n\nReturn JSON: {"svg":"<svg ...>...</svg>"}.\nSVG requirements:\n- width/height/viewBox 1024\n- include a background rect covering full canvas\n- only vector shapes (path/circle/rect), no embedded images\n- avoid huge complexity (keep it clean)`,
+        },
+      ],
     });
 
-    const b64 = imageResponse.data?.[0]?.b64_json;
-    if (!b64) {
-      return NextResponse.json({ success: false, error: 'IMAGE_GENERATION_FAILED', message: 'Impossible de générer le logo.' }, { status: 500 });
+    const svgJson = svgResp.choices[0]?.message?.content ?? '{}';
+    let svg = '';
+    try {
+      const parsedSvg = JSON.parse(svgJson) as { svg?: string };
+      svg = String(parsedSvg.svg || '').trim();
+    } catch {
+      svg = '';
+    }
+    if (!svg.startsWith('<svg')) {
+      return NextResponse.json(
+        { success: false, error: 'SVG_GENERATION_FAILED', message: 'Impossible de générer le logo (SVG).' },
+        { status: 500 }
+      );
     }
 
-    // Ensure opaque background (flatten to white if needed)
-    let finalMime = 'image/jpeg';
-    let finalB64 = b64;
+    // Rasterize SVG -> PNG 1024x1024
+    let finalB64 = '';
     try {
-      const raw = Buffer.from(b64, 'base64');
-      const flattened = await sharp(raw)
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .jpeg({ quality: 90 })
+      const png = await sharp(Buffer.from(svg))
+        .resize(1024, 1024, { fit: 'cover' })
+        .png({ quality: 92 })
         .toBuffer();
-      finalB64 = flattened.toString('base64');
-    } catch {
-      // keep original
-      finalMime = 'image/png';
+      finalB64 = png.toString('base64');
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, error: 'RASTERIZE_FAILED', message: 'Impossible de convertir le logo en image.' },
+        { status: 500 }
+      );
     }
 
     // Deduct credits after success
@@ -169,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      imageDataUrl: `data:${finalMime};base64,${finalB64}`,
+      imageDataUrl: `data:image/png;base64,${finalB64}`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
