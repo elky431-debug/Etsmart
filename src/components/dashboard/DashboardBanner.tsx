@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Image as ImageIcon, Link as LinkIcon, Loader2, Sparkles, Store, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { DashboardLogoGenerator } from './DashboardLogoGenerator';
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -242,6 +243,15 @@ export function DashboardBanner() {
               The exported banner is always generated and resized to exactly 1200x300.
             </p>
           </motion.div>
+        </div>
+
+        {/* Logo sous la bannière (pré-rempli avec la bannière générée si disponible) */}
+        <div className="mt-8">
+          <DashboardLogoGenerator
+            embedded
+            initialShopImageDataUrl={bannerUrl}
+            initialProductImageDataUrl={productPreview}
+          />
         </div>
       </div>
     </div>
