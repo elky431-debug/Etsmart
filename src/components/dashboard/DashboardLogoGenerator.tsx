@@ -169,85 +169,114 @@ export function DashboardLogoGenerator({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <p className="text-sm font-semibold text-white mb-3">1) Image de la boutique (banniere)</p>
-            <div
-              onClick={() => shopInputRef.current?.click()}
-              onDragEnter={onShopDragEnter}
-              onDragLeave={onShopDragLeave}
-              onDragOver={onShopDragOver}
-              onDrop={onShopDrop}
-              className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragShop ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
-            >
-              <input ref={shopInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'shop')} />
-              {shopImageDataUrl ? (
-                <img src={shopImageDataUrl} alt="Shop" className="w-full h-44 object-cover rounded-lg" />
-              ) : (
-                <div className="h-44 flex flex-col items-center justify-center text-white/60">
-                  <Upload className="w-6 h-6 mb-2" />
-                  <p className="text-sm">Clique pour ajouter la banniere</p>
-                </div>
+          {/* Colonne gauche : inputs */}
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <p className="text-sm font-semibold text-white mb-3">1) Image de la boutique (banniere)</p>
+              <div
+                onClick={() => shopInputRef.current?.click()}
+                onDragEnter={onShopDragEnter}
+                onDragLeave={onShopDragLeave}
+                onDragOver={onShopDragOver}
+                onDrop={onShopDrop}
+                className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragShop ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
+              >
+                <input
+                  ref={shopInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'shop')}
+                />
+                {shopImageDataUrl ? (
+                  <img src={shopImageDataUrl} alt="Shop" className="w-full h-44 object-cover rounded-lg" />
+                ) : (
+                  <div className="h-44 flex flex-col items-center justify-center text-white/60">
+                    <Upload className="w-6 h-6 mb-2" />
+                    <p className="text-sm">Clique pour ajouter la banniere</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <p className="text-sm font-semibold text-white mb-3">2) Image du produit de la boutique</p>
+              <div
+                onClick={() => productInputRef.current?.click()}
+                onDragEnter={onProductDragEnter}
+                onDragLeave={onProductDragLeave}
+                onDragOver={onProductDragOver}
+                onDrop={onProductDrop}
+                className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragProduct ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
+              >
+                <input
+                  ref={productInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'product')}
+                />
+                {productImageDataUrl ? (
+                  <img src={productImageDataUrl} alt="Product" className="w-full h-44 object-cover rounded-lg" />
+                ) : (
+                  <div className="h-44 flex flex-col items-center justify-center text-white/60">
+                    <Upload className="w-6 h-6 mb-2" />
+                    <p className="text-sm">Clique pour ajouter un produit</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={generateLogo}
+                disabled={isGenerating || !shopImageDataUrl || !productImageDataUrl}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Generation...
+                  </span>
+                ) : (
+                  'Generer le logo'
+                )}
+              </button>
+              {logoUrl && (
+                <button
+                  onClick={downloadLogo}
+                  className="px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/10 inline-flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Telecharger
+                </button>
               )}
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <p className="text-sm font-semibold text-white mb-3">2) Image du produit de la boutique</p>
-            <div
-              onClick={() => productInputRef.current?.click()}
-              onDragEnter={onProductDragEnter}
-              onDragLeave={onProductDragLeave}
-              onDragOver={onProductDragOver}
-              onDrop={onProductDrop}
-              className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragProduct ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
-            >
-              <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'product')} />
-              {productImageDataUrl ? (
-                <img src={productImageDataUrl} alt="Product" className="w-full h-44 object-cover rounded-lg" />
-              ) : (
-                <div className="h-44 flex flex-col items-center justify-center text-white/60">
-                  <Upload className="w-6 h-6 mb-2" />
-                  <p className="text-sm">Clique pour ajouter un produit</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            onClick={generateLogo}
-            disabled={isGenerating || !shopImageDataUrl || !productImageDataUrl}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? (
-              <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Generation...</span>
-            ) : (
-              'Generer le logo'
+            {error && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
             )}
-          </button>
-          {logoUrl && (
-            <button onClick={downloadLogo} className="px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/10 inline-flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Telecharger
-            </button>
-          )}
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
           </div>
-        )}
 
-        {logoUrl && (
-          <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <p className="text-sm font-semibold text-white mb-3">Logo genere (carre, sans texte)</p>
-            <div className="w-72 h-72 rounded-xl bg-white mx-auto p-4">
-              <img src={logoUrl} alt="Generated logo" className="w-full h-full object-contain" />
+          {/* Colonne droite : preview */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <p className="text-sm font-semibold text-white mb-3">Aperçu du logo</p>
+            <div className="rounded-xl border border-white/10 bg-black/40 p-4 min-h-[360px] flex items-center justify-center">
+              {logoUrl ? (
+                <div className="w-full flex items-center justify-center">
+                  <div className="w-80 max-w-full aspect-square rounded-xl bg-white p-4">
+                    <img src={logoUrl} alt="Generated logo" className="w-full h-full object-contain" />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-white/50 text-sm">
+                  {isGenerating ? 'Génération en cours…' : 'Ton logo apparaîtra ici.'}
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
