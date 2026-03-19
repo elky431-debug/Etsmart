@@ -8,9 +8,17 @@ export const maxDuration = 25;
 export const runtime = 'nodejs';
 
 const LOGO_CREDITS = 1;
+const LOGO_MAINTENANCE = true;
 
 export async function POST(request: NextRequest) {
   try {
+    if (LOGO_MAINTENANCE) {
+      return NextResponse.json(
+        { error: 'MAINTENANCE', message: 'Le générateur de logo est en maintenance. Reviens demain.' },
+        { status: 503 }
+      );
+    }
+
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Authentification requise' }, { status: 401 });
 
@@ -100,7 +108,7 @@ export async function POST(request: NextRequest) {
             {
               type: 'text',
               text:
-                'Analyze both images and propose: (1) a 2-3 color palette (hex or CSS color names), (2) a background color for an opaque logo, and (3) a clear icon/motif idea inspired by the product. The icon must be symbol-only (no text). Return JSON with keys: palette {main, accent, background}, motif (1 sentence).',
+                'Analyze both images and propose: (1) a 2-3 color palette (hex or CSS color names), (2) a background color for an opaque logo, (3) 3 distinct icon/motif concepts inspired by the product (symbol-only; no text), and (4) 3 style keywords.\n\nReturn JSON with keys: palette {main, accent, background}, motifs (string[3]), style_keywords (string[3]).',
             },
             { type: 'image_url', image_url: { url: shopImageDataUrl } },
             { type: 'image_url', image_url: { url: productImageDataUrl } },
@@ -112,49 +120,100 @@ export async function POST(request: NextRequest) {
     const analysisContent = analysis.choices[0]?.message?.content ?? '{}';
     type LogoAnalysis = {
       palette?: { main?: string; accent?: string; background?: string };
-      motif?: string;
+      motifs?: string[];
+      style_keywords?: string[];
     };
     let parsed: LogoAnalysis = {};
     try { parsed = JSON.parse(analysisContent); } catch { parsed = {}; }
     const palette = parsed?.palette ?? {};
-    const motif = String(parsed?.motif ?? 'a refined symbol inspired by the product');
+    const motifs = Array.isArray(parsed?.motifs) ? parsed.motifs.filter(Boolean).slice(0, 3) : [];
+    const styleKeywords = Array.isArray(parsed?.style_keywords)
+      ? parsed.style_keywords.filter(Boolean).slice(0, 3)
+      : [];
     const mainColor = String(palette?.main ?? '#00d4ff');
     const accentColor = String(palette?.accent ?? '#00c9b7');
     const backgroundColor = String(palette?.background ?? '#0b0b0b');
 
-    // Step 2: generate SVG logo with OpenAI (fast + Netlify-friendly), then rasterize to PNG.
-    // This avoids slow image generation calls that may time out in production.
-    const svgResp = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.4,
+    // Step 2: generate multiple SVG candidates (fast + Netlify-friendly), pick best, then rasterize to PNG.
+    // This avoids slow image generation calls that may time out in production while improving quality.
+    const motifLine =
+      motifs.length > 0
+        ? `Motif concepts (pick ONE and execute it well):\n- ${motifs.map((m) => String(m)).join('\n- ')}`
+        : 'Motif: a refined symbol inspired by the product (avoid generic icons).';
+    const styleLine =
+      styleKeywords.length > 0
+        ? `Style keywords (use as guidance): ${styleKeywords.map((s) => String(s)).join(', ')}`
+        : 'Style: modern, premium, minimal-but-not-flat.';
+
+    const candidatesResp = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      temperature: 0.55,
       response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
           content:
-            'You are a world-class logo designer. Output ONLY valid JSON with key "svg". The SVG must be 1024x1024, square, with an opaque background (no transparency). No text allowed.',
+            'You are a world-class logo designer. Output ONLY valid JSON with key "svgs" (array of 3 SVG strings). Each SVG must be 1024x1024, square, with an opaque background. No text allowed.',
         },
         {
           role: 'user',
-          content: `Create ONE square logo icon for an Etsy shop.\n\nConstraints:\n- NO text, NO letters, NO words, NO watermark\n- Icon/symbol only\n- Refined: subtle depth (gradients/shading), not a flat silhouette\n- Strong silhouette, scalable\n- Opaque background required (solid or soft gradient)\n\nPalette:\n- main: ${mainColor}\n- accent: ${accentColor}\n- background: ${backgroundColor}\n\nMotif idea (inspired by product): ${motif}\n\nReturn JSON: {"svg":"<svg ...>...</svg>"}.\nSVG requirements:\n- width/height/viewBox 1024\n- include a background rect covering full canvas\n- only vector shapes (path/circle/rect), no embedded images\n- avoid huge complexity (keep it clean)`,
+          content: `Create 3 distinct square logo ICONS (not illustrations) for an Etsy shop.\n\nABSOLUTE RULES:\n- NO text, NO letters, NO words, NO numbers, NO punctuation (no question marks), NO watermarks\n- Icon/symbol only\n- Must read as a professional logo asset: balanced, intentional negative space, scalable, clean edges\n- Not generic (avoid: star/heart/leaf/lightbulb/question mark/crown unless clearly derived from motif)\n- Add subtle depth: gentle gradient, inner shadow, or highlight (but keep it logo-like)\n- Opaque background required (solid or soft gradient)\n\nPalette:\n- main: ${mainColor}\n- accent: ${accentColor}\n- background: ${backgroundColor}\n\n${motifLine}\n${styleLine}\n\nSVG requirements:\n- width/height/viewBox 1024\n- include a background rect covering full canvas\n- only vector shapes (path/circle/rect), no embedded images\n- keep complexity moderate (<= ~30 shapes per logo)\n\nReturn JSON: {"svgs":["<svg...>...</svg>","<svg...>...</svg>","<svg...>...</svg>"]}`,
         },
       ],
     });
 
-    const svgJson = svgResp.choices[0]?.message?.content ?? '{}';
-    let svg = '';
+    const candidatesJson = candidatesResp.choices[0]?.message?.content ?? '{}';
+    let svgs: string[] = [];
     try {
-      const parsedSvg = JSON.parse(svgJson) as { svg?: string };
-      svg = String(parsedSvg.svg || '').trim();
+      const parsedCandidates = JSON.parse(candidatesJson) as { svgs?: string[] };
+      svgs = Array.isArray(parsedCandidates.svgs) ? parsedCandidates.svgs.map((s) => String(s).trim()) : [];
     } catch {
-      svg = '';
+      svgs = [];
     }
-    if (!svg.startsWith('<svg')) {
+    svgs = svgs.filter((s) => s.startsWith('<svg')).slice(0, 3);
+    if (svgs.length === 0) {
       return NextResponse.json(
         { success: false, error: 'SVG_GENERATION_FAILED', message: 'Impossible de générer le logo (SVG).' },
         { status: 500 }
       );
     }
+
+    // Pick the best candidate with a quick judge pass
+    const judgeResp = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.0,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a strict logo art director. Choose the best SVG candidate for a premium Etsy shop icon. Output ONLY JSON with keys: index (0-2), reason (1 sentence). Reject anything with text, punctuation, or generic symbols.',
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            criteria: [
+              'no text/letters/numbers/punctuation',
+              'balanced, professional logo feel (not clipart)',
+              'motif relevance (derived from product idea, not generic)',
+              'scalable silhouette + clean negative space',
+              'subtle depth but not overly complex',
+            ],
+            svgs,
+          }),
+        },
+      ],
+    });
+    const judgeJson = judgeResp.choices[0]?.message?.content ?? '{}';
+    let bestIndex = 0;
+    try {
+      const parsedJudge = JSON.parse(judgeJson) as { index?: number };
+      const idx = Number(parsedJudge.index);
+      if (Number.isFinite(idx) && idx >= 0 && idx < svgs.length) bestIndex = idx;
+    } catch {
+      bestIndex = 0;
+    }
+    const svg = svgs[bestIndex] ?? svgs[0];
 
     // Rasterize SVG -> PNG 1024x1024
     let finalB64 = '';
