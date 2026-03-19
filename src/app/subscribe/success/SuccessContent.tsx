@@ -15,7 +15,7 @@ export default function SuccessContent() {
 
   useEffect(() => {
     if (!sessionId) {
-      router.push('/dashboard?section=dashboard-home');
+      router.push('/dashboard');
       return;
     }
 

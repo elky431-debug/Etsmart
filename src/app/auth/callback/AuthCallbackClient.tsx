@@ -46,7 +46,7 @@ export default function AuthCallbackClient() {
         // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
         // Toujours rediriger vers le dashboard d'actions
         console.log('[OAuth Callback] Redirection vers Dashboard (NO REDIRECT TO /pricing)');
-        router.push('/dashboard?section=dashboard-home');
+        router.push('/dashboard');
       } catch (err: any) {
         console.error('[OAuth Callback] Erreur inattendue:', err);
         router.push(`/login?error=oauth_error&message=${encodeURIComponent(err.message || 'Erreur inconnue')}`);

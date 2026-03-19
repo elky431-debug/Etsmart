@@ -115,10 +115,7 @@ export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const isMobile = useIsMobile();
-  const isLocalEnv =
-    typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  
+
   // 🔒 Protection is handled by dashboard/layout.tsx
   // Only use useSubscription for data (quota display, credit checks, etc.)
   const { subscription, loading: subscriptionLoading, hasActiveSubscription, refreshSubscription } = useSubscription();
@@ -131,47 +128,15 @@ export default function DashboardPage() {
   // ⚠️ FIX HYDRATION: Initialiser avec une valeur fixe pour éviter les différences serveur/client
   const [activeSection, setActiveSection] = useState<DashboardSection>('dashboard-home');
   
-  // Charger la section depuis localStorage uniquement côté client après le montage
+  // Sans ?section= dans l'URL, on ne restaure plus l'ancien onglet (localStorage) :
+  // l'atterrissage par défaut est toujours le dashboard d'accueil (/dashboard).
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
-    try {
-      const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
-      // Si l'utilisateur était resté sur Keyword Research, on évite de le re-lock dessus au refresh.
-      // (Keyword Research peut être buggy sur prod; en local on garde l'accès manuel via le menu.)
-      if (lastSection === 'keyword-research') {
-        setActiveSection('dashboard-home');
-        return;
-      }
-      // Ne jamais utiliser 'history' comme section par défaut au refresh
-      if (
-        lastSection &&
-        lastSection !== 'history' &&
-        [
-          'analyze',
-          'dashboard-home',
-          'analysis',
-          'analyse-simulation',
-          'listing',
-          'images',
-          'quick-generate',
-          'logo-generator',
-          'keyword-research',
-          'profile',
-          'settings',
-          'subscription',
-          'competitors',
-          'banner',
-          'video-generator',
-          'tracking',
-          'store-manager',
-          'shop-story',
-        ].includes(lastSection)
-      ) {
-        setActiveSection(lastSection);
-      }
-    } catch (e) {
-      console.warn('⚠️ Error reading last dashboard section:', e);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') return;
+    const section = params.get('section');
+    if (!section) {
+      setActiveSection('dashboard-home');
     }
   }, []);
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
@@ -265,25 +230,13 @@ export default function DashboardPage() {
         return () => clearTimeout(timer);
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
+        window.history.replaceState({}, '', '/dashboard');
       } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
-        // Récupérer la dernière section visitée depuis localStorage
-        // ⚠️ CRITICAL: Ne JAMAIS utiliser 'history' comme section par défaut
-        try {
-          const lastSection = localStorage.getItem('etsmart-last-dashboard-section') as DashboardSection | null;
-          // Ne jamais utiliser 'history' comme section par défaut au refresh
-        if (!isLocalEnv && lastSection === 'keyword-research') {
-            setActiveSection('dashboard-home');
-          } else if (lastSection && lastSection !== 'history' && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(lastSection)) {
-            setActiveSection(lastSection);
-          } else {
-            // Par défaut, afficher la home dashboard
-            setActiveSection('dashboard-home');
-          }
-        } catch (e) {
-          // En cas d'erreur, utiliser la section par défaut
-          setActiveSection('dashboard-home');
+        setActiveSection('dashboard-home');
+        if (window.location.pathname === '/dashboard' && window.location.search) {
+          window.history.replaceState({}, '', '/dashboard');
         }
       }
     }

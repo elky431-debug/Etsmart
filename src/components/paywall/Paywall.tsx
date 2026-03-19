@@ -63,7 +63,7 @@ export function Paywall({
 
   const handleSubscribe = async (planId: PlanId) => {
     if (!user) {
-      router.push(`/login?redirect=/dashboard?section=analyse-simulation&plan=${planId}`);
+      router.push(`/login?redirect=${encodeURIComponent('/dashboard')}&plan=${planId}`);
       return;
     }
 

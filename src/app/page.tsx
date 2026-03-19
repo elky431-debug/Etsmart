@@ -219,7 +219,7 @@ export default function HomePage() {
               {/* CTA Desktop */}
               <div className="hidden md:flex items-center gap-3">
                 {!loading && user ? (
-                  <Link href="/dashboard?section=analyse-simulation">
+                  <Link href="/dashboard">
                     <button className="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer border-2 bg-transparent hover:opacity-90" style={{
                       borderImage: 'linear-gradient(to right, #00d4ff, #00c9b7) 1',
                       borderImageSlice: 1,
@@ -546,7 +546,7 @@ export default function HomePage() {
               const handleSubscribe = async () => {
                 // Si l'utilisateur n'est pas connecté, rediriger vers login
                 if (!user) {
-                  router.push(`/login?redirect=/dashboard?section=analyse-simulation&plan=${plan.id}`);
+                  router.push(`/login?redirect=${encodeURIComponent('/dashboard')}&plan=${plan.id}`);
                   return;
                 }
 

@@ -39,14 +39,14 @@ export default function LoginPage() {
             
             // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
             // Toujours rediriger vers le dashboard d'actions
-            router.push('/dashboard?section=dashboard-home');
+            router.push('/dashboard');
           } else {
-            router.push('/dashboard?section=dashboard-home');
+            router.push('/dashboard');
           }
         } catch (error) {
           console.error('Error checking subscription:', error);
           // En cas d'erreur, rediriger quand même vers le dashboard
-          router.push('/dashboard?section=dashboard-home');
+          router.push('/dashboard');
         }
       };
       
@@ -93,13 +93,13 @@ export default function LoginPage() {
             
             // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
             // Toujours rediriger vers le dashboard d'actions
-            router.push('/dashboard?section=dashboard-home');
+            router.push('/dashboard');
           } else {
-            router.push('/dashboard?section=dashboard-home');
+            router.push('/dashboard');
           }
         } catch (error) {
           console.error('Error checking subscription:', error);
-          router.push('/dashboard?section=dashboard-home');
+          router.push('/dashboard');
         }
       };
       

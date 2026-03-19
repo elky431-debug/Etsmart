@@ -107,9 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (currentPath === '/login' || currentPath === '/register') {
-          // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
-          // Toujours rediriger vers le dashboard Analyse et Simulation
-          router.push('/dashboard?section=analyse-simulation');
+          router.push('/dashboard');
         }
       }
     });
@@ -122,8 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignUp = async (email: string, password: string, fullName?: string) => {
     await signUp(email, password, fullName);
     // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-    // Rediriger vers le dashboard Analyse et Simulation
-    router.push('/dashboard?section=analyse-simulation');
+    router.push('/dashboard');
   };
 
   const handleSignIn = async (email: string, password: string) => {
@@ -144,14 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await response.json();
           
           // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-          // Toujours rediriger vers le dashboard Analyse et Simulation
-          router.push('/dashboard?section=analyse-simulation');
+          router.push('/dashboard');
         } else {
-          router.push('/dashboard?section=analyse-simulation');
+          router.push('/dashboard');
         }
       } catch (error) {
         console.error('Error checking subscription:', error);
-        router.push('/dashboard?section=analyse-simulation');
+        router.push('/dashboard');
       }
     };
     
