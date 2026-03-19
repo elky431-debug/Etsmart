@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
       process.env.NANOBANANA_KEY;
     // Priorité Nanobanana pour fiabilité/speed (Gemini peut renvoyer 429 quota).
     // Active Gemini uniquement si explicitement demandé via env.
-    const useGemini = process.env.USE_GEMINI_IMAGES === 'true' && !!GEMINI_KEY;
+    // IMPORTANT: fallback to Gemini automatically when Nanobanana key is missing.
+    // This prevents production from breaking when only GEMINI_API_KEY is configured.
+    const useGemini =
+      !!GEMINI_KEY &&
+      (process.env.USE_GEMINI_IMAGES === 'true' || !NANO_KEY);
 
     if (!useGemini && !NANO_KEY) {
       console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY/NANOBANANA_API_KEY)');
