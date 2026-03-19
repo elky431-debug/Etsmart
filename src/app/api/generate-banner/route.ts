@@ -6,7 +6,7 @@ import sharp from 'sharp';
 
 const BANNER_CREDITS = 2;
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 export const runtime = 'nodejs';
 
 async function fetchWithTimeout(
@@ -284,7 +284,7 @@ Strict rules:
                 responseModalities: ['TEXT', 'IMAGE'],
               },
             }),
-            timeoutMs: 50000,
+            timeoutMs: 70000,
           }
         );
         const rawText = await res.text();
@@ -306,7 +306,7 @@ Strict rules:
                     contents: [{ role: 'user', parts: userParts }],
                     generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
                   }),
-                  timeoutMs: 50000,
+                  timeoutMs: 70000,
                 }
               );
               const retryText = await retryRes.text();
