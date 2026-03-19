@@ -74,6 +74,7 @@ import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreMana
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
+import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -92,6 +93,7 @@ type DashboardSection =
   | 'top-etsy-sellers'
   | 'niche-finder'
   | 'banner'
+  | 'logo'
   | 'video-generator'
   | 'tracking'
   | 'store-manager'
@@ -135,6 +137,30 @@ export default function DashboardPage() {
     const section = params.get('section');
     if (!section) {
       setActiveSection('dashboard-home');
+    } else if (
+      section &&
+      [
+        'analyze',
+        'dashboard-home',
+        'analysis',
+        'analyse-simulation',
+        'listing',
+        'images',
+        'quick-generate',
+        'keyword-research',
+        'profile',
+        'settings',
+        'subscription',
+        'competitors',
+        'banner',
+        'logo',
+        'video-generator',
+        'tracking',
+        'store-manager',
+        'shop-story',
+      ].includes(section)
+    ) {
+      setActiveSection(section as DashboardSection);
     }
   }, []);
   const [selectedAnalysis, setSelectedAnalysis] = useState<ProductAnalysis | null>(null);
@@ -1399,6 +1425,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Branding',
       items: [
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
+        { id: 'logo', label: 'Logo', icon: ImageIcon },
         { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
       ],
     },
@@ -2049,6 +2076,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'banner' && (
             <DashboardBanner />
+          )}
+
+          {activeSection === 'logo' && (
+            <DashboardLogoGenerator />
           )}
 
           {activeSection === 'etsy-trends' && (
