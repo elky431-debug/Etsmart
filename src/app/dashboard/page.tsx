@@ -1380,6 +1380,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Création de listings',
       items: [
         { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
+        { id: 'images', label: 'Image', icon: Sparkles },
+        { id: 'listing', label: 'Listing', icon: FileText },
         { id: 'video-generator', label: 'Vidéo', icon: Play },
       ],
     },
