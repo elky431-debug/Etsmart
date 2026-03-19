@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
 import * as cheerio from 'cheerio';
 import sharp from 'sharp';
 
+const BANNER_CREDITS = 2;
+
 export const maxDuration = 60;
 export const runtime = 'nodejs';
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { timeoutMs?: number }
+): Promise<Response> {
+  const { timeoutMs = 50000, ...fetchOptions } = options;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...fetchOptions, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 async function scrapeEtsyContext(url: string): Promise<{
   shopName: string;
@@ -113,6 +130,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    if (quotaInfo.status !== 'active') {
+      return NextResponse.json(
+        {
+          error: 'SUBSCRIPTION_REQUIRED',
+          message: 'Un abonnement actif est requis pour générer une bannière.',
+          subscriptionStatus: quotaInfo.status,
+        },
+        { status: 403 }
+      );
+    }
+    if (quotaInfo.remaining < BANNER_CREDITS) {
+      return NextResponse.json(
+        {
+          error: 'QUOTA_EXCEEDED',
+          message: `Génération de bannière : ${BANNER_CREDITS} crédits requis. Il te reste ${quotaInfo.remaining} crédit(s).`,
+          used: quotaInfo.used,
+          quota: quotaInfo.quota,
+          remaining: quotaInfo.remaining,
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const providedShopName = String(body?.shopName || '').trim();
     const etsyUrl = String(body?.etsyUrl || '').trim();
@@ -167,25 +208,30 @@ export async function POST(request: NextRequest) {
     const prompt = `Create one Etsy shop banner in a clean, simple, premium style (4:1 ratio).
 Target export: 1200x300.
 
+MANDATORY — SHOP NAME MUST BE VISIBLE:
+- You MUST display the shop name "${shopName}" as readable text on the banner.
+- Place the text "${shopName}" in the CENTER of the banner, large enough to be clearly legible.
+- Use elegant, clear typography (serif or sans-serif). The shop name is the main title of the banner.
+- Do not omit the shop name. The banner is for the Etsy shop "${shopName}" and the name must appear on it.
+
 Main objective:
 - The banner must clearly represent the shop and its products.
-- Put the shop name "${shopName}" in the CENTER, readable and elegant.
 - Keep composition simple and focused, not overloaded.
 
 Design direction:
 - ${paletteInstruction}
 - Product-focused visual: show relevant products matching "${listingTitle}".
 - Products should be visible and aesthetically arranged (not tiny, not chaotic).
-- Typography must be clear and centered for the shop name.
 - Add soft lighting and depth, but keep it minimal and clean.
 
 Context:
-- Shop name: ${shopName}
+- Shop name (MUST appear as text on banner): ${shopName}
 - Product focus: ${listingTitle}
 - Description summary: ${description.slice(0, 240)}
 ${hasReferenceImage ? '- A product reference image is provided by the user; keep similar product style and palette.' : ''}
 
 Strict rules:
+- The shop name "${shopName}" MUST be written as visible text on the image. No exceptions.
 - no watermark
 - no random symbols or abstract circles unrelated to the brand
 - no collage/grid/screenshot look
@@ -205,15 +251,21 @@ Strict rules:
 
     const modelCandidates =
       modelPreference === 'pro'
-        ? ['gemini-3-pro-image-preview']
+        ? ['gemini-2.5-flash-preview-05-20', 'gemini-2.5-flash', 'gemini-3-pro-image-preview']
         : modelPreference === 'flash'
-        ? ['gemini-3.1-flash-image-preview']
-        : ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'];
+        ? ['gemini-2.5-flash', 'gemini-3.1-flash-image-preview']
+        : [
+            'gemini-2.5-flash-preview-05-20',
+            'gemini-2.5-flash',
+            'gemini-3-pro-image-preview',
+            'gemini-3.1-flash-image-preview',
+          ];
 
     let b64: string | null = null;
+    let lastError = '';
     for (const model of modelCandidates) {
       try {
-        const res = await fetch(
+        const res = await fetchWithTimeout(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
             method: 'POST',
@@ -232,49 +284,95 @@ Strict rules:
                 responseModalities: ['TEXT', 'IMAGE'],
               },
             }),
+            timeoutMs: 50000,
           }
         );
-        if (!res.ok) continue;
-        const data = await res.json();
-        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const rawText = await res.text();
+        if (!res.ok) {
+          lastError = `${model}: ${res.status} ${rawText.slice(0, 300)}`;
+          console.warn('[generate-banner]', lastError);
+          if (res.status === 429) {
+            await new Promise((r) => setTimeout(r, 3000));
+            try {
+              const retryRes = await fetchWithTimeout(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': GEMINI_KEY,
+                  },
+                  body: JSON.stringify({
+                    contents: [{ role: 'user', parts: userParts }],
+                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+                  }),
+                  timeoutMs: 50000,
+                }
+              );
+              const retryText = await retryRes.text();
+              if (retryRes.ok) {
+                const retryData = JSON.parse(retryText);
+                const retryParts = retryData?.candidates?.[0]?.content?.parts ?? [];
+                const retryImg = retryParts.find((p: any) => typeof p?.inlineData?.data === 'string');
+                if (retryImg?.inlineData?.data) {
+                  b64 = retryImg.inlineData.data;
+                  break;
+                }
+              }
+            } catch {
+              // ignore retry failure
+            }
+          }
+          continue;
+        }
+        let data: any;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          lastError = `${model}: invalid JSON`;
+          continue;
+        }
+        const candidate = data?.candidates?.[0];
+        const blockReason = candidate?.finishReason ?? data?.promptFeedback?.blockReason;
+        if (blockReason && blockReason !== 'STOP') {
+          lastError = `${model}: ${blockReason}`;
+        }
+        const parts = candidate?.content?.parts ?? [];
         const imagePart = parts.find((p: any) => typeof p?.inlineData?.data === 'string');
         if (imagePart?.inlineData?.data) {
           b64 = imagePart.inlineData.data;
           break;
         }
-      } catch {
-        // try next model
+      } catch (err: any) {
+        lastError = err?.message ?? String(err);
+        console.warn('[generate-banner]', model, err);
       }
     }
 
     if (!b64) {
+      const isQuota = lastError.includes('429') || /quota|billing|limit/i.test(lastError);
+      const message = isQuota
+        ? 'Quota Gemini dépassé. Vérifie ton plan et la facturation dans Google AI Studio (aistudio.google.com), ou réessaie dans quelques minutes.'
+        : lastError
+          ? `Bannière non générée (${lastError.slice(0, 120)}). Vérifie ta clé Gemini ou réessaie.`
+          : 'No banner generated with Gemini.';
       return NextResponse.json(
-        { error: 'GENERATION_FAILED', message: 'No banner generated with Gemini.' },
+        { error: 'GENERATION_FAILED', message },
         { status: 500 }
       );
     }
 
     const raw = Buffer.from(b64, 'base64');
-    const foreground = await sharp(raw).resize(1200, 300, { fit: 'inside' }).toBuffer();
-    const background = await sharp(raw)
-      .resize(1200, 300, { fit: 'cover' })
-      .blur(10)
-      .modulate({ brightness: 0.6, saturation: 0.9 })
-      .toBuffer();
-    const fgMeta = await sharp(foreground).metadata();
-    const fgW = fgMeta.width || 1200;
-    const fgH = fgMeta.height || 300;
-    const bannerBuffer = await sharp(background)
-      .composite([
-        {
-          input: foreground,
-          left: Math.max(0, Math.floor((1200 - fgW) / 2)),
-          top: Math.max(0, Math.floor((300 - fgH) / 2)),
-          blend: 'over',
-        },
-      ])
+    // Redimensionnement direct en 1200x300, recadrage centré : bannière entièrement nette, sans bandes floues
+    const bannerBuffer = await sharp(raw)
+      .resize(1200, 300, { fit: 'cover', position: 'center' })
       .png({ quality: 92 })
       .toBuffer();
+
+    const deductResult = await incrementAnalysisCount(user.id, BANNER_CREDITS);
+    if (!deductResult.success) {
+      console.warn('[generate-banner] Credit deduction failed after success:', deductResult.error);
+    }
 
     return NextResponse.json({
       success: true,

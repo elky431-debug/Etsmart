@@ -108,6 +108,9 @@ export function DashboardBanner() {
               <p className="text-white/70 text-sm mt-1">
                 Paste an Etsy URL or add a product image, then generate a 1200x300 banner.
               </p>
+              <p className="text-[#00d4ff] text-sm mt-1 font-medium">
+                2 crédits par génération
+              </p>
             </div>
           </div>
         </motion.div>
@@ -183,7 +186,7 @@ export function DashboardBanner() {
               )}
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -192,6 +195,7 @@ export function DashboardBanner() {
                 {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {isGenerating ? 'Generating...' : 'Generate 1200x300 banner'}
               </button>
+              <span className="text-white/60 text-sm">(2 crédits)</span>
               {bannerUrl && (
                 <button
                   onClick={downloadBanner}

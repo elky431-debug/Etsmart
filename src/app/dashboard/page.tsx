@@ -72,7 +72,6 @@ import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGe
 import { DashboardTracking } from '@/components/dashboard/DashboardTracking';
 import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreManager';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 // Paywall is now handled by dashboard/layout.tsx
@@ -84,7 +83,6 @@ type DashboardSection =
   | 'images'
   | 'quick-generate'
   | 'keyword-research'
-  | 'logo-generator'
   | 'profile'
   | 'settings'
   | 'subscription'
@@ -1382,8 +1380,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Création de listings',
       items: [
         { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
-        { id: 'images', label: 'Image', icon: Sparkles },
-        { id: 'listing', label: 'Listing', icon: FileText },
         { id: 'video-generator', label: 'Vidéo', icon: Play },
       ],
     },
@@ -1397,15 +1393,13 @@ The final image should look like a high-quality Etsy listing photo and naturally
         { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
       ],
     },
-    // Section Branding masquée temporairement (maintenance)
-    // {
-    //   label: 'Branding',
-    //   items: [
-    //     { id: 'logo-generator', label: 'Création de logo', icon: ImageIcon },
-    //     { id: 'banner', label: 'Bannière', icon: ImageIcon },
-    //     { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
-    //   ],
-    // },
+    {
+      label: 'Branding',
+      items: [
+        { id: 'banner', label: 'Bannière', icon: ImageIcon },
+        { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
+      ],
+    },
   ];
 
   const otherMenuItems: MenuItem[] = [
@@ -2013,11 +2007,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           )}
 
-          {activeSection === 'subscription' && (
+          {activeSection === 'subscription' && user && (
             <DashboardSubscription user={user} />
           )}
 
-          {activeSection === 'profile' && (
+          {activeSection === 'profile' && user && (
             <DashboardProfile user={user} />
           )}
 
@@ -2079,7 +2073,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <DashboardShopStory />
           )}
 
-          {activeSection === 'settings' && (
+          {activeSection === 'settings' && user && (
             <DashboardSettings user={user} />
           )}
         </div>
