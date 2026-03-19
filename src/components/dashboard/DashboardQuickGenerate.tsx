@@ -44,6 +44,20 @@ function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
+// Pricing quick-generate :
+// - Listing (listing + SEO content) : 1 crédit fixe
+// - Images : flash = 0.2 crédit / image, pro = 0.4 crédit / image
+// Kept compatible with the previous hardcoded UI:
+// quick-generate (flash, quantity=5) => 1 + 5*0.2 = 2 credits
+// images-only (flash, quantity=5) => 5*0.2 = 1 credit
+const perImageCredits = (engine: ImageEngine) => (engine === 'pro' ? 0.4 : 0.2);
+const roundToTenth = (n: number) => Math.round(n * 10) / 10;
+const formatCredits = (n: number) => {
+  const rounded = roundToTenth(n);
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(1)).replace(/\.0$/, '');
+};
+const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
+
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -87,6 +101,8 @@ export function DashboardQuickGenerate() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyle>('realistic');
+  const imagesOnlyCredits = roundToTenth(quantity * perImageCredits(engine));
+  const quickGenerateCredits = roundToTenth(1 + quantity * perImageCredits(engine));
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
@@ -281,7 +297,7 @@ export function DashboardQuickGenerate() {
       const quotaCheck = await fetch('/api/deduct-credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amount: 2, reason: 'quick-generate' }),
+        body: JSON.stringify({ amount: quickGenerateCredits, reason: 'quick-generate' }),
       });
       if (!quotaCheck.ok) {
         let fallbackMessage = 'Crédits insuffisants ou erreur de quota.';
@@ -539,6 +555,35 @@ export function DashboardQuickGenerate() {
         return;
       }
 
+      // Deduct credits côté client (pricing dépend de engine + quantity)
+      const creditsToDeduct = imagesOnlyCredits;
+      const quotaCheck = await fetch('/api/deduct-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount: creditsToDeduct, reason: 'quick-generate-images-only' }),
+      });
+
+      if (!quotaCheck.ok) {
+        let fallbackMessage = 'Crédits insuffisants ou erreur de quota.';
+        try {
+          const err = await quotaCheck.json();
+          const code = err?.error;
+          const msg = err?.message;
+          if (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED') {
+            const quotaMsg =
+              /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? (msg || fallbackMessage) : fallbackMessage;
+            setError(normalizeQuotaMessage(quotaMsg));
+            setIsRegeneratingImages(false);
+            return;
+          }
+        } catch {
+          // ignore JSON parse errors
+        }
+        setError(normalizeQuotaMessage(fallbackMessage));
+        setIsRegeneratingImages(false);
+        return;
+      }
+
       // Compresser le fond si présent (512x512 car utilisé uniquement pour description)
       let bgBase64: string | undefined;
       if (backgroundImage) {
@@ -571,6 +616,7 @@ export function DashboardQuickGenerate() {
           productTitle: listingData?.title || undefined,
           tags: safeTags,
           materials: safeMaterials,
+          skipCreditDeduction: true,
           productContext: {
             title: listingData?.title || '',
             category: '',
@@ -1039,7 +1085,9 @@ export function DashboardQuickGenerate() {
                   <>
                     <Sparkles size={20} />
                     GÉNÉRER LE LISTING ET LES IMAGES
-                    <span className="ml-2 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold">2 crédits</span>
+                    <span className="ml-2 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold">
+                      {formatCredits(quickGenerateCredits)} {creditLabel(quickGenerateCredits)}
+                    </span>
                   </>
                 )}
               </button>
@@ -1066,7 +1114,9 @@ export function DashboardQuickGenerate() {
                 >
                   <RotateCcw size={18} />
                   Nouvelle génération
-                  <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">2 crédits</span>
+                  <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">
+                    {formatCredits(quickGenerateCredits)} {creditLabel(quickGenerateCredits)}
+                  </span>
                 </button>
               )}
             </div>
@@ -1284,7 +1334,9 @@ export function DashboardQuickGenerate() {
                         <>
                           <ImageIcon size={20} />
                           Générer les images
-                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">1 crédit</span>
+                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-xs font-semibold">
+                            {formatCredits(imagesOnlyCredits)} {creditLabel(imagesOnlyCredits)}
+                          </span>
                         </>
                       )}
                     </button>
@@ -1386,7 +1438,9 @@ export function DashboardQuickGenerate() {
                         <>
                           <ImageIcon size={18} />
                           Générer de nouvelles images
-                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">1 crédit</span>
+                          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold">
+                            {formatCredits(imagesOnlyCredits)} {creditLabel(imagesOnlyCredits)}
+                          </span>
                         </>
                       )}
                     </button>

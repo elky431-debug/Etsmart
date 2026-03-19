@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
 
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
     const NANO_KEY = process.env.NANONBANANA_API_KEY;
-    const useGemini = !!GEMINI_KEY;
+    // Priorité Nanobanana pour fiabilité/speed (Gemini peut renvoyer 429 quota).
+    // Active Gemini uniquement si explicitement demandé via env.
+    const useGemini = process.env.USE_GEMINI_IMAGES === 'true' && !!GEMINI_KEY;
 
     if (!useGemini && !NANO_KEY) {
       console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY)');
@@ -132,12 +134,59 @@ export async function POST(request: NextRequest) {
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : 'Fast realistic render with clean natural lighting.';
       const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle.`;
+      // Prompts alignés sur le flow "génération rapide" :
+      // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
+      const GLOBAL_PROMPT_RULES_GEMINI =
+        `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
+        `Pas de watermark. ` +
+        `Pas de texte marketing sur l'image (sauf les mensurations sur l'image 4). ` +
+        `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
+        `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
+        `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
+        `Cohérence visuelle entre les 5 images (même produit, même style global, variantes d'angles/background seulement).`;
+
+      const STYLE_EXPECTED_GEMINI =
+        `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
+
       const IMAGE_PROMPTS_GEMINI = [
-        `${baseContext} IMAGE 1: wide contextual shot with premium Etsy realism, clean composition, natural light, strong depth and crisp details. NO text, NO measurement overlay.`,
-        `${baseContext} IMAGE 2: medium shot centered on product, balanced background, high sharpness and realistic shadows/reflections. NO text, NO measurement overlay.`,
-        `${baseContext} IMAGE 3: close-up detail shot (materials, texture, finishes), ultra clean and sharp focus, realistic micro-textures. NO text, NO measurement overlay.`,
-        `${baseContext} IMAGE 4 (MANDATORY MEASUREMENTS): create a clean product-sheet style image with visible dimension arrows and numeric labels on the product. If a reference image includes measurements, replicate that measurement style and keep it clearly readable. This image MUST include measurements (do not return a plain lifestyle shot).`,
-        `${baseContext} IMAGE 5: strategic conversion-focused angle, premium realistic lighting, coherent perspective, very clean output. NO text, NO measurement overlay.`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – ANGLE DE VUE ÉLOIGNÉ (CONTEXTE & AMBIANCE):
+Génère une photo produit avec un angle éloigné montrant l’article dans un environnement réaliste et chaleureux.
+Le produit doit être clairement visible, intégré à la scène (home decor / lifestyle usage naturel), rendu photo Etsy haut de gamme.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 – ANGLE DE VUE INTERMÉDIAIRE (ÉQUILIBRE PRODUIT / DÉTAIL):
+Génère une photo produit avec un angle intermédiaire: produit au centre, environnement visible, composition équilibrée.
+Met en valeur formes, design et proportions globales. Rendu réaliste et net, ombres cohérentes, fond sobre.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 3 – ZOOM / DÉTAIL PRODUIT:
+Génère un gros plan sur le produit (texture, matière, finitions) avec une netteté premium.
+Le fond doit rester simple et élégant pour ne pas détourner l’attention.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
+Génère une image du produit avec les mensurations clairement visibles:
+- flèches de dimension (guidelines) et labels numériques lisibles,
+- style graphique simple et propre (traits fins),
+- texte uniquement pour les dimensions (pas de texte marketing).
+Le produit reste le sujet principal, rendu cohérent et crédible Etsy.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – IMAGE STRATÉGIQUE (À VALEUR AJOUTÉE):
+Génère une image supplémentaire qui ajoute de la valeur à la fiche:
+angle/variation d’ambiance pertinente, focus usage (avant / après, détail clé, ou mise en situation alternative).
+Objectif: augmenter la compréhension et la confiance.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
       const numImages = Math.min(Math.max(quantity, 1), 5);
       const promptsToUse = IMAGE_PROMPTS_GEMINI.slice(0, numImages);
@@ -319,14 +368,44 @@ export async function POST(request: NextRequest) {
       + materialsStrNano;
 
     const produitRef = (productTitle && String(productTitle).trim()) ? String(productTitle).trim().substring(0, 80) : 'le produit';
-    const reglesCommunes = `RÈGLE ABSOLUE : l'objet principal (${produitRef}) doit garder sa FORME EXACTE et ses COULEURS EXACTES. Rond reste rond, ovale reste ovale, courbe reste courbe—ne jamais le rendre carré ou rectangulaire. Même forme, mêmes proportions, mêmes couleurs, mêmes matières. Tu ne modifies que l'arrière-plan et le décor. Rendu réaliste, Etsy, cosy, professionnel. Format carré.`;
+    const reglesCommunes = `RÈGLE ABSOLUE: l'objet principal (${produitRef}) doit garder sa forme, ses proportions, couleurs et matières EXACTES.
+Tu ne modifies que l'arrière-plan/décor et l'angle de prise de vue (pas de changement de produit).
+Rendu réaliste photo Etsy haut de gamme (pas de style "IA"), chaleureux et naturel.
+RÈGLES VISUELLES: Pas de watermark. Pas de texte marketing sur l'image (sauf mensurations sur l'image 4).
+Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, fond simple (table/mur clair/studio léger).
+Cohérence entre les 5 images (même produit, même style global, variantes d'angles/background uniquement).`;
 
     const IMAGE_PROMPTS = [
-      `${productContextText} IMAGE 1 – VUE ÉLOIGNÉE : plan large, produit dans son environnement complet, contexte et ambiance. ${reglesCommunes}`,
-      `${productContextText} IMAGE 2 – ANGLE INTERMÉDIAIRE : produit au centre, environnement visible. ${reglesCommunes}`,
-      `${productContextText} IMAGE 3 – ZOOM DÉTAIL : gros plan sur le produit, texture et finitions. ${reglesCommunes}`,
-      `${productContextText} IMAGE 4 – MENSURATIONS : dimensions clairement visibles, style fiche produit. ${reglesCommunes}`,
-      `${productContextText} IMAGE 5 – IMAGE STRATÉGIQUE : angle ou mise en situation à valeur ajoutée. ${reglesCommunes}`,
+      `${productContextText}
+PROMPT 1 – ANGLE DE VUE ÉLOIGNÉ (CONTEXTE & AMBIANCE):
+Plan large, produit intégré dans une scène lifestyle réaliste (home decor / usage naturel).
+Le produit est clairement visible, lumière douce, tons chauds, fond simple et élégant.
+Pas de texte. Pas de watermark.
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 2 – ANGLE DE VUE INTERMÉDIAIRE (ÉQUILIBRE PRODUIT / DÉTAIL):
+Angle intermédiaire, produit au centre, environnement visible mais fond sobre.
+Met en valeur design, formes et proportions globales, ombres cohérentes et rendu net.
+Pas de texte. Pas de watermark.
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 3 – ZOOM / DÉTAIL PRODUIT:
+Gros plan sur texture, matière et finitions, netteté premium.
+Fond simple et élégant pour ne pas détourner l’attention.
+Pas de texte. Pas de watermark.
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
+Image type fiche produit: dimensions clairement visibles avec flèches de dimension et labels numériques lisibles.
+Style graphique simple (traits fins, texte clair) et esthétique.
+Texte uniquement pour les mensurations (pas de texte marketing).
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 5 – IMAGE STRATÉGIQUE (À VALEUR AJOUTÉE):
+Image supplémentaire pertinente: mise en situation alternative ou focus usage / détail clé.
+Objectif: augmenter compréhension et confiance, rendu photo Etsy haut de gamme.
+Pas de texte. Pas de watermark.
+${reglesCommunes}`,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
 
@@ -405,10 +484,17 @@ export async function POST(request: NextRequest) {
     };
 
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      let finalPrompt = IMAGE_PROMPTS[index % IMAGE_PROMPTS.length];
+      const promptIndex = index % IMAGE_PROMPTS.length;
+      let finalPrompt = IMAGE_PROMPTS[promptIndex];
       if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
       const styleSuffix = style && STYLE_SUFFIX[style] ? STYLE_SUFFIX[style] : STYLE_SUFFIX.realistic;
       finalPrompt += ` ${styleSuffix}`;
+      // Ré-affirmer les règles à la fin (customInstructions peut autrement les contredire).
+      if (promptIndex === 3) {
+        finalPrompt += ` Pas de watermark. Texte uniquement pour les mensurations (dimensions).`;
+      } else {
+        finalPrompt += ` Pas de watermark. Pas de texte marketing sur l'image.`;
+      }
       if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
         try {

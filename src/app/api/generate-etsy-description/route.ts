@@ -84,137 +84,87 @@ export async function POST(request: NextRequest) {
     console.log('[DESCRIPTION GENERATION] Full product visual description:', productVisualDescription);
     console.log('[DESCRIPTION GENERATION] Product visual description length:', productVisualDescription.length);
     
-    // ⚠️ PROMPT 1: Description (ancien prompt - celui qui était parfait)
-    const descriptionPrompt = `You are an expert Etsy copywriter. Generate a comprehensive, detailed product description for Etsy that is optimized for conversion, reassuring, and compliant with Etsy's best practices.
+    // ⚠️ PROMPT 1: Description (même template que la génération rapide)
+    const descriptionPrompt = `I will provide Etsy product photos (in your place: a product visual description). Your role is to generate a professional, convincing, SEO-optimized Etsy description ready to publish.
 
-⚠️⚠️⚠️ CRITICAL RULE - READ THIS FIRST ⚠️⚠️⚠️
-You MUST generate a description that matches EXACTLY the product described in the "PRODUCT VISUAL DESCRIPTION" below.
-- If the product is a WATCH → describe a WATCH
-- If the product is a BABY ITEM → describe a BABY ITEM  
-- If the product is JEWELRY → describe JEWELRY
-- If the product is a MASK → describe a MASK
-- DO NOT invent a different product type
-- DO NOT use generic descriptions
-- DO NOT ignore the product visual description
+WORKING RULES:
+- If no competitor description is provided: write the best complete SEO description from the product visual description.
 
-PRODUCT VISUAL DESCRIPTION (THIS IS YOUR ONLY SOURCE - USE IT EXACTLY):
-${productVisualDescription}
+LANGUAGE:
+- Final output must be ENGLISH ONLY.
+- Do NOT provide any French translation.
+- Never mix languages in any paragraph.
 
-CRITICAL RULES:
-- The description must be in ENGLISH ONLY
-- You MUST describe EXACTLY what is in the product visual description above
-- Do NOT use the AliExpress supplier title as a source
-- Do NOT invent features, materials, or characteristics not mentioned in the product visual description
-- Avoid any mention of dropshipping
-- Avoid promises of "fast shipping"
-- Avoid trademarked brand names
-- Keep it generic and legally safe
-- MUST include at least 12-18 emojis strategically placed throughout the description (use relevant emojis that enhance the message - more emojis make it more engaging and attractive)
-- Warm, human, natural tone
-- The description must be ready to copy-paste directly into Etsy
-- Make it LONG and DETAILED - aim for 300-500 words minimum
-- Be descriptive, engaging, and comprehensive
-- Do NOT use bullet points, asterisks (*), dashes (-) at the start of lines, or numbered lists (1., 2., 3., etc.). The description must be written as flowing paragraphs only.
+MANDATORY STRUCTURE:
+1) SEO-optimized description title (clear, strong hook, product + style, emojis allowed only if relevant)
+2) Product presentation + branding (immersive, design + ambiance + perceived value, premium reassuring tone)
+3) Marketing/value section:
+   ✨ Why you'll love it
+   - 3 to 5 bullet points max
+   - customer benefits focused
+   - emojis optional and niche-appropriate
+4) Dimensions section ONLY if relevant and clearly available from the product visual description. Never invent dimensions.
+5) ALWAYS include this exact shipping/protection block (keep it in English):
+🚚 Shipping & Protection Options
+Express shipping is available at checkout for customers who wish to receive their order faster.
+You may also choose to add package insurance when selecting your shipping method.
 
-PRODUCT INFORMATION:
+Please note: without package insurance, we cannot be held responsible for damage, defects, or issues that may occur during transit. For full peace of mind, adding insurance at checkout is strongly recommended.
+6) End with exactly 5 English SEO hashtags related to the product (no generic useless hashtags).
+
+SEO/QUALITY CONSTRAINTS:
+- Natural Etsy SEO optimization
+- Human, fluent, high-converting copy
+- No keyword stuffing
+- Emoji usage must remain controlled and relevant
+
+INPUTS:
 - Product visual description: ${productVisualDescription}
 - Niche: ${niche}
 - Positioning: ${positioning || 'Not specified'}
 - Recommended price: $${recommendedPrice}
-${psychologicalTriggers ? `- Psychological triggers: ${psychologicalTriggers.map((t: any) => t.trigger).join(', ')}` : ''}
-${buyerMirror ? `- Buyer mirror effect: ${buyerMirror}` : ''}
 
-⚠️⚠️⚠️ FINAL REMINDER ⚠️⚠️⚠️
-Your description MUST describe the EXACT product type mentioned in the product visual description. If the product visual description says "watch", you MUST write about a watch. If it says "baby cradle", you MUST write about a baby cradle. Do NOT write about something else.
+Return ONLY the final description text.`;
 
-REQUIRED STRUCTURE (guideline – expand each idea in flowing paragraphs, NOT in a list):
+    // ⚠️ PROMPT 2: Titre, Tags et Matériaux (même template que la génération rapide)
+    const titleTagsMaterialsPrompt = `You are an Etsy SEO expert. Return valid JSON only.
 
-- Start with an EMOTIONAL HOOK (2-3 sentences) to capture attention.
-- Move into a CLEAR PRODUCT PRESENTATION (3-4 sentences) describing appearance, style, usage, and key benefits.
-- Naturally weave in DETAILED FEATURES & BENEFITS inside the paragraphs instead of bullet points.
-- Explain WHY PEOPLE BUY IT, IDEAL OCCASIONS, and QUALITY & CRAFTSMANSHIP in continuous text.
-- End with gentle USAGE/Care notes (if relevant) and a SOFT CALL-TO-ACTION.
+I will send Etsy product photos (in your place: product visuals described by a product visual description).
+Your role:
+1) Generate an optimized Etsy SEO title for my shop.
+2) Generate optimized Etsy tags (hashtags) for my shop.
+3) Generate materials used in the product based ONLY on what is mentioned in the product visual description.
 
-OUTPUT FORMAT:
-- Return ONLY the final description text
-- No explanations, no comments, no meta-text
-- Just the ready-to-use description
-- Use paragraph breaks for readability, but absolutely no bullet points, asterisks (*), or numbered lists at the start of lines
-- Minimum 300 words, aim for 400-500 words
-- MUST include at least 12-18 emojis (strategically placed, relevant to content - more emojis make it more engaging and attractive)
-- Make it comprehensive, detailed, and engaging
+TITLE RULES:
+- English only
+- Max 140 characters
+- No special characters (no |, •, ★, —, emojis, etc.)
+- No unnecessary keyword repetition
 
-Generate the description now:`;
+TAGS RULES (STRICT):
+- English only
+- Exactly 13 tags
+- Return tags separated by commas only
+- No # symbol
+- No vertical list
+- No explanatory text
+- No emojis
+- Max 20 characters per tag
+- Relevant and searched keywords
+- No useless generic tags
+- No duplicates
 
-    // ⚠️ PROMPT 2: Titre, Tags et Matériaux (nouveau prompt)
-    const titleTagsMaterialsPrompt = `You are an expert Etsy SEO and product listing copywriter. I have an Etsy dropshipping store specialized in ${niche || '[YOUR NICHE]'}
-
-⚠️⚠️⚠️ CRITICAL RULE - READ THIS FIRST ⚠️⚠️⚠️
-You MUST generate a title, tags, and materials that match EXACTLY the product described in the "PRODUCT VISUAL DESCRIPTION" below.
-- If the product is a WATCH → generate watch-related title, tags, and materials
-- If the product is a BABY ITEM → generate baby-related title, tags, and materials
-- If the product is JEWELRY → generate jewelry-related title, tags, and materials
-- If the product is a MASK → generate mask-related title, tags, and materials
-- DO NOT invent a different product type
-- DO NOT use generic content
-- DO NOT ignore the product visual description
-
-PRODUCT VISUAL DESCRIPTION (THIS IS YOUR ONLY SOURCE - USE IT EXACTLY):
-${productVisualDescription}
-
-⚠️⚠️⚠️ ABSOLUTE REQUIREMENTS:
-- You MUST generate content that matches EXACTLY what is described in the product visual description above
-- Do NOT add features, materials, or characteristics that are not mentioned
-- If the product visual description says "watch", generate watch-related content
-- If the product visual description says "baby cradle", generate baby cradle-related content
-- If the product visual description says "necklace", generate necklace-related content
-- Match the product type, materials, and features described above EXACTLY
-
-Your mission is to generate for me:
-1. A SEO optimized title (clearly related to the product described above, without keyword stuffing, but effective for SEO). ⚠️ The title MUST be at LEAST 100 characters long (minimum 100, ideally 120-140). If the title is under 100 characters, ADD more relevant keywords until it reaches at least 100 characters.
-2. A list of 13 Etsy tags, each maximum 20 characters, separated by commas, optimized for my Etsy SEO so I can copy-paste them directly.
-3. A list of materials used in the product (based ONLY on what is mentioned in the product description above), separated by COMMAS (this is super important for copy-paste functionality). Generate only the materials you can identify from the description, ideally 2-4 materials if possible.
-
-Important rules:
-• Always put tags on a single line separated by commas.
-• Materials must be in English, separated by COMMAS (example: "stainless steel, wood, leather, ceramic")
-• Materials must be simple names, no descriptions, no sentences
-• All text must be in English.
-• The style must remain natural and seller-friendly, not too "robotic" or keyword-stuffed.
-• You MUST match the product type and characteristics described in the product visual description above EXACTLY
-
-PRODUCT INFORMATION:
+INPUTS:
 - Product visual description: ${productVisualDescription}
-- Niche: ${niche}
-${positioning ? `- Positioning: ${positioning}` : ''}
-${recommendedPrice ? `- Recommended price: $${recommendedPrice}` : ''}
+- Niche: ${niche || '[YOUR NICHE]'}
 
-⚠️⚠️⚠️ FINAL REMINDER ⚠️⚠️⚠️
-Your title, tags, and materials MUST describe the EXACT product type mentioned in the product visual description. If the product visual description says "watch", you MUST generate watch-related content. If it says "baby cradle", you MUST generate baby cradle-related content. Do NOT generate content for a different product.
+MATERIALS RULES:
+- Only material names (no sentences)
+- Separated by commas
+- In English
 
-OUTPUT FORMAT (JSON):
-Return a JSON object with this exact structure:
-{
-  "title": "SEO optimized title (MINIMUM 100 characters, ideally 120-140 characters, natural and keyword-rich - NEVER under 100 characters)",
-  "tags": "tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13 (EXACTLY 13 tags required, never less)",
-  "materials": "material1, material2, material3, material4"
-}
-
-IMPORTANT FOR MATERIALS:
-- Materials must be separated by COMMAS (not spaces, not two spaces, exactly COMMAS)
-- Example: "stainless steel, wood, leather, ceramic"
-- Only material names in English, no descriptions, no sentences
-- If materials are not clearly visible, infer from the product description
-- Ideal: 2-4 materials if possible, but not mandatory
-
-CRITICAL REQUIREMENTS:
-- The title MUST be at LEAST 100 characters long (MINIMUM 100, ideally 120-140 characters). If it is under 100 characters, you MUST add more relevant SEO keywords to make it longer. NEVER generate a title shorter than 100 characters.
-- You MUST provide exactly 13 tags, each maximum 20 characters, separated by commas on a single line
-- Materials must be provided separately, separated by COMMAS (not spaces, exactly COMMAS) - this is CRITICAL for copy-paste functionality
-- All text must be in English
-- Keep the style natural and seller-friendly, not robotic or keyword-stuffed
-
-Generate the title, tags and materials now:`;
+Return JSON exactly:
+{"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     

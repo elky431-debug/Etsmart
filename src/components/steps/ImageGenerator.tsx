@@ -43,6 +43,16 @@ const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, 
   });
 };
 
+// Pricing for image generation:
+// - Images only (no listing): flash = 0.2 credit / image, pro = 0.4 credit / image
+const perImageCredits = (engine: 'flash' | 'pro') => (engine === 'pro' ? 0.4 : 0.2);
+const roundToTenth = (n: number) => Math.round(n * 10) / 10;
+const formatCredits = (n: number) => {
+  const rounded = roundToTenth(n);
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(1)).replace(/\.0$/, '');
+};
+const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
+
 interface ImageGeneratorProps {
   analysis: ProductAnalysis;
   hasListing?: boolean; // Indique si le listing est déjà généré (pour affichage uniquement, n'affecte pas la génération)
@@ -76,6 +86,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyle>('realistic');
+  const creditsToDeduct = roundToTenth(quantity * perImageCredits(engine));
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -314,6 +325,32 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         throw new Error('Authentification requise');
       }
 
+      // Deduct credits côté client (pricing dépend engine + quantity)
+      const quotaCheck = await fetch('/api/deduct-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount: creditsToDeduct, reason: 'image-generate' }),
+      });
+
+      if (!quotaCheck.ok) {
+        const fallbackMessage = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+        try {
+          const err = await quotaCheck.json().catch(() => null);
+          const code = err?.error;
+          const msg = err?.message;
+          if (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED') {
+            const quotaMsg =
+              /quota|exceeded|crédits|insuffisant/i.test(String(msg || ''))
+                ? (msg || fallbackMessage)
+                : fallbackMessage;
+            throw new Error(quotaMsg);
+          }
+          throw new Error(msg || fallbackMessage);
+        } catch (e) {
+          throw new Error(fallbackMessage);
+        }
+      }
+
       // ⚠️ CRITICAL: Image generation is now INDEPENDENT from listing
       // We ALWAYS generate only the image (0.25 credit), regardless of whether listing exists
       // The listing can be generated separately in the "Listing" tab
@@ -361,6 +398,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
             title: analysis.product.title || '',
             referenceImages: extraReferenceImages,
           },
+          skipCreditDeduction: true,
           skipListingGeneration: true, // ⚠️ ALWAYS true - Image generation is independent, always 0.25 credit
         }),
       });
@@ -972,6 +1010,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   <>
                     <Sparkles size={20} />
                     GÉNÉRER {quantity} IMAGE{quantity > 1 ? 'S' : ''}
+                    <span className="ml-2 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold">
+                      {formatCredits(creditsToDeduct)} {creditLabel(creditsToDeduct)}
+                    </span>
                   </>
                 )}
               </button>
