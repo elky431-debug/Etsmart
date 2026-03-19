@@ -56,15 +56,25 @@ export async function POST(request: NextRequest) {
     }
 
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
-    const NANO_KEY = process.env.NANONBANANA_API_KEY;
+    // Support common env var naming variants (Netlify often differs).
+    const NANO_KEY =
+      process.env.NANONBANANA_API_KEY ||
+      process.env.NANOBANANA_API_KEY ||
+      process.env.NANO_BANANA_API_KEY ||
+      process.env.NANONBANANA_KEY ||
+      process.env.NANOBANANA_KEY;
     // Priorité Nanobanana pour fiabilité/speed (Gemini peut renvoyer 429 quota).
     // Active Gemini uniquement si explicitement demandé via env.
     const useGemini = process.env.USE_GEMINI_IMAGES === 'true' && !!GEMINI_KEY;
 
     if (!useGemini && !NANO_KEY) {
-      console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY)');
+      console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY/NANOBANANA_API_KEY)');
       return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'Clé API image manquante. Définissez GEMINI_API_KEY ou NANONBANANA_API_KEY.' },
+        {
+          error: 'SERVER_CONFIG_ERROR',
+          message:
+            'Clé API image manquante. Définissez GEMINI_API_KEY ou NANONBANANA_API_KEY (alias supporté: NANOBANANA_API_KEY).',
+        },
         { status: 500 },
       );
     }
