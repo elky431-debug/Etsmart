@@ -1368,10 +1368,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
   // Items affichés tout en haut du menu latéral
   const topMenuItems: MenuItem[] = [
     { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
-    { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
   ];
 
   const menuCategories: MenuCategory[] = [
+    {
+      label: 'Gestion de boutique',
+      items: [
+        { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
+        { id: 'tracking', label: 'Suivi colis (Tracktaco/Parcell App)', icon: Truck },
+      ],
+    },
     {
       label: 'Création de listings',
       items: [
@@ -1404,7 +1410,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
   const otherMenuItems: MenuItem[] = [
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
-    { id: 'tracking', label: 'Suivi colis (Tracktaco/Parcell App)', icon: Truck },
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
