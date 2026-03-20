@@ -100,6 +100,7 @@ const INITIAL_PRODUCTS: Product[] = [];
 
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const MONTH_LABELS = ['Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Jan', 'Fév', 'Mar'];
+const ETSY_PLATFORM_FEE_RATE = 0.153; // 15.3%
 
 // Liste des pays (noms en français, ordre alphabétique)
 const COUNTRIES = [
@@ -206,8 +207,9 @@ export function DashboardStoreManager() {
       console.warn('[StoreManager] Erreur sauvegarde localStorage', e);
     }
   }, [shops, products, transactions, suppliers, selectedShopId]);
-  const [statsMonth, setStatsMonth] = useState(2);
-  const [statsYear, setStatsYear] = useState(2026);
+  const [statsRange, setStatsRange] = useState<'7d' | '30d' | 'month' | 'all'>('30d');
+  const [statsMonth, setStatsMonth] = useState(() => new Date().getMonth());
+  const [statsYear, setStatsYear] = useState(() => new Date().getFullYear());
   const [transactionSearch, setTransactionSearch] = useState('');
   const [transactionStatusFilter, setTransactionStatusFilter] = useState<'all' | 'À envoyer' | 'À modifier' | 'Envoyé'>('all');
   const [editTransactionId, setEditTransactionId] = useState<string | null>(null);
@@ -268,10 +270,56 @@ export function DashboardStoreManager() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [countryDropdownOpen]);
 
+  useEffect(() => {
+    const amountPaid = parseFloat(newTxAmountPaid.replace(',', '.'));
+    if (Number.isNaN(amountPaid) || amountPaid <= 0) {
+      setNewTxPlatformFees('');
+      return;
+    }
+    const fees = amountPaid * ETSY_PLATFORM_FEE_RATE;
+    setNewTxPlatformFees(fees.toFixed(2));
+  }, [newTxAmountPaid]);
+
   const shopTransactions = useMemo(
     () => (selectedShopId ? transactions.filter((t) => (t.shopId ?? '1') === selectedShopId) : []),
     [transactions, selectedShopId]
   );
+
+  const statsTransactions = useMemo(() => {
+    if (statsRange === 'month') {
+      return shopTransactions.filter((t) => {
+        const d = new Date(t.date);
+        return !Number.isNaN(d.getTime()) && d.getMonth() === statsMonth && d.getFullYear() === statsYear;
+      });
+    }
+    if (statsRange === 'all') return shopTransactions;
+    const days = statsRange === '7d' ? 7 : 30;
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    return shopTransactions.filter((t) => {
+      const d = new Date(t.date);
+      return !Number.isNaN(d.getTime()) && d >= cutoff;
+    });
+  }, [shopTransactions, statsRange, statsMonth, statsYear]);
+
+  const prevStatsMonth = () => {
+    if (statsMonth === 0) {
+      setStatsMonth(11);
+      setStatsYear((y) => y - 1);
+      return;
+    }
+    setStatsMonth((m) => m - 1);
+  };
+
+  const nextStatsMonth = () => {
+    if (statsMonth === 11) {
+      setStatsMonth(0);
+      setStatsYear((y) => y + 1);
+      return;
+    }
+    setStatsMonth((m) => m + 1);
+  };
 
   const salesByDate = useMemo(
     () =>
@@ -358,9 +406,9 @@ export function DashboardStoreManager() {
   }, [monthlyStats]);
 
   const kpi = useMemo(() => {
-    const revenue = shopTransactions.reduce((s, t) => s + t.amountPaid, 0);
-    const profit = shopTransactions.reduce((s, t) => s + t.profit, 0);
-    const orders = shopTransactions.length;
+    const revenue = statsTransactions.reduce((s, t) => s + t.amountPaid, 0);
+    const profit = statsTransactions.reduce((s, t) => s + t.profit, 0);
+    const orders = statsTransactions.length;
     return {
       revenue,
       profit,
@@ -368,7 +416,7 @@ export function DashboardStoreManager() {
       orders,
       productsCount: orders,
     };
-  }, [shopTransactions]);
+  }, [statsTransactions]);
 
   // Objectifs & niveaux (utilisent les vraies stats de la boutique)
   const totalRevenue = kpi.revenue;
@@ -455,7 +503,7 @@ export function DashboardStoreManager() {
     const now = new Date();
     const currentYear = now.getFullYear();
     const buckets = MONTH_LABELS.map((month) => ({ month, ca: 0, profit: 0 }));
-    shopTransactions.forEach((t) => {
+    statsTransactions.forEach((t) => {
       const d = new Date(t.date);
       const y = d.getFullYear();
       const m = d.getMonth();
@@ -467,11 +515,11 @@ export function DashboardStoreManager() {
       }
     });
     return buckets;
-  }, [shopTransactions]);
+  }, [statsTransactions]);
 
   const ordersByCountry = useMemo(() => {
     const map: Record<string, number> = {};
-    shopTransactions.forEach((t) => {
+    statsTransactions.forEach((t) => {
       const c = t.country || 'Autre';
       map[c] = (map[c] || 0) + 1;
     });
@@ -480,7 +528,7 @@ export function DashboardStoreManager() {
       value: map[name],
       color: getCountryColor(name, i),
     }));
-  }, [shopTransactions]);
+  }, [statsTransactions]);
 
   const topProducts = useMemo(() => [
     { id: '1', rank: 1, name: '1 pièce, pots de fleurs décorés de poupé', sales: 0, image: '/examples/placeholder-product.jpg' },
@@ -488,20 +536,7 @@ export function DashboardStoreManager() {
     { id: '3', rank: 3, name: 'visage de fille Pot de fleurs', sales: 0, image: '/examples/placeholder-product.jpg' },
   ], []);
 
-  const prevMonth = () => {
-    if (statsMonth === 0) {
-      setStatsMonth(11);
-      setStatsYear((y) => y - 1);
-    } else setStatsMonth((m) => m - 1);
-  };
-  const nextMonth = () => {
-    if (statsMonth === 11) {
-      setStatsMonth(0);
-      setStatsYear((y) => y + 1);
-    } else setStatsMonth((m) => m + 1);
-  };
-
-  const filteredTransactions = shopTransactions.filter((t) => {
+  const filteredTransactions = statsTransactions.filter((t) => {
     const matchesSearch =
       !transactionSearch ||
       t.label.toLowerCase().includes(transactionSearch.toLowerCase()) ||
@@ -603,7 +638,7 @@ export function DashboardStoreManager() {
   const handleAddTransaction = () => {
     const amountPaid = parseFloat(newTxAmountPaid.replace(',', '.')) || 0;
     const productCost = parseFloat(newTxProductCost.replace(',', '.')) || 0;
-    const platformFees = parseFloat(newTxPlatformFees.replace(',', '.')) || 0;
+    const platformFees = Number((amountPaid * ETSY_PLATFORM_FEE_RATE).toFixed(2));
     const profit = amountPaid - productCost - platformFees;
     const country = newTxCountry || 'Autre';
     const city = newTxCity || '';
@@ -813,26 +848,71 @@ export function DashboardStoreManager() {
 
             {activeSubTab === 'dashboard' && (
             <>
-            {/* KPI cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <KpiCard title="Chiffre d'affaires" value={`${kpi.revenue.toFixed(2)} €`} sub={`${kpi.orders} commande${kpi.orders !== 1 ? 's' : ''}`} />
-              <KpiCard title="Profit" value={kpi.profit >= 0 ? `+${kpi.profit.toFixed(2)} €` : `${kpi.profit.toFixed(2)} €`} sub="Après frais et coûts" profit />
-              <KpiCard title="Panier moyen" value={`${kpi.avgBasket.toFixed(2)} €`} sub="Par commande" />
-              <KpiCard title="Commandes" value={String(kpi.orders)} sub={kpi.orders ? `Pour ${kpi.productsCount} produit${kpi.productsCount !== 1 ? 's' : ''}` : undefined} />
-            </div>
-
-            {/* Stats month */}
+            {/* Stats range */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white/90">Statistiques · {MONTHS[statsMonth]} {statsYear}</h2>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={prevMonth} className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white">
-                  <ChevronLeft size={20} />
+              <h2 className="text-lg font-semibold text-white/90">Statistiques</h2>
+              <div className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 p-1">
+                <button
+                  type="button"
+                  onClick={() => setStatsRange('7d')}
+                  className={`px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
+                    statsRange === '7d' ? 'bg-white/20 text-white font-medium' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  7 jours
                 </button>
-                <button type="button" onClick={nextMonth} className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white">
-                  <ChevronRight size={20} />
+                <button
+                  type="button"
+                  onClick={() => setStatsRange('30d')}
+                  className={`px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
+                    statsRange === '30d' ? 'bg-white/20 text-white font-medium' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  30 jours
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatsRange('month')}
+                  className={`px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
+                    statsRange === 'month' ? 'bg-white/20 text-white font-medium' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  Par mois
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatsRange('all')}
+                  className={`px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
+                    statsRange === 'all' ? 'bg-white/20 text-white font-medium' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  Depuis le début
                 </button>
               </div>
             </div>
+            {statsRange === 'month' && (
+              <div className="flex items-center justify-end gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={prevStatsMonth}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white"
+                  aria-label="Mois précédent"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="text-sm text-white/80 min-w-[140px] text-center">
+                  {MONTHS[statsMonth]} {statsYear}
+                </span>
+                <button
+                  type="button"
+                  onClick={nextStatsMonth}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white"
+                  aria-label="Mois suivant"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <KpiCard title="Chiffre d'affaires" value={`${kpi.revenue.toFixed(2)} €`} />
               <KpiCard title="Profit" value={kpi.profit >= 0 ? `+${kpi.profit.toFixed(2)} €` : `${kpi.profit.toFixed(2)} €`} profit />
@@ -2086,16 +2166,16 @@ export function DashboardStoreManager() {
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs text-white/50 mb-1.5">Montant payé</label>
+                    <label className="block text-xs text-white/50 mb-1.5 min-h-[2.25rem] flex items-end">Montant payé</label>
                     <input type="text" value={newTxAmountPaid} onChange={(e) => setNewTxAmountPaid(e.target.value)} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#00d4ff]/40 focus:ring-1 focus:ring-[#00d4ff]/20" />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/50 mb-1.5">Coût produit</label>
+                    <label className="block text-xs text-white/50 mb-1.5 min-h-[2.25rem] flex items-end">Coût produit</label>
                     <input type="text" value={newTxProductCost} onChange={(e) => setNewTxProductCost(e.target.value)} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#00d4ff]/40 focus:ring-1 focus:ring-[#00d4ff]/20" />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/50 mb-1.5">Frais plateforme</label>
-                    <input type="text" value={newTxPlatformFees} onChange={(e) => setNewTxPlatformFees(e.target.value)} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#00d4ff]/40 focus:ring-1 focus:ring-[#00d4ff]/20" />
+                    <label className="block text-xs text-white/50 mb-1.5 min-h-[2.25rem] flex items-end">Frais plateforme (15,3%)</label>
+                    <input type="text" value={newTxPlatformFees} readOnly placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/20 border border-white/10 text-white/80 placeholder-white/30 text-sm cursor-not-allowed" />
                   </div>
                 </div>
               </div>

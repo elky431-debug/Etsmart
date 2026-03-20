@@ -44,7 +44,8 @@ import {
   Package,
   Store,
   Truck,
-  KeyRound
+  KeyRound,
+  Bot
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -74,6 +75,7 @@ import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreMana
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
+import { DashboardCoach } from '@/components/dashboard/DashboardCoach';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -96,7 +98,8 @@ type DashboardSection =
   | 'video-generator'
   | 'tracking'
   | 'store-manager'
-  | 'shop-story';
+  | 'shop-story'
+  | 'coach';
 
 interface MenuItem {
   id: DashboardSection;
@@ -177,6 +180,10 @@ export default function DashboardPage() {
         'tracking',
         'store-manager',
         'shop-story',
+        'top-etsy-sellers',
+        'etsy-trends',
+        'niche-finder',
+        'coach',
       ].includes(section)
     ) {
       setActiveSection(section as DashboardSection);
@@ -274,7 +281,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'video-generator', 'tracking', 'store-manager', 'shop-story'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'coach'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -1411,6 +1418,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
   // Items affichés tout en haut du menu latéral
   const topMenuItems: MenuItem[] = [
     { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
+    { id: 'coach', label: 'Coach', icon: Bot },
   ];
 
   const menuCategories: MenuCategory[] = [
@@ -1418,7 +1426,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Gestion de boutique',
       items: [
         { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
-        { id: 'tracking', label: 'Suivi colis (Tracktaco/Parcell App)', icon: Truck },
+        { id: 'tracking', label: 'Suivi colis', icon: Truck },
       ],
     },
     {
@@ -1435,6 +1443,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
+      ],
+    },
+    {
+      label: 'Data',
+      items: [
         { id: 'top-etsy-sellers', label: 'Top Etsy Sellers', icon: Crown },
         { id: 'etsy-trends', label: 'Etsy Trends', icon: BarChart3 },
         { id: 'niche-finder', label: 'Recherche de Niche', icon: Target },
@@ -1816,6 +1829,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">
+          {activeSection === 'coach' && (
+            <DashboardCoach />
+          )}
+
           {activeSection === 'dashboard-home' && (
             <DashboardHome
               onNavigate={(section) => {

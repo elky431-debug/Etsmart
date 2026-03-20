@@ -95,7 +95,10 @@ const COUNTRY_LIST: { code: string; name: string }[] = [
   { code: 'ZW', name: 'Zimbabwe' },
 ];
 
+type TrackingMainTab = 'tracking-number' | 'parcel-search';
+
 export function DashboardTracking() {
+  const [mainTab, setMainTab] = useState<TrackingMainTab>('tracking-number');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('US');
@@ -273,12 +276,31 @@ export function DashboardTracking() {
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-zinc-900/80 border-2 border-zinc-700 text-white placeholder-zinc-500 hover:border-zinc-600 focus:border-[#00d4ff] focus:ring-4 focus:ring-[#00d4ff]/25 focus:outline-none text-sm transition-all duration-200';
   const labelClass = 'block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2';
 
+  const tabBtnClass = (active: boolean) =>
+    `flex-1 px-4 py-2.5 rounded-full text-sm font-semibold transition-all ${
+      active
+        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black shadow-lg shadow-[#00d4ff]/20'
+        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/80'
+    }`;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-black to-black p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
+        {/* Onglets principaux */}
+        <div className="mb-6 flex rounded-full border-2 border-zinc-800 bg-zinc-900/60 p-1.5 shadow-xl shadow-black/30">
+          <button type="button" onClick={() => setMainTab('tracking-number')} className={tabBtnClass(mainTab === 'tracking-number')}>
+            Numéro de suivi
+          </button>
+          <button type="button" onClick={() => setMainTab('parcel-search')} className={tabBtnClass(mainTab === 'parcel-search')}>
+            Recherche de colis
+          </button>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Left panel - Form */}
           <div className="lg:w-[420px] flex-shrink-0">
+            {mainTab === 'tracking-number' ? (
+              <>
             <div className="flex items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-xl shadow-[#00d4ff]/30 flex-shrink-0 ring-2 ring-[#00d4ff]/20">
@@ -447,21 +469,22 @@ export function DashboardTracking() {
                 <p className="text-red-200 text-sm">{error}</p>
               </div>
             )}
-
-            {/* Parcell App : rechercher un colis par numéro de suivi */}
-            <div className="mt-8 flex items-center gap-3 min-w-0">
+              </>
+            ) : (
+              <>
+            <div className="flex items-center gap-3 min-w-0 mb-6">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/90 to-teal-600 flex items-center justify-center shadow-xl flex-shrink-0 ring-2 ring-emerald-500/20">
                 <Search className="w-7 h-7 text-white" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-xl font-bold text-white truncate">Rechercher un colis</h2>
+                <h1 className="text-2xl font-bold text-white truncate">Rechercher un colis</h1>
                 <p className="text-zinc-400 text-sm mt-0.5">Parcell App · Suivre un colis existant</p>
               </div>
             </div>
-            <p className="text-xs text-zinc-500 mt-2 mb-3 leading-relaxed">
-              Entre un numero de suivi pour obtenir l'etat du colis et identifier son transporteur.
+            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+              Entre un numero de suivi pour obtenir l&apos;état du colis et identifier son transporteur.
             </p>
-            <form onSubmit={handleParcellSearch} className="mt-4 rounded-2xl border-2 border-zinc-800 bg-zinc-900/50 p-6 sm:p-7 space-y-4 shadow-2xl shadow-black/40 backdrop-blur-sm">
+            <form onSubmit={handleParcellSearch} className="rounded-2xl border-2 border-zinc-800 bg-zinc-900/50 p-6 sm:p-7 space-y-4 shadow-2xl shadow-black/40 backdrop-blur-sm">
               <div>
                 <label className={labelClass}>Numéro de suivi</label>
                 <input
@@ -492,99 +515,30 @@ export function DashboardTracking() {
               </button>
             </form>
             {parcellError && (
-              <div className="mt-3 p-4 rounded-xl bg-red-500/10 border-2 border-red-500/40 flex items-start gap-2">
+              <div className="mt-4 p-4 rounded-xl bg-red-500/10 border-2 border-red-500/40 flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                 <p className="text-red-200 text-sm">{parcellError}</p>
               </div>
             )}
+              </>
+            )}
           </div>
 
-          {/* Right panel - Results table */}
+          {/* Right panel - Results */}
           <div className="flex-1 min-w-0 rounded-2xl border-2 border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl shadow-black/40 backdrop-blur-sm">
+            {mainTab === 'tracking-number' ? (
+              <>
             <div className="p-4 sm:p-5 border-b-2 border-zinc-800 flex items-center gap-3 bg-zinc-800/30">
               <div className="w-10 h-10 rounded-xl bg-[#00d4ff]/20 flex items-center justify-center ring-2 ring-[#00d4ff]/20">
                 <Calendar className="w-5 h-5 text-[#00d4ff]" />
               </div>
-              <h2 className="text-lg font-bold text-white">Résultats</h2>
+              <h2 className="text-lg font-bold text-white">Résultats Tracktaco</h2>
               {results.length > 0 && (
                 <span className="px-3 py-1 rounded-full bg-[#00d4ff]/25 text-[#00d4ff] text-sm font-semibold border border-[#00d4ff]/30">
                   {results.length} numéro{results.length > 1 ? 's' : ''}
                 </span>
               )}
             </div>
-            {parcellResult && (
-              <div className="border-b-2 border-zinc-800 bg-emerald-950/30">
-                <button
-                  type="button"
-                  onClick={() => setParcellDetailOpen((v) => !v)}
-                  className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-3 hover:bg-emerald-950/50 transition-colors rounded-t-lg"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Recherche Parcell</p>
-                    <div className="flex flex-wrap gap-4">
-                      <div className="flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                        <span className="text-zinc-400 text-sm">Transporteur</span>
-                        <span className="text-white font-semibold">{parcellResult.carrier || '—'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                        <span className="text-zinc-400 text-sm">État</span>
-                        <span className="text-white font-semibold">{parcellResult.status}</span>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-zinc-500 text-xs font-mono truncate">N° {parcellResult.trackingNumber}</p>
-                  </div>
-                  <span className="text-zinc-400 text-sm flex items-center gap-1 flex-shrink-0">
-                    {parcellDetailOpen ? 'Masquer le détail' : 'Voir le détail'}
-                    <ChevronRight className={`w-4 h-4 transition-transform ${parcellDetailOpen ? 'rotate-90' : ''}`} />
-                  </span>
-                </button>
-                {parcellDetailOpen && (
-                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 border-t border-zinc-800/80">
-                    {(parcellResult.origin || parcellResult.destination) && (
-                      <div className="flex flex-wrap gap-4 mb-4">
-                        {parcellResult.origin != null && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-emerald-400" />
-                            <span className="text-zinc-400 text-xs">Origine</span>
-                            <span className="text-white text-sm">{formatPlace(parcellResult.origin)}</span>
-                          </div>
-                        )}
-                        {parcellResult.destination != null && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-emerald-400" />
-                            <span className="text-zinc-400 text-xs">Destination</span>
-                            <span className="text-white text-sm">{formatPlace(parcellResult.destination)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {parcellResult.dateExpected && (
-                      <p className="text-zinc-400 text-xs mb-3">
-                        <span className="font-semibold text-zinc-300">Livraison estimée</span> {parcellResult.dateExpected}
-                      </p>
-                    )}
-                    {parcellResult.events && parcellResult.events.length > 0 ? (
-                      <div>
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Historique du colis</p>
-                        <ul className="space-y-2 max-h-64 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-600">
-                          {parcellResult.events.map((ev, i) => (
-                            <li key={i} className="flex gap-3 text-sm border-l-2 border-emerald-500/30 pl-3 py-1.5">
-                              <span className="text-zinc-500 text-xs whitespace-nowrap flex-shrink-0">{ev.date ?? '—'}</span>
-                              <span className="text-white">{ev.event ?? ev.description ?? (typeof ev === 'object' ? JSON.stringify(ev) : String(ev))}</span>
-                              {ev.location && <span className="text-zinc-400 text-xs flex-shrink-0">· {ev.location}</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : (
-                      <p className="text-zinc-500 text-sm">Aucun événement détaillé disponible.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
             <div className="overflow-x-auto min-h-[320px]">
               {results.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center px-8 relative">
@@ -593,7 +547,9 @@ export function DashboardTracking() {
                     <Package className="w-10 h-10 text-[#00d4ff]/70" />
                   </div>
                   <p className="text-xl font-bold text-white mb-1">Aucun numéro de suivi</p>
-                  <p className="text-zinc-400 text-sm max-w-sm leading-relaxed">Utilise Tracktaco pour generer un numero de suivi, ou Parcell App pour suivre un colis existant et voir son transporteur.</p>
+                  <p className="text-zinc-400 text-sm max-w-sm leading-relaxed">
+                    Remplis le formulaire à gauche et clique sur « Obtenir un numéro de suivi » pour générer un numéro via Tracktaco.
+                  </p>
                 </div>
               ) : (
                 <table className="w-full text-sm">
@@ -646,6 +602,102 @@ export function DashboardTracking() {
                 </table>
               )}
             </div>
+              </>
+            ) : (
+              <>
+            <div className="p-4 sm:p-5 border-b-2 border-zinc-800 flex items-center gap-3 bg-zinc-800/30">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center ring-2 ring-emerald-500/20">
+                <Truck className="w-5 h-5 text-emerald-400" />
+              </div>
+              <h2 className="text-lg font-bold text-white">Résultats Parcell</h2>
+            </div>
+            <div className="min-h-[320px]">
+              {parcellResult ? (
+                <div className="bg-emerald-950/30">
+                  <button
+                    type="button"
+                    onClick={() => setParcellDetailOpen((v) => !v)}
+                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-3 hover:bg-emerald-950/50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Colis trouvé</p>
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <Truck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                          <span className="text-zinc-400 text-sm">Transporteur</span>
+                          <span className="text-white font-semibold">{parcellResult.carrier || '—'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Package className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                          <span className="text-zinc-400 text-sm">État</span>
+                          <span className="text-white font-semibold">{parcellResult.status}</span>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-zinc-500 text-xs font-mono truncate">N° {parcellResult.trackingNumber}</p>
+                    </div>
+                    <span className="text-zinc-400 text-sm flex items-center gap-1 flex-shrink-0">
+                      {parcellDetailOpen ? 'Masquer le détail' : 'Voir le détail'}
+                      <ChevronRight className={`w-4 h-4 transition-transform ${parcellDetailOpen ? 'rotate-90' : ''}`} />
+                    </span>
+                  </button>
+                  {parcellDetailOpen && (
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 border-t border-zinc-800/80">
+                      {(parcellResult.origin || parcellResult.destination) && (
+                        <div className="flex flex-wrap gap-4 mb-4">
+                          {parcellResult.origin != null && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-emerald-400" />
+                              <span className="text-zinc-400 text-xs">Origine</span>
+                              <span className="text-white text-sm">{formatPlace(parcellResult.origin)}</span>
+                            </div>
+                          )}
+                          {parcellResult.destination != null && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-emerald-400" />
+                              <span className="text-zinc-400 text-xs">Destination</span>
+                              <span className="text-white text-sm">{formatPlace(parcellResult.destination)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {parcellResult.dateExpected && (
+                        <p className="text-zinc-400 text-xs mb-3">
+                          <span className="font-semibold text-zinc-300">Livraison estimée</span> {parcellResult.dateExpected}
+                        </p>
+                      )}
+                      {parcellResult.events && parcellResult.events.length > 0 ? (
+                        <div>
+                          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Historique du colis</p>
+                          <ul className="space-y-2 max-h-64 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-600">
+                            {parcellResult.events.map((ev, i) => (
+                              <li key={i} className="flex gap-3 text-sm border-l-2 border-emerald-500/30 pl-3 py-1.5">
+                                <span className="text-zinc-500 text-xs whitespace-nowrap flex-shrink-0">{ev.date ?? '—'}</span>
+                                <span className="text-white">{ev.event ?? ev.description ?? (typeof ev === 'object' ? JSON.stringify(ev) : String(ev))}</span>
+                                {ev.location && <span className="text-zinc-400 text-xs flex-shrink-0">· {ev.location}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-zinc-500 text-sm">Aucun événement détaillé disponible.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-24 text-center px-8">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-600/20 border-2 border-emerald-500/30 flex items-center justify-center mb-5">
+                    <Search className="w-10 h-10 text-emerald-400/80" />
+                  </div>
+                  <p className="text-xl font-bold text-white mb-1">Aucun colis recherché</p>
+                  <p className="text-zinc-400 text-sm max-w-sm leading-relaxed">
+                    Saisis un numéro de suivi à gauche pour afficher le transporteur et l&apos;état du colis via Parcell App.
+                  </p>
+                </div>
+              )}
+            </div>
+              </>
+            )}
           </div>
         </div>
       </div>
