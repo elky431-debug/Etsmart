@@ -20,6 +20,13 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ImageAltTextPanel } from '@/components/dashboard/ImageAltTextPanel';
+import { getImagePollDeadlineMs, getImagePollIntervalMs } from '@/lib/image-gen-polling';
+import {
+  imagesOnlyTotalCredits,
+  quickGenerateTotalCredits,
+  roundCreditsToTenth,
+} from '@/lib/image-listing-credits';
 
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 type ImageEngine = 'flash' | 'pro';
@@ -44,14 +51,8 @@ function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-// Pricing quick-generate :
-// - Listing (listing + SEO content) : 1 crédit fixe
-// - Images : flash = 0.2 crédit / image, pro = 0.4 crédit / image
-// Kept compatible with the previous hardcoded UI:
-// quick-generate (flash, quantity=5) => 1 + 5*0.2 = 2 credits
-// images-only (flash, quantity=5) => 5*0.2 = 1 credit
-const perImageCredits = (engine: ImageEngine) => (engine === 'pro' ? 0.4 : 0.2);
-const roundToTenth = (n: number) => Math.round(n * 10) / 10;
+// Tarifs : src/lib/image-listing-credits.ts (listing + prix / image flash ou pro)
+const roundToTenth = roundCreditsToTenth;
 const formatCredits = (n: number) => {
   const rounded = roundToTenth(n);
   return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(1)).replace(/\.0$/, '');
@@ -101,8 +102,8 @@ export function DashboardQuickGenerate() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyle>('realistic');
-  const imagesOnlyCredits = roundToTenth(quantity * perImageCredits(engine));
-  const quickGenerateCredits = roundToTenth(1 + quantity * perImageCredits(engine));
+  const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, engine);
+  const quickGenerateCredits = quickGenerateTotalCredits(quantity, engine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
@@ -456,11 +457,12 @@ export function DashboardQuickGenerate() {
 
       let allImages: GeneratedImage[] = [];
       setPendingImagesCount(imageTaskIds.length);
-      const deadline = Date.now() + 60000; // 60s max, polling toutes les 1.5s
+      const deadline = Date.now() + getImagePollDeadlineMs(quantity);
+      const pollMs = getImagePollIntervalMs(quantity);
 
       const results = await Promise.all(imageTaskIds.map(async (taskId, idx) => {
         while (Date.now() < deadline) {
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise(r => setTimeout(r, pollMs));
           if (Date.now() >= deadline) break;
           try {
             const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
@@ -637,7 +639,11 @@ export function DashboardQuickGenerate() {
         } catch {
           errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
         }
-        const message = errorData.message || (errorData.error === 'IMAGE_SUBMIT_FAILED' ? 'Le service d\'images n\'a pas accepté la requête. Vérifiez la clé API (NANONBANANA_API_KEY).' : errorData.error) || `Erreur ${response.status}`;
+        const message =
+          errorData.message ||
+          (errorData.error === 'IMAGE_SUBMIT_FAILED'
+            ? 'Le service d\'images n\'a pas accepté la requête. Vérifie GEMINI_API_KEY côté serveur (recommandé), ou la clé Nanobanana si tu forces ce fournisseur.'
+            : errorData.error) || `Erreur ${response.status}`;
         setError(message);
         setIsRegeneratingImages(false);
         return;
@@ -669,31 +675,29 @@ export function DashboardQuickGenerate() {
       } else if (taskIds.length === 0) {
         setError(data.message || data.error || 'La génération d\'images a échoué. Réessayez.');
       } else {
-        const newImages: GeneratedImage[] = [];
+        const deadline = Date.now() + getImagePollDeadlineMs(quantity);
+        const pollMs = getImagePollIntervalMs(quantity);
 
-        // Poll chaque taskId jusqu'à 60s max (40 x 1.5s)
-        for (const taskId of taskIds) {
-          for (let i = 0; i < 40; i++) {
-            await new Promise(r => setTimeout(r, 1000));
-            try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-              if (!res.ok) continue;
-              const statusData = await res.json();
-              if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
-                newImages.push({
-                  id: `regen-${Date.now()}-${newImages.length}`,
-                  url: statusData.url,
-                });
-                break;
+        const polled = await Promise.all(
+          taskIds.map(async (taskId, idx) => {
+            while (Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, pollMs));
+              try {
+                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+                if (!res.ok) continue;
+                const statusData = await res.json();
+                if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
+                  return { id: `regen-${Date.now()}-${idx}`, url: statusData.url } as GeneratedImage;
+                }
+                if (statusData.status === 'error') return null;
+              } catch {
+                /* retry */
               }
-              if (statusData.status === 'error') {
-                break;
-              }
-            } catch {
-              // on réessaie à l'itération suivante
             }
-          }
-        }
+            return null;
+          })
+        );
+        const newImages = polled.filter((r): r is GeneratedImage => r !== null);
 
         if (newImages.length > 0) {
           setGeneratedImages(prev => {
@@ -969,12 +973,12 @@ export function DashboardQuickGenerate() {
                   <label className="block text-sm font-semibold text-white mb-3">
                     Quantité d'images
                   </label>
-                  <div className="flex gap-2">
-                    {[1, 2, 5].map((qty) => (
+                  <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
+                    {[1, 2, 5, 7].map((qty) => (
                       <button
                         key={qty}
                         onClick={() => setQuantity(qty)}
-                        className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                        className={`min-w-0 flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                           quantity === qty
                             ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                             : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
@@ -984,6 +988,9 @@ export function DashboardQuickGenerate() {
                       </button>
                     ))}
                   </div>
+                  <p className="mt-2 text-[10px] text-white/45">
+                    7 images : génération en parallèle côté serveur, attente max ~2 min si le fournisseur est lent.
+                  </p>
                 </div>
 
                 <div>
@@ -1212,7 +1219,7 @@ export function DashboardQuickGenerate() {
                           {copiedDescription ? 'Copié' : 'Copier'}
                         </button>
                       </div>
-                      <div className="p-4 rounded-lg bg-black border border-white/10 max-h-96 overflow-y-auto">
+                      <div className="custom-scrollbar max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-black p-4">
                         <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
                           {listingData.description}
                         </pre>
@@ -1363,30 +1370,33 @@ export function DashboardQuickGenerate() {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.1 }}
-                        className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
+                        className="group relative flex flex-col rounded-xl border border-white/10 bg-black transition-all hover:border-white/20"
                       >
-                        <div className="aspect-square relative">
+                        <div className="relative aspect-square overflow-hidden rounded-t-xl">
                           <img
                             src={img.url}
                             alt={`Generated ${index + 1}`}
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
                             loading="lazy"
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                          <div className="absolute right-2 top-2 flex gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                             <button
                               onClick={() => setFullscreenImage(img.url)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/80 transition-colors hover:bg-black sm:h-8 sm:w-8"
                             >
-                              <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
+                              <Maximize2 size={18} className="text-white sm:h-4 sm:w-4" />
                             </button>
                             <button
                               onClick={() => downloadImage(img.url, index)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/80 transition-colors hover:bg-black sm:h-8 sm:w-8"
                             >
-                              <Download size={18} className="text-white sm:w-4 sm:h-4" />
+                              <Download size={18} className="text-white sm:h-4 sm:w-4" />
                             </button>
                           </div>
+                        </div>
+                        <div className="rounded-b-xl bg-black px-2 pb-2">
+                          <ImageAltTextPanel imageUrl={img.url} />
                         </div>
                       </motion.div>
                     ))}

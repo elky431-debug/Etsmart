@@ -45,7 +45,8 @@ import {
   Store,
   Truck,
   KeyRound,
-  Bot
+  Bot,
+  Coins
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -111,6 +112,79 @@ interface MenuItem {
 interface MenuCategory {
   label: string;
   items: MenuItem[];
+}
+
+function formatCreditsRemaining(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  if (Number.isInteger(r)) return String(r);
+  return r.toFixed(1);
+}
+
+function DashboardCreditsBadge({
+  subscription,
+  subscriptionLoading,
+  user,
+  compact,
+  onOpenSubscription,
+}: {
+  subscription: { quota: number; remaining: number } | null;
+  subscriptionLoading: boolean;
+  user: { id: string } | null;
+  compact?: boolean;
+  onOpenSubscription: () => void;
+}) {
+  if (!user) return null;
+
+  if (subscriptionLoading && !subscription) {
+    return (
+      <div
+        className={`flex items-center gap-2 rounded-full border border-white/15 bg-white/5 text-white/60 ${
+          compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5'
+        }`}
+        aria-label="Chargement des crédits"
+      >
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#00d4ff]" />
+        {!compact && <span className="text-sm">Crédits…</span>}
+      </div>
+    );
+  }
+
+  if (!subscription) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenSubscription}
+        className={`rounded-full border border-white/20 bg-white/5 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/10 ${
+          compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5'
+        }`}
+      >
+        {compact ? 'Crédits' : 'Voir les crédits'}
+      </button>
+    );
+  }
+
+  const unlimited = subscription.quota === -1;
+  const r = subscription.remaining;
+  const desktopLabel = unlimited
+    ? 'Illimité'
+    : `${formatCreditsRemaining(r)} crédit${r === 1 ? '' : 's'} restant${r === 1 ? '' : 's'}`;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenSubscription}
+      title="Abonnement et crédits"
+      className={`flex max-w-full items-center gap-2 rounded-full border border-[#00d4ff]/35 bg-gradient-to-r from-[#00d4ff]/15 to-[#00c9b7]/10 font-semibold text-white shadow-sm shadow-[#00d4ff]/10 transition-all hover:border-[#00d4ff]/55 hover:from-[#00d4ff]/25 hover:to-[#00c9b7]/15 ${
+        compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
+      }`}
+    >
+      <Coins className={`shrink-0 text-[#00d4ff] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
+      <span className="min-w-0 truncate">
+        {compact ? (unlimited ? '∞' : formatCreditsRemaining(r)) : desktopLabel}
+        {compact && !unlimited ? <span className="font-normal text-white/60"> cr.</span> : null}
+      </span>
+    </button>
+  );
 }
 
 function LogoMaintenance() {
@@ -1507,11 +1581,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
       </AnimatePresence>
 
       {/* Sidebar - Hidden on mobile, shown on lg+ */}
-      <aside className="group fixed left-0 top-0 h-screen z-40 hidden lg:flex">
+      <aside className="group fixed left-0 top-0 z-40 hidden h-screen shrink-0 flex-col bg-black lg:flex">
         {/* Sidebar Container */}
-        <div className="relative bg-black border-r border-black/20 w-16 group-hover:w-64 transition-[width] duration-300 ease-out overflow-hidden">
+        <div className="relative flex h-full min-h-0 min-w-0 w-16 flex-col overflow-hidden border-r border-white/10 bg-black transition-[width] duration-300 ease-out group-hover:w-64">
           {/* Logo */}
-          <div className="p-4 border-b border-black/30">
+          <div className="shrink-0 border-b border-white/10 p-4">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 <Logo size="sm" showText={false} />
@@ -1522,9 +1596,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           </div>
 
-          {/* Navigation Items - Structure avec flex pour séparer le contenu et le footer */}
-          <div className="flex flex-col h-[calc(100vh-4rem)]">
-            <nav className="flex-1 flex flex-col p-2 space-y-2.5 overflow-y-auto">
+          {/* Navigation Items - min-h-0 requis pour que overflow-y-auto ne “fuite” pas (artefacts clairs) */}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <nav className="dashboard-sidebar-scroll flex min-h-0 flex-1 flex-col space-y-2.5 overflow-y-auto p-2">
               {/* Menu principal (affiché quand aucune analyse n'est sélectionnée) */}
               {!selectedAnalysis && (
                 <>
@@ -1540,10 +1614,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             setSelectedAnalysis(null);
                           }}
                           className={`
-                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                            relative flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-3 py-2.5 text-left font-medium text-sm transition-all group/item
                             ${isActive
                               ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                              : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                             }
                           `}
                         >
@@ -1579,10 +1653,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       setSelectedAnalysis(null);
                     }}
                     className={`
-                              relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                              relative flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-3 py-2.5 text-left font-medium text-sm transition-all group/item
                       ${isActive
                         ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                       }
                     `}
                   >
@@ -1613,10 +1687,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             setSelectedAnalysis(null);
                           }}
                           className={`
-                            relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all group/item w-full
+                            relative flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-3 py-2.5 text-left font-medium text-sm transition-all group/item
                             ${isActive
                               ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                              : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                             }
                           `}
                         >
@@ -1636,10 +1710,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </nav>
 
             {/* Bottom Actions - Fixé en bas avec padding */}
-            <div className="flex-shrink-0 p-2 border-t border-white/10 space-y-1 bg-black">
+            <div className="shrink-0 space-y-1 border-t border-white/10 bg-black p-2">
               <Link
                 href="/"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item w-full"
+                className="group/item flex w-full items-center gap-3 rounded-lg bg-transparent px-3 py-2.5 text-white/70 transition-all hover:bg-white/5 hover:text-white"
               >
                 <Home size={20} className="flex-shrink-0" />
                 <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
@@ -1648,8 +1722,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
               </Link>
               
               <button
+                type="button"
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-all group/item"
+                className="group/item flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-white/70 transition-all hover:bg-white/5 hover:text-white"
               >
                 <LogOut size={20} className="flex-shrink-0" />
                 <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
@@ -1664,14 +1739,30 @@ The final image should look like a high-quality Etsy listing photo and naturally
       {/* Mobile Menu */}
       {isMobile && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10 lg:hidden">
-          <div className="flex items-center justify-between p-4">
-            <Logo size="sm" showText={true} />
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5"
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+          <div className="flex items-center justify-between gap-2 p-4">
+            <div className="min-w-0 flex-1">
+              <Logo size="sm" showText={true} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <DashboardCreditsBadge
+                subscription={subscription}
+                subscriptionLoading={subscriptionLoading}
+                user={user}
+                compact
+                onOpenSubscription={() => {
+                  setActiveSection('subscription');
+                  setSelectedAnalysis(null);
+                  setIsMenuOpen(false);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="cursor-pointer appearance-none rounded-lg border-0 bg-transparent p-2 text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
           
           <AnimatePresence>
@@ -1705,10 +1796,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             }
                           }}
                           className={`
-                            w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
+                            flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-4 py-3 text-left font-medium text-sm transition-all
                             ${isActive
                               ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                              : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                             }
                           `}
                         >
@@ -1753,10 +1844,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         setIsMenuOpen(false);
                       }}
                       className={`
-                              w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg font-medium text-sm transition-all
+                              flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-4 py-3 text-left font-medium text-sm transition-all
                         ${isActive
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
+                          : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                         }
                       `}
                     >
@@ -1797,17 +1888,17 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             }
                           }}
                           className={`
-                            w-full flex items-center gap-3 px-4 ${
+                            flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-4 ${
                               typeof window !== 'undefined' && (
                                 window.location.hostname === 'localhost' || 
                                 window.location.hostname === '127.0.0.1'
                               )
                                 ? 'py-4'
                                 : 'py-3'
-                            } text-left rounded-lg font-medium text-sm transition-all
+                            } text-left font-medium text-sm transition-all
                             ${isActive
                               ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                              : 'bg-transparent text-white/70 hover:bg-white/5 hover:text-white'
                             }
                           `}
                         >
@@ -1826,6 +1917,18 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-16 pt-16 lg:pt-0 bg-black">
+        {/* Crédits restants — desktop (haut à droite) */}
+        <div className="z-30 hidden h-11 shrink-0 items-center justify-end border-b border-white/10 bg-black/95 px-4 backdrop-blur-sm lg:flex lg:px-6">
+          <DashboardCreditsBadge
+            subscription={subscription}
+            subscriptionLoading={subscriptionLoading}
+            user={user}
+            onOpenSubscription={() => {
+              setActiveSection('subscription');
+              setSelectedAnalysis(null);
+            }}
+          />
+        </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-black">

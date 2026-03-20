@@ -15,10 +15,10 @@ export const runtime = 'nodejs';
  * 
  * Architecture:
  * 1. Compress & validate the source image
- * 2. Submit image generation tasks to Nanonbanana (NO server-side polling)
- * 3. Return taskIds immediately → frontend polls via /api/check-image-status
- * 
- * This avoids Netlify's 26s timeout by not waiting for images to be ready.
+ * 2. Par défaut : Gemini (GEMINI_API_KEY) si définie — génération synchrone, renvoie imageDataUrls.
+ * 3. Sinon Nanobanana : taskIds → le client poll via /api/check-image-status
+ *
+ * Forcer Nanobanana malgré une clé Gemini : USE_NANOBANANA_IMAGES=true
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -63,27 +63,24 @@ export async function POST(request: NextRequest) {
       process.env.NANO_BANANA_API_KEY ||
       process.env.NANONBANANA_KEY ||
       process.env.NANOBANANA_KEY;
-    // Priorité Nanobanana pour fiabilité/speed (Gemini peut renvoyer 429 quota).
-    // Active Gemini uniquement si explicitement demandé via env.
-    // IMPORTANT: fallback to Gemini automatically when Nanobanana key is missing.
-    // This prevents production from breaking when only GEMINI_API_KEY is configured.
-    const useGemini =
-      !!GEMINI_KEY &&
-      (process.env.USE_GEMINI_IMAGES === 'true' || !NANO_KEY);
+    // Priorité Gemini dès que GEMINI_API_KEY est définie (comportement attendu sur Etsmart).
+    // Nanobanana seulement si pas de clé Gemini, ou si USE_NANOBANANA_IMAGES=true (opt-in explicite).
+    const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true';
+    const useGemini = !!GEMINI_KEY && !forceNano;
 
     if (!useGemini && !NANO_KEY) {
-      console.error('[IMAGE GEN] Aucune clé image (GEMINI_API_KEY ou NANONBANANA_API_KEY/NANOBANANA_API_KEY)');
+      console.error('[IMAGE GEN] Aucune clé image utilisable (GEMINI_API_KEY ou clés Nanobanana)');
       return NextResponse.json(
         {
           error: 'SERVER_CONFIG_ERROR',
           message:
-            'Clé API image manquante. Définissez GEMINI_API_KEY ou NANONBANANA_API_KEY (alias supporté: NANOBANANA_API_KEY).',
+            'Clé API image manquante. Définissez GEMINI_API_KEY (recommandé) ou NANONBANANA_API_KEY / NANOBANANA_API_KEY.',
         },
         { status: 500 },
       );
     }
 
-    // ── GEMINI (image + texte) : moteur prioritaire (3 refs -> 5 angles) ──
+    // ── GEMINI (image + texte) : moteur par défaut si GEMINI_API_KEY ──
     if (useGemini) {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
@@ -157,7 +154,7 @@ export async function POST(request: NextRequest) {
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
         `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
         `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
-        `Cohérence visuelle entre les 5 images (même produit, même style global, variantes d'angles/background seulement).`;
+        `Cohérence visuelle entre toutes les images générées (même produit, même style global, variantes d'angles/background seulement).`;
 
       const STYLE_EXPECTED_GEMINI =
         `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
@@ -201,9 +198,26 @@ angle/variation d’ambiance pertinente, focus usage (avant / après, détail cl
 Objectif: augmenter la compréhension et la confiance.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – SCÈNE ALTERNATIVE / AUTRE PIÈCE:
+Même produit dans un autre contexte d’intérieur crédible (autre pièce ou ambiance légèrement différente).
+Composition fraîche mais cohérente avec le set, lumière douce, rendu photo Etsy premium.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – MISE EN VALEUR USAGE / ÉCHELLE:
+Image qui montre le produit en situation d’usage ou avec une référence d’échelle subtile (sans personnage si évitable, ou mains/objet neutre).
+Renforce la compréhension de la taille et de l’usage, rendu naturel et haut de gamme.
+Pas de texte marketing. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
-      const numImages = Math.min(Math.max(quantity, 1), 5);
-      const promptsToUse = IMAGE_PROMPTS_GEMINI.slice(0, numImages);
+      const numImages = Math.min(Math.max(quantity, 1), 10);
+      const promptsToUse = Array.from(
+        { length: numImages },
+        (_, i) => IMAGE_PROMPTS_GEMINI[i % IMAGE_PROMPTS_GEMINI.length]
+      );
       const modelCandidates =
         engineSafe === 'pro'
           ? [
@@ -387,7 +401,7 @@ Tu ne modifies que l'arrière-plan/décor et l'angle de prise de vue (pas de cha
 Rendu réaliste photo Etsy haut de gamme (pas de style "IA"), chaleureux et naturel.
 RÈGLES VISUELLES: Pas de watermark. Pas de texte marketing sur l'image (sauf mensurations sur l'image 4).
 Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, fond simple (table/mur clair/studio léger).
-Cohérence entre les 5 images (même produit, même style global, variantes d'angles/background uniquement).`;
+Cohérence entre tous les visuels (même produit, même style global, variantes d'angles/background uniquement).`;
 
     const IMAGE_PROMPTS = [
       `${productContextText}
@@ -419,6 +433,17 @@ PROMPT 5 – IMAGE STRATÉGIQUE (À VALEUR AJOUTÉE):
 Image supplémentaire pertinente: mise en situation alternative ou focus usage / détail clé.
 Objectif: augmenter compréhension et confiance, rendu photo Etsy haut de gamme.
 Pas de texte. Pas de watermark.
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 6 – SCÈNE ALTERNATIVE / AUTRE AMBIANCE:
+Même produit dans un autre décor intérieur crédible (autre pièce ou lumière légèrement différente).
+Composition soignée, tons chauds, fond simple, style photo Etsy premium.
+Pas de texte. Pas de watermark.
+${reglesCommunes}`,
+      `${productContextText}
+PROMPT 7 – USAGE / ÉCHELLE:
+Mise en situation qui aide à juger taille et usage (référence d’échelle discrète, mains neutres ou objet de comparaison simple).
+Rendu naturel, pas de texte marketing, pas de watermark.
 ${reglesCommunes}`,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
@@ -545,7 +570,7 @@ ${reglesCommunes}`,
       const result = await submitWithRetry(i);
       if (result.taskId) taskIds.push(result.taskId);
       else errors.push(result.error || 'failed');
-      if (i < quantity - 1) await new Promise(r => setTimeout(r, 80));
+      if (i < quantity - 1) await new Promise(r => setTimeout(r, 40));
     }
 
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
@@ -555,7 +580,8 @@ ${reglesCommunes}`,
         success: false,
         imageTaskIds: [],
         error: 'IMAGE_SUBMIT_FAILED',
-        message: 'Le service d\'images n\'a pas accepté la requête. Vérifiez que la clé API (NANONBANANA_API_KEY) est valide et que le service est disponible.',
+        message:
+          'Le service Nanobanana n\'a pas accepté la requête. Vérifiez NANONBANANA_API_KEY (ou utilisez GEMINI_API_KEY sans USE_NANOBANANA_IMAGES).',
       });
     }
 

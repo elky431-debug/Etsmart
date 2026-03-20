@@ -494,7 +494,7 @@ export function DashboardListingImages({ analysis }: DashboardListingImagesProps
                   <p className="text-sm text-white/70 mb-2">
                     Vous pouvez copier et utiliser directement dans votre fiche produit.
                   </p>
-                  <div className="p-4 bg-black rounded-lg border border-white/10 max-h-96 overflow-y-auto">
+                  <div className="custom-scrollbar max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-black p-4">
                     <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
                       {etsyDescription}
                     </pre>

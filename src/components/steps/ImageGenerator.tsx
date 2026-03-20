@@ -14,6 +14,9 @@ import {
 import type { ProductAnalysis } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
+import { ImageAltTextPanel } from '@/components/dashboard/ImageAltTextPanel';
+import { getImagePollMaxAttempts, getImagePollIntervalMs } from '@/lib/image-gen-polling';
+import { imagesOnlyTotalCredits, roundCreditsToTenth } from '@/lib/image-listing-credits';
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -43,10 +46,8 @@ const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, 
   });
 };
 
-// Pricing for image generation:
-// - Images only (no listing): flash = 0.2 credit / image, pro = 0.4 credit / image
-const perImageCredits = (engine: 'flash' | 'pro') => (engine === 'pro' ? 0.4 : 0.2);
-const roundToTenth = (n: number) => Math.round(n * 10) / 10;
+// Tarifs images : src/lib/image-listing-credits.ts
+const roundToTenth = roundCreditsToTenth;
 const formatCredits = (n: number) => {
   const rounded = roundToTenth(n);
   return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(1)).replace(/\.0$/, '');
@@ -86,7 +87,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyle>('realistic');
-  const creditsToDeduct = roundToTenth(quantity * perImageCredits(engine));
+  const creditsToDeduct = imagesOnlyTotalCredits(quantity, engine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -352,7 +353,6 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       }
 
       // ⚠️ CRITICAL: Image generation is now INDEPENDENT from listing
-      // We ALWAYS generate only the image (0.25 credit), regardless of whether listing exists
       // The listing can be generated separately in the "Listing" tab
       // This allows users to generate images without needing a listing first
       
@@ -377,7 +377,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         }
       }
 
-      console.log('[IMAGE GENERATION] 📊 Generating image independently (0.25 credit)', backgroundBase64 ? '(with custom background)' : '');
+      console.log('[IMAGE GENERATION] 📊 Generating images independently', creditsToDeduct, 'crédits', backgroundBase64 ? '(with custom background)' : '');
       
       const response = await fetch('/api/generate-images', {
         method: 'POST',
@@ -399,7 +399,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
             referenceImages: extraReferenceImages,
           },
           skipCreditDeduction: true,
-          skipListingGeneration: true, // ⚠️ ALWAYS true - Image generation is independent, always 0.25 credit
+          skipListingGeneration: true, // ⚠️ ALWAYS true — crédits déduits côté client (voir image-listing-credits)
         }),
       });
 
@@ -481,9 +481,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
 
       console.log('[IMAGE GENERATION] Polling (background) for', taskIds.length, 'image(s)...');
 
-      // Polling parameters (fast UX):
-      const MAX_POLL_ATTEMPTS = 8;
-      const POLL_INTERVAL_MS = 1500;
+      const POLL_INTERVAL_MS = getImagePollIntervalMs(quantity);
+      const MAX_POLL_ATTEMPTS = getImagePollMaxAttempts(quantity);
 
       const refreshCredits = async () => {
         try {
@@ -879,8 +878,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               <label className="block text-sm font-bold text-white mb-3">
                 Quantité
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 5].map((qty) => (
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 5, 7].map((qty) => (
                   <button
                     key={qty}
                     onClick={() => setQuantity(qty)}
@@ -1071,13 +1070,13 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: index * 0.1 }}
-                          className="group relative bg-black rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all"
+                          className="group relative flex flex-col rounded-xl border border-white/10 bg-black transition-all hover:border-white/20"
                         >
-                          <div className="aspect-square relative">
+                          <div className="relative aspect-square overflow-hidden rounded-t-xl">
                             <img
                               src={img.url}
                               alt={`Image ${index + 1} générée`}
-                              className="w-full h-full object-cover bg-white/5"
+                              className="h-full w-full bg-white/5 object-cover"
                               referrerPolicy="no-referrer"
                               onError={(e) => {
                                 console.error('Error loading image:', img.url);
@@ -1087,21 +1086,24 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                               }}
                               loading="lazy"
                             />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                            <div className="absolute top-2 right-2 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                            <div className="absolute right-2 top-2 flex gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                               <button
                                 onClick={() => setFullscreenImage(img.url)}
-                                className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/80 transition-colors hover:bg-black sm:h-8 sm:w-8"
                               >
-                                <Maximize2 size={18} className="text-white sm:w-4 sm:h-4" />
+                                <Maximize2 size={18} className="text-white sm:h-4 sm:w-4" />
                               </button>
                               <button
                                 onClick={() => downloadImage(img.url, index)}
-                                className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-black/80 border border-white/20 flex items-center justify-center hover:bg-black transition-colors"
+                                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/80 transition-colors hover:bg-black sm:h-8 sm:w-8"
                               >
-                                <Download size={18} className="text-white sm:w-4 sm:h-4" />
+                                <Download size={18} className="text-white sm:h-4 sm:w-4" />
                               </button>
                             </div>
+                          </div>
+                          <div className="rounded-b-xl bg-black px-2 pb-2">
+                            <ImageAltTextPanel imageUrl={img.url} />
                           </div>
                         </motion.div>
                       ))}

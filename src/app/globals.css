@@ -182,13 +182,18 @@ button, a, input, textarea, select {
   background-clip: text;
 }
 
-/* Custom scrollbar for dropdowns */
+/* Custom scrollbar (dropdowns, descriptions scrollables — évite la piste blanche système) */
+.custom-scrollbar {
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 255, 0.4) rgba(255, 255, 255, 0.06);
+}
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 10px;
 }
 
@@ -199,4 +204,24 @@ button, a, input, textarea, select {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #5ce1ff, #4dd9cc);
+}
+
+/* Dashboard sidebar: évite la scrollbar système claire + bandes blanches visuelles */
+.dashboard-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 255, 0.35) rgba(255, 255, 255, 0.06);
+}
+.dashboard-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.dashboard-sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+.dashboard-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.35);
+  border-radius: 6px;
+}
+.dashboard-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.5);
 }
