@@ -30,6 +30,7 @@ export function DashboardLogoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [dragShop, setDragShop] = useState(false);
   const [dragProduct, setDragProduct] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(false);
 
   const shopInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +59,12 @@ export function DashboardLogoGenerator({
   useEffect(() => {
     if (initialProductImageDataUrl) setProductImageDataUrl(initialProductImageDataUrl);
   }, [initialProductImageDataUrl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const h = window.location.hostname;
+    setIsLocalhost(h === 'localhost' || h === '127.0.0.1' || h === '[::1]');
+  }, []);
 
   const generateLogo = async () => {
     if (!shopImageDataUrl || !productImageDataUrl) {
@@ -165,6 +172,27 @@ export function DashboardLogoGenerator({
     const file = e.dataTransfer.files?.[0];
     if (file) handlePick(file, 'product');
   }, []);
+
+  if (isLocalhost) {
+    return (
+      <div className={embedded ? 'bg-transparent px-0' : 'min-h-screen bg-black p-4 sm:p-6 md:p-8'}>
+        <div className={embedded ? '' : 'max-w-3xl mx-auto'}>
+          <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]" />
+            <div className="p-8 sm:p-10 text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20 border border-[#00d4ff]/20 mb-5">
+                <ImageIcon className="w-7 h-7 text-[#00d4ff]" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">Création de logo</h1>
+              <p className="text-white/70 text-base">
+                Cet onglet sera bientôt disponible.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={embedded ? 'bg-transparent px-0' : 'min-h-screen bg-black p-4 sm:p-6 md:p-8'}>
