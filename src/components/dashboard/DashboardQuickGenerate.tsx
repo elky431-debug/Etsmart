@@ -46,6 +46,32 @@ interface ListingData {
 }
 
 const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+
+/** Plusieurs images Gemini peuvent dépasser un premier timeout edge — on réessaie sur 502/503/504. */
+async function fetchGenerateImagesWithRetry(
+  payload: Record<string, unknown>,
+  token: string,
+  attempts = 3
+): Promise<Response> {
+  let last: Response | undefined;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      last = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      last = new Response(null, { status: 503, statusText: 'Network error' });
+    }
+    if (last.ok) return last;
+    const retryable = last.status === 502 || last.status === 503 || last.status === 504;
+    if (!retryable || i === attempts - 1) return last;
+    await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
+  }
+  return last!;
+}
+
 function normalizeQuotaMessage(msg: string | undefined | null): string {
   if (!msg) return QUOTA_MESSAGE_FR;
   if (/the quota has been exceeded|quota.*exceeded|crédits.*insuffisant/i.test(msg)) return QUOTA_MESSAGE_FR;
@@ -369,10 +395,8 @@ export function DashboardQuickGenerate() {
       // On n’affiche rien tant qu’on n’a pas listing + images (ou erreur) pour tout montrer en même temps
       // 2) Images via le backend
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-      const imagesResponse = await fetch('/api/generate-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
+      const imagesResponse = await fetchGenerateImagesWithRetry(
+        {
           sourceImage: imagePayload,
           quantity,
           aspectRatio: '1:1',
@@ -388,8 +412,9 @@ export function DashboardQuickGenerate() {
             niche: '',
             referenceImages: extraSourcePreviews.slice(0, 2),
           },
-        }),
-      });
+        },
+        token
+      );
 
       let imagesData: any = {};
       try {
@@ -403,7 +428,13 @@ export function DashboardQuickGenerate() {
 
       if (!imagesResponse.ok) {
         const code = imagesData?.error;
-        const msg = apiMessage || 'Erreur lors de la soumission des images.';
+        let msg =
+          apiMessage ||
+          (imagesResponse.status === 502 || imagesResponse.status === 504
+            ? 'Le serveur a mis trop longtemps à générer toutes les images. Réessaie : les images sont traitées par petits lots.'
+            : imagesResponse.status === 503
+              ? 'Service images temporairement indisponible. Réessaie dans une minute.'
+              : 'Erreur lors de la soumission des images.');
         if (imagesResponse.status === 403 && (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')) {
           const quotaMsg = /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? msg : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
           setError(quotaMsg);
@@ -602,13 +633,8 @@ export function DashboardQuickGenerate() {
       regenCountRef.current++;
       console.log(`[QUICK GENERATE] 🔄 Regenerating images (round ${regenCountRef.current})...`, bgBase64 ? '(with custom background)' : '');
 
-      const response = await fetch('/api/generate-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const response = await fetchGenerateImagesWithRetry(
+        {
           sourceImage: imageBase64,
           backgroundImage: bgBase64,
           quantity,
@@ -625,11 +651,12 @@ export function DashboardQuickGenerate() {
             niche: '',
             referenceImages: extraSourcePreviews.slice(0, 2),
           },
-          customInstructions: bgBase64 
+          customInstructions: bgBase64
             ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
             : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
-        }),
-      });
+        },
+        token
+      );
 
       if (!response.ok) {
         let errorData: any;

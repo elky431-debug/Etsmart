@@ -5,9 +5,42 @@ import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
 
-// ⚠️ CRITICAL: Keep maxDuration under Netlify's 26s limit
-export const maxDuration = 25;
+// Vercel: aligné avec vercel.json (plusieurs images Gemini = besoin de >25s). Netlify free reste limité ~26s.
+export const maxDuration = 120;
 export const runtime = 'nodejs';
+
+const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 90_000;
+
+function geminiFetchSignal(): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(GEMINI_IMAGE_FETCH_TIMEOUT_MS);
+  }
+  const c = new AbortController();
+  setTimeout(() => c.abort(), GEMINI_IMAGE_FETCH_TIMEOUT_MS);
+  return c.signal;
+}
+
+async function runGeminiImagePromptsInBatches(
+  prompts: string[],
+  generateOne: (prompt: string) => Promise<string | null>,
+  batchSize: number,
+  startTime: number,
+  wallMs: number
+): Promise<string[]> {
+  const out: string[] = [];
+  for (let i = 0; i < prompts.length; i += batchSize) {
+    if (Date.now() - startTime > wallMs) {
+      console.warn(`[IMAGE GEN] Batch stop: time budget (${wallMs}ms)`);
+      break;
+    }
+    const slice = prompts.slice(i, i + batchSize);
+    const batch = await Promise.all(slice.map((p) => generateOne(p)));
+    for (const u of batch) {
+      if (u) out.push(u);
+    }
+  }
+  return out;
+}
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -229,53 +262,79 @@ Pas de texte marketing. Pas de watermark.`
             ];
       console.log(`[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, models=${modelCandidates.join(',')}`);
 
-      const generateOne = async (prompt: string): Promise<string | null> => {
+      const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const imagePartSets = [
           inlineImageParts,
           [inlineImageParts[0]].filter(Boolean),
         ];
         for (const partsForAttempt of imagePartSets) {
           for (const model of modelCandidates) {
-          try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY! },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: 'user',
-                    parts: [{ text: prompt }, ...partsForAttempt],
-                  },
-                ],
-                generationConfig: {
-                  responseModalities: ['TEXT', 'IMAGE'],
-                },
-              }),
-            });
-            if (!res.ok) {
-              const t = await res.text().catch(() => '');
-              console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
-              continue;
-            }
-            const data = await res.json();
-            const parts = data?.candidates?.[0]?.content?.parts || [];
-            for (const part of parts) {
-              const b64 = part?.inlineData?.data;
-              const mime = part?.inlineData?.mimeType || 'image/png';
-              if (typeof b64 === 'string' && b64.length > 100) {
-                return `data:${mime};base64,${b64}`;
+            try {
+              const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY! },
+                  body: JSON.stringify({
+                    contents: [
+                      {
+                        role: 'user',
+                        parts: [{ text: prompt }, ...partsForAttempt],
+                      },
+                    ],
+                    generationConfig: {
+                      responseModalities: ['TEXT', 'IMAGE'],
+                    },
+                  }),
+                  signal: geminiFetchSignal(),
+                }
+              );
+              if (!res.ok) {
+                const t = await res.text().catch(() => '');
+                console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
+                if (res.status === 429 || res.status === 503) {
+                  await new Promise((r) => setTimeout(r, 1500));
+                }
+                continue;
+              }
+              const data = await res.json();
+              const parts = data?.candidates?.[0]?.content?.parts || [];
+              for (const part of parts) {
+                const b64 = part?.inlineData?.data;
+                const mime = part?.inlineData?.mimeType || 'image/png';
+                if (typeof b64 === 'string' && b64.length > 100) {
+                  return `data:${mime};base64,${b64}`;
+                }
+              }
+            } catch (e: any) {
+              const name = e?.name || '';
+              if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
+                console.warn(`[IMAGE GEN] Gemini ${model} timeout/abort`);
+              } else {
+                console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
               }
             }
-          } catch (e: any) {
-            console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
           }
-        }
         }
         return null;
       };
 
+      const generateOne = async (prompt: string): Promise<string | null> => {
+        let r = await generateOneAttempt(prompt);
+        if (r) return r;
+        await new Promise((x) => setTimeout(x, 1200));
+        return generateOneAttempt(prompt);
+      };
+
       try {
-        const imageDataUrls = (await Promise.all(promptsToUse.map((p) => generateOne(p)))).filter((u): u is string => !!u);
+        // Par lots de 2 : moins de timeouts plateforme / rate limit qu’un Promise.all sur 5–10 appels.
+        const imageDataUrls = await runGeminiImagePromptsInBatches(
+          promptsToUse,
+          generateOne,
+          2,
+          startTime,
+          115_000
+        );
         if (imageDataUrls.length === 0) {
           return NextResponse.json({
             success: false,
@@ -292,11 +351,17 @@ Pas de texte marketing. Pas de watermark.`
             console.error(`[IMAGE GEN] Credit deduction error: ${e.message}`);
           }
         }
-        console.log(`[IMAGE GEN] Gemini image-edit: ${imageDataUrls.length} image(s) in ${Date.now() - startTime}ms`);
+        const partial = imageDataUrls.length < numImages;
+        console.log(
+          `[IMAGE GEN] Gemini image-edit: ${imageDataUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ' (partial)' : ''}`
+        );
         return NextResponse.json({
           success: true,
           imageTaskIds: [],
           imageDataUrls,
+          ...(partial && {
+            message: `Seulement ${imageDataUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
+          }),
         });
       } catch (e: any) {
         console.error('[IMAGE GEN] Gemini fatal:', e.message);
