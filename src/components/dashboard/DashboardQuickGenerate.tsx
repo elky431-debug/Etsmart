@@ -54,7 +54,8 @@ const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou 
 async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
   token: string,
-  attempts = 3
+  attempts = 3,
+  backoffBaseMs = 2500
 ): Promise<Response> {
   let last: Response | undefined;
   for (let i = 0; i < attempts; i++) {
@@ -70,18 +71,21 @@ async function fetchGenerateImagesWithRetry(
     if (last.ok) return last;
     const retryable = last.status === 502 || last.status === 503 || last.status === 504;
     if (!retryable || i === attempts - 1) return last;
-    await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
+    await new Promise((r) => setTimeout(r, backoffBaseMs * (i + 1)));
   }
   return last!;
 }
 
-/** 1 image par appel API : compatible timeout Netlify ; `clientChunkedSingle` active le chemin rapide serveur. */
+/**
+ * 1 image par appel API (sous la limite Netlify). Plusieurs slots en parallèle (défaut 2) pour diviser ~par 2 le temps total.
+ */
 async function fetchGenerateImagesSequential(
   basePayload: Record<string, unknown>,
   token: string,
   imageCount: number,
   opts?: {
     attemptsPerImage?: number;
+    concurrency?: number;
     onProgress?: (completed: number, total: number) => void;
   }
 ): Promise<{
@@ -91,20 +95,25 @@ async function fetchGenerateImagesSequential(
   quotaError?: string;
 }> {
   const attemptsPerImage = opts?.attemptsPerImage ?? 2;
-  const imageDataUrls: string[] = [];
-  const imageTaskIds: string[] = [];
+  const concurrency = Math.min(3, Math.max(1, opts?.concurrency ?? 2));
+  const urlByIndex: (string | undefined)[] = new Array(imageCount);
+  const taskByIndex: (string | undefined)[] = new Array(imageCount);
   let firstErrorMessage: string | null = null;
 
-  for (let i = 0; i < imageCount; i++) {
+  const countDone = () =>
+    urlByIndex.filter((u) => u && u.length > 20).length + taskByIndex.filter((t) => t && t.length > 0).length;
+
+  async function runSlot(index: number): Promise<'quota' | void> {
     const res = await fetchGenerateImagesWithRetry(
       {
         ...basePayload,
         quantity: 1,
-        singlePromptIndex: i,
+        singlePromptIndex: index,
         clientChunkedSingle: true,
       },
       token,
-      attemptsPerImage
+      attemptsPerImage,
+      900
     );
 
     let data: Record<string, unknown> = {};
@@ -120,19 +129,16 @@ async function fetchGenerateImagesSequential(
         res.status === 403 &&
         (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
       ) {
-        const msg =
-          (typeof data.message === 'string' && data.message) ||
-          'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
-        return { imageDataUrls, imageTaskIds, firstErrorMessage: msg, quotaError: msg };
+        return 'quota';
       }
       const msg =
         (typeof data.message === 'string' && data.message) ||
         (res.status === 502 || res.status === 504
-          ? `Timeout serveur (image ${i + 1} sur ${imageCount}).`
-          : `Erreur ${res.status} (image ${i + 1}).`);
+          ? `Timeout serveur (image ${index + 1} sur ${imageCount}).`
+          : `Erreur ${res.status} (image ${index + 1}).`);
       if (!firstErrorMessage) firstErrorMessage = msg;
-      opts?.onProgress?.(imageDataUrls.length + imageTaskIds.length, imageCount);
-      continue;
+      opts?.onProgress?.(countDone(), imageCount);
+      return;
     }
 
     const urls = data.imageDataUrls;
@@ -141,20 +147,60 @@ async function fetchGenerateImagesSequential(
     if (Array.isArray(urls)) {
       const u = urls[0];
       if (typeof u === 'string' && u.length > 20) {
-        imageDataUrls.push(u);
+        urlByIndex[index] = u;
         got = true;
       }
     }
     if (!got && Array.isArray(tasks) && typeof tasks[0] === 'string' && tasks[0].length > 0) {
-      imageTaskIds.push(tasks[0]);
+      taskByIndex[index] = tasks[0];
       got = true;
     }
     if (!got && !firstErrorMessage) {
       firstErrorMessage =
-        (typeof data.message === 'string' && data.message) || `Aucune image renvoyée pour la variation ${i + 1}.`;
+        (typeof data.message === 'string' && data.message) || `Aucune image renvoyée pour la variation ${index + 1}.`;
     }
 
-    opts?.onProgress?.(imageDataUrls.length + imageTaskIds.length, imageCount);
+    opts?.onProgress?.(countDone(), imageCount);
+  }
+
+  for (let start = 0; start < imageCount; start += concurrency) {
+    const batch = [];
+    for (let k = 0; k < concurrency && start + k < imageCount; k++) {
+      batch.push(start + k);
+    }
+    const results = await Promise.all(batch.map((idx) => runSlot(idx)));
+    if (results.some((r) => r === 'quota')) {
+      const msg =
+        'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+      const urlsOut: string[] = [];
+      const tasksOut: string[] = [];
+      for (let i = 0; i < imageCount; i++) {
+        const u = urlByIndex[i];
+        if (typeof u === 'string' && u.length > 20) urlsOut.push(u);
+        else {
+          const t = taskByIndex[i];
+          if (typeof t === 'string' && t.length > 0) tasksOut.push(t);
+        }
+      }
+      return {
+        imageDataUrls: urlsOut,
+        imageTaskIds: tasksOut,
+        firstErrorMessage: msg,
+        quotaError: msg,
+      };
+    }
+  }
+
+  const imageDataUrls: string[] = [];
+  const imageTaskIds: string[] = [];
+  for (let i = 0; i < imageCount; i++) {
+    const u = urlByIndex[i];
+    if (typeof u === 'string' && u.length > 20) {
+      imageDataUrls.push(u);
+      continue;
+    }
+    const t = taskByIndex[i];
+    if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
   }
 
   return { imageDataUrls, imageTaskIds, firstErrorMessage };
@@ -1079,7 +1125,7 @@ export function DashboardQuickGenerate() {
                     ))}
                   </div>
                   <p className="mt-2 text-[10px] text-white/45">
-                    Plusieurs images : une requête courte par visuel (compatible hébergement type Netlify ~50s). Durée totale ≈ 20–45 s par image.
+                    Plusieurs images : 2 générations en parallèle max, une requête courte par visuel (limite ~50s côté hébergeur). Environ 25–50 s par image selon le modèle.
                   </p>
                 </div>
 

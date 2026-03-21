@@ -140,50 +140,50 @@ export function CompetitorFinder({ onAnalysisComplete }: CompetitorFinderProps) 
           {false && (
             <>
               {/* Formulaire d'analyse (désactivé pour maintenance) */}
-              <div className="space-y-5 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2">
+          <div className="space-y-5 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2">
                     Nom ou lien de la boutique <span className="text-[#00d4ff]">*</span>
-                  </label>
-                  <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5 group-focus-within:text-[#00d4ff] transition-colors" />
-                    <input
-                      type="text"
+              </label>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5 group-focus-within:text-[#00d4ff] transition-colors" />
+                <input
+                  type="text"
                       value={shopInput}
                       onChange={(e) => setShopInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStartAnalysis()}
                       placeholder="Ex: silvermoonshop ou https://www.etsy.com/shop/silvermoonshop"
-                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
-                    />
-                  </div>
-                </div>
+                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/50 focus:border-[#00d4ff]/50 transition-all hover:border-white/20"
+                />
               </div>
+            </div>
+          </div>
 
-              {error && (
-                <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-red-300 flex-1">{error}</p>
-                </div>
-              )}
+          {error && (
+            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-300 flex-1">{error}</p>
+            </div>
+          )}
 
-              <button
+          <button
                 onClick={handleStartAnalysis}
                 disabled={loading || !shopInput.trim()}
-                className="group relative w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-[#00d4ff]/20 transition-all overflow-hidden"
-              >
-                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Analyse en cours...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
+            className="group relative w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-[#00d4ff]/20 transition-all overflow-hidden"
+          >
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Analyse en cours...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
                     <span>Analyser cette boutique</span>
-                  </>
-                )}
-              </button>
+              </>
+            )}
+          </button>
             </>
           )}
 

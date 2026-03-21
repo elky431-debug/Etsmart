@@ -24,8 +24,10 @@ You must identify:
 The logo must:
 - contain NO text, NO letters, NO numbers, NO watermarks, NO brand name
 - be a RICH, DETAILED illustration — not a flat single-color silhouette or generic clip-art icon
-- prefer a circular emblem / ornate badge / medallion layout: clear outer boundary (rope, filigree, metal rim, laurel, subtle jewels) with a focused subject inside
-- use depth: soft shading, highlights, material realism (metal, glass, crystal, ceramic, wood, fabric) where it matches the shop
+- STRICTLY AVOID these cheap AI clichés (users hate them): mobile app icon look, glossy “game UI” gold coin, plastic 3D bevel, stock “logo generator” medallion, overly symmetric corporate seal, flat vector mascot, neon gradients, generic open-book-with-rays unless it truly matches the shop’s actual art direction
+- MATCH the real art direction visible in the banner and products: if the shop is fantasy / cozy / handmade / diorama / book nook / atmospheric → the emblem should feel like premium storybook illustration, artisan collectible branding, or painterly fantasy packaging — NOT a tech startup icon
+- prefer a circular emblem / ornate badge / medallion layout: clear outer boundary (rope, filigree, aged metal rim, carved wood, laurel, subtle enamel) with a focused subject inside — materials can be matte, satin, weathered, or softly lit — avoid chrome-plastic shine unless the brand is explicitly ultra-gloss luxury
+- use depth: soft cinematic lighting, gentle vignette inside the badge, material storytelling (wood grain, paper texture, tiny warm lights, mist) that echoes the PRODUCT photos when relevant
 - stay legible as an Etsy shop icon: one clear focal subject, strong outer silhouette, avoid micro-details smaller than ~2% of the frame
 - work well for Etsy branding and match both banner and product aesthetics
 - avoid full-bleed “website screenshot” or unrelated wide scenes; the scene (if any) must be CONTAINED inside the circular emblem only
@@ -62,7 +64,9 @@ The field "square_background" must briefly describe the ideal fill for the entir
 The field "square_background_hex" must be a single 6-digit hex color WITHOUT # that best matches that fill (e.g. C9B8A4) — chosen from the banner/product mood, not white.
 
 The field "final_image_prompt" must be a single high-quality prompt ready to send to an image generation model.
-It must be specific and optimized for a PREMIUM, DETAILED circular emblem logo (painterly or refined digital illustration), not a minimalist flat icon, AND must state that the full square frame is filled with the harmonious background (no white matting).`;
+It must be specific and optimized for a PREMIUM, DETAILED circular emblem (painterly illustration, collectible artisan brand, or refined digital painting) — explicitly echoing lighting, palette, and mood from the attached banner and product images. It must NOT read as a generic app icon or stock logo.
+It must state that the full square frame is filled with the harmonious background (no white matting).
+Include 2–4 concrete visual anchors copied from what you actually see (e.g. “warm forest twilight”, “miniature window glow”, “aged brass”, “dusty teal”) rather than vague words like “premium” alone.`;
 
 export const LOGO_BRIEF_USER =
   'Analyze the two attached images: (1) shop banner screenshot, (2) product screenshot. Output ONLY valid JSON matching the schema from your instructions — no markdown, no code fences.';
@@ -126,7 +130,8 @@ export function buildImageGenerationPromptFromBrief(brief: LogoDesignBrief): str
       `Background: cover the entire square with this approximate solid or softly vignetted color as base: #${bgHex} (harmonize emblem lighting with this field).`,
     keep && `Must: ${keep}`,
     avoid && `Avoid: ${avoid}`,
-    'Style: premium circular emblem / ornate badge, highly detailed illustration with depth, textures, and careful lighting — not flat minimalist vector, not a single flat silhouette.',
+    'Style: premium circular emblem / ornate badge as ILLUSTRATION ART (painterly or fine digital painting), rich textures and believable light — NOT flat vector, NOT app-icon UI, NOT glossy 3D game medal, NOT stock logo clipart.',
+    'Mood: must feel coherent with the user’s banner and product photography mood (fantasy, cozy, handmade, luxury, etc.) — steal specific cues (colors, atmosphere, materials) from those references.',
     'Composition: strictly square aspect ratio; emblem centered; outer field is the harmonious brand background filling 100% of the image — no device mockups, no UI.',
     'Hard rules: absolutely no text, no letters, no numbers, no watermark, no typography.',
   ].filter(Boolean);

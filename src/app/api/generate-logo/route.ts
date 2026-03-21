@@ -11,7 +11,8 @@ import {
   type LogoDesignBrief,
 } from '@/lib/etsy-logo-brief-prompt';
 
-export const maxDuration = 120;
+/** Vercel Pro : jusqu’à 300 s — évite les « Inactivity Timeout » du proxy pendant vision + image. */
+export const maxDuration = 300;
 export const runtime = 'nodejs';
 
 const LOGO_CREDITS = 1;
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    const openai = new OpenAI({ apiKey: OPENAI_KEY });
+    const openai = new OpenAI({ apiKey: OPENAI_KEY, timeout: 240_000 });
 
     const quotaInfo = await getUserQuotaInfo(user.id);
     if (quotaInfo.status !== 'active') {
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         const buf = Buffer.from(b64, 'base64');
         const c = await sharp(buf)
           .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 78, mozjpeg: true })
+          .jpeg({ quality: 82, mozjpeg: true })
           .toBuffer();
         b64 = c.toString('base64');
         return `data:image/jpeg;base64,${b64}`;
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Images invalides. Utilise JPG/PNG/WebP.' }, { status: 400 });
     }
 
-    // Étape 1 — Brief JSON (vision) : gpt-4o pour une analyse plus fiable
+    // Étape 1 — Brief JSON (vision) : gpt-4o + detail auto = brief aligné sur la vraie DA (qualité logo).
     const briefCompletion = await openai.chat.completions.create({
       model: 'gpt-4o',
       temperature: 0.35,
@@ -141,8 +142,8 @@ export async function POST(request: NextRequest) {
           role: 'user',
           content: [
             { type: 'text', text: LOGO_BRIEF_USER },
-            { type: 'image_url', image_url: { url: shopImageDataUrl, detail: 'high' } },
-            { type: 'image_url', image_url: { url: productImageDataUrl, detail: 'high' } },
+            { type: 'image_url', image_url: { url: shopImageDataUrl, detail: 'auto' } },
+            { type: 'image_url', image_url: { url: productImageDataUrl, detail: 'auto' } },
           ],
         },
       ],
@@ -163,14 +164,14 @@ export async function POST(request: NextRequest) {
 
     const imagePrompt = buildImageGenerationPromptFromBrief(brief);
 
-    // Étape 2 — Image : gpt-image-1 en priorité, puis DALL·E 3 (tout côté serveur)
+    // Étape 2 — Image : gpt-image-1 en priorité (souvent moins « icône d’app » générique que DALL·E 3), puis DALL·E 3.
     let imageBuf: Buffer | null = null;
     let imageModelUsed = '';
 
     try {
       const img1 = await openai.images.generate({
         model: 'gpt-image-1',
-        prompt: imagePrompt,
+        prompt: imagePrompt.slice(0, 3800),
         n: 1,
         size: '1024x1024',
       });

@@ -10,8 +10,8 @@ export const maxDuration = 120;
 export const runtime = 'nodejs';
 
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 90_000;
-/** Une requête / image : rester < ~45s (Netlify ~50s max sur fonctions). */
-const GEMINI_FAST_SINGLE_TIMEOUT_MS = 22_000;
+/** Budget max pour 1 image en mode « chunked » (Netlify ~50s fonction). */
+const GEMINI_FAST_SINGLE_WALL_MS = 46_000;
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -156,6 +156,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const numImages = Math.min(Math.max(quantity, 1), 10);
+      const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
+
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -166,8 +169,13 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            // Compression légère pour accélérer et éviter des requêtes trop lourdes
-            const c = await sharp(buf).resize(768, 768, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 72, mozjpeg: true }).toBuffer();
+            // Chunked 1 image : garder plus de détail (qualité perçue). Sinon : plus léger pour gros lots.
+            const maxSide = isFastChunkedSingle ? 1024 : 768;
+            const jpegQ = isFastChunkedSingle ? 82 : 72;
+            const c = await sharp(buf)
+              .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
+              .jpeg({ quality: jpegQ, mozjpeg: true })
+              .toBuffer();
             mime = 'image/jpeg';
             b64 = c.toString('base64');
           }
@@ -192,7 +200,9 @@ export async function POST(request: NextRequest) {
       const realismBoost =
         engineSafe === 'pro'
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
-          : 'Fast realistic render with clean natural lighting.';
+          : isFastChunkedSingle
+            ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
+            : 'Fast realistic render with clean natural lighting.';
       const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle. SOURCE CLEANUP (MANDATORY): Reference screenshots often include marketplace watermarks, AliExpress/Amazon-style logos, supplier brand marks, corner badges, promotional strips, price tags, QR codes, or overlaid text — DO NOT reproduce any of them. Remove them completely. Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
@@ -263,8 +273,12 @@ Renforce la compréhension de la taille et de l’usage, rendu naturel et haut d
 Pas de texte marketing. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
-      const numImages = Math.min(Math.max(quantity, 1), 10);
-      const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
+
+      const geminiExtra =
+        customInstructions && String(customInstructions).trim()
+          ? `\n\nINSTRUCTIONS SUPPLÉMENTAIRES (à respecter en priorité si cohérent avec le produit): ${String(customInstructions).trim().substring(0, 500)}`
+          : '';
+
       let promptsToUse: string[];
       if (numImages === 1 && singlePromptIndex !== null) {
         const idx = singlePromptIndex % IMAGE_PROMPTS_GEMINI.length;
@@ -274,6 +288,9 @@ Pas de texte marketing. Pas de watermark.`
           { length: numImages },
           (_, i) => IMAGE_PROMPTS_GEMINI[i % IMAGE_PROMPTS_GEMINI.length]
         );
+      }
+      if (geminiExtra) {
+        promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
       const modelCandidatesFull =
         engineSafe === 'pro'
@@ -289,66 +306,91 @@ Pas de texte marketing. Pas de watermark.`
               'gemini-3-pro-image-preview',
               'nano-banana-pro-preview',
             ];
+      // Flash chunked : 3.1 d’abord (souvent meilleur rendu), puis 2.5 en repli rapide.
       const modelCandidatesFast =
         engineSafe === 'pro'
-          ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
-          : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+          ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
+          : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'];
       const modelCandidates = isFastChunkedSingle ? modelCandidatesFast : modelCandidatesFull;
-      const perFetchTimeoutMs = isFastChunkedSingle ? GEMINI_FAST_SINGLE_TIMEOUT_MS : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
       console.log(
         `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, models=${modelCandidates.join(',')}`
       );
 
+      const tryGeminiOnce = async (
+        prompt: string,
+        model: string,
+        partsForAttempt: { inlineData: { mimeType: string; data: string } }[],
+        timeoutMs: number
+      ): Promise<string | null> => {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY! },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [{ text: prompt }, ...partsForAttempt],
+                  },
+                ],
+                generationConfig: {
+                  responseModalities: ['TEXT', 'IMAGE'],
+                },
+              }),
+              signal: geminiFetchSignal(timeoutMs),
+            }
+          );
+          if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
+            if (res.status === 429 || res.status === 503) {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
+            return null;
+          }
+          const data = await res.json();
+          const parts = data?.candidates?.[0]?.content?.parts || [];
+          for (const part of parts) {
+            const b64 = part?.inlineData?.data;
+            const mime = part?.inlineData?.mimeType || 'image/png';
+            if (typeof b64 === 'string' && b64.length > 100) {
+              return `data:${mime};base64,${b64}`;
+            }
+          }
+        } catch (e: any) {
+          const name = e?.name || '';
+          if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
+            console.warn(`[IMAGE GEN] Gemini ${model} timeout/abort`);
+          } else {
+            console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
+          }
+        }
+        return null;
+      };
+
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const imagePartSets = isFastChunkedSingle
-          ? [inlineImageParts]
+          ? [inlineImageParts, [inlineImageParts[0]].filter(Boolean)]
           : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
+        const fastStart = Date.now();
+
         for (const partsForAttempt of imagePartSets) {
           for (const model of modelCandidates) {
-            try {
-              const res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY! },
-                  body: JSON.stringify({
-                    contents: [
-                      {
-                        role: 'user',
-                        parts: [{ text: prompt }, ...partsForAttempt],
-                      },
-                    ],
-                    generationConfig: {
-                      responseModalities: ['TEXT', 'IMAGE'],
-                    },
-                  }),
-                  signal: geminiFetchSignal(perFetchTimeoutMs),
-                }
-              );
-              if (!res.ok) {
-                const t = await res.text().catch(() => '');
-                console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
-                if (res.status === 429 || res.status === 503) {
-                  await new Promise((r) => setTimeout(r, 1500));
-                }
-                continue;
+            if (isFastChunkedSingle) {
+              const elapsed = Date.now() - fastStart;
+              const remaining = GEMINI_FAST_SINGLE_WALL_MS - elapsed - 1200;
+              if (remaining < 10_000) {
+                console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
+                return null;
               }
-              const data = await res.json();
-              const parts = data?.candidates?.[0]?.content?.parts || [];
-              for (const part of parts) {
-                const b64 = part?.inlineData?.data;
-                const mime = part?.inlineData?.mimeType || 'image/png';
-                if (typeof b64 === 'string' && b64.length > 100) {
-                  return `data:${mime};base64,${b64}`;
-                }
-              }
-            } catch (e: any) {
-              const name = e?.name || '';
-              if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
-                console.warn(`[IMAGE GEN] Gemini ${model} timeout/abort`);
-              } else {
-                console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
-              }
+              const timeoutMs = Math.min(38_000, remaining);
+              const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
+              if (img) return img;
+            } else {
+              const img = await tryGeminiOnce(prompt, model, partsForAttempt, GEMINI_IMAGE_FETCH_TIMEOUT_MS);
+              if (img) return img;
             }
           }
         }
@@ -367,7 +409,7 @@ Pas de texte marketing. Pas de watermark.`
         // Fast single : 1 image / requête (client enchaîne) — budget court pour Netlify ~50s.
         // Sinon : lots de 2 (Vercel ou self-host avec maxDuration élevé).
         const batchSize = isFastChunkedSingle ? 1 : 2;
-        const wallMs = isFastChunkedSingle ? 48_000 : 115_000;
+        const wallMs = isFastChunkedSingle ? GEMINI_FAST_SINGLE_WALL_MS : 115_000;
         const imageDataUrls = await runGeminiImagePromptsInBatches(
           promptsToUse,
           generateOne,

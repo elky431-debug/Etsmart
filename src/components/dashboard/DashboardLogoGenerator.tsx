@@ -26,6 +26,28 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file);
   });
 
+/** Réponse proxy HTML (timeout) au lieu de JSON — évite d’afficher du HTML brut. */
+function formatLogoApiError(rawText: string, data: unknown): string {
+  const t = (rawText || '').trim();
+  const lower = t.toLowerCase();
+  if (
+    lower.includes('<html') ||
+    lower.includes('inactivity timeout') ||
+    lower.includes('<title>') ||
+    lower.includes('504 gateway') ||
+    lower.includes('gateway time-out')
+  ) {
+    return 'La génération a dépassé le délai du serveur (timeout). Réessaie dans un instant. Si ça se répète : utilise des images un peu plus légères, ou vérifie que ton déploiement autorise des fonctions longues (ex. Vercel Pro, 300 s).';
+  }
+  if (data && typeof data === 'object' && data !== null) {
+    const o = data as { message?: string; error?: string };
+    if (o.message && typeof o.message === 'string') return o.message;
+    if (o.error && typeof o.error === 'string') return o.error;
+  }
+  if (t.length > 0 && t.length < 400 && !t.startsWith('<')) return t.slice(0, 300);
+  return 'Erreur lors de la génération du logo. Réessaie.';
+}
+
 export function DashboardLogoGenerator({
   embedded = false,
   initialShopImageDataUrl = null,
@@ -92,7 +114,7 @@ export function DashboardLogoGenerator({
           productImage: productImageDataUrl,
         }),
       });
-      let data: any = null;
+      let data: unknown = null;
       let rawText = '';
       try {
         rawText = await res.text();
@@ -101,14 +123,11 @@ export function DashboardLogoGenerator({
         data = null;
       }
       if (!res.ok) {
-        const msg =
-          (data && (data.message || data.error)) ||
-          (rawText ? rawText.slice(0, 160) : '') ||
-          'Generation logo echouee';
-        throw new Error(msg);
+        throw new Error(formatLogoApiError(rawText, data));
       }
-      if (!data?.imageDataUrl) throw new Error('Aucun logo genere');
-      setLogoUrl(data.imageDataUrl);
+      const ok = data as { imageDataUrl?: string } | null;
+      if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(rawText, data));
+      setLogoUrl(ok.imageDataUrl);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Erreur lors de la generation du logo';
       setError(message);
@@ -206,7 +225,7 @@ export function DashboardLogoGenerator({
           <div>
             <h1 className="text-3xl font-bold text-white">Creation de logo</h1>
             <p className="text-white/70 text-sm mt-1">
-              Bannière boutique + capture produit → logo <strong className="text-white/90">emblème illustré détaillé</strong> (style médaillon premium), sans texte, adapté à l’icône Etsy.
+              Bannière + produit → emblème <strong className="text-white/90">illustration d’artisan / fantasy</strong> (pas une icône d’app générique), médaillon riche, sans texte, ton DA repris sur tes visuels.
             </p>
           </div>
         </div>
