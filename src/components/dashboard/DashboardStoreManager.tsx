@@ -132,6 +132,8 @@ function KpiCard({
 
 type Product = {
   id: string;
+  /** Boutique propriétaire (obligatoire après migration). */
+  shopId: string;
   name: string;
   description: string;
   image: string;
@@ -140,6 +142,19 @@ type Product = {
   shippingCost: number;
   sellingPrice: number;
 };
+
+/** Anciens produits sans shopId : rattachés à la 1ʳᵉ boutique pour ne plus tout mélanger. */
+function migrateProductsShopIds(
+  list: Product[],
+  shops: { id: string }[]
+): Product[] {
+  const fallback = shops[0]?.id ?? '';
+  return list.map((p) => {
+    const sid = (p as Product & { shopId?: string }).shopId;
+    const ok = Boolean(sid && shops.some((s) => s.id === sid));
+    return { ...p, shopId: ok ? sid! : fallback };
+  });
+}
 
 /**
  * Sans schéma (https://), le navigateur traite le lien comme relatif au domaine du SaaS (ex. localhost).
@@ -209,11 +224,18 @@ export function DashboardStoreManager() {
     if (stored.length && stored.every((p) => p.supplierPrice === 0 && p.shippingCost === 0 && p.sellingPrice === 0)) {
       return [];
     }
-    return stored;
+    const shopList = loadFromStorage<{ id: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    return migrateProductsShopIds(stored as unknown as Product[], shopList);
   });
-  const [transactions, setTransactions] = useState<Transaction[]>(() =>
-    loadFromStorage(STORAGE_KEY_TRANSACTIONS, [])
-  );
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const raw = loadFromStorage<Transaction[]>(STORAGE_KEY_TRANSACTIONS, []);
+    const shopList = loadFromStorage<{ id: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    const firstId = shopList[0]?.id ?? '';
+    return raw.map((t) => ({
+      ...t,
+      shopId: t.shopId && shopList.some((s) => s.id === t.shopId) ? t.shopId : t.shopId || firstId,
+    }));
+  });
   const [selectedShopId, setSelectedShopId] = useState<string | null>(() => {
     const storedShops = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
     const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_SELECTED_SHOP) : null;
@@ -343,6 +365,12 @@ export function DashboardStoreManager() {
     [countryFilter]
   );
 
+  /** Évite de garder des produits d’une autre boutique sélectionnés après changement de boutique */
+  useEffect(() => {
+    setSelectedProductIds([]);
+    setProductSelectorOpen(false);
+  }, [selectedShopId]);
+
   useEffect(() => {
     if (!countryDropdownOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -365,8 +393,14 @@ export function DashboardStoreManager() {
   }, [newTxAmountPaid]);
 
   const shopTransactions = useMemo(
-    () => (selectedShopId ? transactions.filter((t) => (t.shopId ?? '1') === selectedShopId) : []),
+    () => (selectedShopId ? transactions.filter((t) => t.shopId === selectedShopId) : []),
     [transactions, selectedShopId]
+  );
+
+  /** Produits de la boutique active uniquement */
+  const shopProducts = useMemo(
+    () => (selectedShopId ? products.filter((p) => p.shopId === selectedShopId) : []),
+    [products, selectedShopId]
   );
 
   const statsTransactions = useMemo(() => {
@@ -473,7 +507,7 @@ export function DashboardStoreManager() {
     const matchesStatus = transactionStatusFilter === 'all' || t.status === transactionStatusFilter;
     return matchesSearch && matchesStatus;
   });
-  const filteredProducts = products.filter(
+  const filteredProducts = shopProducts.filter(
     (p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())
   );
 
@@ -489,7 +523,7 @@ export function DashboardStoreManager() {
   };
 
   const handleCreateOrUpdateProduct = () => {
-    if (!newProductName.trim()) return;
+    if (!newProductName.trim() || !selectedShopId) return;
     const supplierPrice = parseFloat(newProductSupplierPrice.replace(',', '.')) || 0;
     const shippingCost = parseFloat(newProductShippingCost.replace(',', '.')) || 0;
     const sellingPrice = parseFloat(newProductSellingPrice.replace(',', '.')) || 0;
@@ -519,6 +553,7 @@ export function DashboardStoreManager() {
         ...prev,
         {
           id: productId,
+          shopId: selectedShopId,
           name: newProductName.trim(),
           description: newProductDescription.trim() || '-',
           image: '/examples/placeholder-product.jpg',
@@ -667,6 +702,7 @@ export function DashboardStoreManager() {
     if (!confirm('Supprimer cette boutique ? Les transactions associées seront définitivement perdues.')) return;
     setShops((prev) => prev.filter((s) => s.id !== shopId));
     setTransactions((prev) => prev.filter((t) => t.shopId !== shopId));
+    setProducts((prev) => prev.filter((p) => p.shopId !== shopId));
     setSelectedShopId((prev) => {
       if (prev !== shopId) return prev;
       const rest = shops.filter((s) => s.id !== shopId);
@@ -961,9 +997,9 @@ export function DashboardStoreManager() {
               <p className="text-xs text-white/50 mb-4">
                 Vue d&apos;ensemble des prix, profits et marges pour chaque produit
               </p>
-              {products.length === 0 ? (
+              {shopProducts.length === 0 ? (
                 <p className="text-white/60 text-sm">
-                  Aucun produit. Ajoutez-en dans « Gestion des produits » pour suivre vos marges.
+                  Aucun produit pour cette boutique. Ajoutez-en dans « Gestion des produits » pour suivre vos marges.
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-white/10 overflow-hidden">
@@ -981,7 +1017,7 @@ export function DashboardStoreManager() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((p, index) => {
+                      {shopProducts.map((p, index) => {
                         const profit = p.sellingPrice - p.supplierPrice - p.shippingCost;
                         const margin =
                           p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
@@ -1185,12 +1221,12 @@ export function DashboardStoreManager() {
                   </button>
                 </div>
 
-                {products.length === 0 ? (
+                {shopProducts.length === 0 ? (
                   <div className="p-10 rounded-2xl bg-zinc-900 border border-dashed border-white/10 text-center space-y-3">
                     <div className="h-12 w-12 mx-auto rounded-xl bg-zinc-800 flex items-center justify-center">
                       <Package className="h-6 w-6 text-white/30" />
                     </div>
-                    <p className="text-sm text-white/50">Aucun produit enregistré</p>
+                    <p className="text-sm text-white/50">Aucun produit pour cette boutique</p>
                     <p className="text-xs text-white/30">Ajoute un produit pour commencer à suivre tes marges.</p>
                   </div>
                 ) : (
@@ -1205,7 +1241,7 @@ export function DashboardStoreManager() {
                         <span className="text-center w-[88px] shrink-0">Actions</span>
                       </div>
                       <div className="divide-y divide-white/5">
-                        {products.map((p) => {
+                        {shopProducts.map((p) => {
                           const supplierHref = normalizeExternalUrl(p.supplierUrl);
                           const cost = p.supplierPrice + p.shippingCost;
                           const profit = p.sellingPrice - cost;
@@ -1645,9 +1681,9 @@ export function DashboardStoreManager() {
                         <Package size={18} className="text-white/40" />
                       </div>
                       <span className="truncate">
-                        {selectedProductIds.length === 0 && products.length === 0 && 'Aucun produit. Ajoutez-en dans « Gestion des produits ».'}
-                        {selectedProductIds.length === 0 && products.length > 0 && 'Sélectionner un ou plusieurs produits'}
-                        {selectedProductIds.length === 1 && products.find((p) => p.id === selectedProductIds[0])?.name}
+                        {selectedProductIds.length === 0 && shopProducts.length === 0 && 'Aucun produit. Ajoutez-en dans « Gestion des produits ».'}
+                        {selectedProductIds.length === 0 && shopProducts.length > 0 && 'Sélectionner un ou plusieurs produits'}
+                        {selectedProductIds.length === 1 && shopProducts.find((p) => p.id === selectedProductIds[0])?.name}
                         {selectedProductIds.length > 1 &&
                           `${selectedProductIds.length} produits sélectionnés`}
                       </span>
@@ -1657,9 +1693,9 @@ export function DashboardStoreManager() {
                       className={`ml-3 text-white/50 transition-transform ${productSelectorOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
-                  {productSelectorOpen && products.length > 0 && (
+                  {productSelectorOpen && shopProducts.length > 0 && (
                     <div className="absolute left-0 right-0 mt-2 z-40 rounded-xl bg-zinc-900 border border-white/10 shadow-xl shadow-black/40 max-h-56 overflow-y-auto">
-                      {products.map((p) => {
+                      {shopProducts.map((p) => {
                         const selected = selectedProductIds.includes(p.id);
                         return (
                           <button
@@ -1672,7 +1708,7 @@ export function DashboardStoreManager() {
 
                                 // Auto-remplir les infos de prix si un seul produit est sélectionné
                                 if (!already && next.length === 1) {
-                                  const prod = products.find((prodItem) => prodItem.id === p.id);
+                                  const prod = shopProducts.find((prodItem) => prodItem.id === p.id);
                                   if (prod) {
                                     const cost = (prod.supplierPrice || 0) + (prod.shippingCost || 0);
                                     if (!newTxProductCost) {
@@ -1687,6 +1723,7 @@ export function DashboardStoreManager() {
                                 // Si on désélectionne tout, on ne touche pas aux champs (l'utilisateur peut les avoir modifiés)
                                 return next;
                               });
+                              setProductSelectorOpen(false);
                             }}
                             className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 transition-colors ${
                               selected ? 'bg-[#00d4ff]/15 text-[#00d4ff]' : 'text-white/80 hover:bg-white/5'
@@ -2060,7 +2097,12 @@ export function DashboardStoreManager() {
               <button type="button" onClick={() => setCreateShopModalOpen(false)} className="flex-1 py-2.5 rounded-lg bg-white/10 text-white font-medium hover:bg-white/15">
                 Annuler
               </button>
-              <button type="button" onClick={handleCreateShop} disabled={!newShopName.trim()} className="flex-1 py-2.5 rounded-lg bg-white text-black font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                type="button"
+                onClick={handleCreateShop}
+                disabled={!newShopName.trim()}
+                className="flex-1 py-2.5 rounded-lg bg-[#00d4ff] text-black font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Créer la boutique
               </button>
             </div>

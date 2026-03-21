@@ -43,10 +43,11 @@ type GoalItem = { id: string; title: string; current: number; target: number };
 
 const STORE_KEY_SHOPS = 'etsmart_store_manager_shops';
 const STORE_KEY_TRANSACTIONS = 'etsmart_store_manager_transactions';
-const STORE_KEY_SELECTED_SHOP = 'etsmart_store_manager_selected_shop_id';
 const TODO_KEY = 'etsmart_dashboard_todos_v1';
 const GOALS_KEY = 'etsmart_dashboard_goals_v1';
 const CA_PERIOD_KEY = 'etsmart_dashboard_ca_period_v1';
+/** Filtre CA sur le dashboard uniquement : `global` ou id boutique (une seule à la fois). */
+const CA_SHOP_FILTER_KEY = 'etsmart_dashboard_ca_shop_filter_v1';
 
 type CaPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'all';
 
@@ -152,7 +153,8 @@ function formatTrendPct(current: number, previous: number): {
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const [shops, setShops] = useState<StoreShop[]>([]);
   const [transactions, setTransactions] = useState<StoreTransaction[]>([]);
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  /** null = Global (toutes les boutiques). Sinon id d’une seule boutique. */
+  const [caFilterShopId, setCaFilterShopId] = useState<string | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [todoInput, setTodoInput] = useState('');
   const [goals, setGoals] = useState<GoalItem[]>([]);
@@ -162,9 +164,16 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
 
   const reloadFromStorage = useCallback(() => {
     if (typeof window === 'undefined') return;
-    setShops(parseList<StoreShop>(localStorage.getItem(STORE_KEY_SHOPS)));
+    const shopList = parseList<StoreShop>(localStorage.getItem(STORE_KEY_SHOPS));
+    setShops(shopList);
     setTransactions(parseList<StoreTransaction>(localStorage.getItem(STORE_KEY_TRANSACTIONS)));
-    setSelectedShopId(localStorage.getItem(STORE_KEY_SELECTED_SHOP));
+    const savedFilter = localStorage.getItem(CA_SHOP_FILTER_KEY);
+    if (savedFilter && savedFilter !== 'global' && savedFilter.trim() !== '') {
+      const stillExists = shopList.some((s) => s.id === savedFilter);
+      setCaFilterShopId(stillExists ? savedFilter : null);
+    } else {
+      setCaFilterShopId(null);
+    }
     setTodos(parseList<TodoItem>(localStorage.getItem(TODO_KEY)));
     setGoals(parseList<GoalItem>(localStorage.getItem(GOALS_KEY)));
     const savedPeriod = localStorage.getItem(CA_PERIOD_KEY);
@@ -183,7 +192,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
       if (
         e.key === STORE_KEY_TRANSACTIONS ||
         e.key === STORE_KEY_SHOPS ||
-        e.key === STORE_KEY_SELECTED_SHOP
+        e.key === CA_SHOP_FILTER_KEY
       ) {
         reloadFromStorage();
       }
@@ -213,26 +222,25 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
     localStorage.setItem(CA_PERIOD_KEY, caPeriod);
   }, [caPeriod]);
 
-  /** CA filtré : boutique sélectionnée dans le gestionnaire, ou unique boutique connue */
-  const scopedTransactions = useMemo(() => {
-    if (selectedShopId) {
-      return transactions.filter((t) => t.shopId === selectedShopId);
-    }
-    if (shops.length === 1) {
-      const onlyId = shops[0].id;
-      return transactions.filter((t) => !t.shopId || t.shopId === onlyId);
-    }
-    return transactions;
-  }, [transactions, selectedShopId, shops]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CA_SHOP_FILTER_KEY, caFilterShopId === null ? 'global' : caFilterShopId);
+  }, [caFilterShopId]);
 
-  const activeShopName = useMemo(() => {
-    if (selectedShopId) {
-      return shops.find((s) => s.id === selectedShopId)?.name ?? 'Boutique';
+  /** CA filtré : par défaut global ; une boutique si choisie dans le sélecteur. */
+  const scopedTransactions = useMemo(() => {
+    if (caFilterShopId === null) {
+      return transactions;
     }
-    if (shops.length === 1) return shops[0].name;
-    if (shops.length === 0) return null;
-    return null;
-  }, [shops, selectedShopId]);
+    return transactions.filter((t) => t.shopId === caFilterShopId);
+  }, [transactions, caFilterShopId]);
+
+  const caScopeLabel = useMemo(() => {
+    if (caFilterShopId === null) {
+      return shops.length <= 1 ? 'Global' : 'Global — toutes les boutiques';
+    }
+    return shops.find((s) => s.id === caFilterShopId)?.name ?? 'Boutique';
+  }, [caFilterShopId, shops]);
 
   const revenue = useMemo(() => {
     const now = new Date();
@@ -449,10 +457,6 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
     setGoalTarget('10');
   };
 
-  const shopLabel =
-    activeShopName ??
-    (shops.length > 1 ? 'Toutes les boutiques' : shops.length === 0 ? 'Aucune boutique' : '');
-
   const isUrgent =
     primaryAlert &&
     (primaryAlert.danger ||
@@ -511,11 +515,27 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
                   Chiffre d’affaires
                 </p>
-                <p className="mt-1.5 text-sm text-[#6B7280]">
-                  <span className="font-medium text-[#22D3EE]">{shopLabel}</span>
-                  {shops.length > 1 && !selectedShopId ? (
-                    <span className="text-[#6B7280]/80"> · filtre dans le gestionnaire</span>
-                  ) : null}
+                <label htmlFor="ca-shop-filter" className="mt-2 block text-[11px] font-medium text-[#6B7280]">
+                  Boutique
+                </label>
+                <select
+                  id="ca-shop-filter"
+                  value={caFilterShopId ?? 'global'}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCaFilterShopId(v === 'global' ? null : v);
+                  }}
+                  className="mt-1 w-full max-w-[min(100%,280px)] cursor-pointer rounded-xl border border-white/5 bg-[#0a0a0a] px-3 py-2 text-sm font-medium text-[#22D3EE] shadow-inner transition-all hover:border-[#22D3EE]/30 hover:bg-[#141414] focus:outline-none focus:ring-2 focus:ring-[#22D3EE]/40 [color-scheme:dark]"
+                >
+                  <option value="global">Global — toutes les boutiques</option>
+                  {shops.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-[#6B7280]/90">
+                  Périmètre : <span className="font-medium text-[#6B7280]">{caScopeLabel}</span>
                 </p>
               </div>
               <div className="w-full shrink-0 sm:w-[11rem]">
@@ -622,7 +642,11 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <button
                   type="button"
                   onClick={() => onNavigate(primaryAlert.target)}
-                  className="mt-6 w-full cursor-pointer rounded-xl border border-red-400/20 bg-[#EF4444] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(239,68,68,0.4)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-red-300/30 hover:bg-[#f87171] hover:shadow-[0_8px_28px_-4px_rgba(239,68,68,0.45)] active:translate-y-0 active:scale-[0.98] sm:w-auto"
+                  className={
+                    isUrgent
+                      ? 'mt-6 w-full cursor-pointer rounded-xl border border-red-400/20 bg-[#EF4444] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(239,68,68,0.4)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-red-300/30 hover:bg-[#f87171] hover:shadow-[0_8px_28px_-4px_rgba(239,68,68,0.45)] active:translate-y-0 active:scale-[0.98] sm:w-auto'
+                      : 'mt-6 w-full cursor-pointer rounded-xl border border-[#22D3EE]/30 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-2.5 text-sm font-semibold text-black shadow-[0_4px_16px_-4px_rgba(34,211,238,0.35)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:opacity-95 hover:shadow-[0_8px_28px_-4px_rgba(34,211,238,0.4)] active:translate-y-0 active:scale-[0.98] sm:w-auto'
+                  }
                 >
                   {primaryAlert.id === 'tracking-missing'
                     ? 'Corriger maintenant'
