@@ -243,16 +243,22 @@ export async function POST(request: NextRequest) {
     }
 
     const prompt = `Create one Etsy shop banner in a clean, simple, premium style.
-CRITICAL — NATIVE 4:1 WIDE BANNER (the output image IS already this shape):
-- You are filling a SINGLE ultra-wide 4:1 canvas (like 1200×300). The design must extend EDGE TO EDGE — background, light, color, and subjects use the FULL width and FULL height.
-- NO "postcard" layout: do NOT compose a tall or square scene centered on empty side margins or huge blank pillars. NO large empty solid bands left/right.
-- Think full-bleed panoramic hero: one continuous composition across the entire wide frame.
-- Products: 1–3 hero items, well scaled for a SHORT height (300px-class); avoid tiny strips at the edges; give each visible product enough body to read clearly.
-- Keep the shop name in the central area with clear vertical margin from top/bottom edges so it never feels clipped.
+CRITICAL — EXACT 4:1 BANNER (same proportions as 1200 pixels wide × 300 pixels tall):
+- The output image MUST be a single ultra-wide 4:1 rectangle. No square canvas, no tall portrait, no extra margins outside the design.
+- Full-bleed panoramic hero: background and scene fill the ENTIRE width and height edge to edge.
+- NO "postcard" on gray: no huge empty pillars left/right. NO collage or screenshot look.
+
+SHOP NAME — GEOMETRIC CENTER (NON-NEGOTIABLE):
+- Render the exact text "${shopName}" as the main title.
+- Place it at the TRUE CENTER of the frame: horizontally centered (equal space left and right) AND vertically centered (equal space above and below the text block). NOT low, NOT sitting on the bottom third, NOT corner-aligned.
+- The name must be large, crisp, and readable; high contrast against the background; with comfortable padding from all four edges so it is never clipped after export.
+
+COMPOSITION — PRODUCTS AROUND THE TITLE:
+- Products / decor support the title but must not push the shop name off-center. If you show products, balance them symmetrically or softly around the centered title so the optical focus stays on "${shopName}".
+- 1–3 hero items max; scale them for a SHORT banner height (~300px class); avoid cramming or extreme side crops.
 
 MANDATORY — SHOP NAME MUST BE VISIBLE:
 - You MUST display the shop name "${shopName}" as readable text on the banner.
-- Place the text "${shopName}" in the CENTER of the banner, large enough to be clearly legible.
 - Use elegant, clear typography (serif or sans-serif). The shop name is the main title of the banner.
 - Do not omit the shop name. The banner is for the Etsy shop "${shopName}" and the name must appear on it.
 
@@ -292,17 +298,25 @@ Strict rules:
       });
     }
 
-    // Modèles image récents en premier : prise en charge fiable du ratio 4:1 via imageConfig.
+    // Toujours privilégier d’abord les modèles qui acceptent imageConfig.aspectRatio 4:1 (export 1200×300 sans recadrage destructif).
+    // gemini-2.5-flash-image en premier pour « Flash » produisait souvent un ratio approximatif → sharp cover + attention = nom décentré.
     const modelCandidates =
       modelPreference === 'pro'
-        ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-flash']
-        : modelPreference === 'flash'
-        ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash', 'gemini-3-pro-image-preview']
-        : [
+        ? [
             'gemini-3-pro-image-preview',
             'gemini-3.1-flash-image-preview',
-            'gemini-2.5-flash-preview-05-20',
-            'gemini-2.5-flash',
+            'gemini-2.5-flash-image',
+          ]
+        : modelPreference === 'flash'
+        ? [
+            'gemini-3.1-flash-image-preview',
+            'gemini-2.5-flash-image',
+            'gemini-3-pro-image-preview',
+          ]
+        : [
+            'gemini-3.1-flash-image-preview',
+            'gemini-3-pro-image-preview',
+            'gemini-2.5-flash-image',
           ];
 
     let b64: string | null = null;
@@ -407,13 +421,24 @@ Strict rules:
       return NextResponse.json({ error: 'GENERATION_FAILED', message }, { status: 500 });
     }
 
-    // Ratio cible 4:1 (1200×300). Avec sortie Gemini en 4:1, cover ≈ mise à l’échelle sans bandes.
-    // Si le modèle renvoie un ratio voisin, 'attention' limite les coupes sur le sujet principal.
+    // Sortie exacte 1200×300 pour Etsy. Ne pas utiliser position 'attention' : la salience suit les produits
+    // et décale le cadrage alors que le nom de boutique doit rester au centre géométrique.
     const raw = Buffer.from(b64, 'base64');
-    const bannerBuffer = await sharp(raw)
-      .resize(1200, 300, { fit: 'cover', position: 'attention' })
-      .png({ quality: 92 })
-      .toBuffer();
+    const meta = await sharp(raw).metadata();
+    const w = meta.width ?? 0;
+    const h = meta.height ?? 0;
+    const ratio = w > 0 && h > 0 ? w / h : 4;
+    const isNearFourToOne = Math.abs(ratio - 4) < 0.35;
+
+    const bannerBuffer = isNearFourToOne
+      ? await sharp(raw)
+          .resize(1200, 300, { fit: 'fill' })
+          .png({ quality: 92 })
+          .toBuffer()
+      : await sharp(raw)
+          .resize(1200, 300, { fit: 'cover', position: 'centre' })
+          .png({ quality: 92 })
+          .toBuffer();
 
     const deductResult = await incrementAnalysisCount(user.id, BANNER_CREDITS);
     if (!deductResult.success) {
