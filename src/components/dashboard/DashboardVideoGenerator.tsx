@@ -11,16 +11,264 @@ interface ImageItem {
 
 type LogoPosition = 'TL' | 'TC' | 'TR' | 'ML' | 'C' | 'MR' | 'BL' | 'BC' | 'BR';
 
-const TOTAL_VIDEO_DURATION_MS = 5000; // 5 secondes total pour toute la vidéo
-const TRANSITION_DURATION_MS = 500; // 0.5s de transition entre images
+const TOTAL_VIDEO_DURATION_MS = 5000;
+const TRANSITION_DURATION_MS = 500;
+/** Cadence fixe alignée sur captureStream / encodeur → évite saccades et « rollbacks » */
 const FPS = 30;
+const FRAME_MS = 1000 / FPS;
+
+/** Résolution carrée (Etsy listing vidéo) — qualité prioritaire */
+const OUTPUT_SIZE = 1080;
+/** Bitrate H.264 (MP4) */
+const MP4_VIDEO_BITRATE = 14_000_000;
+/** Bitrate cible WebM (fallback navigateur) */
+const WEBM_VIDEO_BITRATE = 12_000_000;
+
+type SceneState =
+  | { kind: 'done' }
+  | {
+      kind: 'frame';
+      imageIndex: number;
+      periodElapsed: number;
+      isLastImage: boolean;
+      isTransitioning: boolean;
+      nextImageIndex?: number;
+    };
+
+function getSceneState(
+  elapsedMs: number,
+  imagesLength: number,
+  imageDurationMs: number,
+  transitionMs: number
+): SceneState {
+  if (imagesLength === 0) return { kind: 'done' };
+  let acc = 0;
+  for (let i = 0; i < imagesLength; i++) {
+    const isLast = i === imagesLength - 1;
+    const period = isLast ? imageDurationMs : imageDurationMs + transitionMs;
+    if (elapsedMs < acc + period) {
+      const periodElapsed = elapsedMs - acc;
+      const isTransitioning = !isLast && periodElapsed > imageDurationMs;
+      return {
+        kind: 'frame',
+        imageIndex: i,
+        periodElapsed,
+        isLastImage: isLast,
+        isTransitioning,
+        nextImageIndex: isTransitioning ? i + 1 : undefined,
+      };
+    }
+    acc += period;
+  }
+  return { kind: 'done' };
+}
+
+/** Zoom en fin de phase « plein écran » (avant transition), pour enchaîner sans saut. */
+function zoomAtEndOfImageHold(imageIndex: number, zoomAmount: number): number {
+  if (imageIndex <= 0) return 1 + zoomAmount;
+  return 1 + zoomAmount + zoomAmount;
+}
+
+function paintVideoFrame(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  elapsedMs: number,
+  loadedImages: HTMLImageElement[],
+  logoImg: HTMLImageElement | null,
+  logoPosition: LogoPosition,
+  logoOpacity: number,
+  zoomSpeed: 'slow' | 'normal' | 'fast',
+  imageDurationMs: number,
+  transitionMs: number
+) {
+  const zoomAmount = zoomSpeed === 'slow' ? 0.08 : zoomSpeed === 'fast' ? 0.25 : 0.15;
+  const n = loadedImages.length;
+  const state = getSceneState(elapsedMs, n, imageDurationMs, transitionMs);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const drawImage = (img: HTMLImageElement, alpha: number, zoom: number) => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(width / 2, height / 2);
+    ctx.scale(zoom, zoom);
+    const imgRatio = img.width / img.height;
+    const canvasRatio = width / height;
+    let drawWidth: number;
+    let drawHeight: number;
+    if (imgRatio > canvasRatio) {
+      drawHeight = height;
+      drawWidth = height * imgRatio;
+    } else {
+      drawWidth = width;
+      drawHeight = width / imgRatio;
+    }
+    ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
+  };
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (state.kind === 'done') {
+    const last = loadedImages[n - 1];
+    if (last) drawImage(last, 1, 1 + zoomAmount);
+  } else if (state.kind === 'frame') {
+    const currentImg = loadedImages[state.imageIndex];
+    if (!currentImg) return;
+
+    if (state.isTransitioning && state.nextImageIndex != null) {
+      const nextImg = loadedImages[state.nextImageIndex];
+      const transitionProgress = (state.periodElapsed - imageDurationMs) / transitionMs;
+      const currentAlpha = 1 - transitionProgress;
+      const nextAlpha = transitionProgress;
+      // Image courante : zoom réel en fin de hold (évite décrochage quand slide > 0)
+      const currentZoom = zoomAtEndOfImageHold(state.imageIndex, zoomAmount);
+      // Image suivante : même courbe qu’avant (de 1 à 1+zoom) en fondu
+      const nextZoom = 1 + zoomAmount * transitionProgress;
+      drawImage(currentImg, currentAlpha, currentZoom);
+      if (nextImg) drawImage(nextImg, nextAlpha, nextZoom);
+    } else {
+      const t = Math.min(1, state.periodElapsed / imageDurationMs);
+      // Slide 0 : zoom 1 → 1+zoom. Slides suivantes : enchaînent à 1+zoom (fin transition) → 1+2×zoom
+      const zoom =
+        state.imageIndex === 0
+          ? 1 + zoomAmount * t
+          : (1 + zoomAmount) + zoomAmount * t;
+      drawImage(currentImg, 1, zoom);
+    }
+  }
+
+  if (logoImg) {
+    const logoSize = 100;
+    const positions: Record<LogoPosition, { x: number; y: number }> = {
+      TL: { x: logoSize / 2 + 15, y: logoSize / 2 + 15 },
+      TC: { x: width / 2, y: logoSize / 2 + 15 },
+      TR: { x: width - logoSize / 2 - 15, y: logoSize / 2 + 15 },
+      ML: { x: logoSize / 2 + 15, y: height / 2 },
+      C: { x: width / 2, y: height / 2 },
+      MR: { x: width - logoSize / 2 - 15, y: height / 2 },
+      BL: { x: logoSize / 2 + 15, y: height - logoSize / 2 - 15 },
+      BC: { x: width / 2, y: height - logoSize / 2 - 15 },
+      BR: { x: width - logoSize / 2 - 15, y: height - logoSize / 2 - 15 },
+    };
+    const pos = positions[logoPosition];
+    ctx.save();
+    ctx.globalAlpha = logoOpacity / 100;
+    ctx.drawImage(logoImg, pos.x - logoSize / 2, pos.y - logoSize / 2, logoSize, logoSize);
+    ctx.restore();
+  }
+}
+
+async function encodeMp4FromCanvas(
+  canvas: HTMLCanvasElement,
+  drawAtElapsedMs: (elapsedMs: number) => void
+): Promise<Blob | null> {
+  if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
+    return null;
+  }
+
+  const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
+  const width = canvas.width;
+  const height = canvas.height;
+
+  const tryConfigs: VideoEncoderConfig[] = [
+    {
+      codec: 'avc1.640028',
+      width,
+      height,
+      bitrate: MP4_VIDEO_BITRATE,
+      bitrateMode: 'variable',
+      latencyMode: 'quality',
+    },
+    {
+      codec: 'avc1.4d002a',
+      width,
+      height,
+      bitrate: MP4_VIDEO_BITRATE,
+      bitrateMode: 'variable',
+      latencyMode: 'quality',
+    },
+    {
+      codec: 'avc1.42001f',
+      width,
+      height,
+      bitrate: MP4_VIDEO_BITRATE,
+      bitrateMode: 'variable',
+      latencyMode: 'quality',
+    },
+  ];
+
+  let chosen: VideoEncoderConfig | null = null;
+  for (const c of tryConfigs) {
+    try {
+      const { supported } = await VideoEncoder.isConfigSupported(c);
+      if (supported) {
+        chosen = c;
+        break;
+      }
+    } catch {
+      /* continue */
+    }
+  }
+  if (!chosen) return null;
+
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target,
+    fastStart: 'in-memory',
+    video: { codec: 'avc', width, height, frameRate: FPS },
+    firstTimestampBehavior: 'offset',
+  });
+
+  let encodeError: Error | null = null;
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => {
+      encodeError = e;
+    },
+  });
+
+  await encoder.configure(chosen);
+
+  const frameDurationUs = Math.round(1_000_000 / FPS);
+  const totalFrames = Math.round((TOTAL_VIDEO_DURATION_MS / 1000) * FPS);
+
+  for (let i = 0; i < totalFrames; i++) {
+    if (encodeError) break;
+    const elapsedMs = Math.min(TOTAL_VIDEO_DURATION_MS - 0.001, (i * 1000) / FPS);
+    drawAtElapsedMs(elapsedMs);
+    const vf = new VideoFrame(canvas, {
+      timestamp: i * frameDurationUs,
+      duration: frameDurationUs,
+    });
+    encoder.encode(vf, { keyFrame: i % FPS === 0 });
+    vf.close();
+  }
+
+  await encoder.flush();
+  if (encodeError) {
+    try {
+      encoder.close();
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+  muxer.finalize();
+  encoder.close();
+  const buffer = target.buffer;
+  if (!buffer || buffer.byteLength === 0) return null;
+  return new Blob([buffer], { type: 'video/mp4' });
+}
 
 export function DashboardVideoGenerator() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoMimeType, setVideoMimeType] = useState<string>('video/webm');
+  const [videoMimeType, setVideoMimeType] = useState<string>('video/mp4');
   const [error, setError] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -67,7 +315,7 @@ export function DashboardVideoGenerator() {
     setImages(limitedItems);
     setSelectedIndex(0);
     setVideoUrl(null);
-    setVideoMimeType('video/webm');
+    setVideoMimeType('video/mp4');
     setError(null);
   };
 
@@ -91,7 +339,7 @@ export function DashboardVideoGenerator() {
     } else if (newImages.length === 0) {
       setSelectedIndex(0);
       setVideoUrl(null);
-      setVideoMimeType('video/webm');
+      setVideoMimeType('video/mp4');
     }
   };
 
@@ -100,7 +348,7 @@ export function DashboardVideoGenerator() {
     setImages([]);
     setSelectedIndex(0);
     setVideoUrl(null);
-    setVideoMimeType('video/webm');
+    setVideoMimeType('video/mp4');
     setError(null);
   };
 
@@ -144,7 +392,6 @@ export function DashboardVideoGenerator() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ajouter les styles pour le slider d'opacité
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -177,19 +424,13 @@ export function DashboardVideoGenerator() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Durée totale fixe de 5 secondes
-  const totalDuration = TOTAL_VIDEO_DURATION_MS / 1000; // 5 secondes
+  const totalDuration = TOTAL_VIDEO_DURATION_MS / 1000;
 
   const handleGenerate = async () => {
     try {
       setError(null);
 
       if (typeof window === 'undefined') return;
-
-      if (typeof (window as any).MediaRecorder === 'undefined') {
-        setError("La génération de vidéo n'est pas supportée par ce navigateur.");
-        return;
-      }
 
       if (images.length === 0) {
         setError('Ajoutez au moins une image avant de générer une vidéo.');
@@ -198,73 +439,22 @@ export function DashboardVideoGenerator() {
 
       setIsGenerating(true);
       setVideoUrl(null);
-      setVideoMimeType('video/webm');
+      setVideoMimeType('video/mp4');
 
-      const width = 1080;
-      const height = 1080;
+      const width = OUTPUT_SIZE;
+      const height = OUTPUT_SIZE;
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) {
         setError('Canvas non supporté.');
         setIsGenerating(false);
         return;
       }
 
-      const stream = (canvas as any).captureStream
-        ? (canvas as HTMLCanvasElement).captureStream(FPS)
-        : null;
-
-      if (!stream) {
-        setError("La capture vidéo n'est pas supportée.");
-        setIsGenerating(false);
-        return;
-      }
-
-      const MediaRecorderCtor: any = (window as any).MediaRecorder;
-      const supportedTypes = [
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm',
-        'video/mp4',
-      ];
-
-      let mimeType: string | undefined;
-      for (const type of supportedTypes) {
-        try {
-          if (MediaRecorderCtor.isTypeSupported && MediaRecorderCtor.isTypeSupported(type)) {
-            mimeType = type;
-            break;
-          }
-        } catch (e) {
-          // Ignorer
-        }
-      }
-
-      if (!mimeType) {
-        mimeType = 'video/webm';
-      }
-
-      const chunks: BlobPart[] = [];
-      let recorder: MediaRecorder;
-
-      try {
-        recorder = new MediaRecorderCtor(stream, { mimeType });
-      } catch (e: any) {
-        try {
-          recorder = new MediaRecorderCtor(stream);
-          mimeType = recorder.mimeType || 'video/webm';
-        } catch (e2: any) {
-          setError('Format vidéo non supporté.');
-          setIsGenerating(false);
-          return;
-        }
-      }
-
-      // Précharger toutes les images
       const loadedImages: HTMLImageElement[] = [];
       for (const imgItem of images) {
         const img = new Image();
@@ -277,7 +467,6 @@ export function DashboardVideoGenerator() {
         loadedImages.push(img);
       }
 
-      // Précharger le logo si présent
       let logoImg: HTMLImageElement | null = null;
       if (logoUrl && logoFile) {
         logoImg = new Image();
@@ -289,177 +478,129 @@ export function DashboardVideoGenerator() {
         });
       }
 
-      recorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data && e.data.size > 0) {
-          chunks.push(e.data);
-        }
+      const imageDurationMs =
+        images.length > 0
+          ? (TOTAL_VIDEO_DURATION_MS - (images.length - 1) * TRANSITION_DURATION_MS) / images.length
+          : 0;
+
+      const drawAtElapsedMs = (elapsedMs: number) => {
+        paintVideoFrame(
+          ctx,
+          width,
+          height,
+          elapsedMs,
+          loadedImages,
+          logoImg,
+          logoPosition,
+          logoOpacity,
+          zoomSpeed,
+          imageDurationMs,
+          TRANSITION_DURATION_MS
+        );
       };
 
-      const recordPromise = new Promise<Blob>((resolve) => {
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
-          resolve(blob);
-        };
-      });
+      let blob: Blob | null = await encodeMp4FromCanvas(canvas, drawAtElapsedMs);
 
-      recorder.start();
-
-      const startTime = performance.now();
-      
-      // Calculer la durée de chaque image pour que la vidéo totale fasse 5 secondes
-      const imageDurationMs = images.length > 0
-        ? (TOTAL_VIDEO_DURATION_MS - (images.length - 1) * TRANSITION_DURATION_MS) / images.length
-        : 0;
-      const totalImageDurationMs = imageDurationMs + TRANSITION_DURATION_MS;
-
-      // Intensité du zoom en fonction du choix utilisateur
-      const zoomAmount =
-        zoomSpeed === 'slow' ? 0.08 :
-        zoomSpeed === 'fast' ? 0.25 :
-        0.15;
-
-      const renderFrame = (now: number) => {
-        const elapsed = now - startTime;
-        
-        // Calculer l'index de l'image actuelle de manière cumulative
-        let imageIndex = 0;
-        let accumulatedTime = 0;
-        
-        for (let i = 0; i < images.length; i++) {
-          const isLastImage = i === images.length - 1;
-          const periodDuration = isLastImage ? imageDurationMs : totalImageDurationMs;
-          
-          if (elapsed < accumulatedTime + periodDuration) {
-            imageIndex = i;
-            break;
-          }
-          accumulatedTime += periodDuration;
-        }
-        
-        if (imageIndex >= images.length) {
-          recorder.stop();
+      if (!blob && typeof (window as unknown as { MediaRecorder?: typeof MediaRecorder }).MediaRecorder !== 'undefined') {
+        const MediaRecorderCtor = (window as unknown as { MediaRecorder: typeof MediaRecorder }).MediaRecorder;
+        const stream = canvas.captureStream(FPS);
+        if (!stream) {
+          setError("La capture vidéo n'est pas supportée.");
+          setIsGenerating(false);
           return;
         }
 
-        const currentImg = loadedImages[imageIndex];
-        if (!currentImg) {
-          recorder.stop();
-          return;
-        }
-
-        // Temps écoulé dans la période actuelle
-        // Pour la dernière image, on utilise seulement imageDurationMs (pas de transition après)
-        const isLastImage = imageIndex === images.length - 1;
-        const periodDuration = isLastImage ? imageDurationMs : totalImageDurationMs;
-        
-        // Calculer le temps écoulé depuis le début de cette période
-        let periodStartTime = 0;
-        for (let i = 0; i < imageIndex; i++) {
-          const isLast = i === images.length - 1;
-          periodStartTime += isLast ? imageDurationMs : totalImageDurationMs;
-        }
-        const periodElapsed = elapsed - periodStartTime;
-        
-        // Déterminer si on est en transition ou en affichage normal
-        // Pas de transition pour la dernière image
-        const isTransitioning = !isLastImage && periodElapsed > imageDurationMs;
-        const nextImageIndex = imageIndex + 1;
-        const nextImg = nextImageIndex < loadedImages.length ? loadedImages[nextImageIndex] : null;
-
-        ctx.clearRect(0, 0, width, height);
-
-        // Fonction helper pour dessiner une image avec zoom
-        const drawImage = (img: HTMLImageElement, alpha: number, zoom: number) => {
-          ctx.save();
-          ctx.globalAlpha = alpha;
-          ctx.translate(width / 2, height / 2);
-          ctx.scale(zoom, zoom);
-
-          const imgRatio = img.width / img.height;
-          const canvasRatio = width / height;
-          let drawWidth: number;
-          let drawHeight: number;
-
-          if (imgRatio > canvasRatio) {
-            drawHeight = height;
-            drawWidth = height * imgRatio;
-          } else {
-            drawWidth = width;
-            drawHeight = width / imgRatio;
+        const supportedTypes = [
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm',
+          'video/mp4',
+        ];
+        let mimeType: string | undefined;
+        for (const type of supportedTypes) {
+          try {
+            if (MediaRecorderCtor.isTypeSupported?.(type)) {
+              mimeType = type;
+              break;
+            }
+          } catch {
+            /* ignore */
           }
+        }
+        if (!mimeType) mimeType = 'video/webm';
 
-          ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-          ctx.restore();
+        const chunks: BlobPart[] = [];
+        let recorder: MediaRecorder;
+        try {
+          recorder = new MediaRecorderCtor(stream, {
+            mimeType,
+            videoBitsPerSecond: WEBM_VIDEO_BITRATE,
+          } as MediaRecorderOptions);
+        } catch {
+          try {
+            recorder = new MediaRecorderCtor(stream);
+            mimeType = recorder.mimeType || 'video/webm';
+          } catch {
+            setError('MP4 indisponible et enregistrement WebM impossible sur ce navigateur.');
+            setIsGenerating(false);
+            return;
+          }
+        }
+
+        recorder.ondataavailable = (e: BlobEvent) => {
+          if (e.data?.size) chunks.push(e.data);
         };
 
-        if (isTransitioning && nextImg) {
-          // Transition entre deux images (fade cross)
-          const transitionProgress = (periodElapsed - imageDurationMs) / TRANSITION_DURATION_MS;
-          const currentAlpha = 1 - transitionProgress;
-          const nextAlpha = transitionProgress;
-          
-          // Zoom pour l'image actuelle (continue le zoom)
-          const currentZoom = 1 + zoomAmount;
-          // Zoom pour la prochaine image (commence à 1)
-          const nextZoom = 1 + zoomAmount * transitionProgress;
-
-          // Dessiner l'image actuelle qui disparaît
-          drawImage(currentImg, currentAlpha, currentZoom);
-          
-          // Dessiner la prochaine image qui apparaît
-          drawImage(nextImg, nextAlpha, nextZoom);
-        } else {
-          // Affichage normal avec zoom progressif
-          const t = periodElapsed / imageDurationMs;
-          const zoom = 1 + zoomAmount * Math.min(1, t);
-          drawImage(currentImg, 1, zoom);
-        }
-
-        // Ajouter le logo si présent (toujours au-dessus)
-        if (logoImg) {
-          const logoSize = 100;
-          const positions: Record<LogoPosition, { x: number; y: number }> = {
-            TL: { x: logoSize / 2 + 15, y: logoSize / 2 + 15 },
-            TC: { x: width / 2, y: logoSize / 2 + 15 },
-            TR: { x: width - logoSize / 2 - 15, y: logoSize / 2 + 15 },
-            ML: { x: logoSize / 2 + 15, y: height / 2 },
-            C: { x: width / 2, y: height / 2 },
-            MR: { x: width - logoSize / 2 - 15, y: height / 2 },
-            BL: { x: logoSize / 2 + 15, y: height - logoSize / 2 - 15 },
-            BC: { x: width / 2, y: height - logoSize / 2 - 15 },
-            BR: { x: width - logoSize / 2 - 15, y: height - logoSize / 2 - 15 },
+        const recordPromise = new Promise<Blob>((resolve) => {
+          recorder.onstop = () => {
+            resolve(new Blob(chunks, { type: mimeType || 'video/webm' }));
           };
+        });
 
-          const pos = positions[logoPosition];
-          ctx.save();
-          ctx.globalAlpha = logoOpacity / 100;
-          ctx.drawImage(logoImg, pos.x - logoSize / 2, pos.y - logoSize / 2, logoSize, logoSize);
-          ctx.restore();
-        }
+        recorder.start(200);
 
-        if (elapsed < totalDuration * 1000) {
-          requestAnimationFrame(renderFrame);
-        } else {
-          recorder.stop();
-        }
-      };
+        const startTime = performance.now();
+        let lastFrameAt = startTime;
 
-      requestAnimationFrame(renderFrame);
+        const tick = (now: number) => {
+          const elapsed = now - startTime;
+          if (elapsed >= TOTAL_VIDEO_DURATION_MS) {
+            recorder.stop();
+            return;
+          }
+          if (now - lastFrameAt >= FRAME_MS) {
+            lastFrameAt = now - ((now - lastFrameAt) % FRAME_MS);
+            drawAtElapsedMs(Math.min(elapsed, TOTAL_VIDEO_DURATION_MS - 0.001));
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
 
-      const videoBlob = await recordPromise;
-      const url = URL.createObjectURL(videoBlob);
+        blob = await recordPromise;
+        setVideoMimeType(mimeType || 'video/webm');
+      }
+
+      if (!blob) {
+        setError(
+          'Export MP4 impossible (navigateur trop ancien ou codec indisponible). Essaie Chrome ou Edge à jour.'
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
       setVideoUrl(url);
-      setVideoMimeType(mimeType || 'video/webm');
       setDuration(totalDuration);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[VideoGenerator] Error:', e);
-      setError(e?.message || 'Erreur pendant la génération de la vidéo.');
+      setError(e instanceof Error ? e.message : 'Erreur pendant la génération de la vidéo.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const currentImage = images[selectedIndex];
+  const downloadExt = videoMimeType.includes('mp4') ? 'mp4' : 'webm';
 
   return (
     <div className="min-h-screen bg-black">
@@ -472,10 +613,12 @@ export function DashboardVideoGenerator() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Générateur de Vidéo</h1>
             <p className="text-sm sm:text-base text-white/70 max-w-xl">
-              Transformez vos photos de produits en vidéos professionnelles prêtes pour Etsy : logo, position, opacité et aperçu en direct.
+              Transformez vos photos de produits en vidéos professionnelles prêtes pour Etsy : logo, position, opacité et
+              aperçu en direct.
             </p>
             <p className="text-xs text-[#00d4ff] mt-2 font-medium">
-              Gratuit • 0 crédits pour tester le générateur
+              Export <strong className="text-white/90">MP4 (H.264)</strong> haute qualité — compatible Etsy • Gratuit • 0
+              crédits pour tester
             </p>
           </div>
         </div>
@@ -485,9 +628,9 @@ export function DashboardVideoGenerator() {
           {/* LEFT COLUMN - Video Preview */}
           <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 sm:p-6">
             <h2 className="text-white font-semibold text-base mb-4">Aperçu Vidéo</h2>
-            
+
             {/* Drop zone / Preview */}
-            <div 
+            <div
               ref={dropZoneRef}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -555,7 +698,10 @@ export function DashboardVideoGenerator() {
                   <p className="text-sm text-white/80 mb-1">Glissez vos images ou cliquez pour télécharger</p>
                   <p className="text-xs text-white/50 mb-4">JPG, PNG, WebP • 30 Mo max</p>
                   <button
-                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                     className="px-5 py-2 bg-[#00d4ff] text-white text-sm font-medium rounded-lg hover:bg-[#00c9b7] transition-colors"
                   >
                     Télécharger des images
@@ -568,25 +714,58 @@ export function DashboardVideoGenerator() {
             {/* Video controls bar */}
             {videoUrl && (
               <div className="mt-3 flex items-center gap-2 bg-[#0a0e14] rounded-lg px-3 py-2">
-                <button onClick={() => { if (videoRef.current) { isPlaying ? videoRef.current.pause() : videoRef.current.play(); } }}
-                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors">
+                <button
+                  onClick={() => {
+                    const v = videoRef.current;
+                    if (!v) return;
+                    if (isPlaying) void v.pause();
+                    else void v.play();
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors"
+                >
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </button>
-                <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = 0; }}
-                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors">
+                <button
+                  onClick={() => {
+                    if (videoRef.current) videoRef.current.currentTime = 0;
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors"
+                >
                   <RotateCw className="w-4 h-4" />
                 </button>
-                <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5); }}
-                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors">
+                <button
+                  onClick={() => {
+                    if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors"
+                >
                   <SkipBack className="w-4 h-4" />
                 </button>
-                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer"
-                  onClick={(e) => { if (videoRef.current && duration > 0) { const rect = e.currentTarget.getBoundingClientRect(); videoRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * duration; } }}>
-                  <div className="absolute inset-y-0 left-0 bg-[#00d4ff] rounded-full transition-all" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }} />
-                  <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[#00d4ff] rounded-full border-2 border-white shadow-md transition-all" style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 6px)` }} />
+                <div
+                  className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer"
+                  onClick={(e) => {
+                    if (videoRef.current && duration > 0) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      videoRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * duration;
+                    }
+                  }}
+                >
+                  <div
+                    className="absolute inset-y-0 left-0 bg-[#00d4ff] rounded-full transition-all"
+                    style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[#00d4ff] rounded-full border-2 border-white shadow-md transition-all"
+                    style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 6px)` }}
+                  />
                 </div>
-                <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 5); }}
-                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors">
+                <button
+                  onClick={() => {
+                    if (videoRef.current)
+                      videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 5);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded transition-colors"
+                >
                   <SkipForward className="w-4 h-4" />
                 </button>
                 <span className="text-xs text-white/50 font-mono min-w-[70px] text-right">
@@ -597,10 +776,21 @@ export function DashboardVideoGenerator() {
 
             {/* Download */}
             {videoUrl && (
-              <a href={videoUrl} download={`etsmart-video.${videoMimeType.includes('mp4') ? 'mp4' : 'webm'}`}
-                className="inline-flex items-center gap-2 mt-3 text-sm text-[#00d4ff] hover:text-[#00c9b7] transition-colors">
-                <Download className="w-4 h-4" /> Télécharger la vidéo
-              </a>
+              <div className="mt-3 space-y-1">
+                <a
+                  href={videoUrl}
+                  download={`etsmart-video-etsy.${downloadExt}`}
+                  className="inline-flex items-center gap-2 text-sm text-[#00d4ff] hover:text-[#00c9b7] transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Télécharger la vidéo ({downloadExt.toUpperCase()})
+                </a>
+                {downloadExt === 'webm' && (
+                  <p className="text-[11px] text-white/45">
+                    Ton navigateur a utilisé WebM en secours. Pour un MP4 compatible Etsy, ouvre l’outil dans{' '}
+                    <strong className="text-white/60">Chrome ou Edge</strong> à jour.
+                  </p>
+                )}
+              </div>
             )}
 
             {error && (
@@ -618,19 +808,25 @@ export function DashboardVideoGenerator() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-white font-semibold text-base">Images</h3>
-                  <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{images.length} image{images.length > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+                    {images.length} image{images.length > 1 ? 's' : ''}
+                  </span>
                 </div>
                 {images.length > 0 && (
-                  <button onClick={handleClearAll}
-                    className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5 transition-colors">
+                  <button
+                    onClick={handleClearAll}
+                    className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5 transition-colors"
+                  >
                     <Trash2 className="w-3 h-3" /> Effacer
                   </button>
                 )}
               </div>
 
               {images.length === 0 ? (
-                <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}>
+                <div
+                  className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <Upload className="w-8 h-8 mx-auto mb-2 text-white/20" />
                   <p className="text-sm text-white/40">Ajouter des images</p>
                 </div>
@@ -638,10 +834,14 @@ export function DashboardVideoGenerator() {
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     {images.map((img, index) => (
-                      <div key={img.id}
+                      <div
+                        key={img.id}
                         className={`relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer group transition-all ${
-                          index === selectedIndex ? 'border-[#00d4ff] shadow-[0_0_10px_rgba(0,212,255,0.2)]' : 'border-white/10 hover:border-white/20'
-                        }`}>
+                          index === selectedIndex
+                            ? 'border-[#00d4ff] shadow-[0_0_10px_rgba(0,212,255,0.2)]'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
                         <button onClick={() => setSelectedIndex(index)} className="absolute inset-0 w-full h-full">
                           <img src={img.url} alt={img.file.name} className="w-full h-full object-cover" />
                         </button>
@@ -650,15 +850,22 @@ export function DashboardVideoGenerator() {
                             <div className="w-2 h-2 rounded-full bg-white" />
                           </div>
                         )}
-                        <button onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }}
-                          className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/70 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(index);
+                          }}
+                          className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/70 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                        >
                           <X className="w-3 h-3 text-white" />
                         </button>
                       </div>
                     ))}
                   </div>
-                  <div className="border-2 border-dashed border-white/10 rounded-lg p-3 text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}>
+                  <div
+                    className="border-2 border-dashed border-white/10 rounded-lg p-3 text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     <Upload className="w-5 h-5 mx-auto mb-1 text-white/30" />
                     <p className="text-xs text-white/40">Ajouter des images</p>
                   </div>
@@ -668,23 +875,25 @@ export function DashboardVideoGenerator() {
 
             {/* Logo + Position + Opacity — combined card */}
             <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4">
-              {/* Logo + Position side by side */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {/* Logo */}
                 <div>
                   <h3 className="text-white font-semibold text-base mb-3">Logo</h3>
                   {logoUrl ? (
                     <div className="relative rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]" style={{ aspectRatio: '1' }}>
                       <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-3" />
-                      <button onClick={handleRemoveLogo}
-                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 hover:bg-red-500/80 flex items-center justify-center transition-colors">
+                      <button
+                        onClick={handleRemoveLogo}
+                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 hover:bg-red-500/80 flex items-center justify-center transition-colors"
+                      >
                         <X className="w-3 h-3 text-white" />
                       </button>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-white/10 rounded-xl text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors flex flex-col items-center justify-center"
+                    <div
+                      className="border-2 border-dashed border-white/10 rounded-xl text-center bg-white/[0.02] cursor-pointer hover:border-white/20 transition-colors flex flex-col items-center justify-center"
                       style={{ aspectRatio: '1' }}
-                      onClick={() => logoInputRef.current?.click()}>
+                      onClick={() => logoInputRef.current?.click()}
+                    >
                       <Upload className="w-8 h-8 mb-2 text-white/20" />
                       <p className="text-sm text-white/50">Télécharger un logo</p>
                       <p className="text-xs text-white/30 mt-1">PNG, SVG, WebP, JPG</p>
@@ -693,17 +902,19 @@ export function DashboardVideoGenerator() {
                   )}
                 </div>
 
-                {/* Position */}
                 <div>
                   <h3 className="text-white font-semibold text-base mb-3">Position</h3>
                   <div className="grid grid-cols-3 gap-1.5" style={{ aspectRatio: '1' }}>
                     {(['TL', 'TC', 'TR', 'ML', 'C', 'MR', 'BL', 'BC', 'BR'] as LogoPosition[]).map((pos) => (
-                      <button key={pos} onClick={() => setLogoPosition(pos)}
+                      <button
+                        key={pos}
+                        onClick={() => setLogoPosition(pos)}
                         className={`rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${
                           logoPosition === pos
                             ? 'border-[#00d4ff] bg-[#00d4ff]/10 text-[#00d4ff] shadow-[0_0_8px_rgba(0,212,255,0.15)]'
                             : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/60 bg-white/[0.02]'
-                        }`}>
+                        }`}
+                      >
                         {pos}
                       </button>
                     ))}
@@ -711,7 +922,6 @@ export function DashboardVideoGenerator() {
                 </div>
               </div>
 
-              {/* Opacité & vitesse du zoom */}
               <div className="mt-4 pt-4 border-t border-white/5 space-y-5">
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -758,17 +968,18 @@ export function DashboardVideoGenerator() {
               </div>
             </div>
 
-            {/* Generate Button */}
             {images.length > 0 && (
-              <button onClick={handleGenerate} disabled={isGenerating}
-                className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/10">
-                {isGenerating ? 'Génération en cours...' : 'Générer la vidéo'}
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="w-full px-4 py-3 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/10"
+              >
+                {isGenerating ? 'Génération en cours...' : 'Générer la vidéo (MP4)'}
               </button>
             )}
           </div>
         </div>
 
-        {/* Hidden file input */}
         <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
       </div>
     </div>
