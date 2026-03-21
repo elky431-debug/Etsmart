@@ -97,52 +97,55 @@ export function DashboardCoach() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="border-b border-white/10 bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/20 flex-shrink-0">
-              <Bot className="w-5 h-5 text-black" strokeWidth={2.25} />
+    <div className="flex h-full min-h-0 w-full flex-col bg-black text-white">
+      {/* En-tête : fond opaque + ombre pour séparer clairement du fil de discussion */}
+      <header className="shrink-0 border-b border-white/10 bg-zinc-950 shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/20">
+              <Bot className="h-5 w-5 text-black" strokeWidth={2.25} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-white truncate">Coach</h1>
-              <p className="text-xs text-white/50 truncate">IA EtSmart · Etsy & e-commerce</p>
+              <h1 className="truncate text-lg font-bold tracking-tight text-white sm:text-xl">Coach</h1>
+              <p className="truncate text-xs text-white/50 sm:text-sm">IA EtSmart · Etsy & e-commerce</p>
             </div>
           </div>
           <button
             type="button"
             onClick={clearChat}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white hover:bg-white/5 text-sm transition-colors"
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2.5 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-[0.98]"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-4 w-4" />
             <span className="hidden sm:inline">Nouvelle conversation</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      {/* Zone messages : scroll interne uniquement ici */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="mx-auto max-w-3xl space-y-5 px-4 pb-8 pt-8 sm:px-6 sm:pt-10">
           {messages.map((m, i) => (
             <div
               key={i}
               className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
+              {/* Même largeur que l’icône du header (w-11) pour aligner les bulles avec le titre */}
               <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${
                   m.role === 'user' ? 'bg-white/10' : 'bg-[#00d4ff]/20'
                 }`}
               >
                 {m.role === 'user' ? (
-                  <MessageCircle className="w-4 h-4 text-white/80" />
+                  <MessageCircle className="h-4 w-4 text-white/80" />
                 ) : (
-                  <Bot className="w-4 h-4 text-[#00d4ff]" strokeWidth={2.25} />
+                  <Bot className="h-4 w-4 text-[#00d4ff]" strokeWidth={2.25} />
                 )}
               </div>
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`min-w-0 max-w-[85%] rounded-2xl border px-4 py-3.5 text-sm leading-relaxed text-white/95 whitespace-pre-wrap sm:max-w-[80%] ${
                   m.role === 'user'
-                    ? 'bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/10 border border-[#00d4ff]/25 text-white'
-                    : 'bg-white/[0.06] border border-white/10 text-white/90'
+                    ? 'border-[#00d4ff]/25 bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/10'
+                    : 'border-white/10 bg-white/[0.07]'
                 }`}
               >
                 {m.content}
@@ -151,26 +154,28 @@ export function DashboardCoach() {
           ))}
           {loading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#00d4ff]/20 flex items-center justify-center">
-                <Loader2 className="w-4 h-4 text-[#00d4ff] animate-spin" />
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#00d4ff]/20">
+                <Loader2 className="h-4 w-4 animate-spin text-[#00d4ff]" />
               </div>
-              <div className="rounded-2xl px-4 py-3 bg-white/[0.06] border border-white/10 text-sm text-white/60">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-sm text-white/60">
                 Réflexion en cours…
               </div>
             </div>
           )}
-          <div ref={bottomRef} />
+          <div ref={bottomRef} className="h-px shrink-0" aria-hidden />
         </div>
       </div>
 
       {error && (
-        <div className="max-w-3xl mx-auto w-full px-4 pb-2">
-          <div className="rounded-xl bg-red-500/10 border border-red-500/40 px-4 py-2 text-sm text-red-200">{error}</div>
+        <div className="shrink-0 px-4 pb-2 sm:px-6">
+          <div className="mx-auto max-w-3xl rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+            {error}
+          </div>
         </div>
       )}
 
-      <div className="border-t border-white/10 bg-zinc-950/90 backdrop-blur-md p-4">
-        <div className="max-w-3xl mx-auto flex gap-2">
+      <footer className="shrink-0 border-t border-white/10 bg-zinc-950 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-3xl gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -183,21 +188,21 @@ export function DashboardCoach() {
             placeholder="Pose ta question à EtSmart Coach…"
             rows={2}
             disabled={loading}
-            className="flex-1 resize-none rounded-xl bg-white/5 border border-white/15 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#00d4ff]/50 focus:ring-2 focus:ring-[#00d4ff]/20 disabled:opacity-50"
+            className="flex-1 resize-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#00d4ff]/50 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/20 disabled:opacity-50"
           />
           <button
             type="button"
             onClick={() => void send()}
             disabled={loading || !input.trim()}
-            className="self-end px-4 py-3 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold shadow-lg shadow-[#00d4ff]/20 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            className="flex cursor-pointer items-center justify-center self-end rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-3 font-semibold text-black shadow-lg shadow-[#00d4ff]/20 transition-all hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:brightness-100"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>
         </div>
-        <p className="max-w-3xl mx-auto mt-2 text-[11px] text-white/40 text-center">
+        <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-white/40">
           Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne
         </p>
-      </div>
+      </footer>
     </div>
   );
 }

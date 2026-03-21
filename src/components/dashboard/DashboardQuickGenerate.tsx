@@ -21,6 +21,9 @@ import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageAltTextPanel } from '@/components/dashboard/ImageAltTextPanel';
+import { ImageStyleCards } from '@/components/dashboard/ImageStyleCards';
+import type { ImageStyleId } from '@/lib/image-style-presets';
+import { DEFAULT_IMAGE_STYLE } from '@/lib/image-style-presets';
 import { getImagePollDeadlineMs, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 import {
   imagesOnlyTotalCredits,
@@ -28,9 +31,7 @@ import {
   roundCreditsToTenth,
 } from '@/lib/image-listing-credits';
 
-type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 type ImageEngine = 'flash' | 'pro';
-type ImageStyle = 'realistic' | 'studio' | 'lifestyle' | 'illustration';
 
 interface GeneratedImage {
   url: string;
@@ -99,9 +100,8 @@ export function DashboardQuickGenerate() {
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(5);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
-  const [style, setStyle] = useState<ImageStyle>('realistic');
+  const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, engine);
   const quickGenerateCredits = quickGenerateTotalCredits(quantity, engine);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -375,7 +375,7 @@ export function DashboardQuickGenerate() {
         body: JSON.stringify({
           sourceImage: imagePayload,
           quantity,
-          aspectRatio,
+          aspectRatio: '1:1',
           productTitle: listing.title || '',
           tags: listing.tags,
           materials: listing.materials,
@@ -612,7 +612,7 @@ export function DashboardQuickGenerate() {
           sourceImage: imageBase64,
           backgroundImage: bgBase64,
           quantity,
-          aspectRatio,
+          aspectRatio: '1:1',
           engine,
           style,
           productTitle: listingData?.title || undefined,
@@ -995,28 +995,6 @@ export function DashboardQuickGenerate() {
 
                 <div>
                   <label className="block text-sm font-semibold text-white mb-3">
-                    Format
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['1:1', '16:9', '9:16', '4:3', '3:4'] as AspectRatio[]).map((ratio) => (
-                      <button
-                        key={ratio}
-                        onClick={() => setAspectRatio(ratio)}
-                        className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                          aspectRatio === ratio
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
-                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
-                        }`}
-                      >
-                        {ratio}
-                        {ratio === '1:1' && ' (Etsy)'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-3">
                     Moteur
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1044,29 +1022,11 @@ export function DashboardQuickGenerate() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    Style d'image
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { id: 'realistic', label: 'Photo réaliste' },
-                      { id: 'studio', label: 'Studio produit' },
-                      { id: 'lifestyle', label: 'Lifestyle' },
-                      { id: 'illustration', label: 'Illustration' },
-                    ] as { id: ImageStyle; label: string }[]).map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => setStyle(s.id)}
-                        className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                          style === s.id
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
-                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="mb-1 block text-sm font-semibold text-white">Style d&apos;image</label>
+                  <p className="mb-3 text-xs text-zinc-500">
+                    « Aucun style » = pas de thème imposé (prompt général). Sinon 11 ambiances type studio pro (décor, lumière, matières).
+                  </p>
+                  <ImageStyleCards value={style} onChange={setStyle} variant="quick" />
                 </div>
               </div>
             </div>

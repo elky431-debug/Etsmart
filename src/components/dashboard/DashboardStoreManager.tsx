@@ -19,13 +19,6 @@ import {
   DollarSign,
   Truck,
   Image as ImageIcon,
-  Trophy,
-  Target,
-  TrendingUp,
-  Circle,
-  CheckCircle2,
-  Globe,
-  Star,
   Clock,
   Link2,
 } from 'lucide-react';
@@ -63,23 +56,10 @@ type Transaction = {
   tracking: string;
 };
 
-type Supplier = {
-  id: string;
-  name: string;
-  platform: string;
-  url: string;
-  email: string;
-  phone: string;
-  deliveryDays: number;
-  rating: number;
-  notes: string;
-};
-
 const STORAGE_KEY_SHOPS = 'etsmart_store_manager_shops';
 const STORAGE_KEY_PRODUCTS = 'etsmart_store_manager_products';
 const STORAGE_KEY_TRANSACTIONS = 'etsmart_store_manager_transactions';
 const STORAGE_KEY_SELECTED_SHOP = 'etsmart_store_manager_selected_shop_id';
-const STORAGE_KEY_SUPPLIERS = 'etsmart_store_manager_suppliers';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -99,7 +79,8 @@ const INITIAL_SHOPS: { id: string; name: string; color?: string }[] = [];
 const INITIAL_PRODUCTS: Product[] = [];
 
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-const MONTH_LABELS = ['Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Jan', 'Fév', 'Mar'];
+/** Libellés axe X du graphique annuel : janvier → décembre (année civile). */
+const ANNUAL_CHART_MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 const ETSY_PLATFORM_FEE_RATE = 0.153; // 15.3%
 
 // Liste des pays (noms en français, ordre alphabétique)
@@ -160,6 +141,59 @@ type Product = {
   sellingPrice: number;
 };
 
+/**
+ * Sans schéma (https://), le navigateur traite le lien comme relatif au domaine du SaaS (ex. localhost).
+ * Normalise les collages type www.aliexpress.com/... ou //aliexpress.com/...
+ */
+function normalizeExternalUrl(raw: string | undefined | null): string | undefined {
+  if (raw == null) return undefined;
+  const t = String(raw).trim();
+  if (!t) return undefined;
+  const lower = t.toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+    return undefined;
+  }
+  if (/^https?:\/\//i.test(t)) return t;
+  if (t.startsWith('//')) return `https:${t}`;
+  return `https://${t}`;
+}
+
+function openExternalSupplierUrl(raw: string | undefined | null) {
+  const href = normalizeExternalUrl(raw);
+  if (href) window.open(href, '_blank', 'noopener,noreferrer');
+}
+
+function ProductThumb({
+  src,
+  sizeClass = 'h-9 w-9',
+  iconClass = 'h-5 w-5 text-white/30',
+}: {
+  src?: string;
+  sizeClass?: string;
+  iconClass?: string;
+}) {
+  const [broken, setBroken] = useState(false);
+  const ok = Boolean(src && /^https?:\/\//i.test(src) && !broken);
+  return (
+    <div
+      className={`${sizeClass} shrink-0 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center overflow-hidden`}
+    >
+      {ok ? (
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <ImageIcon className={iconClass} />
+      )}
+    </div>
+  );
+}
+
 export function DashboardStoreManager() {
   const [shops, setShops] = useState<{ id: string; name: string; color?: string }[]>(() => {
     const stored = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
@@ -180,12 +214,6 @@ export function DashboardStoreManager() {
   const [transactions, setTransactions] = useState<Transaction[]>(() =>
     loadFromStorage(STORAGE_KEY_TRANSACTIONS, [])
   );
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() =>
-    loadFromStorage(STORAGE_KEY_SUPPLIERS, [])
-  );
-  const [showSupplierForm, setShowSupplierForm] = useState(false);
-  const [editSupplierId, setEditSupplierId] = useState<string | null>(null);
-  const [supplierForm, setSupplierForm] = useState({ name: '', platform: 'AliExpress', url: '', email: '', phone: '', deliveryDays: 15, rating: 3, notes: '' });
   const [selectedShopId, setSelectedShopId] = useState<string | null>(() => {
     const storedShops = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
     const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_SELECTED_SHOP) : null;
@@ -201,15 +229,73 @@ export function DashboardStoreManager() {
       localStorage.setItem(STORAGE_KEY_SHOPS, JSON.stringify(shops));
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
       localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
-      localStorage.setItem(STORAGE_KEY_SUPPLIERS, JSON.stringify(suppliers));
       if (selectedShopId) localStorage.setItem(STORAGE_KEY_SELECTED_SHOP, selectedShopId);
     } catch (e) {
       console.warn('[StoreManager] Erreur sauvegarde localStorage', e);
     }
-  }, [shops, products, transactions, suppliers, selectedShopId]);
+  }, [shops, products, transactions, selectedShopId]);
+
+  /** Rattrapage : produits AliExpress déjà en localStorage sans image distante */
+  const supplierImageBackfillRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (supplierImageBackfillRef.current) return;
+    supplierImageBackfillRef.current = true;
+
+    const run = async () => {
+      let list: Product[] = [];
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+        if (!raw) return;
+        list = JSON.parse(raw) as Product[];
+      } catch {
+        return;
+      }
+      const needs = list.filter(
+        (p) =>
+          p.supplierUrl &&
+          /aliexpress\.com|aliexpress\.us/i.test(p.supplierUrl) &&
+          (!p.image || !/^https?:\/\//i.test(p.image) || p.image.includes('placeholder'))
+      );
+      if (needs.length === 0) return;
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      for (const p of needs) {
+        const url = normalizeExternalUrl(p.supplierUrl);
+        if (!url) continue;
+        try {
+          const res = await fetch('/api/supplier-preview-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ url }),
+          });
+          const data = await res.json();
+          if (data?.imageUrl) {
+            setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, image: data.imageUrl } : x)));
+          }
+        } catch {
+          /* ignore */
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    };
+
+    void run();
+  }, []);
+
   const [statsRange, setStatsRange] = useState<'7d' | '30d' | 'month' | 'all'>('30d');
   const [statsMonth, setStatsMonth] = useState(() => new Date().getMonth());
   const [statsYear, setStatsYear] = useState(() => new Date().getFullYear());
+  /** Année affichée sur le graphique « Évolution annuelle » (indépendante du filtre KPI). */
+  const [annualChartYear, setAnnualChartYear] = useState(() => new Date().getFullYear());
   const [transactionSearch, setTransactionSearch] = useState('');
   const [transactionStatusFilter, setTransactionStatusFilter] = useState<'all' | 'À envoyer' | 'À modifier' | 'Envoyé'>('all');
   const [editTransactionId, setEditTransactionId] = useState<string | null>(null);
@@ -245,12 +331,10 @@ export function DashboardStoreManager() {
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSelectorOpen, setProductSelectorOpen] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'calendar' | 'objectifs' | 'products' | 'suppliers'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'calendar' | 'products'>('dashboard');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
-  const [showLevel1Details, setShowLevel1Details] = useState(true);
-  const [showLevel2Details, setShowLevel2Details] = useState(false);
 
   const shop = shops.find((s) => s.id === selectedShopId);
 
@@ -334,77 +418,6 @@ export function DashboardStoreManager() {
     [shopTransactions]
   );
 
-  const bestDay = useMemo(() => {
-    const entries = Object.entries(salesByDate);
-    if (entries.length === 0) return null;
-    return entries.reduce(
-      (best, [date, info]) => (info.revenue > best.info.revenue ? { date, info } : best),
-      { date: entries[0][0], info: entries[0][1] }
-    );
-  }, [salesByDate]);
-
-  const weeklyStats = useMemo(() => {
-    const weeks: Record<string, { revenue: number; count: number }> = {};
-    shopTransactions.forEach((t) => {
-      const d = new Date(t.date);
-      if (Number.isNaN(d.getTime())) return;
-      const year = d.getFullYear();
-      // approximation semaine: année + numéro obtenu via maths simples
-      const firstJan = new Date(year, 0, 1);
-      const week =
-        Math.floor(
-          (Number(d) - Number(firstJan)) / (1000 * 60 * 60 * 24 * 7)
-        );
-      const key = `${year}-W${week}`;
-      if (!weeks[key]) weeks[key] = { revenue: 0, count: 0 };
-      weeks[key].revenue += t.amountPaid;
-      weeks[key].count += 1;
-    });
-    return weeks;
-  }, [shopTransactions]);
-
-  const formatDateLong = (dateStr: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
-
-  const bestWeek = useMemo(() => {
-    const entries = Object.entries(weeklyStats);
-    if (entries.length === 0) return null;
-    return entries.reduce(
-      (best, [week, info]) => (info.revenue > best.info.revenue ? { week, info } : best),
-      { week: entries[0][0], info: entries[0][1] }
-    );
-  }, [weeklyStats]);
-
-  const monthlyStats = useMemo(() => {
-    const months: Record<string, { revenue: number; count: number }> = {};
-    shopTransactions.forEach((t) => {
-      const d = new Date(t.date);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!months[key]) months[key] = { revenue: 0, count: 0 };
-      months[key].revenue += t.amountPaid;
-      months[key].count += 1;
-    });
-    return months;
-  }, [shopTransactions]);
-
-  const bestMonth = useMemo(() => {
-    const entries = Object.entries(monthlyStats);
-    if (entries.length === 0) return null;
-    return entries.reduce(
-      (best, [month, info]) => (info.revenue > best.info.revenue ? { month, info } : best),
-      { month: entries[0][0], info: entries[0][1] }
-    );
-  }, [monthlyStats]);
-
   const kpi = useMemo(() => {
     const revenue = statsTransactions.reduce((s, t) => s + t.amountPaid, 0);
     const profit = statsTransactions.reduce((s, t) => s + t.profit, 0);
@@ -418,104 +431,20 @@ export function DashboardStoreManager() {
     };
   }, [statsTransactions]);
 
-  // Objectifs & niveaux (utilisent les vraies stats de la boutique)
-  const totalRevenue = kpi.revenue;
-  const totalOrders = shopTransactions.length;
-  const hasOrderWithProfitOver20 = shopTransactions.some((t) => t.profit > 20);
-  const hasOrderWithProfitOver50 = shopTransactions.some((t) => t.profit > 50);
-  const MAIN_COUNTRIES = ['France', 'Belgique', 'Suisse'];
-  const hasOrderOutsideMainCountries = shopTransactions.some(
-    (t) => t.country && !MAIN_COUNTRIES.includes(t.country)
-  );
-
-  // Streak de jours consécutifs avec au moins 1 vente
-  const streak3Days = useMemo(() => {
-    const dates = Object.keys(salesByDate);
-    if (dates.length === 0) return false;
-    const sorted = dates
-      .map((d) => new Date(d))
-      .filter((d) => !Number.isNaN(d.getTime()))
-      .sort((a, b) => Number(a) - Number(b));
-    let bestStreak = 1;
-    let currentStreak = 1;
-    for (let i = 1; i < sorted.length; i += 1) {
-      const prev = sorted[i - 1];
-      const cur = sorted[i];
-      const diffDays = (Number(cur) - Number(prev)) / (1000 * 60 * 60 * 24);
-      if (diffDays === 1) {
-        currentStreak += 1;
-        bestStreak = Math.max(bestStreak, currentStreak);
-      } else if (diffDays > 1) {
-        currentStreak = 1;
-      }
-    }
-    return bestStreak >= 3;
-  }, [salesByDate]);
-
-  // Objectifs niveau 1
-  const level1Objectives = {
-    firstOrder: totalOrders >= 1,
-    threeOrders: totalOrders >= 3,
-    profit20: hasOrderWithProfitOver20,
-    internationalOrder: hasOrderOutsideMainCountries,
-    revenue100: totalRevenue >= 100,
-  };
-  const level1Completed = Object.values(level1Objectives).every(Boolean);
-
-  // Objectifs niveau 2
-  const hasDayWithAtLeastFiveOrders = Object.values(salesByDate).some((d) => d.count >= 5);
-  const level2Objectives = {
-    tenOrders: totalOrders >= 10,
-    streak3Days,
-    fiveOrdersOneDay: hasDayWithAtLeastFiveOrders,
-    revenue500: totalRevenue >= 500,
-    profit50: hasOrderWithProfitOver50,
-  };
-  const level2Completed = Object.values(level2Objectives).every(Boolean);
-
-  // Niveau global basé sur le CA (pour la barre) mais en respectant le fait
-  // qu'un niveau ne peut être "actif" que si le précédent est complété.
-  const levelThresholds = [0, 500, 2000, 5000];
-  let rawLevel =
-    totalRevenue >= levelThresholds[3]
-      ? 3
-      : totalRevenue >= levelThresholds[2]
-      ? 2
-      : totalRevenue >= levelThresholds[1]
-      ? 1
-      : 0;
-  // Forcer la progression par niveaux successifs
-  if (!level1Completed) {
-    rawLevel = 0;
-  } else if (!level2Completed && rawLevel > 1) {
-    rawLevel = 1;
-  }
-  const currentLevel = rawLevel;
-  const nextLevel = Math.min(currentLevel + 1, levelThresholds.length - 1);
-  const currentThreshold = levelThresholds[currentLevel];
-  const nextThreshold = levelThresholds[nextLevel];
-  const levelProgress =
-    nextThreshold === currentThreshold
-      ? 1
-      : Math.min(1, Math.max(0, (totalRevenue - currentThreshold) / (nextThreshold - currentThreshold)));
-
   const annualData = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const buckets = MONTH_LABELS.map((month) => ({ month, ca: 0, profit: 0 }));
-    statsTransactions.forEach((t) => {
+    const yTarget = annualChartYear;
+    const buckets = ANNUAL_CHART_MONTH_LABELS.map((month) => ({ month, ca: 0, profit: 0 }));
+    shopTransactions.forEach((t) => {
       const d = new Date(t.date);
-      const y = d.getFullYear();
+      if (Number.isNaN(d.getTime()) || d.getFullYear() !== yTarget) return;
       const m = d.getMonth();
-      const chartIndex = m >= 3 ? m - 3 : m + 9;
-      const slotYear = chartIndex <= 8 ? currentYear - 1 : currentYear;
-      if (y === slotYear && chartIndex >= 0 && chartIndex < 12) {
-        buckets[chartIndex].ca += t.amountPaid;
-        buckets[chartIndex].profit += t.profit;
+      if (m >= 0 && m < 12) {
+        buckets[m].ca += t.amountPaid;
+        buckets[m].profit += t.profit;
       }
     });
     return buckets;
-  }, [statsTransactions]);
+  }, [shopTransactions, annualChartYear]);
 
   const ordersByCountry = useMemo(() => {
     const map: Record<string, number> = {};
@@ -565,6 +494,10 @@ export function DashboardStoreManager() {
     const shippingCost = parseFloat(newProductShippingCost.replace(',', '.')) || 0;
     const sellingPrice = parseFloat(newProductSellingPrice.replace(',', '.')) || 0;
 
+    const supplierUrlNorm = normalizeExternalUrl(newProductSupplierUrl) ?? '';
+    const urlForPreview = normalizeExternalUrl(newProductSupplierUrl);
+    const productId = editingProductId ?? String(Date.now());
+
     if (editingProductId) {
       setProducts((prev) =>
         prev.map((p) =>
@@ -573,7 +506,7 @@ export function DashboardStoreManager() {
                 ...p,
                 name: newProductName.trim(),
                 description: newProductDescription.trim() || '-',
-                supplierUrl: newProductSupplierUrl.trim(),
+                supplierUrl: supplierUrlNorm,
                 supplierPrice,
                 shippingCost,
                 sellingPrice,
@@ -585,16 +518,55 @@ export function DashboardStoreManager() {
       setProducts((prev) => [
         ...prev,
         {
-          id: String(Date.now()),
+          id: productId,
           name: newProductName.trim(),
           description: newProductDescription.trim() || '-',
           image: '/examples/placeholder-product.jpg',
-          supplierUrl: newProductSupplierUrl.trim(),
+          supplierUrl: supplierUrlNorm,
           supplierPrice,
           shippingCost,
           sellingPrice,
         },
       ]);
+    }
+
+    const shouldFetchAliImage =
+      urlForPreview &&
+      /aliexpress\.com|aliexpress\.us/i.test(urlForPreview) &&
+      (() => {
+        if (!editingProductId) return true;
+        const prev = products.find((p) => p.id === editingProductId);
+        if (!prev) return true;
+        const prevU = normalizeExternalUrl(prev.supplierUrl);
+        if (prevU !== urlForPreview) return true;
+        if (!prev.image || prev.image.includes('placeholder') || !/^https?:\/\//i.test(prev.image)) return true;
+        return false;
+      })();
+
+    if (shouldFetchAliImage) {
+      void (async () => {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (!token) return;
+          const res = await fetch('/api/supplier-preview-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ url: urlForPreview }),
+          });
+          const data = await res.json();
+          if (data?.imageUrl) {
+            setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, image: data.imageUrl } : p)));
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
     }
     setEditingProductId(null);
     setNewProductName('');
@@ -785,9 +757,9 @@ export function DashboardStoreManager() {
               </button>
             </div>
 
-            {/* Sub-tabs: Gestion / Produits / Calendrier / Objectifs / Fournisseurs */}
+            {/* Sous-onglets : Gestion / Produits / Calendrier */}
             <div className="mb-6">
-              <div className="flex rounded-full bg-white/5 p-1 border border-white/10 gap-1 w-full max-w-3xl">
+              <div className="flex rounded-full bg-white/5 p-1 border border-white/10 gap-1 w-full max-w-xl">
                 <button
                   type="button"
                   onClick={() => setActiveSubTab('dashboard')}
@@ -820,28 +792,6 @@ export function DashboardStoreManager() {
                   }`}
                 >
                   Calendrier
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('objectifs')}
-                  className={`flex-1 text-center px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
-                    activeSubTab === 'objectifs'
-                      ? 'bg-white/20 text-white font-medium shadow-sm'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  Objectifs
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('suppliers')}
-                  className={`flex-1 text-center px-3 py-1.5 text-xs sm:text-sm rounded-full transition-colors ${
-                    activeSubTab === 'suppliers'
-                      ? 'bg-white/20 text-white font-medium shadow-sm'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  Fournisseurs
                 </button>
               </div>
             </div>
@@ -923,8 +873,31 @@ export function DashboardStoreManager() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div className="p-5 rounded-2xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/10 shadow-lg shadow-black/20">
-                <h3 className="text-sm font-semibold text-white mb-0.5">Évolution annuelle</h3>
-                <p className="text-xs text-white/50 mb-4">CA et profit sur 12 mois</p>
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-semibold text-white">Évolution annuelle</h3>
+                  <div className="flex items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-1">
+                    <button
+                      type="button"
+                      onClick={() => setAnnualChartYear((y) => y - 1)}
+                      className="p-1.5 rounded-md hover:bg-white/10 text-white/70 hover:text-white"
+                      aria-label="Année précédente"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-medium text-white/90 min-w-[3rem] text-center tabular-nums">{annualChartYear}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAnnualChartYear((y) => y + 1)}
+                      className="p-1.5 rounded-md hover:bg-white/10 text-white/70 hover:text-white"
+                      aria-label="Année suivante"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-white/50 mb-4">
+                  CA et profit par mois (janv. → déc.) — toutes les commandes de la boutique pour l&apos;année choisie
+                </p>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={annualData}>
@@ -1004,6 +977,7 @@ export function DashboardStoreManager() {
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Prix vente</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Profit</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Marge</th>
+                        <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap w-[88px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1047,6 +1021,26 @@ export function DashboardStoreManager() {
                               ) : (
                                 <span className="text-white/40">—</span>
                               )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <div className="inline-flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditProduct(p.id)}
+                                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white"
+                                  title="Modifier"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteProduct(p.id)}
+                                  className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/50 hover:text-red-400"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1118,16 +1112,24 @@ export function DashboardStoreManager() {
                             <span
                               role="button"
                               tabIndex={0}
-                              onDoubleClick={() => cycleTransactionStatus(t.id)}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cycleTransactionStatus(t.id); } }}
-                              className={`inline-flex w-fit px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer select-none hover:opacity-90 ${
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                cycleTransactionStatus(t.id);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  cycleTransactionStatus(t.id);
+                                }
+                              }}
+                              className={`inline-flex w-fit px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer select-none hover:opacity-90 hover:ring-1 hover:ring-white/20 transition-shadow ${
                                 t.status === 'Envoyé'
                                   ? 'bg-emerald-500/20 text-emerald-400'
                                   : t.status === 'À modifier'
                                     ? 'bg-amber-500/20 text-amber-400'
                                     : 'bg-red-500/20 text-red-400'
                               }`}
-                              title="Double-clic pour changer le statut"
+                              title="Cliquer pour changer le statut (À envoyer → À modifier → Envoyé)"
                             >
                               {t.status}
                             </span>
@@ -1192,53 +1194,76 @@ export function DashboardStoreManager() {
                     <p className="text-xs text-white/30">Ajoute un produit pour commencer à suivre tes marges.</p>
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/60">
-                    <div className="grid grid-cols-6 px-4 py-3 text-[11px] text-white/40 uppercase tracking-wide border-b border-white/5">
-                      <span className="col-span-2 text-left">Produit</span>
-                      <span className="text-right">Prix fournisseur</span>
-                      <span className="text-right">Frais livraison</span>
-                      <span className="text-right">Prix vente</span>
-                      <span className="text-right">Profit / marge</span>
-                    </div>
-                    <div className="divide-y divide-white/5">
-                      {products.map((p) => {
-                        const cost = p.supplierPrice + p.shippingCost;
-                        const profit = p.sellingPrice - cost;
-                        const margin = p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
-                        return (
-                          <div key={p.id} className="grid grid-cols-6 px-4 py-3 items-center text-sm text-white/80 hover:bg-white/[0.02] transition-colors">
-                            <div className="col-span-2 flex items-center gap-3 min-w-0">
-                              <div className="h-9 w-9 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center overflow-hidden">
-                                <ImageIcon className="h-5 w-5 text-white/30" />
+                  <div className="overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/60">
+                    <div className="min-w-[640px]">
+                      <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_auto] px-4 py-3 text-[11px] text-white/40 uppercase tracking-wide border-b border-white/5 gap-2">
+                        <span className="text-left">Produit</span>
+                        <span className="text-right">Prix fournisseur</span>
+                        <span className="text-right">Frais livraison</span>
+                        <span className="text-right">Prix vente</span>
+                        <span className="text-right">Profit / marge</span>
+                        <span className="text-center w-[88px] shrink-0">Actions</span>
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {products.map((p) => {
+                          const supplierHref = normalizeExternalUrl(p.supplierUrl);
+                          const cost = p.supplierPrice + p.shippingCost;
+                          const profit = p.sellingPrice - cost;
+                          const margin = p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
+                          return (
+                            <div
+                              key={p.id}
+                              className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_auto] px-4 py-3 items-center text-sm text-white/80 hover:bg-white/[0.02] transition-colors gap-2"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <ProductThumb src={p.image} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{p.name}</p>
+                                  {supplierHref && (
+                                    <a
+                                      href={supplierHref}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 truncate"
+                                    >
+                                      <Link2 className="h-3 w-3" />
+                                      Voir le fournisseur
+                                    </a>
+                                  )}
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{p.name}</p>
-                                {p.supplierUrl && (
-                                  <a
-                                    href={p.supplierUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 truncate"
-                                  >
-                                    <Link2 className="h-3 w-3" />
-                                    Voir le fournisseur
-                                  </a>
-                                )}
+                              <span className="text-right text-sm text-white/70 tabular-nums">{p.supplierPrice.toFixed(2)} €</span>
+                              <span className="text-right text-sm text-white/70 tabular-nums">{p.shippingCost.toFixed(2)} €</span>
+                              <span className="text-right text-sm text-white/70 tabular-nums">{p.sellingPrice.toFixed(2)} €</span>
+                              <div className="text-right text-xs">
+                                <p className={profit >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                  {profit >= 0 ? '+' : ''}
+                                  {profit.toFixed(2)} €
+                                </p>
+                                <p className="text-white/40 mt-0.5">{margin.toFixed(1)} %</p>
+                              </div>
+                              <div className="flex justify-center items-center gap-0.5 w-[88px] shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditProduct(p.id)}
+                                  className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white"
+                                  title="Modifier le produit"
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteProduct(p.id)}
+                                  className="p-2 rounded-lg hover:bg-red-500/20 text-white/50 hover:text-red-400"
+                                  title="Supprimer le produit"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </div>
-                            <span className="text-right text-sm text-white/70">{p.supplierPrice.toFixed(2)} €</span>
-                            <span className="text-right text-sm text-white/70">{p.shippingCost.toFixed(2)} €</span>
-                            <span className="text-right text-sm text-white/70">{p.sellingPrice.toFixed(2)} €</span>
-                            <div className="text-right text-xs">
-                              <p className={profit >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                                {profit >= 0 ? '+' : ''}
-                                {profit.toFixed(2)} €
-                              </p>
-                              <p className="text-white/40 mt-0.5">{margin.toFixed(1)} %</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1397,13 +1422,26 @@ export function DashboardStoreManager() {
                                     <td className="py-2.5 px-3 text-white/60">{t.destination}</td>
                                     <td className="py-2.5 px-3">
                                       <span
-                                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          cycleTransactionStatus(t.id);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            cycleTransactionStatus(t.id);
+                                          }
+                                        }}
+                                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium cursor-pointer select-none hover:opacity-90 hover:ring-1 hover:ring-white/20 ${
                                           t.status === 'Envoyé'
                                             ? 'bg-emerald-500/15 text-emerald-300'
                                             : t.status === 'À modifier'
                                               ? 'bg-amber-500/15 text-amber-300'
                                               : 'bg-red-500/15 text-red-300'
                                         }`}
+                                        title="Cliquer pour changer le statut"
                                       >
                                         {t.status}
                                       </span>
@@ -1430,476 +1468,6 @@ export function DashboardStoreManager() {
               </div>
             )}
 
-            {activeSubTab === 'objectifs' && (
-              <div className="space-y-6">
-
-                {/* Header */}
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                    <Trophy className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Objectifs & gamification</h3>
-                    <p className="text-xs text-white/50">Monte de niveau, bats tes records et débloque des succès.</p>
-                  </div>
-                </div>
-
-                {/* Barre de niveau global */}
-                <div className="p-5 rounded-2xl bg-gradient-to-r from-zinc-900 to-zinc-900/80 border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                        <span className="text-sm font-bold text-cyan-300">{currentLevel + 1}</span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-white">
-                          Vendeur {currentLevel === 0 ? 'débutant' : currentLevel === 1 ? 'confirmé' : 'avancé'}
-                        </p>
-                        <p className="text-[11px] text-white/40">Niveau global de la boutique</p>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-white/50">
-                      {nextThreshold - totalRevenue > 0
-                        ? `${(nextThreshold - totalRevenue).toFixed(0)} € restants`
-                        : 'Niveau max atteint'}
-                    </p>
-                  </div>
-                  <div className="h-2.5 w-full rounded-full bg-zinc-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
-                      style={{ width: `${Math.round(levelProgress * 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-white/40">{totalRevenue.toFixed(2)} € / {nextThreshold.toFixed(0)} € de CA cumulé</p>
-                </div>
-
-                {/* Records */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-5 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                        <Target className="h-3.5 w-3.5 text-cyan-400" />
-                      </div>
-                      <p className="text-[11px] text-white/50 uppercase tracking-wider">Meilleur jour</p>
-                    </div>
-                    {bestDay ? (
-                      <>
-                        <p className="text-lg font-bold text-white">{formatDateLong(bestDay.date)}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-white/50">{bestDay.info.count} commande{bestDay.info.count > 1 ? 's' : ''}</p>
-                          <p className="text-sm font-bold text-cyan-400">+{bestDay.info.revenue.toFixed(2)} €</p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-white/40">Aucun record pour le moment.</p>
-                    )}
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-violet-500 to-purple-500" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                        <Trophy className="h-3.5 w-3.5 text-violet-400" />
-                      </div>
-                      <p className="text-[11px] text-white/50 uppercase tracking-wider">Meilleure semaine</p>
-                    </div>
-                    {bestWeek ? (
-                      <>
-                        <p className="text-lg font-bold text-white">{bestWeek.week}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-white/50">{bestWeek.info.count} commande{bestWeek.info.count > 1 ? 's' : ''}</p>
-                          <p className="text-sm font-bold text-violet-400">+{bestWeek.info.revenue.toFixed(2)} €</p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-white/40">Aucun record pour le moment.</p>
-                    )}
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <TrendingUp className="h-3.5 w-3.5 text-amber-400" />
-                      </div>
-                      <p className="text-[11px] text-white/50 uppercase tracking-wider">Meilleur mois</p>
-                    </div>
-                    {bestMonth ? (
-                      <>
-                        <p className="text-lg font-bold text-white">{formatDateLong(`${bestMonth.month}-01`)}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-white/50">{bestMonth.info.count} commande{bestMonth.info.count > 1 ? 's' : ''}</p>
-                          <p className="text-sm font-bold text-amber-400">+{bestMonth.info.revenue.toFixed(2)} €</p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-white/40">Aucun record pour le moment.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Objectifs par niveau */}
-                <div className="space-y-4">
-                  {/* Niveau 1 */}
-                  <div className="rounded-2xl bg-zinc-900 border border-white/10 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setShowLevel1Details((v) => !v)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                          <Target className="h-4 w-4 text-cyan-400" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-white">Niveau 1 · Démarrage</p>
-                          <p className="text-[11px] text-white/40">{Object.values(level1Objectives).filter(Boolean).length}/5 défis réussis</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="h-1.5 w-24 rounded-full bg-zinc-800 overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" style={{ width: `${(Object.values(level1Objectives).filter(Boolean).length / 5) * 100}%` }} />
-                        </div>
-                        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${showLevel1Details ? 'rotate-180' : ''}`} />
-                      </div>
-                    </button>
-                    {showLevel1Details && (
-                      <div className="px-4 pb-4 space-y-1">
-                        {[
-                          { done: level1Objectives.firstOrder, label: 'Faire ta première commande', desc: 'Débloque ton premier succès et lance ta boutique.' },
-                          { done: level1Objectives.threeOrders, label: 'Atteindre 3 commandes au total', desc: 'Valide que ton offre commence à tourner.' },
-                          { done: level1Objectives.profit20, label: '1 commande avec un profit > 20 €', desc: 'Focus sur la marge, pas seulement le volume.' },
-                          { done: level1Objectives.internationalOrder, label: '1 commande hors de ton pays principal', desc: "Commence à ouvrir ta boutique à l'international." },
-                          { done: level1Objectives.revenue100, label: '100 € de CA cumulé', desc: "Premier palier symbolique de chiffre d'affaires." },
-                        ].map((obj, i) => (
-                          <div key={i} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${obj.done ? 'bg-cyan-500/5' : 'hover:bg-white/[0.02]'}`}>
-                            {obj.done ? (
-                              <CheckCircle2 className="h-5 w-5 text-cyan-400 shrink-0" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-white/20 shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <p className={`text-sm font-medium ${obj.done ? 'text-cyan-300' : 'text-white'}`}>{obj.label}</p>
-                              <p className="text-[11px] text-white/40">{obj.desc}</p>
-                            </div>
-                            {obj.done && (
-                              <span className="ml-auto shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">Validé</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Niveau 2 */}
-                  <div className={`rounded-2xl border overflow-hidden transition-opacity ${level1Completed ? 'bg-zinc-900 border-white/10' : 'bg-zinc-900/50 border-white/5 opacity-50'}`}>
-                    <button
-                      type="button"
-                      onClick={() => level1Completed && setShowLevel2Details((v) => !v)}
-                      className={`w-full p-4 flex items-center justify-between transition-colors ${level1Completed ? 'hover:bg-white/[0.02] cursor-pointer' : 'cursor-not-allowed'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`h-9 w-9 rounded-xl border flex items-center justify-center ${level1Completed ? 'bg-gradient-to-br from-violet-500/20 to-purple-500/20 border-violet-500/30' : 'bg-zinc-800 border-white/10'}`}>
-                          <Trophy className={`h-4 w-4 ${level1Completed ? 'text-violet-400' : 'text-white/30'}`} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-white">Niveau 2 · Vendeur confirmé</p>
-                          <p className="text-[11px] text-white/40">
-                            {level1Completed ? `${Object.values(level2Objectives).filter(Boolean).length}/5 défis réussis` : 'Complète le niveau 1 pour débloquer'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {level1Completed && (
-                          <div className="h-1.5 w-24 rounded-full bg-zinc-800 overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500" style={{ width: `${(Object.values(level2Objectives).filter(Boolean).length / 5) * 100}%` }} />
-                          </div>
-                        )}
-                        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${showLevel2Details ? 'rotate-180' : ''}`} />
-                      </div>
-                    </button>
-                    {showLevel2Details && level1Completed && (
-                      <div className="px-4 pb-4 space-y-1">
-                        {[
-                          { done: level2Objectives.tenOrders, label: '10 commandes au total', desc: 'Tu commences à avoir du vrai volume.' },
-                          { done: level2Objectives.streak3Days, label: 'Streak de 3 jours consécutifs avec au moins 1 vente', desc: "Rester constant plusieurs jours d'affilée." },
-                          { done: level2Objectives.fiveOrdersOneDay, label: '1 journée avec 5 commandes ou plus', desc: 'Tester ta capacité à gérer un pic de commandes.' },
-                          { done: level2Objectives.revenue500, label: '500 € de CA cumulé', desc: 'Cap important sur le chemin vers 2 000 € / mois.' },
-                          { done: level2Objectives.profit50, label: '1 commande avec un profit > 50 €', desc: 'Objectif de marge plus ambitieux.' },
-                        ].map((obj, i) => (
-                          <div key={i} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${obj.done ? 'bg-violet-500/5' : 'hover:bg-white/[0.02]'}`}>
-                            {obj.done ? (
-                              <CheckCircle2 className="h-5 w-5 text-violet-400 shrink-0" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-white/20 shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <p className={`text-sm font-medium ${obj.done ? 'text-violet-300' : 'text-white'}`}>{obj.label}</p>
-                              <p className="text-[11px] text-white/40">{obj.desc}</p>
-                            </div>
-                            {obj.done && (
-                              <span className="ml-auto shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/30">Validé</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {activeSubTab === 'suppliers' && (
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                      <Truck className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white">Carnet de fournisseurs</h3>
-                      <p className="text-xs text-white/50">Gère tes fournisseurs, leurs délais et leur fiabilité.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditSupplierId(null);
-                      setSupplierForm({ name: '', platform: 'AliExpress', url: '', email: '', phone: '', deliveryDays: 15, rating: 3, notes: '' });
-                      setShowSupplierForm(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500 text-black text-xs font-semibold hover:bg-cyan-400 transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Ajouter
-                  </button>
-                </div>
-
-                {/* Stats rapides */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-2xl bg-zinc-900 border border-cyan-500/15 text-center">
-                    <p className="text-2xl font-bold text-cyan-400">{suppliers.length}</p>
-                    <p className="text-[11px] text-white/40 mt-0.5">Fournisseurs</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-zinc-900 border border-cyan-500/15 text-center">
-                    <p className="text-2xl font-bold text-cyan-400">
-                      {suppliers.length > 0 ? Math.round(suppliers.reduce((s, f) => s + f.deliveryDays, 0) / suppliers.length) : '—'}
-                    </p>
-                    <p className="text-[11px] text-white/40 mt-0.5">Délai moyen (j)</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-zinc-900 border border-cyan-500/15 text-center">
-                    <p className="text-2xl font-bold text-cyan-400">
-                      {suppliers.length > 0 ? (suppliers.reduce((s, f) => s + f.rating, 0) / suppliers.length).toFixed(1) : '—'}
-                    </p>
-                    <p className="text-[11px] text-white/40 mt-0.5">Note moyenne</p>
-                  </div>
-                </div>
-
-                {/* Liste fournisseurs */}
-                {suppliers.length === 0 ? (
-                  <div className="p-10 rounded-2xl bg-zinc-900 border border-dashed border-cyan-500/20 text-center space-y-3">
-                    <div className="h-12 w-12 mx-auto rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                      <Truck className="h-6 w-6 text-cyan-400/50" />
-                    </div>
-                    <p className="text-sm text-white/50">Aucun fournisseur enregistré</p>
-                    <p className="text-xs text-white/30">Clique sur &quot;Ajouter&quot; pour enregistrer ton premier fournisseur.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {suppliers.map((sup) => (
-                      <div key={sup.id} className="p-4 rounded-2xl bg-zinc-900 border border-cyan-500/10 flex items-center gap-4 hover:border-cyan-500/30 transition-colors group">
-                        <div className="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center shrink-0">
-                          <Globe className="h-4 w-4 text-cyan-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-white truncate">{sup.name}</p>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shrink-0">
-                              {sup.platform}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-[11px] text-white/40">
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{sup.deliveryDays}j</span>
-                            <span className="flex items-center gap-0.5">
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <Star key={i} className={`h-3 w-3 ${i < sup.rating ? 'text-amber-400 fill-amber-400' : 'text-white/15'}`} />
-                              ))}
-                            </span>
-                            {sup.email && <span className="truncate max-w-[120px]">{sup.email}</span>}
-                            {sup.phone && <span>{sup.phone}</span>}
-                            {sup.url && (
-                              <a href={sup.url} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-cyan-400 hover:text-cyan-300">
-                                <Link2 className="h-3 w-3" />Lien
-                              </a>
-                            )}
-                          </div>
-                          {sup.notes && <p className="text-[11px] text-white/30 mt-1 truncate">{sup.notes}</p>}
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditSupplierId(sup.id);
-                              setSupplierForm({ name: sup.name, platform: sup.platform, url: sup.url, email: sup.email || '', phone: sup.phone || '', deliveryDays: sup.deliveryDays, rating: sup.rating, notes: sup.notes });
-                              setShowSupplierForm(true);
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSuppliers((prev) => prev.filter((s) => s.id !== sup.id))}
-                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/50 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Modal ajout / édition */}
-                {showSupplierForm && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowSupplierForm(false)}>
-                      <div className="bg-zinc-900 border border-cyan-500/15 rounded-2xl max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-between p-5 border-b border-cyan-500/10">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                            <Truck className="h-4 w-4 text-white" />
-                          </div>
-                          <h2 className="text-sm font-bold text-white">{editSupplierId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
-                        </div>
-                        <button type="button" onClick={() => setShowSupplierForm(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60">
-                          <X size={18} />
-                        </button>
-                      </div>
-                      <div className="p-5 space-y-4">
-                        <div>
-                          <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Nom du fournisseur</label>
-                          <input
-                            className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                            placeholder="Ex: Shenzhen Store"
-                            value={supplierForm.name}
-                            onChange={(e) => setSupplierForm((f) => ({ ...f, name: e.target.value }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Plateforme</label>
-                            <select
-                              className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white focus:border-cyan-500/50 focus:outline-none transition-colors appearance-none"
-                              value={supplierForm.platform}
-                              onChange={(e) => setSupplierForm((f) => ({ ...f, platform: e.target.value }))}
-                            >
-                              <option value="AliExpress">AliExpress</option>
-                              <option value="Alibaba">Alibaba</option>
-                              <option value="1688">1688</option>
-                              <option value="CJ Dropshipping">CJ Dropshipping</option>
-                              <option value="Autre">Autre</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Délai livraison (jours)</label>
-                            <input
-                              type="number"
-                              className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                              value={supplierForm.deliveryDays}
-                              onChange={(e) => setSupplierForm((f) => ({ ...f, deliveryDays: Number(e.target.value) || 0 }))}
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Email</label>
-                            <input
-                              type="email"
-                              className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                              placeholder="contact@supplier.com"
-                              value={supplierForm.email}
-                              onChange={(e) => setSupplierForm((f) => ({ ...f, email: e.target.value }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Téléphone</label>
-                            <input
-                              type="tel"
-                              className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                              placeholder="+86 ..."
-                              value={supplierForm.phone}
-                              onChange={(e) => setSupplierForm((f) => ({ ...f, phone: e.target.value }))}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Lien boutique</label>
-                          <input
-                            className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors"
-                            placeholder="https://..."
-                            value={supplierForm.url}
-                            onChange={(e) => setSupplierForm((f) => ({ ...f, url: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Note ({supplierForm.rating}/5)</label>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => setSupplierForm((f) => ({ ...f, rating: i + 1 }))}
-                                className="p-0.5"
-                              >
-                                <Star className={`h-5 w-5 transition-colors ${i < supplierForm.rating ? 'text-amber-400 fill-amber-400' : 'text-white/15 hover:text-amber-400/50'}`} />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[11px] text-white/50 uppercase tracking-wide block mb-1">Notes</label>
-                          <textarea
-                            className="w-full rounded-xl bg-zinc-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-cyan-500/50 focus:outline-none transition-colors resize-none"
-                            rows={2}
-                            placeholder="Qualité, communication, remarques..."
-                            value={supplierForm.notes}
-                            onChange={(e) => setSupplierForm((f) => ({ ...f, notes: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="p-5 border-t border-cyan-500/10 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowSupplierForm(false)}
-                          className="px-4 py-2 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!supplierForm.name.trim()) return;
-                            if (editSupplierId) {
-                              setSuppliers((prev) => prev.map((s) => s.id === editSupplierId ? { ...s, ...supplierForm } : s));
-                            } else {
-                              setSuppliers((prev) => [...prev, { id: String(Date.now()), ...supplierForm }]);
-                            }
-                            setShowSupplierForm(false);
-                            setEditSupplierId(null);
-                          }}
-                          className="px-4 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 transition-colors"
-                        >
-                          {editSupplierId ? 'Enregistrer' : 'Ajouter'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </main>
@@ -2322,26 +1890,28 @@ export function DashboardStoreManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((p) => (
+                  {filteredProducts.map((p) => {
+                    const supplierHref = normalizeExternalUrl(p.supplierUrl);
+                    return (
                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="py-3.5 px-4">
-                        <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                          <ImageIcon className="w-5 h-5 text-white/40" />
-                        </div>
+                        <ProductThumb src={p.image} sizeClass="w-12 h-12" iconClass="w-5 h-5 text-white/40" />
                       </td>
                       <td className="py-3 pr-4 text-white truncate max-w-[200px]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (p.supplierUrl) {
-                              window.open(p.supplierUrl, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="truncate text-left w-full hover:underline hover:text-[#00d4ff] transition-colors"
-                          title={p.name}
-                        >
-                          {p.name}
-                        </button>
+                        {supplierHref ? (
+                          <button
+                            type="button"
+                            onClick={() => openExternalSupplierUrl(p.supplierUrl)}
+                            className="truncate text-left w-full hover:underline hover:text-[#00d4ff] transition-colors"
+                            title={`Ouvrir le fournisseur : ${p.name}`}
+                          >
+                            {p.name}
+                          </button>
+                        ) : (
+                          <span className="truncate block" title={p.name}>
+                            {p.name}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 pr-4 text-white/40 truncate max-w-[260px]">{p.description}</td>
                       <td className="py-3 pr-4 text-white/70 text-sm">{p.supplierPrice ? `${p.supplierPrice.toFixed(2)} €` : '—'}</td>
@@ -2372,13 +1942,10 @@ export function DashboardStoreManager() {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white"
-                            title="Voir sur le fournisseur"
-                            onClick={() => {
-                              if (p.supplierUrl) {
-                                window.open(p.supplierUrl, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
+                            className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            title="Voir sur le fournisseur (AliExpress, etc.)"
+                            disabled={!supplierHref}
+                            onClick={() => openExternalSupplierUrl(p.supplierUrl)}
                           >
                             <ExternalLink size={14} />
                           </button>
@@ -2401,7 +1968,8 @@ export function DashboardStoreManager() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
               )}
@@ -2539,14 +2107,19 @@ export function DashboardStoreManager() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-white/50 mb-1">URL Fournisseur (Aliexpress, etc.)</label>
+                <label className="block text-xs text-white/50 mb-1">Lien produit AliExpress (ou autre)</label>
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="url"
                   value={newProductSupplierUrl}
                   onChange={(e) => setNewProductSupplierUrl(e.target.value)}
-                  placeholder="https://fr.aliexpress.com/item/..."
+                  placeholder="https://www.aliexpress.com/item/... (https ajouté si absent)"
                   className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#00d4ff]/50"
                 />
+                <p className="text-[11px] text-white/35 mt-1">
+                  Pour AliExpress, une vignette est récupérée automatiquement quand c&apos;est possible (sinon icône par défaut).
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -2602,7 +2175,7 @@ export function DashboardStoreManager() {
                 type="button"
                 onClick={handleCreateOrUpdateProduct}
                 disabled={!newProductName.trim()}
-                className="flex-1 py-2.5 rounded-lg bg-white text-black font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 rounded-lg bg-[#00d4ff] text-black font-semibold hover:bg-[#33ddff] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#00d4ff]"
               >
                 {editingProductId ? 'Enregistrer' : 'Créer'}
               </button>

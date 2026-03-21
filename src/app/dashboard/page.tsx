@@ -1897,7 +1897,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       )}
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-16 pt-16 lg:pt-0 bg-black">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-black pt-16 lg:ml-16 lg:pt-0">
         {/* Crédits restants — desktop (haut à droite) */}
         <div className="z-30 hidden h-11 shrink-0 items-center justify-end border-b border-white/10 bg-black/95 px-4 backdrop-blur-sm lg:flex lg:px-6">
           <DashboardCreditsBadge
@@ -1911,10 +1911,18 @@ The final image should look like a high-quality Etsy listing photo and naturally
           />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto bg-black">
+        {/* Content — Coach remplit la hauteur et gère son scroll interne (évite chevauchement header / messages) */}
+        <div
+          className={
+            activeSection === 'coach'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden bg-black'
+              : 'flex-1 overflow-auto bg-black'
+          }
+        >
           {activeSection === 'coach' && (
-            <DashboardCoach />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <DashboardCoach />
+            </div>
           )}
 
           {activeSection === 'dashboard-home' && (

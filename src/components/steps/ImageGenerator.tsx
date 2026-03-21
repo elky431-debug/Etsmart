@@ -15,6 +15,9 @@ import type { ProductAnalysis } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ImageAltTextPanel } from '@/components/dashboard/ImageAltTextPanel';
+import { ImageStyleCards } from '@/components/dashboard/ImageStyleCards';
+import type { ImageStyleId } from '@/lib/image-style-presets';
+import { DEFAULT_IMAGE_STYLE } from '@/lib/image-style-presets';
 import { getImagePollMaxAttempts, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 import { imagesOnlyTotalCredits, roundCreditsToTenth } from '@/lib/image-listing-credits';
 
@@ -61,7 +64,6 @@ interface ImageGeneratorProps {
 
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 type ImageEngine = 'flash' | 'pro';
-type ImageStyle = 'realistic' | 'studio' | 'lifestyle' | 'illustration';
 
 interface GeneratedImage {
   url: string;
@@ -86,7 +88,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
-  const [style, setStyle] = useState<ImageStyle>('realistic');
+  const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   const creditsToDeduct = imagesOnlyTotalCredits(quantity, engine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -962,29 +964,11 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
 
             {/* G. Image Style */}
             <div>
-              <label className="block text-sm font-bold text-white mb-3">
-                Style d'image
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { id: 'realistic', label: 'Photo réaliste' },
-                  { id: 'studio', label: 'Studio produit' },
-                  { id: 'lifestyle', label: 'Lifestyle' },
-                  { id: 'illustration', label: 'Illustration' },
-                ] as { id: ImageStyle; label: string }[]).map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setStyle(s.id)}
-                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                      style === s.id
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'bg-black border border-white/10 text-white hover:border-white/20'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+              <label className="mb-1 block text-sm font-bold text-white">Style d&apos;image</label>
+              <p className="mb-3 text-xs text-zinc-500">
+                « Aucun style » = sans preset d’ambiance. Sinon 11 thèmes — comme la génération rapide (scroll si besoin).
+              </p>
+              <ImageStyleCards value={style} onChange={setStyle} variant="compact" />
             </div>
             </div>
 

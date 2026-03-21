@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
 
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
@@ -88,14 +89,7 @@ export async function POST(request: NextRequest) {
       const tagsList = Array.isArray(tags) ? tags.slice(0, 15).join(', ') : '';
       const materialsStr = (materials && String(materials).trim()) ? String(materials).trim().substring(0, 150) : '';
       const keywordPart = [tagsList && `Keywords: ${tagsList}`, materialsStr && `Materials: ${materialsStr}`].filter(Boolean).join('. ') || '';
-      const styleHint =
-        style === 'studio'
-          ? 'Studio product photo on clean neutral background.'
-          : style === 'lifestyle'
-            ? 'Lifestyle scene with product in a real environment.'
-            : style === 'illustration'
-              ? 'Clean digital illustration style.'
-              : 'Photorealistic product photo, soft natural light, high-end Etsy style.';
+      const styleHint = geminiStyleHint(typeof style === 'string' ? style : undefined);
 
       const refInputs: string[] = [];
       if (typeof sourceImage === 'string' && sourceImage.trim().length > 0) {
@@ -144,11 +138,12 @@ export async function POST(request: NextRequest) {
         engineSafe === 'pro'
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : 'Fast realistic render with clean natural lighting.';
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle.`;
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle. SOURCE CLEANUP (MANDATORY): Reference screenshots often include marketplace watermarks, AliExpress/Amazon-style logos, supplier brand marks, corner badges, promotional strips, price tags, QR codes, or overlaid text — DO NOT reproduce any of them. Remove them completely. Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
       const GLOBAL_PROMPT_RULES_GEMINI =
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
+        `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, texte incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
         `Pas de watermark. ` +
         `Pas de texte marketing sur l'image (sauf les mensurations sur l'image 4). ` +
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
@@ -378,14 +373,6 @@ Pas de texte marketing. Pas de watermark.`
     // Respect the engine selected in the UI (flash/pro).
     const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
 
-    // Style presets pour moduler le rendu
-    const STYLE_SUFFIX: Record<string, string> = {
-      realistic: ' Style: photo produit ultra réaliste, éclairage naturel doux, rendu Etsy haut de gamme.',
-      studio: ' Style: photo studio produit sur fond neutre propre, lumière contrôlée, ombres douces.',
-      lifestyle: ' Style: scène lifestyle avec le produit dans un environnement réel cohérent, mise en scène naturelle.',
-      illustration: ' Style: illustration digitale propre, légèrement stylisée, couleurs harmonieuses, mais produit parfaitement reconnaissable.',
-    };
-
     // ── Build prompt ──
     const tagsStr = Array.isArray(tags) && tags.length ? ` Tags / mots-clés : ${tags.slice(0, 15).join(', ')}.` : '';
     const materialsStrNano = (materials && String(materials).trim()) ? ` Matériaux : ${String(materials).trim().substring(0, 120)}.` : '';
@@ -526,13 +513,13 @@ ${reglesCommunes}`,
       const promptIndex = index % IMAGE_PROMPTS.length;
       let finalPrompt = IMAGE_PROMPTS[promptIndex];
       if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
-      const styleSuffix = style && STYLE_SUFFIX[style] ? STYLE_SUFFIX[style] : STYLE_SUFFIX.realistic;
-      finalPrompt += ` ${styleSuffix}`;
+      const styleSuffix = nanoStyleSuffixFr(typeof style === 'string' ? style : undefined);
+      if (styleSuffix) finalPrompt += ` ${styleSuffix}`;
       // Ré-affirmer les règles à la fin (customInstructions peut autrement les contredire).
       if (promptIndex === 3) {
-        finalPrompt += ` Pas de watermark. Texte uniquement pour les mensurations (dimensions).`;
+        finalPrompt += ` Pas de watermark ni logos fournisseur. Texte uniquement pour les mensurations (dimensions).`;
       } else {
-        finalPrompt += ` Pas de watermark. Pas de texte marketing sur l'image.`;
+        finalPrompt += ` Pas de watermark, pas de logos/textes AliExpress ou marketplace sur l'image — photo produit propre. Pas de texte marketing.`;
       }
       if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
       for (let attempt = 0; attempt < 3; attempt++) {
