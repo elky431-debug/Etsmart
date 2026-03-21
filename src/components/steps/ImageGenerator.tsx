@@ -89,7 +89,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  const creditsToDeduct = imagesOnlyTotalCredits(quantity, engine);
+  /** UI « Pro » : envoi réel Flash (stabilité / timeouts). Tarif = Flash. */
+  const engineForApi: ImageEngine = engine === 'pro' ? 'flash' : engine;
+  const creditsToDeduct = imagesOnlyTotalCredits(quantity, engineForApi);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -393,7 +395,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           customInstructions: customInstructions.trim() || undefined,
           quantity,
           aspectRatio,
-          engine,
+          engine: engineForApi,
           style,
           productTitle: analysis.product.title || undefined,
           productContext: {
@@ -955,6 +957,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         : 'bg-black border border-white/10 text-white hover:border-white/20'
                     }`}
                     type="button"
+                    title="Libellé Pro — génération identique à Flash pour la stabilité"
                   >
                     Pro
                   </button>

@@ -408,8 +408,11 @@ export function DashboardQuickGenerate() {
   const [quantity, setQuantity] = useState(7);
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, engine);
-  const quickGenerateCredits = quickGenerateTotalCredits(quantity, engine);
+  /** Le bouton « Pro » reste affiché mais l’API utilise Flash (pipeline Pro Gemini trop instable / timeouts). */
+  const engineForApi: ImageEngine = engine === 'pro' ? 'flash' : engine;
+  const billingEngine: ImageEngine = engineForApi;
+  const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, billingEngine);
+  const quickGenerateCredits = quickGenerateTotalCredits(quantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
@@ -678,7 +681,7 @@ export function DashboardQuickGenerate() {
         productTitle: listing.title || '',
         tags: listing.tags,
         materials: listing.materials,
-        engine,
+        engine: engineForApi,
         style,
         skipCreditDeduction: true,
         productContext: {
@@ -904,7 +907,7 @@ export function DashboardQuickGenerate() {
         sourceImage: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
         backgroundImage: bgBase64,
         aspectRatio: '1:1',
-        engine,
+        engine: engineForApi,
         style,
         productTitle: listingData?.title || undefined,
         tags: safeTags,
@@ -1292,6 +1295,7 @@ export function DashboardQuickGenerate() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
+                      title="Libellé Pro — génération identique à Flash pour la stabilité"
                     >
                       Pro
                     </button>
