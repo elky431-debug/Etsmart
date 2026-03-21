@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookText,
   Copy,
@@ -25,6 +25,14 @@ const INPUT_COUNTRY_KEY = 'etsmart-shop-story-country';
 
 const MAX_PRODUCT_IMAGES = 4;
 const MAX_FILE_MB = 12;
+
+/** Maintenance par défaut sur tous les environnements. Réactiver : `NEXT_PUBLIC_SHOP_STORY_MAINTENANCE=false` + rebuild. */
+function useShopStoryMaintenance(): boolean {
+  return useMemo(
+    () => process.env.NEXT_PUBLIC_SHOP_STORY_MAINTENANCE !== 'false',
+    []
+  );
+}
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -65,7 +73,7 @@ export function DashboardShopStory() {
   const [dragProducts, setDragProducts] = useState(false);
   const bannerDragRef = useRef(0);
   const productsDragRef = useRef(0);
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const shopStoryMaintenance = useShopStoryMaintenance();
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const productsInputRef = useRef<HTMLInputElement>(null);
@@ -83,12 +91,6 @@ export function DashboardShopStory() {
     setCharacterRole(localStorage.getItem(CHARACTER_ROLE_KEY) || '');
     setCharacterSummary(localStorage.getItem(CHARACTER_SUMMARY_KEY) || '');
     setCharacterImage(localStorage.getItem(CHARACTER_IMAGE_KEY) || '');
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const h = window.location.hostname;
-    setIsLocalhost(h === 'localhost' || h === '127.0.0.1' || h === '[::1]');
   }, []);
 
   const saveStory = (value: string) => {
@@ -270,7 +272,7 @@ export function DashboardShopStory() {
     }
   };
 
-  if (isLocalhost) {
+  if (shopStoryMaintenance) {
     return (
       <div className="p-4 md:p-8 bg-black min-h-screen">
         <div className="max-w-3xl mx-auto">

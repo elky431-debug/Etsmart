@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Image as ImageIcon, Upload, Download, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -9,6 +9,14 @@ type DashboardLogoGeneratorProps = {
   initialShopImageDataUrl?: string | null;
   initialProductImageDataUrl?: string | null;
 };
+
+/** Maintenance : `true` par défaut (localhost + prod). Réactiver l’outil : `NEXT_PUBLIC_LOGO_MAINTENANCE=false` sur Netlify + rebuild. */
+function useLogoTabMaintenance(): boolean {
+  return useMemo(
+    () => process.env.NEXT_PUBLIC_LOGO_MAINTENANCE !== 'false',
+    []
+  );
+}
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -30,7 +38,7 @@ export function DashboardLogoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [dragShop, setDragShop] = useState(false);
   const [dragProduct, setDragProduct] = useState(false);
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const logoMaintenance = useLogoTabMaintenance();
 
   const shopInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -59,12 +67,6 @@ export function DashboardLogoGenerator({
   useEffect(() => {
     if (initialProductImageDataUrl) setProductImageDataUrl(initialProductImageDataUrl);
   }, [initialProductImageDataUrl]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const h = window.location.hostname;
-    setIsLocalhost(h === 'localhost' || h === '127.0.0.1' || h === '[::1]');
-  }, []);
 
   const generateLogo = async () => {
     if (!shopImageDataUrl || !productImageDataUrl) {
@@ -173,7 +175,7 @@ export function DashboardLogoGenerator({
     if (file) handlePick(file, 'product');
   }, []);
 
-  if (isLocalhost) {
+  if (logoMaintenance) {
     return (
       <div className={embedded ? 'bg-transparent px-0' : 'min-h-screen bg-black p-4 sm:p-6 md:p-8'}>
         <div className={embedded ? '' : 'max-w-3xl mx-auto'}>
