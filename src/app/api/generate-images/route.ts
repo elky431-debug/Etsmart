@@ -12,6 +12,8 @@ export const runtime = 'nodejs';
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 90_000;
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
 const GEMINI_FAST_SINGLE_WALL_MS = 52_000;
+/** Pro chunked : un peu plus de marge qu’un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
+const GEMINI_PRO_SINGLE_WALL_MS = 56_000;
 /** Budget pour 2+ images dans un même POST (plusieurs vagues batch internes). */
 const GEMINI_PAIR_WALL_MS = 110_000;
 const GEMINI_MULTI_BATCH_WALL_MS = 115_000;
@@ -167,6 +169,9 @@ export async function POST(request: NextRequest) {
 
       const numImages = Math.min(Math.max(quantity, 1), 10);
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
+      const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
+      /** Pro + 1 requête / image : refs un peu plus légères pour réduire la latence Gemini. */
+      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
       /** Paires / lots : pas de 2e passe Gemini (évite +1,2 s × prompts = génération rapide plus courte). */
       const skipSecondGeminiAttempt = !isFastChunkedSingle && numImages >= 2;
 
@@ -180,9 +185,9 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            // Chunked 1 image : garder plus de détail (qualité perçue). Sinon : plus léger pour gros lots.
-            const maxSide = isFastChunkedSingle ? 896 : 768;
-            const jpegQ = isFastChunkedSingle ? 80 : 72;
+            // Flash chunked : plus de détail. Pro chunked : plus léger (temps). Lots : compact.
+            const maxSide = isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
+            const jpegQ = isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -207,7 +212,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       const realismBoost =
         engineSafe === 'pro'
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
@@ -392,24 +396,28 @@ Pas de texte marketing. Pas de watermark.`
 
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const multiFast = !isFastChunkedSingle && numImages >= 2;
-        const imagePartSets = isFastChunkedSingle
-          ? [inlineImageParts, [inlineImageParts[0]].filter(Boolean)]
-          : multiFast
-            ? [inlineImageParts]
-            : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
+        const imagePartSets = isProFastSingle
+          ? [inlineImageParts]
+          : isFastChunkedSingle
+            ? [inlineImageParts, [inlineImageParts[0]].filter(Boolean)]
+            : multiFast
+              ? [inlineImageParts]
+              : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
         const fastStart = Date.now();
         const batchTryTimeout = multiFast ? 56_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
         for (const partsForAttempt of imagePartSets) {
           for (const model of modelCandidates) {
             if (isFastChunkedSingle) {
+              const singleWallMs = isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
               const elapsed = Date.now() - fastStart;
-              const remaining = GEMINI_FAST_SINGLE_WALL_MS - elapsed - 1200;
+              const remaining = singleWallMs - elapsed - 1200;
               if (remaining < 10_000) {
                 console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
                 return null;
               }
-              const timeoutMs = Math.min(42_000, remaining);
+              const cap = isProFastSingle ? 50_000 : 42_000;
+              const timeoutMs = Math.min(cap, remaining);
               const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
               if (img) return img;
             } else {
@@ -432,21 +440,28 @@ Pas de texte marketing. Pas de watermark.`
 
       try {
         // Fast single : 1 image / requête.
-        // 2+ images : jusqu’à 3 prompts Gemini en parallèle par vague (moins de vagues = plus rapide).
+        // Pro (hors chunked) : jamais de parallèle interne — évite 504 sur hébergeurs ~60s.
+        // Flash 2+ : jusqu’à 3 prompts Gemini en parallèle par vague.
         const batchSize = isFastChunkedSingle
           ? 1
-          : numImages >= 3
-            ? 3
-            : numImages === 2
-              ? 2
-              : 1;
+          : engineSafe === 'pro'
+            ? 1
+            : numImages >= 3
+              ? 3
+              : numImages === 2
+                ? 2
+                : 1;
         const wallMs = isFastChunkedSingle
-          ? GEMINI_FAST_SINGLE_WALL_MS
-          : numImages >= 3
-            ? GEMINI_MULTI_BATCH_WALL_MS
-            : numImages >= 2
-              ? GEMINI_PAIR_WALL_MS
-              : 115_000;
+          ? isProFastSingle
+            ? GEMINI_PRO_SINGLE_WALL_MS
+            : GEMINI_FAST_SINGLE_WALL_MS
+          : engineSafe === 'pro'
+            ? Math.min(110_000, GEMINI_PRO_SINGLE_WALL_MS * numImages)
+            : numImages >= 3
+              ? GEMINI_MULTI_BATCH_WALL_MS
+              : numImages >= 2
+                ? GEMINI_PAIR_WALL_MS
+                : 115_000;
         const imageDataUrls = await runGeminiImagePromptsInBatches(
           promptsToUse,
           generateOne,

@@ -77,9 +77,16 @@ async function fetchGenerateImagesWithRetry(
 }
 
 type ImageBatchChunk = { start: number; qty: 1 | 2 | 3 };
+type QuickImageEngine = 'flash' | 'pro';
 
-/** Priorité aux blocs de 3 : 1 requête = 3 Gemini en parallèle côté serveur (plus rapide que 2+2+2+1). */
-function buildImageChunks(imageCount: number): ImageBatchChunk[] {
+/**
+ * Flash : blocs de 3 (rapide, plusieurs Gemini / requête).
+ * Pro : 1 image / requête uniquement (évite 504 Netlify ~60s quand le modèle Pro est lent).
+ */
+function buildImageChunks(imageCount: number, engine: QuickImageEngine): ImageBatchChunk[] {
+  if (engine === 'pro') {
+    return Array.from({ length: imageCount }, (_, i) => ({ start: i, qty: 1 as const }));
+  }
   const chunks: ImageBatchChunk[] = [];
   let i = 0;
   while (i < imageCount) {
@@ -99,7 +106,7 @@ function buildImageChunks(imageCount: number): ImageBatchChunk[] {
 }
 
 /**
- * Génération rapide : blocs de 3 (1 POST = 3 Gemini parallèles serveur) + tous les blocs en parallèle côté client.
+ * Génération rapide — Flash : blocs de 3 + parallèle. Pro : 1 image / requête, enchaînement séquentiel (stabilité).
  */
 async function fetchGenerateImagesQuickBatched(
   basePayload: Record<string, unknown>,
@@ -114,6 +121,7 @@ async function fetchGenerateImagesQuickBatched(
   firstErrorMessage: string | null;
   quotaError?: string;
 }> {
+  const engine: QuickImageEngine = basePayload.engine === 'pro' ? 'pro' : 'flash';
   const urlByIndex: (string | undefined)[] = new Array(imageCount);
   const taskByIndex: (string | undefined)[] = new Array(imageCount);
   let firstErrorMessage: string | null = null;
@@ -149,8 +157,8 @@ async function fetchGenerateImagesQuickBatched(
         clientChunkedSingle: true,
       },
       token,
-      2,
-      1200
+      engine === 'pro' ? 3 : 2,
+      engine === 'pro' ? 1400 : 1200
     );
     let data: Record<string, unknown> = {};
     try {
@@ -199,7 +207,12 @@ async function fetchGenerateImagesQuickBatched(
               clientChunkedSingle: true,
             };
 
-    const res = await fetchGenerateImagesWithRetry(body, token, 2, 900);
+    const res = await fetchGenerateImagesWithRetry(
+      body,
+      token,
+      engine === 'pro' ? 3 : 2,
+      engine === 'pro' ? 1400 : 900
+    );
     let data: Record<string, unknown> = {};
     try {
       data = (await res.json()) as Record<string, unknown>;
@@ -259,9 +272,20 @@ async function fetchGenerateImagesQuickBatched(
     opts?.onProgress?.(countDone(), imageCount);
   }
 
-  const chunks = buildImageChunks(imageCount);
-  /** Tous les lots en parallèle (ex. 4 POST pour 7 images) → temps ≈ le plus lent des lots, pas la somme des vagues. */
-  const results = await Promise.all(chunks.map((c) => runChunk(c)));
+  const chunks = buildImageChunks(imageCount, engine);
+
+  let results: ('quota' | void)[];
+  if (engine === 'pro') {
+    /** Pro : une requête à la fois → chaque fonction reste sous le timeout gateway (~60s). */
+    results = [];
+    for (const c of chunks) {
+      results.push(await runChunk(c));
+      if (results[results.length - 1] === 'quota') break;
+    }
+  } else {
+    results = await Promise.all(chunks.map((c) => runChunk(c)));
+  }
+
   if (results.some((r) => r === 'quota')) {
     const msg = QUOTA_MESSAGE_FR;
     const imageDataUrls: string[] = [];
