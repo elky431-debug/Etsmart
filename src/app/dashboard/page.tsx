@@ -39,6 +39,7 @@ import {
   ExternalLink,
   ArrowUpRight,
   Image as ImageIcon,
+  Type,
   Play,
   Loader2,
   Package,
@@ -70,6 +71,7 @@ import { DashboardSettings } from '@/components/dashboard/DashboardSettings';
 import { DashboardSubscription } from '@/components/dashboard/DashboardSubscription';
 import { CompetitorFinder } from '@/components/CompetitorFinder';
 import { DashboardBanner } from '@/components/dashboard/DashboardBanner';
+import { DashboardShopNameIdeas } from '@/components/dashboard/DashboardShopNameIdeas';
 import { DashboardVideoGenerator } from '@/components/dashboard/DashboardVideoGenerator';
 import { DashboardTracking } from '@/components/dashboard/DashboardTracking';
 import { DashboardStoreManager } from '@/components/dashboard/DashboardStoreManager';
@@ -95,6 +97,7 @@ type DashboardSection =
   | 'etsy-trends'
   | 'top-etsy-sellers'
   | 'niche-finder'
+  | 'shop-name'
   | 'banner'
   | 'logo'
   | 'video-generator'
@@ -229,6 +232,7 @@ export default function DashboardPage() {
         'settings',
         'subscription',
         'competitors',
+        'shop-name',
         'banner',
         'logo',
         'video-generator',
@@ -336,7 +340,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'coach'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'coach'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -1511,6 +1515,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Branding',
       items: [
+        { id: 'shop-name', label: 'Nom de boutique', icon: Type },
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
         { id: 'logo', label: 'Logo', icon: ImageIcon },
         { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
@@ -2201,6 +2206,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
               </div>
             </div>
           )}
+
+          {activeSection === 'shop-name' && <DashboardShopNameIdeas />}
 
           {activeSection === 'banner' && (
             <DashboardBanner />
