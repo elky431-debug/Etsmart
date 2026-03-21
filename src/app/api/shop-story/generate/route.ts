@@ -1,197 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import * as cheerio from 'cheerio';
+import sharp from 'sharp';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
+export const runtime = 'nodejs';
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-interface ScrapedContext {
-  sourceUrl: string;
-  sourceType: 'shop' | 'listing' | 'unknown';
+/** Contexte unifié pour la génération texte (plus de scraping Etsy) */
+export interface ShopStoryVisionContext {
+  sourceType: 'vision';
   shopName: string;
+  city: string;
+  country: string;
   listingTitle: string;
   listingDescription: string;
   tags: string[];
   productKeywords: string[];
-}
-
-function normalizeInputToUrl(input: string): string {
-  const raw = input.trim();
-  if (!raw) return '';
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (/etsy\.com\//i.test(raw)) return `https://${raw.replace(/^\/+/, '')}`;
-  return '';
+  visualSummary: string;
 }
 
 function extractKeywords(title: string, tags: string[]): string[] {
   const fromTitle = title
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .split(/[^a-z0-9àâäéèêëïîôùûüçœ]+/i)
     .filter((w) => w.length >= 3);
   const fromTags = tags
     .join(' ')
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .split(/[^a-z0-9àâäéèêëïîôùûüçœ]+/i)
     .filter((w) => w.length >= 3);
-  return Array.from(new Set([...fromTitle, ...fromTags])).slice(0, 15);
+  return Array.from(new Set([...fromTitle, ...fromTags])).slice(0, 18);
 }
 
-async function scrapeEtsyContext(url: string): Promise<ScrapedContext> {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      Accept: 'text/html,application/xhtml+xml',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-    },
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    throw new Error(`SCRAPE_FAILED_${response.status}`);
-  }
-
-  const html = await response.text();
-  const $ = cheerio.load(html);
-
-  const isListing = url.includes('/listing/');
-  const isShop = url.includes('/shop/');
-
-  const pageTitle = $('title').text().replace(/\s*\|\s*Etsy.*$/i, '').trim();
-  const h1 = $('h1').first().text().trim();
-  const shopNameMeta =
-    $('meta[property="og:site_name"]').attr('content')?.trim() ||
-    $('[data-shop-name]').first().text().trim() ||
-    '';
-
-  let listingTitle = '';
-  let listingDescription = '';
-  let tags: string[] = [];
-  let shopName = '';
-
-  $('script[type="application/ld+json"]').each((_, el) => {
-    const content = $(el).html();
-    if (!content) return;
-    try {
-      const parsed = JSON.parse(content);
-      const nodes = Array.isArray(parsed) ? parsed : [parsed];
-      for (const node of nodes) {
-        const product =
-          node?.['@type'] === 'Product'
-            ? node
-            : node?.mainEntity?.['@type'] === 'Product'
-            ? node.mainEntity
-            : null;
-        if (product) {
-          if (!listingTitle && product.name) listingTitle = String(product.name).trim();
-          if (!listingDescription && product.description)
-            listingDescription = String(product.description).trim();
-          if (Array.isArray(product.keywords)) {
-            tags = product.keywords.map(String).map((t) => t.trim()).filter(Boolean);
-          } else if (typeof product.keywords === 'string') {
-            tags = product.keywords.split(',').map((t: string) => t.trim()).filter(Boolean);
-          }
-        }
-
-        const organization = node?.['@type'] === 'Organization' ? node : null;
-        if (organization && !shopName && organization.name) {
-          shopName = String(organization.name).trim();
-        }
-      }
-    } catch {
-      // ignore malformed JSON-LD blocks
-    }
-  });
-
-  if (!listingTitle) listingTitle = h1 || pageTitle;
-  if (!shopName) {
-    if (isShop) {
-      shopName = h1 || pageTitle || shopNameMeta;
-    } else {
-      shopName = shopNameMeta || '';
-    }
-  }
-  if (!shopName) shopName = 'Boutique Etsy';
-
-  const keywords = extractKeywords(listingTitle, tags);
-
-  return {
-    sourceUrl: url,
-    sourceType: isShop ? 'shop' : isListing ? 'listing' : 'unknown',
-    shopName,
-    listingTitle,
-    listingDescription,
-    tags,
-    productKeywords: keywords,
-  };
-}
-
-function safePinterestImageUrl(input: string): string | null {
-  const url = input.trim();
-  if (!url) return null;
-  if (!/^https?:\/\//i.test(url)) return null;
-  if (!/pinimg\.com/i.test(url)) return null;
-  if (/logo|favicon|pin_logo|pinterest/i.test(url)) return null;
-  return url;
-}
-
-async function tryFetchPinterestImage(query: string): Promise<string | null> {
-  const searchUrl = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`;
+async function toVisionJpegDataUrl(input: string): Promise<string | null> {
   try {
-    const res = await fetch(searchUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-
-    const html = await res.text();
-    const $ = cheerio.load(html);
-
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    const directOg = ogImage ? safePinterestImageUrl(ogImage) : null;
-    if (directOg) return directOg;
-
-    const candidates = html.match(/https:\/\/i\.pinimg\.com\/[^"'\\\s]+/gi) || [];
-    for (const raw of candidates) {
-      const clean = safePinterestImageUrl(raw);
-      if (!clean) continue;
-      // Favor larger pin image formats for profile-like visuals
-      if (/\/(?:236x|474x|564x|736x|1200x)\//.test(clean)) return clean;
-    }
-    for (const raw of candidates) {
-      const clean = safePinterestImageUrl(raw);
-      if (clean) return clean;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'image/*,*/*;q=0.8',
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const ct = (res.headers.get('content-type') || 'image/jpeg').toLowerCase();
-    if (!ct.startsWith('image/')) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    if (!buffer.length) return null;
-    return `data:${ct};base64,${buffer.toString('base64')}`;
+    const raw = String(input).trim();
+    const dataUrl = raw.startsWith('data:image/') ? raw : `data:image/jpeg;base64,${raw}`;
+    const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!m) return null;
+    const buf = Buffer.from(m[2], 'base64');
+    const c = await sharp(buf)
+      .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 78, mozjpeg: true })
+      .toBuffer();
+    return `data:image/jpeg;base64,${c.toString('base64')}`;
   } catch {
     return null;
   }
@@ -227,59 +82,123 @@ function buildInlineAvatarDataUrl(name: string, role: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 }
 
-async function tryFetchGoogleImage(query: string): Promise<string | null> {
-  const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
-  try {
-    const res = await fetch(searchUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const candidates = html.match(/https?:\/\/[^"'\\\s)]+\.(?:jpg|jpeg|png|webp)/gi) || [];
-    for (const raw of candidates) {
-      if (/gstatic|googlelogo|logo|sprite|icon/i.test(raw)) continue;
-      return raw;
+type ShopTone = 'luxury_professional' | 'chill_small';
+
+async function bufferFromOpenAiImageData(data: {
+  b64_json?: string | null;
+  url?: string | null;
+}): Promise<Buffer | null> {
+  if (data.b64_json) {
+    try {
+      return Buffer.from(data.b64_json, 'base64');
+    } catch {
+      return null;
     }
-    return null;
-  } catch {
-    return null;
   }
+  if (data.url) {
+    try {
+      const res = await fetch(data.url, { signal: AbortSignal.timeout(45_000) });
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
-async function generateCharacterPortraitDataUrl(params: {
-  name: string;
-  role: string;
-  summary: string;
-  niche: string;
-}): Promise<string | null> {
-  if (!openai) return null;
-  try {
-    const prompt = `Create a realistic portrait photo of one Etsy seller character.
-No logos, no text, no watermark, no collage.
-Only one person, chest-up, neutral background, natural lighting.
-The person must fit this context:
-- Name: ${params.name}
-- Role: ${params.role}
-- Persona: ${params.summary}
-- Product niche: ${params.niche}
-Style: premium, professional, friendly, authentic, suitable for a shop biography profile image.`;
+/**
+ * Portrait fondateur fictif, photoréaliste (OpenAI), aligné sur le ton de marque et le brief visuel.
+ */
+async function generateFounderPortraitDataUrl(params: {
+  client: OpenAI;
+  shopTone: ShopTone;
+  city: string;
+  country: string;
+  visualStyle?: string;
+  nicheSummary?: string;
+  productTypes?: string[];
+  characterRole?: string;
+  personaSummary?: string;
+}): Promise<{ dataUrl: string; model: string } | null> {
+  const toneBlock =
+    params.shopTone === 'luxury_professional'
+      ? 'Upscale atelier or boutique setting, refined wardrobe, premium materials subtly visible, elegant minimal background.'
+      : 'Cozy workshop or studio, warm natural textures, handmade tools or materials subtly in background, authentic craft vibe.';
 
-    const imageResponse = await openai.images.generate({
+  const nicheBits = [
+    params.nicheSummary?.slice(0, 420),
+    Array.isArray(params.productTypes) ? params.productTypes.slice(0, 5).join(', ') : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const prompt = [
+    'Photorealistic professional head-and-shoulders portrait of ONE fictional small-business founder (generic, not a celebrity or real person).',
+    toneBlock,
+    `Regional context: based in ${params.city}, ${params.country} — believable everyday styling, respectful representation.`,
+    `Their work: ${String(params.characterRole || 'artisan / independent maker').slice(0, 120)}.`,
+    nicheBits ? `Business / craft niche mood: ${nicheBits.slice(0, 520)}.` : '',
+    params.personaSummary ? `Character vibe (pose/expression only): ${params.personaSummary.slice(0, 200)}` : '',
+    params.visualStyle
+      ? `Echo the brand atmosphere (lighting/palette/mood only, no logos): ${params.visualStyle.slice(0, 260)}`
+      : '',
+    'Camera: soft window light, shallow depth of field, 85mm portrait look, sharp eyes, natural skin texture, clean composition.',
+    'No text, no watermark, no logo, no extra people, no cluttered hands near face.',
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 3800);
+
+  let imageBuf: Buffer | null = null;
+  let modelUsed = '';
+
+  try {
+    const img1 = await params.client.images.generate({
       model: 'gpt-image-1',
       prompt,
+      n: 1,
       size: '1024x1024',
     });
+    const d0 = img1.data?.[0];
+    if (d0) {
+      imageBuf = await bufferFromOpenAiImageData(d0);
+      if (imageBuf) modelUsed = 'gpt-image-1';
+    }
+  } catch (e) {
+    console.warn('[shop-story] gpt-image-1 portrait failed:', e);
+  }
 
-    const b64 = imageResponse.data?.[0]?.b64_json;
-    if (!b64) return null;
-    return `data:image/png;base64,${b64}`;
-  } catch {
+  if (!imageBuf) {
+    try {
+      const img3 = await params.client.images.generate({
+        model: 'dall-e-3',
+        prompt: prompt.slice(0, 3900),
+        n: 1,
+        size: '1024x1024',
+        quality: 'hd',
+        style: 'natural',
+      });
+      const d0 = img3.data?.[0];
+      if (d0) {
+        imageBuf = await bufferFromOpenAiImageData(d0);
+        if (imageBuf) modelUsed = 'dall-e-3';
+      }
+    } catch (e2) {
+      console.warn('[shop-story] dall-e-3 portrait failed:', e2);
+    }
+  }
+
+  if (!imageBuf) return null;
+
+  try {
+    const png = await sharp(imageBuf)
+      .resize(1024, 1024, { fit: 'cover', position: 'attention' })
+      .png({ quality: 92 })
+      .toBuffer();
+    return { dataUrl: `data:image/png;base64,${png.toString('base64')}`, model: modelUsed };
+  } catch (e) {
+    console.warn('[shop-story] portrait sharp post-process failed:', e);
     return null;
   }
 }
@@ -295,6 +214,10 @@ function firstPersonScore(text: string): number {
     /\bmes\b/g,
     /\bme\b/g,
     /\bm['’]/g,
+    /\bi\b/g,
+    /\bmy\b/g,
+    /\bwe\b/g,
+    /\bour\b/g,
   ];
   return hits.reduce((acc, re) => acc + (lower.match(re)?.length || 0), 0);
 }
@@ -303,13 +226,13 @@ async function rewriteBiographyToFirstPerson(input: string): Promise<string> {
   if (!openai || !input.trim()) return input;
   try {
     const rewritten = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      temperature: 0.3,
+      model: 'gpt-4o-mini',
+      temperature: 0.2,
       messages: [
         {
           role: 'system',
           content:
-            'Réécris le texte en français à la première personne du singulier. Garde le même sens, un ton naturel, et retourne uniquement le texte final.',
+            'Rewrite the text in first person (I, my, me). Keep the same meaning, natural tone. Output only the final text.',
         },
         { role: 'user', content: input },
       ],
@@ -319,6 +242,16 @@ async function rewriteBiographyToFirstPerson(input: string): Promise<string> {
     return input;
   }
 }
+
+type VisionExtract = {
+  shopNameFromVisuals?: string;
+  nicheSummary?: string;
+  productTypes?: string[];
+  visualStyle?: string;
+  keywords?: string[];
+  listingTitleGuess?: string;
+  shopTone?: 'luxury_professional' | 'chill_small';
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -330,53 +263,204 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const inputUrl = normalizeInputToUrl(String(body?.url || body?.shopUrl || body?.listingUrl || ''));
-    if (!inputUrl || !/etsy\.com/i.test(inputUrl)) {
+    const bannerRaw = String(body?.bannerImage || '').trim();
+    const productRaws: string[] = Array.isArray(body?.productImages)
+      ? body.productImages.map((x: unknown) => String(x || '').trim()).filter(Boolean)
+      : body?.productImage
+        ? [String(body.productImage).trim()]
+        : [];
+
+    const shopNameUser = String(body?.shopName || '').trim();
+    const city = String(body?.city || '').trim();
+    const country = String(body?.country || '').trim();
+
+    if (!bannerRaw) {
       return NextResponse.json(
-        { error: 'INVALID_URL', message: 'Merci de fournir un lien Etsy valide (produit ou boutique).' },
+        { error: 'MISSING_BANNER', message: 'Ajoute une capture de la bannière de ta boutique.' },
+        { status: 400 }
+      );
+    }
+    if (productRaws.length < 1) {
+      return NextResponse.json(
+        { error: 'MISSING_PRODUCTS', message: 'Ajoute au moins une image de produit.' },
+        { status: 400 }
+      );
+    }
+    if (city.length < 2 || country.length < 2) {
+      return NextResponse.json(
+        { error: 'MISSING_LOCATION', message: 'Indique au moins le pays et la ville (cohérence avec ta fiche Etsy).' },
         { status: 400 }
       );
     }
 
-    const context = await scrapeEtsyContext(inputUrl);
-    const nicheContext = [context.listingTitle, ...context.tags].filter(Boolean).join(', ');
+    const bannerDataUrl = await toVisionJpegDataUrl(bannerRaw);
+    if (!bannerDataUrl) {
+      return NextResponse.json(
+        { error: 'INVALID_BANNER_IMAGE', message: 'Image bannière invalide (JPG, PNG ou WebP).' },
+        { status: 400 }
+      );
+    }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const productDataUrls = (
+      await Promise.all(productRaws.slice(0, 4).map((p) => toVisionJpegDataUrl(p)))
+    ).filter((u): u is string => Boolean(u));
+    if (productDataUrls.length < 1) {
+      return NextResponse.json(
+        { error: 'INVALID_PRODUCT_IMAGES', message: 'Images produits invalides.' },
+        { status: 400 }
+      );
+    }
+
+    const userContextNote =
+      shopNameUser.length >= 2
+        ? `The user provided shop name: "${shopNameUser}".`
+        : 'The user did NOT provide a shop name; infer the shop name from the banner if visible, else use a short plausible placeholder name in the analysis only.';
+
+    type VisionPart =
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string; detail: 'high' | 'low' | 'auto' } };
+
+    const visionUserContent: VisionPart[] = [
+      {
+        type: 'text',
+        text: `You analyze Etsy shop branding from images.
+
+Image order:
+1) FIRST image = shop BANNER
+2) Following images = PRODUCT photos
+
+${userContextNote}
+User location for coherence (use in your analysis; do not invent fake addresses): City: "${city}", Country: "${country}".
+
+Return ONLY valid JSON:
+{
+  "shopNameFromVisuals": "exact shop name visible on banner or empty string",
+  "listingTitleGuess": "short phrase summarizing main product line",
+  "nicheSummary": "3-5 sentences in English describing niche, quality level, audience, mood",
+  "productTypes": ["3-8 short labels in English"],
+  "visualStyle": "1-2 sentences: colors, typography feel, aesthetic",
+  "keywords": ["12-20 relevant English keywords for Etsy"],
+  "shopTone": "luxury_professional" or "chill_small"
+}
+shopTone: use "luxury_professional" for high-end, premium, luxury, designer, expensive products. Use "chill_small" for handmade, craft, cozy, small-batch, affordable, indie.`,
+      },
+      { type: 'image_url', image_url: { url: bannerDataUrl, detail: 'high' } },
+      ...productDataUrls.map((url) => ({
+        type: 'image_url' as const,
+        image_url: { url, detail: 'high' as const },
+      })),
+    ];
+
+    const visionCompletion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.3,
       messages: [
         {
           role: 'system',
           content:
-            "Tu es un expert branding Etsy. Tu réponds uniquement en JSON valide. Tu écris en français naturel, concret, sans blabla.",
+            'You are a senior Etsy brand analyst. You only output strict JSON. Be accurate about what is visible; do not hallucinate text that is unreadable.',
+        },
+        { role: 'user', content: visionUserContent },
+      ],
+    });
+
+    let vision: VisionExtract = {};
+    try {
+      vision = JSON.parse(visionCompletion.choices[0]?.message?.content || '{}') as VisionExtract;
+    } catch {
+      vision = {};
+    }
+
+    const resolvedShopName =
+      shopNameUser ||
+      String(vision.shopNameFromVisuals || '').trim() ||
+      'Handmade Shop';
+
+    const shopTone: ShopTone =
+      vision.shopTone === 'luxury_professional' || vision.shopTone === 'chill_small'
+        ? vision.shopTone
+        : 'chill_small';
+
+    const tags = Array.isArray(vision.keywords) ? vision.keywords.map(String).filter(Boolean).slice(0, 24) : [];
+    const productTypes = Array.isArray(vision.productTypes)
+      ? vision.productTypes.map(String).filter(Boolean)
+      : [];
+    const listingTitle =
+      String(vision.listingTitleGuess || '').trim() ||
+      productTypes.slice(0, 3).join(', ') ||
+      resolvedShopName;
+    const listingDescription = [
+      String(vision.nicheSummary || '').trim(),
+      String(vision.visualStyle || '').trim(),
+      productTypes.length ? `Types de produits: ${productTypes.join(', ')}.` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const productKeywords = extractKeywords(listingTitle, [...tags, ...productTypes]);
+
+    const context: ShopStoryVisionContext = {
+      sourceType: 'vision',
+      shopName: resolvedShopName,
+      city,
+      country,
+      listingTitle,
+      listingDescription,
+      tags,
+      productKeywords,
+      visualSummary: listingDescription.slice(0, 2000),
+    };
+
+    const nicheContext = [context.listingTitle, ...context.tags].filter(Boolean).join(', ');
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      temperature: 0.6,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an Etsy branding expert. Output ONLY valid JSON. Write in natural English, concrete, no fluff.',
         },
         {
           role: 'user',
-          content: `Génère une histoire de boutique Etsy + un personnage fondateur cohérent avec la niche produit.
+          content: `Generate an Etsy shop story + founder character consistent with the visuals and location. Output in ENGLISH.
 
-Contraintes critiques:
-- Le ton doit être humain, crédible, premium.
-- L'histoire doit expliquer pourquoi la personne a lancé sa boutique (passion, déclic, mission, valeur client).
-- La biographie doit créer un personnage cohérent avec le produit/niche. 
-- La biographie doit être écrite à la PREMIÈRE PERSONNE (je, mon, ma), comme si le personnage se présentait lui-même.
-- Evite les incohérences (ex: personnage inadapté au type de produit).
-- Le résultat doit être directement utilisable sur une page Etsy.
+Critical constraints:
+- Human, credible, premium tone.
+- Story and character COHERENT with: city "${city}", country "${country}" (workshop, origin, local inspiration — naturally, no invented addresses).
+- Character plausible for this region and product niche.
+- Story explains why the person started their shop (passion, trigger, mission).
+- Biography in FIRST PERSON (I, my, me).
+- No inconsistency with product types. Ready for Etsy.
 
-Contexte scrapé:
-${JSON.stringify(context, null, 2)}
+Shop name: "${resolvedShopName}" (use in story if natural).
 
-Retourne STRICTEMENT ce JSON:
-{
-  "shopStory": "texte de 120 à 220 mots",
-  "character": {
-    "name": "Prénom Nom",
-    "role": "rôle/fonction",
-    "personaSummary": "1 phrase",
-    "biography": "texte de 90 à 170 mots",
-    "traits": ["trait1","trait2","trait3","trait4"]
+Context from vision analysis:
+${JSON.stringify(
+  {
+    nicheSummary: vision.nicheSummary,
+    productTypes: vision.productTypes,
+    visualStyle: vision.visualStyle,
+    keywords: vision.keywords,
+    listingTitleGuess: vision.listingTitleGuess,
   },
-  "imageSearchQuery": "requête pinterest claire pour trouver un portrait cohérent"
+  null,
+  2
+)}
+
+Return STRICTLY this JSON:
+{
+  "shopStory": "120-220 words in English",
+  "character": {
+    "name": "Realistic FirstName LastName for ${country}",
+    "role": "role/title",
+    "personaSummary": "1 sentence",
+    "biography": "90-170 words in English, first person",
+    "traits": ["trait1","trait2","trait3","trait4"]
+  }
 }`,
         },
       ],
@@ -392,38 +476,31 @@ Retourne STRICTEMENT ce JSON:
         biography?: string;
         traits?: string[];
       };
-      imageSearchQuery?: string;
     };
-
-    const imageQuery =
-      parsed.imageSearchQuery?.trim() ||
-      `${context.listingTitle || context.shopName} creator portrait handmade etsy`;
 
     let biography = String(parsed.character?.biography || '');
     if (firstPersonScore(biography) < 2) {
       biography = await rewriteBiographyToFirstPerson(biography);
     }
 
-    const characterName = String(parsed.character?.name || 'Createur Etsy');
-    const characterRole = String(parsed.character?.role || 'Artisan/Creatif');
+    const characterName = String(parsed.character?.name || 'Etsy Creator');
+    const characterRole = String(parsed.character?.role || 'Artisan / Creator');
     const characterSummary = String(parsed.character?.personaSummary || '');
 
-    const aiPortraitDataUrl = await generateCharacterPortraitDataUrl({
-      name: characterName,
-      role: characterRole,
-      summary: characterSummary,
-      niche: nicheContext || context.listingTitle || context.shopName,
+    const aiPortrait = await generateFounderPortraitDataUrl({
+      client: openai,
+      shopTone,
+      city,
+      country,
+      visualStyle: vision.visualStyle,
+      nicheSummary: vision.nicheSummary,
+      productTypes: vision.productTypes,
+      characterRole,
+      personaSummary: characterSummary,
     });
 
-    const googleImageUrl = aiPortraitDataUrl ? null : await tryFetchGoogleImage(imageQuery);
-    const pinterestImageUrl =
-      aiPortraitDataUrl || googleImageUrl ? null : await tryFetchPinterestImage(imageQuery);
-    const fallbackImageUrl = `https://api.dicebear.com/9.x/adventurer/png?seed=${encodeURIComponent(
-      parsed.character?.name || context.shopName || 'etsmart-creator'
-    )}&backgroundType=gradientLinear`;
-    const finalImageUrl = googleImageUrl || pinterestImageUrl || fallbackImageUrl;
-    const fetchedDataUrl = aiPortraitDataUrl || (await fetchImageAsDataUrl(finalImageUrl));
-    const imageDataUrl = fetchedDataUrl || buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageDataUrl = aiPortrait?.dataUrl || buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageSource: 'openai-portrait' | 'inline-svg' = aiPortrait ? 'openai-portrait' : 'inline-svg';
 
     return NextResponse.json({
       success: true,
@@ -437,27 +514,20 @@ Retourne STRICTEMENT ce JSON:
           biography,
           traits: Array.isArray(parsed.character?.traits) ? parsed.character?.traits.slice(0, 6) : [],
           imageDataUrl,
-          imageUrl: finalImageUrl,
+          imageUrl: '',
         },
       },
       meta: {
-        pinterestAttempted: true,
-        imageSource: aiPortraitDataUrl
-          ? 'ai-portrait'
-          : googleImageUrl
-          ? 'google'
-          : pinterestImageUrl
-          ? 'pinterest'
-          : fetchedDataUrl
-          ? 'fallback'
-          : 'inline-svg',
-        imageQuery,
+        sourceMode: 'vision',
+        imageSource,
+        portraitModel: aiPortrait?.model,
         nicheContext,
+        resolvedShopName,
       },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
+    console.error('[shop-story/generate]', error);
     return NextResponse.json({ error: 'INTERNAL_ERROR', message }, { status: 500 });
   }
 }
-

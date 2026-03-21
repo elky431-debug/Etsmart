@@ -77,6 +77,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { DashboardCoach } from '@/components/dashboard/DashboardCoach';
+import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -184,26 +185,6 @@ function DashboardCreditsBadge({
         {compact && !unlimited ? <span className="font-normal text-white/60"> cr.</span> : null}
       </span>
     </button>
-  );
-}
-
-function LogoMaintenance() {
-  return (
-    <div className="max-w-4xl mx-auto px-4">
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 h-9 w-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-            <ImageIcon className="h-5 w-5 text-white/80" />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold text-white">Logo</h1>
-            <p className="text-white/70 mt-2">
-              Le générateur de logo est actuellement en maintenance. Reviens demain.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1531,7 +1512,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Branding',
       items: [
         { id: 'banner', label: 'Bannière', icon: ImageIcon },
-        { id: 'logo', label: 'Logo (maintenance)', icon: ImageIcon },
+        { id: 'logo', label: 'Logo', icon: ImageIcon },
         { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
       ],
     },
@@ -2218,7 +2199,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'logo' && (
-            <LogoMaintenance />
+            <DashboardLogoGenerator />
           )}
 
           {activeSection === 'etsy-trends' && (

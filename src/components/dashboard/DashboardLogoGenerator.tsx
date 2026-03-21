@@ -176,7 +176,7 @@ export function DashboardLogoGenerator({
           <div>
             <h1 className="text-3xl font-bold text-white">Creation de logo</h1>
             <p className="text-white/70 text-sm mt-1">
-              Ajoute la banniere boutique + un produit, puis genere un logo carre sans texte.
+              Bannière boutique + capture produit → logo <strong className="text-white/90">emblème illustré détaillé</strong> (style médaillon premium), sans texte, adapté à l’icône Etsy.
             </p>
           </div>
         </div>

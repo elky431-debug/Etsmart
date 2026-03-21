@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Image as ImageIcon, Link as LinkIcon, Loader2, Sparkles, Store, Upload } from 'lucide-react';
+import { Download, Image as ImageIcon, Loader2, Sparkles, Store, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -15,33 +15,62 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
 
 export function DashboardBanner() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadDragRef = useRef(0);
   const [shopName, setShopName] = useState('');
-  const [etsyUrl, setEtsyUrl] = useState('');
   const [model, setModel] = useState<'auto' | 'pro' | 'flash'>('pro');
   const [productImage, setProductImage] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragUpload, setDragUpload] = useState(false);
 
-  const handlePickImage = async (file: File) => {
+  const handlePickImage = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setError('Please upload a valid image file.');
+      setError('Merci de choisir un fichier image valide.');
       return;
     }
     if (file.size > 12 * 1024 * 1024) {
-      setError('Image too large (max 12MB).');
+      setError('Image trop lourde (max 12 Mo).');
       return;
     }
     const dataUrl = await readFileAsDataUrl(file);
     setProductImage(file);
     setProductPreview(dataUrl);
     setError(null);
-  };
+  }, []);
+
+  const onUploadDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    uploadDragRef.current += 1;
+    setDragUpload(true);
+  }, []);
+  const onUploadDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    uploadDragRef.current -= 1;
+    if (uploadDragRef.current <= 0) {
+      uploadDragRef.current = 0;
+      setDragUpload(false);
+    }
+  }, []);
+  const onUploadDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+  const onUploadDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      uploadDragRef.current = 0;
+      setDragUpload(false);
+      const f = e.dataTransfer.files?.[0];
+      if (f) void handlePickImage(f);
+    },
+    [handlePickImage]
+  );
 
   const handleGenerate = async () => {
-    if (!etsyUrl.trim() && !productImage) {
-      setError('Add an Etsy URL or a product image.');
+    if (!productImage) {
+      setError('Ajoute une image produit (fichier ou glisser-déposer).');
       return;
     }
     setError(null);
@@ -55,7 +84,7 @@ export function DashboardBanner() {
       const token = session?.access_token;
       if (!token) throw new Error('Authentication required.');
 
-      const imageData = productImage ? await readFileAsDataUrl(productImage) : '';
+      const imageData = await readFileAsDataUrl(productImage);
       const response = await fetch('/api/generate-banner', {
         method: 'POST',
         headers: {
@@ -64,9 +93,8 @@ export function DashboardBanner() {
         },
         body: JSON.stringify({
           shopName: shopName.trim() || undefined,
-          etsyUrl: etsyUrl.trim(),
           modelPreference: model,
-          productImage: imageData || undefined,
+          productImage: imageData,
         }),
       });
       const json = await response.json().catch(() => ({}));
@@ -106,7 +134,7 @@ export function DashboardBanner() {
             <div>
               <h1 className="text-3xl font-bold text-white">Generate a banner</h1>
               <p className="text-white/70 text-sm mt-1">
-                Paste an Etsy URL or add a product image, then generate a 1200x300 banner.
+                Image produit obligatoire (clic ou glisser-déposer), puis génération d’une bannière 1200×300.
               </p>
               <p className="text-[#00d4ff] text-sm mt-1 font-medium">
                 2 crédits par génération
@@ -128,18 +156,7 @@ export function DashboardBanner() {
               className="w-full h-11 rounded-lg bg-black/40 border border-white/10 px-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/40 mb-4"
             />
 
-            <label className="block text-white/75 text-sm mb-2">Etsy URL (product or shop)</label>
-            <div className="relative mb-4">
-              <LinkIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={etsyUrl}
-                onChange={(e) => setEtsyUrl(e.target.value)}
-                placeholder="https://www.etsy.com/listing/... or /shop/..."
-                className="w-full h-11 rounded-lg bg-black/40 border border-white/10 pl-9 pr-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/40"
-              />
-            </div>
-
-            <label className="block text-white/75 text-sm mb-2">Gemini model</label>
+            <label className="block text-white/75 text-sm mb-2">Modèle Gemini</label>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {([
                 { id: 'pro', label: 'Pro' },
@@ -160,10 +177,19 @@ export function DashboardBanner() {
               ))}
             </div>
 
-            <p className="text-white/60 text-xs mb-2">Optional: product image</p>
+            <p className="text-white/60 text-xs mb-2">Image produit (obligatoire)</p>
             <div
+              role="button"
+              tabIndex={0}
               onClick={() => inputRef.current?.click()}
-              className="rounded-xl border-2 border-dashed border-white/20 hover:border-[#00d4ff]/50 p-4 cursor-pointer transition"
+              onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+              onDragEnter={onUploadDragEnter}
+              onDragLeave={onUploadDragLeave}
+              onDragOver={onUploadDragOver}
+              onDrop={onUploadDrop}
+              className={`rounded-xl border-2 border-dashed p-4 cursor-pointer transition ${
+                dragUpload ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'
+              }`}
             >
               <input
                 ref={inputRef}
@@ -178,9 +204,9 @@ export function DashboardBanner() {
               {productPreview ? (
                 <img src={productPreview} alt="Product preview" className="w-full h-40 object-cover rounded-lg" />
               ) : (
-                <div className="h-40 flex flex-col items-center justify-center text-white/55">
+                <div className="h-40 flex flex-col items-center justify-center text-white/55 px-2 text-center">
                   <Upload className="w-6 h-6 mb-2" />
-                  <p className="text-sm">Click to upload product image</p>
+                  <p className="text-sm">Glisse-dépose une image ici ou clique pour choisir</p>
                 </div>
               )}
             </div>

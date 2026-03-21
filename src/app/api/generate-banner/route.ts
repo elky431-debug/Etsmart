@@ -9,6 +9,20 @@ const BANNER_CREDITS = 2;
 export const maxDuration = 90;
 export const runtime = 'nodejs';
 
+/** Ratio natif bannière Etsy 1200×300 (4:1) — évite une image carrée + bandes latérales. */
+const BANNER_IMAGE_GENERATION_CONFIG = {
+  responseModalities: ['TEXT', 'IMAGE'],
+  imageConfig: {
+    aspectRatio: '4:1',
+  },
+} as const;
+
+/** Modèles Gemini qui acceptent imageConfig.aspectRatio (2.5 renvoie 400 sinon). */
+const ASPECT_RATIO_CAPABLE_MODELS = new Set([
+  'gemini-3-pro-image-preview',
+  'gemini-3.1-flash-image-preview',
+]);
+
 async function fetchWithTimeout(
   url: string,
   options: RequestInit & { timeoutMs?: number }
@@ -122,10 +136,10 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
     if (!GEMINI_KEY) {
       return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY missing on server.' },
+        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY manquante sur le serveur.' },
         { status: 500 }
       );
     }
@@ -187,10 +201,14 @@ export async function POST(request: NextRequest) {
     }
 
     const hasReferenceImage = Boolean(referenceImageData);
-    const productContext = `${listingTitle} ${description}`.toLowerCase();
-    const isLampNiche = /(lamp|lampe|lighting|luminaire|light)/i.test(productContext);
-    const isWoodCraft = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(productContext);
-    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(productContext);
+    const themeContext = `${shopName} ${listingTitle} ${description}`.toLowerCase();
+    const isLampNiche = /(lamp|lampe|lighting|luminaire|light)/i.test(themeContext);
+    const isWoodCraft = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(themeContext);
+    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(themeContext);
+    const isBookNiche =
+      /(book|nook|library|story|storynook|reading|literature|miniature diorama|diorama|shelf|bibliothèque)/i.test(
+        themeContext
+      );
 
     let paletteInstruction =
       'Use a tasteful neutral palette that matches the product. Prefer soft cream, warm gray, and subtle accent tones.';
@@ -203,10 +221,34 @@ export async function POST(request: NextRequest) {
     } else if (isPastelNiche) {
       paletteInstruction =
         'Use soft pastel neutrals: cream, light beige, dusty rose, and muted warm gray. Keep it delicate and clean.';
+    } else if (isBookNiche) {
+      paletteInstruction =
+        'Use warm literary tones: deep cream, antique paper, warm wood browns, soft golden highlights, muted burgundy or forest green accents. Cozy and inviting.';
     }
 
-    const prompt = `Create one Etsy shop banner in a clean, simple, premium style (4:1 ratio).
-Target export: 1200x300.
+    let backgroundInstruction =
+      'Background: choose a setting that visually echoes the product niche — warm and inviting, not sterile or plain.';
+    if (isBookNiche) {
+      backgroundInstruction =
+        'Background: create a THEMATIC setting — cozy library, warm wooden shelves, old books in soft bokeh, soft golden lamp light, magical and inviting atmosphere. NO sterile studio, NO plain white countertop, NO generic bright room. The scene should feel like a reading nook or secret library.';
+    } else if (isLampNiche) {
+      backgroundInstruction =
+        'Background: warm ambient setting that complements the lighting products — soft shadows, gentle glow, not a cold or sterile studio.';
+    } else if (isWoodCraft) {
+      backgroundInstruction =
+        'Background: natural, artisan setting — warm wood surfaces, workshop or cozy interior, no sterile white studio.';
+    } else if (isPastelNiche) {
+      backgroundInstruction =
+        'Background: soft, delicate setting — light fabrics, gentle pastel tones in the scene, dreamy and clean.';
+    }
+
+    const prompt = `Create one Etsy shop banner in a clean, simple, premium style.
+CRITICAL — NATIVE 4:1 WIDE BANNER (the output image IS already this shape):
+- You are filling a SINGLE ultra-wide 4:1 canvas (like 1200×300). The design must extend EDGE TO EDGE — background, light, color, and subjects use the FULL width and FULL height.
+- NO "postcard" layout: do NOT compose a tall or square scene centered on empty side margins or huge blank pillars. NO large empty solid bands left/right.
+- Think full-bleed panoramic hero: one continuous composition across the entire wide frame.
+- Products: 1–3 hero items, well scaled for a SHORT height (300px-class); avoid tiny strips at the edges; give each visible product enough body to read clearly.
+- Keep the shop name in the central area with clear vertical margin from top/bottom edges so it never feels clipped.
 
 MANDATORY — SHOP NAME MUST BE VISIBLE:
 - You MUST display the shop name "${shopName}" as readable text on the banner.
@@ -220,15 +262,16 @@ Main objective:
 
 Design direction:
 - ${paletteInstruction}
+- ${backgroundInstruction}
 - Product-focused visual: show relevant products matching "${listingTitle}".
-- Products should be visible and aesthetically arranged (not tiny, not chaotic).
+- Products should be visible and aesthetically arranged (not tiny, not chaotic, not harshly cropped).
 - Add soft lighting and depth, but keep it minimal and clean.
 
 Context:
 - Shop name (MUST appear as text on banner): ${shopName}
 - Product focus: ${listingTitle}
 - Description summary: ${description.slice(0, 240)}
-${hasReferenceImage ? '- A product reference image is provided by the user; keep similar product style and palette.' : ''}
+${hasReferenceImage ? '- A product reference image is provided by the user; echo similar product style and palette, and frame subjects so they read well in a wide short banner (avoid extreme side cropping).' : ''}
 
 Strict rules:
 - The shop name "${shopName}" MUST be written as visible text on the image. No exceptions.
@@ -249,30 +292,36 @@ Strict rules:
       });
     }
 
+    // Modèles image récents en premier : prise en charge fiable du ratio 4:1 via imageConfig.
     const modelCandidates =
       modelPreference === 'pro'
-        ? ['gemini-2.5-flash-preview-05-20', 'gemini-2.5-flash', 'gemini-3-pro-image-preview']
+        ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-flash']
         : modelPreference === 'flash'
-        ? ['gemini-2.5-flash', 'gemini-3.1-flash-image-preview']
+        ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash', 'gemini-3-pro-image-preview']
         : [
-            'gemini-2.5-flash-preview-05-20',
-            'gemini-2.5-flash',
             'gemini-3-pro-image-preview',
             'gemini-3.1-flash-image-preview',
+            'gemini-2.5-flash-preview-05-20',
+            'gemini-2.5-flash',
           ];
 
     let b64: string | null = null;
     let lastError = '';
-    for (const model of modelCandidates) {
-      try {
-        const res = await fetchWithTimeout(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': GEMINI_KEY,
-            },
+    if (GEMINI_KEY) {
+      for (const model of modelCandidates) {
+        const genConfig = ASPECT_RATIO_CAPABLE_MODELS.has(model)
+          ? BANNER_IMAGE_GENERATION_CONFIG
+          : { responseModalities: ['TEXT', 'IMAGE'] };
+
+        try {
+          const res = await fetchWithTimeout(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_KEY,
+              },
             body: JSON.stringify({
               contents: [
                 {
@@ -280,9 +329,7 @@ Strict rules:
                   parts: userParts,
                 },
               ],
-              generationConfig: {
-                responseModalities: ['TEXT', 'IMAGE'],
-              },
+              generationConfig: genConfig,
             }),
             timeoutMs: 70000,
           }
@@ -304,7 +351,7 @@ Strict rules:
                   },
                   body: JSON.stringify({
                     contents: [{ role: 'user', parts: userParts }],
-                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+                    generationConfig: genConfig,
                   }),
                   timeoutMs: 70000,
                 }
@@ -316,7 +363,7 @@ Strict rules:
                 const retryImg = retryParts.find((p: any) => typeof p?.inlineData?.data === 'string');
                 if (retryImg?.inlineData?.data) {
                   b64 = retryImg.inlineData.data;
-                  break;
+            break;
                 }
               }
             } catch {
@@ -348,24 +395,23 @@ Strict rules:
         console.warn('[generate-banner]', model, err);
       }
     }
+    }
 
     if (!b64) {
       const isQuota = lastError.includes('429') || /quota|billing|limit/i.test(lastError);
       const message = isQuota
         ? 'Quota Gemini dépassé. Vérifie ton plan et la facturation dans Google AI Studio (aistudio.google.com), ou réessaie dans quelques minutes.'
         : lastError
-          ? `Bannière non générée (${lastError.slice(0, 120)}). Vérifie ta clé Gemini ou réessaie.`
-          : 'No banner generated with Gemini.';
-      return NextResponse.json(
-        { error: 'GENERATION_FAILED', message },
-        { status: 500 }
-      );
+          ? `Bannière non générée (${lastError.slice(0, 160)}). Vérifie ta clé Gemini et réessaie.`
+          : 'Aucune image générée par Gemini.';
+      return NextResponse.json({ error: 'GENERATION_FAILED', message }, { status: 500 });
     }
 
+    // Ratio cible 4:1 (1200×300). Avec sortie Gemini en 4:1, cover ≈ mise à l’échelle sans bandes.
+    // Si le modèle renvoie un ratio voisin, 'attention' limite les coupes sur le sujet principal.
     const raw = Buffer.from(b64, 'base64');
-    // Redimensionnement direct en 1200x300, recadrage centré : bannière entièrement nette, sans bandes floues
     const bannerBuffer = await sharp(raw)
-      .resize(1200, 300, { fit: 'cover', position: 'center' })
+      .resize(1200, 300, { fit: 'cover', position: 'attention' })
       .png({ quality: 92 })
       .toBuffer();
 
