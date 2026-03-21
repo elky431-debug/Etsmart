@@ -10,13 +10,15 @@ export const maxDuration = 120;
 export const runtime = 'nodejs';
 
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 90_000;
+/** Une requête / image : rester < ~45s (Netlify ~50s max sur fonctions). */
+const GEMINI_FAST_SINGLE_TIMEOUT_MS = 22_000;
 
-function geminiFetchSignal(): AbortSignal {
+function geminiFetchSignal(timeoutMs: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-    return AbortSignal.timeout(GEMINI_IMAGE_FETCH_TIMEOUT_MS);
+    return AbortSignal.timeout(timeoutMs);
   }
   const c = new AbortController();
-  setTimeout(() => c.abort(), GEMINI_IMAGE_FETCH_TIMEOUT_MS);
+  setTimeout(() => c.abort(), timeoutMs);
   return c.signal;
 }
 
@@ -78,7 +80,27 @@ export async function POST(request: NextRequest) {
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
 
-    const { sourceImage, backgroundImage, quantity = 1, aspectRatio = '1:1', customInstructions, productTitle, tags, materials, engine, style, skipCreditDeduction, productContext } = body;
+    const {
+      sourceImage,
+      backgroundImage,
+      quantity = 1,
+      aspectRatio = '1:1',
+      customInstructions,
+      productTitle,
+      tags,
+      materials,
+      engine,
+      style,
+      skipCreditDeduction,
+      productContext,
+      clientChunkedSingle,
+      singlePromptIndex: singlePromptIndexRaw,
+    } = body;
+    const clientChunkedSingleFlag = clientChunkedSingle === true;
+    const singlePromptIndex =
+      typeof singlePromptIndexRaw === 'number' && Number.isFinite(singlePromptIndexRaw)
+        ? Math.max(0, Math.floor(singlePromptIndexRaw))
+        : null;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
 
@@ -242,11 +264,18 @@ Pas de texte marketing. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
       const numImages = Math.min(Math.max(quantity, 1), 10);
-      const promptsToUse = Array.from(
-        { length: numImages },
-        (_, i) => IMAGE_PROMPTS_GEMINI[i % IMAGE_PROMPTS_GEMINI.length]
-      );
-      const modelCandidates =
+      const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
+      let promptsToUse: string[];
+      if (numImages === 1 && singlePromptIndex !== null) {
+        const idx = singlePromptIndex % IMAGE_PROMPTS_GEMINI.length;
+        promptsToUse = [IMAGE_PROMPTS_GEMINI[idx]];
+      } else {
+        promptsToUse = Array.from(
+          { length: numImages },
+          (_, i) => IMAGE_PROMPTS_GEMINI[i % IMAGE_PROMPTS_GEMINI.length]
+        );
+      }
+      const modelCandidatesFull =
         engineSafe === 'pro'
           ? [
               'gemini-3-pro-image-preview',
@@ -260,13 +289,20 @@ Pas de texte marketing. Pas de watermark.`
               'gemini-3-pro-image-preview',
               'nano-banana-pro-preview',
             ];
-      console.log(`[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, models=${modelCandidates.join(',')}`);
+      const modelCandidatesFast =
+        engineSafe === 'pro'
+          ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+          : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+      const modelCandidates = isFastChunkedSingle ? modelCandidatesFast : modelCandidatesFull;
+      const perFetchTimeoutMs = isFastChunkedSingle ? GEMINI_FAST_SINGLE_TIMEOUT_MS : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+      console.log(
+        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, models=${modelCandidates.join(',')}`
+      );
 
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
-        const imagePartSets = [
-          inlineImageParts,
-          [inlineImageParts[0]].filter(Boolean),
-        ];
+        const imagePartSets = isFastChunkedSingle
+          ? [inlineImageParts]
+          : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
         for (const partsForAttempt of imagePartSets) {
           for (const model of modelCandidates) {
             try {
@@ -286,7 +322,7 @@ Pas de texte marketing. Pas de watermark.`
                       responseModalities: ['TEXT', 'IMAGE'],
                     },
                   }),
-                  signal: geminiFetchSignal(),
+                  signal: geminiFetchSignal(perFetchTimeoutMs),
                 }
               );
               if (!res.ok) {
@@ -322,18 +358,22 @@ Pas de texte marketing. Pas de watermark.`
       const generateOne = async (prompt: string): Promise<string | null> => {
         let r = await generateOneAttempt(prompt);
         if (r) return r;
+        if (isFastChunkedSingle) return null;
         await new Promise((x) => setTimeout(x, 1200));
         return generateOneAttempt(prompt);
       };
 
       try {
-        // Par lots de 2 : moins de timeouts plateforme / rate limit qu’un Promise.all sur 5–10 appels.
+        // Fast single : 1 image / requête (client enchaîne) — budget court pour Netlify ~50s.
+        // Sinon : lots de 2 (Vercel ou self-host avec maxDuration élevé).
+        const batchSize = isFastChunkedSingle ? 1 : 2;
+        const wallMs = isFastChunkedSingle ? 48_000 : 115_000;
         const imageDataUrls = await runGeminiImagePromptsInBatches(
           promptsToUse,
           generateOne,
-          2,
+          batchSize,
           startTime,
-          115_000
+          wallMs
         );
         if (imageDataUrls.length === 0) {
           return NextResponse.json({
@@ -575,7 +615,10 @@ ${reglesCommunes}`,
     };
 
     const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      const promptIndex = index % IMAGE_PROMPTS.length;
+      const promptIndex =
+        quantity === 1 && singlePromptIndex !== null
+          ? singlePromptIndex % IMAGE_PROMPTS.length
+          : index % IMAGE_PROMPTS.length;
       let finalPrompt = IMAGE_PROMPTS[promptIndex];
       if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
       const styleSuffix = nanoStyleSuffixFr(typeof style === 'string' ? style : undefined);

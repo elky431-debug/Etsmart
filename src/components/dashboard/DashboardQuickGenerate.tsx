@@ -47,7 +47,10 @@ interface ListingData {
 
 const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
 
-/** Plusieurs images Gemini peuvent dépasser un premier timeout edge — on réessaie sur 502/503/504. */
+/**
+ * Plusieurs images Gemini dépassent souvent la limite Netlify (~50s) en une seule requête.
+ * On réessaie sur 502/503/504 ; pour la génération rapide on enchaîne 1 image / requête (voir fetchGenerateImagesSequential).
+ */
 async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
   token: string,
@@ -70,6 +73,91 @@ async function fetchGenerateImagesWithRetry(
     await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
   }
   return last!;
+}
+
+/** 1 image par appel API : compatible timeout Netlify ; `clientChunkedSingle` active le chemin rapide serveur. */
+async function fetchGenerateImagesSequential(
+  basePayload: Record<string, unknown>,
+  token: string,
+  imageCount: number,
+  opts?: {
+    attemptsPerImage?: number;
+    onProgress?: (completed: number, total: number) => void;
+  }
+): Promise<{
+  imageDataUrls: string[];
+  imageTaskIds: string[];
+  firstErrorMessage: string | null;
+  quotaError?: string;
+}> {
+  const attemptsPerImage = opts?.attemptsPerImage ?? 2;
+  const imageDataUrls: string[] = [];
+  const imageTaskIds: string[] = [];
+  let firstErrorMessage: string | null = null;
+
+  for (let i = 0; i < imageCount; i++) {
+    const res = await fetchGenerateImagesWithRetry(
+      {
+        ...basePayload,
+        quantity: 1,
+        singlePromptIndex: i,
+        clientChunkedSingle: true,
+      },
+      token,
+      attemptsPerImage
+    );
+
+    let data: Record<string, unknown> = {};
+    try {
+      data = (await res.json()) as Record<string, unknown>;
+    } catch {
+      data = {};
+    }
+
+    if (!res.ok) {
+      const code = data.error;
+      if (
+        res.status === 403 &&
+        (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
+      ) {
+        const msg =
+          (typeof data.message === 'string' && data.message) ||
+          'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
+        return { imageDataUrls, imageTaskIds, firstErrorMessage: msg, quotaError: msg };
+      }
+      const msg =
+        (typeof data.message === 'string' && data.message) ||
+        (res.status === 502 || res.status === 504
+          ? `Timeout serveur (image ${i + 1} sur ${imageCount}).`
+          : `Erreur ${res.status} (image ${i + 1}).`);
+      if (!firstErrorMessage) firstErrorMessage = msg;
+      opts?.onProgress?.(imageDataUrls.length + imageTaskIds.length, imageCount);
+      continue;
+    }
+
+    const urls = data.imageDataUrls;
+    const tasks = data.imageTaskIds;
+    let got = false;
+    if (Array.isArray(urls)) {
+      const u = urls[0];
+      if (typeof u === 'string' && u.length > 20) {
+        imageDataUrls.push(u);
+        got = true;
+      }
+    }
+    if (!got && Array.isArray(tasks) && typeof tasks[0] === 'string' && tasks[0].length > 0) {
+      imageTaskIds.push(tasks[0]);
+      got = true;
+    }
+    if (!got && !firstErrorMessage) {
+      firstErrorMessage =
+        (typeof data.message === 'string' && data.message) || `Aucune image renvoyée pour la variation ${i + 1}.`;
+    }
+
+    opts?.onProgress?.(imageDataUrls.length + imageTaskIds.length, imageCount);
+  }
+
+  return { imageDataUrls, imageTaskIds, firstErrorMessage };
 }
 
 function normalizeQuotaMessage(msg: string | undefined | null): string {
@@ -393,58 +481,54 @@ export function DashboardQuickGenerate() {
       }
 
       // On n’affiche rien tant qu’on n’a pas listing + images (ou erreur) pour tout montrer en même temps
-      // 2) Images via le backend
+      // 2) Images : 1 requête API par image (évite le timeout Netlify ~50s sur un lot Gemini).
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-      const imagesResponse = await fetchGenerateImagesWithRetry(
-        {
-          sourceImage: imagePayload,
-          quantity,
-          aspectRatio: '1:1',
-          productTitle: listing.title || '',
-          tags: listing.tags,
-          materials: listing.materials,
-          engine,
-          style,
-          skipCreditDeduction: true,
-          productContext: {
-            title: listing.title || '',
-            category: '',
-            niche: '',
-            referenceImages: extraSourcePreviews.slice(0, 2),
-          },
+      const imageBase = {
+        sourceImage: imagePayload,
+        aspectRatio: '1:1',
+        productTitle: listing.title || '',
+        tags: listing.tags,
+        materials: listing.materials,
+        engine,
+        style,
+        skipCreditDeduction: true,
+        productContext: {
+          title: listing.title || '',
+          category: '',
+          niche: '',
+          referenceImages: extraSourcePreviews.slice(0, 2),
         },
-        token
-      );
+      };
 
-      let imagesData: any = {};
-      try {
-        imagesData = await imagesResponse.json();
-      } catch {
-        imagesData = {};
+      setPendingImagesCount(quantity);
+      const seq = await fetchGenerateImagesSequential(imageBase, token, quantity, {
+        attemptsPerImage: 2,
+        onProgress: (completed, total) => setPendingImagesCount(Math.max(0, total - completed)),
+      });
+      setPendingImagesCount(0);
+
+      if (seq.quotaError) {
+        setError(
+          /quota|exceeded|crédits|insuffisant/i.test(seq.quotaError)
+            ? seq.quotaError
+            : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
+        );
+        setIsGenerating(false);
+        return;
       }
-      const imageTaskIds: string[] = imagesData?.imageTaskIds ?? [];
-      const imageDataUrls: string[] = imagesData?.imageDataUrls ?? [];
-      const apiMessage = imagesData?.message;
 
-      if (!imagesResponse.ok) {
-        const code = imagesData?.error;
-        let msg =
+      const imageTaskIds: string[] = seq.imageTaskIds;
+      const imageDataUrls: string[] = seq.imageDataUrls;
+      const apiMessage = seq.firstErrorMessage;
+
+      if (imageDataUrls.length === 0 && imageTaskIds.length === 0) {
+        const msg =
           apiMessage ||
-          (imagesResponse.status === 502 || imagesResponse.status === 504
-            ? 'Le serveur a mis trop longtemps à générer toutes les images. Réessaie : les images sont traitées par petits lots.'
-            : imagesResponse.status === 503
-              ? 'Service images temporairement indisponible. Réessaie dans une minute.'
-              : 'Erreur lors de la soumission des images.');
-        if (imagesResponse.status === 403 && (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')) {
-          const quotaMsg = /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? msg : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
-          setError(quotaMsg);
-          setIsGenerating(false);
-          return;
-        }
+          'La génération des images a échoué. Utilise le listing puis « Générer les images » pour réessayer.';
         setListingData(listing);
         setGeneratedImages([]);
         setHasGenerated(true);
-        setError(msg || 'La génération des images a échoué. Vous pouvez utiliser le listing et réessayer les images plus tard.');
+        setError(msg);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
@@ -453,14 +537,20 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      console.log(`[QUICK GENERATE] Listing OK, images submitted: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls`);
+      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls (séquentiel)`);
 
       if (imageDataUrls.length > 0) {
         const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
         setListingData(listing);
         setGeneratedImages(directImages);
         setHasGenerated(true);
-        setError(directImages.length < quantity ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.` : null);
+        setError(
+          directImages.length < quantity
+            ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.${apiMessage ? ` ${apiMessage}` : ''}`
+            : apiMessage
+              ? apiMessage
+              : null
+        );
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
           sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
@@ -470,19 +560,6 @@ export function DashboardQuickGenerate() {
           refreshSubscription(true);
           if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
         }, 3000);
-        return;
-      }
-
-      if (imageTaskIds.length === 0) {
-        setListingData(listing);
-        setGeneratedImages([]);
-        setHasGenerated(true);
-        setError(apiMessage || 'La génération des images a échoué. Aucun visuel n\'a pu être soumis. Utilisez le listing puis « Générer de nouvelles images » pour réessayer.');
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          sessionStorage.removeItem(`${storageKey}-images`);
-        }
         return;
       }
 
@@ -631,64 +708,44 @@ export function DashboardQuickGenerate() {
       const safeMaterials = listingData?.materials != null ? String(listingData.materials) : '';
 
       regenCountRef.current++;
+      const variationSeed = Date.now();
       console.log(`[QUICK GENERATE] 🔄 Regenerating images (round ${regenCountRef.current})...`, bgBase64 ? '(with custom background)' : '');
 
-      const response = await fetchGenerateImagesWithRetry(
-        {
-          sourceImage: imageBase64,
-          backgroundImage: bgBase64,
-          quantity,
-          aspectRatio: '1:1',
-          engine,
-          style,
-          productTitle: listingData?.title || undefined,
-          tags: safeTags,
-          materials: safeMaterials,
-          skipCreditDeduction: true,
-          productContext: {
-            title: listingData?.title || '',
-            category: '',
-            niche: '',
-            referenceImages: extraSourcePreviews.slice(0, 2),
-          },
-          customInstructions: bgBase64
-            ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${Date.now()}).`
-            : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${Date.now()})`,
+      const regenPayloadBase = {
+        sourceImage: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+        backgroundImage: bgBase64,
+        aspectRatio: '1:1',
+        engine,
+        style,
+        productTitle: listingData?.title || undefined,
+        tags: safeTags,
+        materials: safeMaterials,
+        skipCreditDeduction: true,
+        productContext: {
+          title: listingData?.title || '',
+          category: '',
+          niche: '',
+          referenceImages: extraSourcePreviews.slice(0, 2),
         },
-        token
-      );
+        customInstructions: bgBase64
+          ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${variationSeed}).`
+          : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
+      };
 
-      if (!response.ok) {
-        let errorData: any;
-        try {
-          const text = await response.text();
-          errorData = text ? JSON.parse(text) : { error: 'Erreur inconnue' };
-        } catch {
-          errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
-        }
-        const message =
-          errorData.message ||
-          (errorData.error === 'IMAGE_SUBMIT_FAILED'
-            ? 'Le service d\'images n\'a pas accepté la requête. Vérifie GEMINI_API_KEY côté serveur (recommandé), ou la clé Nanobanana si tu forces ce fournisseur.'
-            : errorData.error) || `Erreur ${response.status}`;
-        setError(message);
+      const seqRegen = await fetchGenerateImagesSequential(regenPayloadBase, token, quantity, {
+        attemptsPerImage: 2,
+      });
+
+      if (seqRegen.quotaError) {
+        setError(normalizeQuotaMessage(seqRegen.quotaError));
         setIsRegeneratingImages(false);
         return;
       }
 
-      let data: any = {};
-      try {
-        data = await response.json();
-      } catch (parseErr) {
-        console.error('[QUICK GENERATE] Invalid JSON from generate-images:', parseErr);
-        setError('Réponse du serveur invalide. Réessayez.');
-        setIsRegeneratingImages(false);
-        return;
-      }
-      console.log('[QUICK GENERATE] Regenerated images (tasks):', data);
+      const taskIds: string[] = seqRegen.imageTaskIds;
+      const dataUrls: string[] = seqRegen.imageDataUrls;
 
-      const taskIds: string[] = Array.isArray(data.imageTaskIds) ? data.imageTaskIds : [];
-      const dataUrls: string[] = Array.isArray(data.imageDataUrls) ? data.imageDataUrls : [];
+      console.log('[QUICK GENERATE] Regenerated images (séquentiel):', { taskIds: taskIds.length, dataUrls: dataUrls.length });
 
       if (dataUrls.length > 0) {
         const newImages: GeneratedImage[] = dataUrls
@@ -699,8 +756,14 @@ export function DashboardQuickGenerate() {
           if (typeof window !== 'undefined') saveImagesToSession(next);
           return next;
         });
+        if (dataUrls.length < quantity && seqRegen.firstErrorMessage) {
+          setError(`Seulement ${dataUrls.length} image(s) sur ${quantity}. ${seqRegen.firstErrorMessage}`);
+        }
       } else if (taskIds.length === 0) {
-        setError(data.message || data.error || 'La génération d\'images a échoué. Réessayez.');
+        setError(
+          seqRegen.firstErrorMessage ||
+            'La génération d\'images a échoué. Réessayez.'
+        );
       } else {
         const deadline = Date.now() + getImagePollDeadlineMs(quantity);
         const pollMs = getImagePollIntervalMs(quantity);
@@ -1016,7 +1079,7 @@ export function DashboardQuickGenerate() {
                     ))}
                   </div>
                   <p className="mt-2 text-[10px] text-white/45">
-                    7 images : génération en parallèle côté serveur, attente max ~2 min si le fournisseur est lent.
+                    Plusieurs images : une requête courte par visuel (compatible hébergement type Netlify ~50s). Durée totale ≈ 20–45 s par image.
                   </p>
                 </div>
 
@@ -1143,7 +1206,7 @@ export function DashboardQuickGenerate() {
                 Génération du listing et des images...
               </p>
               <p className="text-sm text-white/70 mt-2">
-                Tout arrive en même temps dans quelques secondes
+                Le listing arrive en premier, puis chaque image est générée une par une (plus fiable).
               </p>
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
