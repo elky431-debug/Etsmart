@@ -48,8 +48,8 @@ interface ListingData {
 const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
 
 /**
- * Plusieurs images Gemini dépassent souvent la limite Netlify (~50s) en une seule requête.
- * On réessaie sur 502/503/504 ; pour la génération rapide on enchaîne 1 image / requête (voir fetchGenerateImagesSequential).
+ * Plusieurs images Gemini : éviter un seul POST géant (timeout).
+ * Stratégie génération rapide : paires (2 images / requête, prompts en parallèle côté serveur) + requêtes HTTP en parallèle, puis secours 1 image / slot si besoin.
  */
 async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
@@ -76,16 +76,36 @@ async function fetchGenerateImagesWithRetry(
   return last!;
 }
 
+type ImageBatchChunk = { start: number; qty: 1 | 2 | 3 };
+
+/** Priorité aux blocs de 3 : 1 requête = 3 Gemini en parallèle côté serveur (plus rapide que 2+2+2+1). */
+function buildImageChunks(imageCount: number): ImageBatchChunk[] {
+  const chunks: ImageBatchChunk[] = [];
+  let i = 0;
+  while (i < imageCount) {
+    const left = imageCount - i;
+    if (left >= 3) {
+      chunks.push({ start: i, qty: 3 });
+      i += 3;
+    } else if (left === 2) {
+      chunks.push({ start: i, qty: 2 });
+      i += 2;
+    } else {
+      chunks.push({ start: i, qty: 1 });
+      i += 1;
+    }
+  }
+  return chunks;
+}
+
 /**
- * 1 image par appel API (sous la limite Netlify). Plusieurs slots en parallèle (défaut 2) pour diviser ~par 2 le temps total.
+ * Génération rapide : blocs de 3 (1 POST = 3 Gemini parallèles serveur) + tous les blocs en parallèle côté client.
  */
-async function fetchGenerateImagesSequential(
+async function fetchGenerateImagesQuickBatched(
   basePayload: Record<string, unknown>,
   token: string,
   imageCount: number,
   opts?: {
-    attemptsPerImage?: number;
-    concurrency?: number;
     onProgress?: (completed: number, total: number) => void;
   }
 ): Promise<{
@@ -94,16 +114,33 @@ async function fetchGenerateImagesSequential(
   firstErrorMessage: string | null;
   quotaError?: string;
 }> {
-  const attemptsPerImage = opts?.attemptsPerImage ?? 2;
-  const concurrency = Math.min(3, Math.max(1, opts?.concurrency ?? 2));
   const urlByIndex: (string | undefined)[] = new Array(imageCount);
   const taskByIndex: (string | undefined)[] = new Array(imageCount);
   let firstErrorMessage: string | null = null;
 
   const countDone = () =>
-    urlByIndex.filter((u) => u && u.length > 20).length + taskByIndex.filter((t) => t && t.length > 0).length;
+    urlByIndex.filter((u) => u && u.length > 20).length +
+    taskByIndex.filter((t) => t && t.length > 0).length;
 
-  async function runSlot(index: number): Promise<'quota' | void> {
+  const applyResponse = (
+    start: number,
+    data: Record<string, unknown>
+  ) => {
+    const urls = data.imageDataUrls;
+    const tasks = data.imageTaskIds;
+    if (Array.isArray(urls)) {
+      urls.forEach((u, j) => {
+        if (typeof u === 'string' && u.length > 20) urlByIndex[start + j] = u;
+      });
+    }
+    if (Array.isArray(tasks)) {
+      tasks.forEach((t, j) => {
+        if (typeof t === 'string' && t.length > 0) taskByIndex[start + j] = t;
+      });
+    }
+  };
+
+  async function runSingleIndex(index: number): Promise<'quota' | void> {
     const res = await fetchGenerateImagesWithRetry(
       {
         ...basePayload,
@@ -112,10 +149,57 @@ async function fetchGenerateImagesSequential(
         clientChunkedSingle: true,
       },
       token,
-      attemptsPerImage,
-      900
+      2,
+      1200
     );
+    let data: Record<string, unknown> = {};
+    try {
+      data = (await res.json()) as Record<string, unknown>;
+    } catch {
+      data = {};
+    }
+    if (!res.ok) {
+      const code = data.error;
+      if (
+        res.status === 403 &&
+        (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
+      ) {
+        return 'quota';
+      }
+      const msg =
+        (typeof data.message === 'string' && data.message) ||
+        `Erreur ${res.status} (image ${index + 1}).`;
+      if (!firstErrorMessage) firstErrorMessage = msg;
+      opts?.onProgress?.(countDone(), imageCount);
+      return;
+    }
+    applyResponse(index, data);
+    opts?.onProgress?.(countDone(), imageCount);
+  }
 
+  async function runChunk(chunk: ImageBatchChunk): Promise<'quota' | void> {
+    const { start, qty } = chunk;
+    const body =
+      qty === 3
+        ? {
+            ...basePayload,
+            quantity: 3,
+            promptStartIndex: start,
+          }
+        : qty === 2
+          ? {
+              ...basePayload,
+              quantity: 2,
+              promptStartIndex: start,
+            }
+          : {
+              ...basePayload,
+              quantity: 1,
+              singlePromptIndex: start,
+              clientChunkedSingle: true,
+            };
+
+    const res = await fetchGenerateImagesWithRetry(body, token, 2, 900);
     let data: Record<string, unknown> = {};
     try {
       data = (await res.json()) as Record<string, unknown>;
@@ -131,60 +215,98 @@ async function fetchGenerateImagesSequential(
       ) {
         return 'quota';
       }
-      const msg =
-        (typeof data.message === 'string' && data.message) ||
-        (res.status === 502 || res.status === 504
-          ? `Timeout serveur (image ${index + 1} sur ${imageCount}).`
-          : `Erreur ${res.status} (image ${index + 1}).`);
-      if (!firstErrorMessage) firstErrorMessage = msg;
+      if (qty === 3) {
+        const [a, b, c] = await Promise.all([
+          runSingleIndex(start),
+          runSingleIndex(start + 1),
+          runSingleIndex(start + 2),
+        ]);
+        if (a === 'quota' || b === 'quota' || c === 'quota') return 'quota';
+        return;
+      }
+      if (qty === 2) {
+        const [q1, q2] = await Promise.all([runSingleIndex(start), runSingleIndex(start + 1)]);
+        if (q1 === 'quota' || q2 === 'quota') return 'quota';
+        return;
+      }
+      if (!firstErrorMessage) {
+        firstErrorMessage =
+          (typeof data.message === 'string' && data.message) ||
+          `Erreur ${res.status} (images ${start + 1}+).`;
+      }
       opts?.onProgress?.(countDone(), imageCount);
       return;
     }
 
-    const urls = data.imageDataUrls;
-    const tasks = data.imageTaskIds;
-    let got = false;
-    if (Array.isArray(urls)) {
-      const u = urls[0];
-      if (typeof u === 'string' && u.length > 20) {
-        urlByIndex[index] = u;
-        got = true;
+    applyResponse(start, data);
+    const slots =
+      qty === 3
+        ? [start, start + 1, start + 2]
+        : qty === 2
+          ? [start, start + 1]
+          : [start];
+    const gotUrls = slots.filter((s) => urlByIndex[s] && urlByIndex[s]!.length > 20).length;
+    if (gotUrls < qty) {
+      const jobs: Promise<'quota' | void>[] = [];
+      for (const s of slots) {
+        if (!urlByIndex[s] || urlByIndex[s]!.length <= 20) jobs.push(runSingleIndex(s));
+      }
+      if (jobs.length > 0) {
+        const r = await Promise.all(jobs);
+        if (r.some((x) => x === 'quota')) return 'quota';
       }
     }
-    if (!got && Array.isArray(tasks) && typeof tasks[0] === 'string' && tasks[0].length > 0) {
-      taskByIndex[index] = tasks[0];
-      got = true;
-    }
-    if (!got && !firstErrorMessage) {
-      firstErrorMessage =
-        (typeof data.message === 'string' && data.message) || `Aucune image renvoyée pour la variation ${index + 1}.`;
-    }
-
     opts?.onProgress?.(countDone(), imageCount);
   }
 
-  for (let start = 0; start < imageCount; start += concurrency) {
-    const batch = [];
-    for (let k = 0; k < concurrency && start + k < imageCount; k++) {
-      batch.push(start + k);
+  const chunks = buildImageChunks(imageCount);
+  /** Tous les lots en parallèle (ex. 4 POST pour 7 images) → temps ≈ le plus lent des lots, pas la somme des vagues. */
+  const results = await Promise.all(chunks.map((c) => runChunk(c)));
+  if (results.some((r) => r === 'quota')) {
+    const msg = QUOTA_MESSAGE_FR;
+    const imageDataUrls: string[] = [];
+    const imageTaskIds: string[] = [];
+    for (let i = 0; i < imageCount; i++) {
+      const u = urlByIndex[i];
+      if (typeof u === 'string' && u.length > 20) imageDataUrls.push(u);
+      else {
+        const t = taskByIndex[i];
+        if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
+      }
     }
-    const results = await Promise.all(batch.map((idx) => runSlot(idx)));
-    if (results.some((r) => r === 'quota')) {
-      const msg =
-        'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
-      const urlsOut: string[] = [];
-      const tasksOut: string[] = [];
+    return {
+      imageDataUrls,
+      imageTaskIds,
+      firstErrorMessage: msg,
+      quotaError: msg,
+    };
+  }
+
+  const missing: number[] = [];
+  for (let i = 0; i < imageCount; i++) {
+    const u = urlByIndex[i];
+    const t = taskByIndex[i];
+    if (!(typeof u === 'string' && u.length > 20) && !(typeof t === 'string' && t.length > 0)) {
+      missing.push(i);
+    }
+  }
+  if (missing.length > 0) {
+    const retryResults = await Promise.all(missing.map((idx) => runSingleIndex(idx)));
+    if (retryResults.some((r) => r === 'quota')) {
+      const msg = QUOTA_MESSAGE_FR;
+      const imageDataUrls: string[] = [];
+      const imageTaskIds: string[] = [];
       for (let i = 0; i < imageCount; i++) {
         const u = urlByIndex[i];
-        if (typeof u === 'string' && u.length > 20) urlsOut.push(u);
+        if (typeof u === 'string' && u.length > 20) imageDataUrls.push(u);
         else {
           const t = taskByIndex[i];
-          if (typeof t === 'string' && t.length > 0) tasksOut.push(t);
+          if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
         }
       }
       return {
-        imageDataUrls: urlsOut,
-        imageTaskIds: tasksOut,
+        imageDataUrls,
+        imageTaskIds,
         firstErrorMessage: msg,
         quotaError: msg,
       };
@@ -259,7 +381,7 @@ export function DashboardQuickGenerate() {
   const [extraSourcePreviews, setExtraSourcePreviews] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(5);
+  const [quantity, setQuantity] = useState(7);
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, engine);
@@ -280,6 +402,8 @@ export function DashboardQuickGenerate() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
   const [pendingImagesCount, setPendingImagesCount] = useState(0);
+  /** listing | images — pour l’overlay de chargement */
+  const [quickGenPhase, setQuickGenPhase] = useState<'listing' | 'images' | null>(null);
 
   // Éviter QuotaExceeded : ne pas sauver les images en base64 (trop lourd) dans sessionStorage
   const saveImagesToSession = useCallback((images: GeneratedImage[]) => {
@@ -433,6 +557,7 @@ export function DashboardQuickGenerate() {
     }
 
     setIsGenerating(true);
+    setQuickGenPhase('listing');
     setGeneratedImages([]);
     setListingData(null);
     setError(null);
@@ -441,7 +566,7 @@ export function DashboardQuickGenerate() {
     try {
       let imageBase64: string;
       if (sourceImage) {
-        imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
+        imageBase64 = await compressImageToBase64(sourceImage, 480, 480, 0.52);
       } else {
         imageBase64 = sourceImagePreview!;
       }
@@ -450,7 +575,6 @@ export function DashboardQuickGenerate() {
       const token = session?.access_token;
       if (!token) {
         setError('Authentification requise pour utiliser la génération rapide.');
-        setIsGenerating(false);
         return;
       }
 
@@ -469,7 +593,6 @@ export function DashboardQuickGenerate() {
           if (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED') {
             const quotaMsg = /quota|exceeded|crédits|insuffisant/i.test(String(msg)) ? (msg || fallbackMessage) : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
             setError(quotaMsg);
-            setIsGenerating(false);
             return;
           }
           // Pour les autres erreurs (ex: INTERNAL_ERROR), on ignore simplement côté UI
@@ -500,7 +623,6 @@ export function DashboardQuickGenerate() {
           // ignore parse error, garder message par défaut
         }
         setError(message);
-        setIsGenerating(false);
         return;
       } else {
         try {
@@ -515,19 +637,16 @@ export function DashboardQuickGenerate() {
           }
         } catch {
           setError('Réponse listing invalide. Réessayez.');
-          setIsGenerating(false);
           return;
         }
       }
 
       if (!listing) {
         setError('Impossible de générer le listing. Réessayez dans quelques instants.');
-        setIsGenerating(false);
         return;
       }
 
-      // On n’affiche rien tant qu’on n’a pas listing + images (ou erreur) pour tout montrer en même temps
-      // 2) Images : 1 requête API par image (évite le timeout Netlify ~50s sur un lot Gemini).
+      // 2) Images : paires (2 visuels / requête) + requêtes en parallèle, avec repli 1 visuel / slot si besoin.
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imageBase = {
         sourceImage: imagePayload,
@@ -546,9 +665,9 @@ export function DashboardQuickGenerate() {
         },
       };
 
+      setQuickGenPhase('images');
       setPendingImagesCount(quantity);
-      const seq = await fetchGenerateImagesSequential(imageBase, token, quantity, {
-        attemptsPerImage: 2,
+      const seq = await fetchGenerateImagesQuickBatched(imageBase, token, quantity, {
         onProgress: (completed, total) => setPendingImagesCount(Math.max(0, total - completed)),
       });
       setPendingImagesCount(0);
@@ -559,7 +678,6 @@ export function DashboardQuickGenerate() {
             ? seq.quotaError
             : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
         );
-        setIsGenerating(false);
         return;
       }
 
@@ -583,7 +701,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls (séquentiel)`);
+      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls (batch)`);
 
       if (imageDataUrls.length > 0) {
         const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
@@ -668,6 +786,7 @@ export function DashboardQuickGenerate() {
       setListingData(null);
     } finally {
       setIsGenerating(false);
+      setQuickGenPhase(null);
     }
   };
 
@@ -687,7 +806,7 @@ export function DashboardQuickGenerate() {
       let imageBase64: string;
       if (sourceImage) {
         try {
-          imageBase64 = await compressImageToBase64(sourceImage, 512, 512, 0.6);
+          imageBase64 = await compressImageToBase64(sourceImage, 480, 480, 0.52);
         } catch (e) {
           setError('Impossible de lire l’image. Réimporte une photo.');
           setIsRegeneratingImages(false);
@@ -778,9 +897,7 @@ export function DashboardQuickGenerate() {
           : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
       };
 
-      const seqRegen = await fetchGenerateImagesSequential(regenPayloadBase, token, quantity, {
-        attemptsPerImage: 2,
-      });
+      const seqRegen = await fetchGenerateImagesQuickBatched(regenPayloadBase, token, quantity, {});
 
       if (seqRegen.quotaError) {
         setError(normalizeQuotaMessage(seqRegen.quotaError));
@@ -791,7 +908,7 @@ export function DashboardQuickGenerate() {
       const taskIds: string[] = seqRegen.imageTaskIds;
       const dataUrls: string[] = seqRegen.imageDataUrls;
 
-      console.log('[QUICK GENERATE] Regenerated images (séquentiel):', { taskIds: taskIds.length, dataUrls: dataUrls.length });
+      console.log('[QUICK GENERATE] Regenerated images (batch):', { taskIds: taskIds.length, dataUrls: dataUrls.length });
 
       if (dataUrls.length > 0) {
         const newImages: GeneratedImage[] = dataUrls
@@ -1249,11 +1366,20 @@ export function DashboardQuickGenerate() {
             >
               <Loader2 size={48} className="text-[#00d4ff] animate-spin mb-4" />
               <p className="text-lg font-semibold text-white">
-                Génération du listing et des images...
+                {quickGenPhase === 'images'
+                  ? 'Génération des visuels…'
+                  : 'Analyse & listing en cours…'}
               </p>
-              <p className="text-sm text-white/70 mt-2">
-                Le listing arrive en premier, puis chaque image est générée une par une (plus fiable).
+              <p className="text-sm text-white/70 mt-2 max-w-md text-center">
+                {quickGenPhase === 'images'
+                  ? 'Plusieurs images sont produites en parallèle (requêtes groupées) pour aller plus vite.'
+                  : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : visuels en parallèle.'}
               </p>
+              {quickGenPhase === 'images' && quantity > 0 && (
+                <p className="text-xs text-[#00d4ff]/80 mt-3">
+                  Jusqu’à {quantity} image{quantity > 1 ? 's' : ''} — patience, l’IA image prend souvent 1–2 min.
+                </p>
+              )}
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
             <motion.div

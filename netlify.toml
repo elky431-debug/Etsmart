@@ -13,8 +13,8 @@
 
 # Configuration pour Next.js API routes
 # IMPORTANT: Même avec le plan Pro, le timeout maximum est souvent ~50 secondes par fonction.
-# La génération rapide enchaîne 1 image / requête API (client) + timeout Gemini court côté serveur
-# pour rester sous cette limite. Éviter un seul POST qui génère 5–7 images d’un coup.
+# La génération rapide utilise des POST par paires (2 images / requête, prompts parallèles) + secours 1 image,
+# avec maxDuration côté route (generate-images) pour rester sous la limite hébergeur.
 
 [functions]
   # Configuration pour les fonctions Netlify (si utilisées)

@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: [
-          { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 100-200 words.' },
+          { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 80-120 words, concise.' },
           { type: 'image_url', image_url: { url: imageForAnalysis, detail: 'low' } },
         ]}],
-        max_tokens: 300,
+        max_tokens: 240,
       }),
     });
     if (!analysisResp.ok) return NextResponse.json({ error: 'IMAGE_ANALYSIS_FAILED' }, { status: 500 });
@@ -111,7 +111,7 @@ Return ONLY the final description text.`,
             },
           ],
           temperature: 0.75,
-          max_tokens: 1500,
+          max_tokens: 1000,
         }),
       }).then(async r => {
         if (!r.ok) return '';
@@ -169,7 +169,7 @@ Return JSON exactly:
 {"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`,
             },
           ],
-          temperature: 0.5, max_tokens: 420,
+          temperature: 0.5, max_tokens: 360,
           response_format: { type: 'json_object' },
         }),
       }).then(async r => {
