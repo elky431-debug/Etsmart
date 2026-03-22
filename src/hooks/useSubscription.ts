@@ -92,39 +92,84 @@ export function useSubscription() {
         console.log('[useSubscription] Stripe direct check:', stripeData);
         
         if (stripeData.hasSubscription) {
-          // Use Stripe data directly - this is the source of truth
-          // Vérifier si la période est toujours valide (même si cancel_at_period_end)
+          // Stripe : période / customer. Les chiffres utilisés/quota/restants doivent matcher
+          // getUserQuotaInfo (DB + bonus manuels), comme /api/deduct-credits — pas seulement check-stripe.
           const periodEnd = stripeData.periodEnd ? new Date(stripeData.periodEnd) : null;
           const now = new Date();
           const isPeriodValid = periodEnd && periodEnd > now;
-          
-          // Le statut est 'active' si la période est valide (même si cancel_at_period_end)
-          // C'est la même logique que la version en ligne : si la période est valide, l'abonnement est actif
+
           const effectiveStatus = isPeriodValid ? 'active' : 'canceled';
-          
-          const usedValue = parseFloat(stripeData.used) || 0;
-          const remainingValue = parseFloat(stripeData.remaining) || (stripeData.quota - usedValue);
+
+          let usedValue = parseFloat(String(stripeData.used)) || 0;
+          let quotaValue =
+            typeof stripeData.quota === 'number' ? stripeData.quota : parseFloat(String(stripeData.quota)) || 0;
+          let remainingValue =
+            parseFloat(String(stripeData.remaining)) ||
+            Math.max(0, quotaValue - usedValue);
+          // Par défaut le plan vient de Stripe ; si la DB dit autre chose (ex. PRO en SQL, Stripe mal mappé) on aligne.
+          let planValue: PlanId = (stripeData.plan as PlanId) || 'FREE';
+          let requiresUpgrade: PlanId | undefined;
+
+          try {
+            const subRes = await fetch('/api/user/subscription', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (subRes.ok) {
+              const sub = await subRes.json();
+              if (sub.status === 'active') {
+                usedValue = parseFloat(String(sub.used)) || 0;
+                if (typeof sub.quota === 'number') {
+                  quotaValue = sub.quota;
+                } else if (sub.quota != null) {
+                  const q = parseFloat(String(sub.quota));
+                  if (!Number.isNaN(q)) quotaValue = q;
+                }
+                if (typeof sub.remaining === 'number') {
+                  remainingValue = sub.remaining;
+                } else if (sub.remaining != null) {
+                  const r = parseFloat(String(sub.remaining));
+                  if (!Number.isNaN(r)) remainingValue = r;
+                }
+                if (sub.plan) {
+                  planValue = sub.plan as PlanId;
+                }
+                if (sub.requiresUpgrade) {
+                  requiresUpgrade = sub.requiresUpgrade as PlanId;
+                }
+                console.log('[useSubscription] Affichage aligné sur DB (getUserQuotaInfo) — plan + crédits:', {
+                  plan: planValue,
+                  used: usedValue,
+                  quota: quotaValue,
+                  remaining: remainingValue,
+                });
+              }
+            }
+          } catch (overlayErr) {
+            console.warn('[useSubscription] Impossible de lire /api/user/subscription, chiffres Stripe conservés', overlayErr);
+          }
+
           if (mountedRef.current) {
             setSubscription({
-              plan: stripeData.plan,
+              plan: planValue,
               status: effectiveStatus,
-              // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
               used: usedValue,
-              quota: stripeData.quota,
+              quota: quotaValue,
               remaining: remainingValue,
+              requiresUpgrade,
               periodStart: stripeData.periodStart ? new Date(stripeData.periodStart) : null,
               periodEnd: periodEnd,
             });
             setError(null);
             setLoading(false);
-            lastFetchTime.current = Date.now(); // Update cache timestamp
-            console.log('[useSubscription] ✅ Subscription data updated from Stripe:', {
+            lastFetchTime.current = Date.now();
+            console.log('[useSubscription] ✅ Subscription (Stripe + overlay DB si active):', {
+              plan: planValue,
               status: effectiveStatus,
               cancelAtPeriodEnd: stripeData.cancelAtPeriodEnd,
               isPeriodValid,
               used: usedValue,
               remaining: remainingValue,
-              quota: stripeData.quota,
+              quota: quotaValue,
               timestamp: new Date().toISOString(),
             });
           }
