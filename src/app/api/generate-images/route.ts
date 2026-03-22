@@ -375,7 +375,14 @@ Pas de texte marketing. Pas de watermark.`
             return null;
           }
           const data = await res.json();
-          const parts = data?.candidates?.[0]?.content?.parts || [];
+          const cand0 = data?.candidates?.[0];
+          const parts = cand0?.content?.parts || [];
+          if (parts.length === 0 && cand0) {
+            console.warn(`[IMAGE GEN] Gemini ${model} réponse sans image`, {
+              finishReason: cand0.finishReason,
+              blockReason: data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason,
+            });
+          }
           for (const part of parts) {
             const b64 = part?.inlineData?.data;
             const mime = part?.inlineData?.mimeType || 'image/png';

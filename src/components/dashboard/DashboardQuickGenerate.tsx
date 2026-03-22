@@ -47,6 +47,18 @@ interface ListingData {
 
 const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
 
+/**
+ * En local, on peut paralléliser (rapide). En prod (Netlify, etc.), plusieurs POST simultanés
+ * vers Gemini depuis la même IP → souvent 429 / timeouts → résultats partiels (ex. 2/7 images).
+ */
+function getQuickGenImageConcurrency(engineMode: ImageEngine): number {
+  if (typeof window === 'undefined') return 1;
+  const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (!isLocal) return 1;
+  return engineMode === 'pro' ? 2 : 3;
+}
+
 /** Plusieurs images Gemini peuvent dépasser un premier timeout edge — on réessaie sur 502/503/504. */
 async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
@@ -340,7 +352,7 @@ export function DashboardQuickGenerate() {
     imageCount: number;
     engineMode: ImageEngine;
   }): Promise<{ images: GeneratedImage[]; warning: string | null }> => {
-    const concurrency = engineMode === 'pro' ? 2 : 3;
+    const concurrency = getQuickGenImageConcurrency(engineMode);
     const maxWorkers = Math.max(1, Math.min(concurrency, imageCount));
     const slots: Array<GeneratedImage | null> = Array.from({ length: imageCount }, () => null);
     const errors: string[] = [];
@@ -1002,7 +1014,7 @@ export function DashboardQuickGenerate() {
                     ))}
                   </div>
                   <p className="mt-2 text-[10px] text-white/45">
-                    Plusieurs images : 2 générations en parallèle max, une requête courte par visuel (limite ~50s côté hébergeur). Environ 25–50 s par image selon le modèle.
+                    Plusieurs images : sur le site (prod), une image à la fois pour éviter les blocages Gemini ; en local, jusqu’à 2–3 en parallèle. Environ 25–60 s par image selon le moteur.
                   </p>
                 </div>
 
@@ -1133,8 +1145,8 @@ export function DashboardQuickGenerate() {
               </p>
               <p className="text-sm text-white/70 mt-2 max-w-md text-center">
                 {quickGenPhase === 'images'
-                  ? 'Plusieurs images sont produites en parallèle (requêtes groupées) pour aller plus vite.'
-                  : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : visuels en parallèle.'}
+                  ? 'Les visuels sont générés un par un sur le site pour rester stable avec Gemini (plus long, moins d’échecs).'
+                  : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels.'}
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
                 <p className="text-xs text-[#00d4ff]/80 mt-3">
