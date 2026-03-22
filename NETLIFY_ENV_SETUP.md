@@ -27,6 +27,13 @@ Vous devez ajouter les variables suivantes dans Netlify :
    - Votre clé API OpenAI
    - Trouvable sur : https://platform.openai.com/api-keys
 
+5. **`GEMINI_API_KEY`** (recommandé pour la génération d’images)
+   - Clé Google AI Studio / Gemini utilisée par `/api/generate-images`.
+
+6. **`GEMINI_PRO_IMAGE_NATIVE`** (optionnel, défaut : désactivé)
+   - Si `true` ou `1` : le bouton **Pro** utilise d’abord **Gemini 3 Pro Image** (quota journalier souvent très bas).
+   - Si absent / `false` : le bouton **Pro** utilise **Gemini 3.1 Flash Image** (`gemini-3.1-flash-image-preview`) puis repli sur **2.5 Flash Image** — mieux pour des lots (ex. 7 images).
+
 ## 🔧 Comment configurer sur Netlify
 
 ### Étape 1 : Accéder aux paramètres d'environnement

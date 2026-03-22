@@ -134,6 +134,9 @@ export async function POST(request: NextRequest) {
     // Nanobanana seulement si pas de clé Gemini, ou si USE_NANOBANANA_IMAGES=true (opt-in explicite).
     const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true';
     const useGemini = !!GEMINI_KEY && !forceNano;
+    /** Si true : moteur UI « pro » = Gemini 3 Pro Image (quota RPD très bas). Sinon : Nano Banana 2 / 3.1 Flash Image d’abord. */
+    const geminiProUsesNative3ProImage =
+      process.env.GEMINI_PRO_IMAGE_NATIVE === 'true' || process.env.GEMINI_PRO_IMAGE_NATIVE === '1';
 
     if (!useGemini && !NANO_KEY) {
       console.error('[IMAGE GEN] Aucune clé image utilisable (GEMINI_API_KEY ou clés Nanobanana)');
@@ -313,25 +316,28 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
+      // UI « pro » : par défaut Gemini 3.1 Flash Image (meilleur quota RPD que 3 Pro Image). Opt-in natif via GEMINI_PRO_IMAGE_NATIVE.
       const modelCandidatesFull =
         engineSafe === 'pro'
-          ? [
-              'gemini-3-pro-image-preview',
-              'nano-banana-pro-preview',
-              'gemini-3.1-flash-image-preview',
-              'gemini-2.5-flash-image',
-            ]
+          ? geminiProUsesNative3ProImage
+            ? [
+                'gemini-3-pro-image-preview',
+                'nano-banana-pro-preview',
+                'gemini-3.1-flash-image-preview',
+                'gemini-2.5-flash-image',
+              ]
+            : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
           : [
               'gemini-2.5-flash-image',
               'gemini-3.1-flash-image-preview',
-              'gemini-3-pro-image-preview',
-              'nano-banana-pro-preview',
             ];
       // Flash chunked : 3.1 d’abord (souvent meilleur rendu), puis 2.5 en repli rapide.
       // Moins de modèles = moins de temps perdu en repli (génération rapide).
       const modelCandidatesFast =
         engineSafe === 'pro'
-          ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+          ? geminiProUsesNative3ProImage
+            ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+            : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
           : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
       // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
       const modelCandidates =
