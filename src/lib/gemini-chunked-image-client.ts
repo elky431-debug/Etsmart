@@ -16,10 +16,13 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Par défaut: parallélisme modéré pour garder la vitesse sans exploser les erreurs transientes. */
+/** En prod: limiter un peu le parallélisme pour éviter les 504 en rafale sur Netlify. */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return engineMode === 'pro' ? 2 : 3;
-  return engineMode === 'pro' ? 2 : 3;
+  if (typeof window === 'undefined') return engineMode === 'pro' ? 1 : 2;
+  const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (isLocal) return engineMode === 'pro' ? 2 : 3;
+  return engineMode === 'pro' ? 1 : 2;
 }
 
 /** Retries sur 502/503/504 / erreurs transitoires. */

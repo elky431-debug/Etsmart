@@ -30,13 +30,11 @@ Vous devez ajouter les variables suivantes dans Netlify :
 5. **`GEMINI_API_KEY`** (recommandé pour la génération d’images)
    - Clé Google AI Studio / Gemini utilisée par `/api/generate-images`.
 
-6. **`GEMINI_PRO_IMAGE_NATIVE`** (optionnel, défaut : désactivé)
-   - Si `true` ou `1` : le bouton **Pro** utilise d’abord **Gemini 3 Pro Image** (quota journalier souvent très bas).
-   - Si absent / `false` : le bouton **Pro** utilise **Gemini 3.1 Flash Image** (`gemini-3.1-flash-image-preview`) puis repli sur **2.5 Flash Image** — mieux pour des lots (ex. 7 images).
-
-7. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
-   - Par défaut **non défini** = budget **~52 s (flash) / ~56 s (pro)** par image (comportement fiable avec Gemini).
-   - **Sur Netlify gratuit** (gateway ~**26 s**), définis par ex. **`GEMINI_CHUNK_SINGLE_WALL_MS=24000`** pour limiter les **504**, au prix de plus d’échecs « pas d’image » si Gemini est lent.
+6. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
+   - Si non défini:
+     - sur **Netlify**, l’application prend maintenant un budget auto d’environ **19 s** par image pour éviter les **504**,
+     - hors Netlify, elle garde le budget long **~52 s (flash) / ~56 s (pro)**.
+   - Si besoin, vous pouvez forcer une valeur manuelle, par ex. `18000` à `22000` sur Netlify selon votre plan.
 
 ## 🔧 Comment configurer sur Netlify
 

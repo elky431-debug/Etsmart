@@ -18,6 +18,10 @@ const GEMINI_PRO_SINGLE_WALL_MS = 56_000;
 const GEMINI_PAIR_WALL_MS = 110_000;
 const GEMINI_MULTI_BATCH_WALL_MS = 115_000;
 
+function isNetlifyRuntime(): boolean {
+  return Boolean(process.env.SITE_ID && process.env.URL);
+}
+
 /**
  * Budget « 1 image / requête » (génération rapide chunked).
  * Défaut = comportement d’origine (52s flash / 56s pro) pour que Gemini ait le temps de répondre.
@@ -29,8 +33,8 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  // Netlify a souvent une gateway stricte: sans override explicite, limiter le budget single.
-  if (process.env.NETLIFY === 'true') return 24_000;
+  // Netlify a souvent une gateway stricte: garder une marge réelle pour auth + compression + JSON.
+  if (isNetlifyRuntime()) return 19_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -184,6 +188,7 @@ export async function POST(request: NextRequest) {
 
       const numImages = Math.min(Math.max(quantity, 1), 10);
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
+      const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       // Demande produit: le bouton "Pro" reste routé vers Gemini 3.1 Flash Image.
       const forceProToFlash31 = engineSafe === 'pro';
@@ -202,9 +207,10 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            // Flash chunked : plus de détail. Pro chunked : plus léger (temps). Lots : compact.
-            const maxSide = isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
-            const jpegQ = isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
+            // Sur Netlify, privilégier des refs plus légères pour rester sous la gateway.
+            const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
+            const maxSide = isNetlifyFastSingle ? 640 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
+            const jpegQ = isNetlifyFastSingle ? 72 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -331,6 +337,7 @@ Pas de texte marketing. Pas de watermark.`
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
       // Pro est volontairement mappé vers Gemini 3.1 Flash Image pour stabilité + vitesse.
+      // En fast single sur Netlify: 1 seul modèle, 1 seule chance, pour éviter les 504 de gateway.
       const modelCandidatesFull =
         engineSafe === 'pro'
           ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
@@ -338,12 +345,13 @@ Pas de texte marketing. Pas de watermark.`
               'gemini-2.5-flash-image',
               'gemini-3.1-flash-image-preview',
             ];
-      // Flash chunked : 3.1 d’abord (souvent meilleur rendu), puis 2.5 en repli rapide.
-      // Moins de modèles = moins de temps perdu en repli (génération rapide).
+      // Flash chunked : 3.1 d’abord pour limiter les allers-retours sur Netlify.
       const modelCandidatesFast =
-        engineSafe === 'pro'
+        isNetlifyHost && isFastChunkedSingle
+          ? ['gemini-3.1-flash-image-preview']
+          : engineSafe === 'pro'
           ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
-          : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+          : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'];
       // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
       const modelCandidates =
         isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
@@ -417,13 +425,18 @@ Pas de texte marketing. Pas de watermark.`
 
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const multiFast = !isFastChunkedSingle && numImages >= 2;
+        const primaryInlineImageParts = [inlineImageParts[0]].filter(
+          (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
+        );
         const imagePartSets = isProFastSingle
           ? [inlineImageParts]
           : isFastChunkedSingle
-            ? [inlineImageParts, [inlineImageParts[0]].filter(Boolean)]
+            ? isNetlifyHost
+              ? [primaryInlineImageParts]
+              : [inlineImageParts, primaryInlineImageParts]
             : multiFast
               ? [inlineImageParts]
-              : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
+              : [inlineImageParts, primaryInlineImageParts];
         const fastStart = Date.now();
         const batchTryTimeout = multiFast ? 56_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
@@ -433,11 +446,11 @@ Pas de texte marketing. Pas de watermark.`
               const singleWallMs = chunkSingleWallMs;
               const elapsed = Date.now() - fastStart;
               const remaining = singleWallMs - elapsed - 1200;
-              if (remaining < 10_000) {
+              if (remaining < (isNetlifyHost ? 6_000 : 10_000)) {
                 console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
                 return null;
               }
-              const cap = isProFastSingle ? 50_000 : 42_000;
+              const cap = isNetlifyHost ? 14_000 : isProFastSingle ? 50_000 : 42_000;
               const timeoutMs = Math.min(cap, remaining);
               const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
               if (img) return img;
