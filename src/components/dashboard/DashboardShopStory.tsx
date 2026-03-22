@@ -11,7 +11,10 @@ import {
   Image as ImageIcon,
   Upload,
   X,
+  RotateCcw,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const STORY_KEY = 'etsmart-shop-story';
 const BIO_KEY = 'etsmart-shop-bio';
@@ -25,11 +28,12 @@ const INPUT_COUNTRY_KEY = 'etsmart-shop-story-country';
 
 const MAX_PRODUCT_IMAGES = 4;
 const MAX_FILE_MB = 12;
+const STORY_GENERATION_CREDITS = 1;
 
-/** Maintenance par défaut sur tous les environnements. Réactiver : `NEXT_PUBLIC_SHOP_STORY_MAINTENANCE=false` + rebuild. */
+/** Placeholder « bientôt disponible » uniquement si `NEXT_PUBLIC_SHOP_STORY_MAINTENANCE=true` (opt-in). */
 function useShopStoryMaintenance(): boolean {
   return useMemo(
-    () => process.env.NEXT_PUBLIC_SHOP_STORY_MAINTENANCE !== 'false',
+    () => process.env.NEXT_PUBLIC_SHOP_STORY_MAINTENANCE === 'true',
     []
   );
 }
@@ -53,6 +57,7 @@ interface GeneratedCharacter {
 }
 
 export function DashboardShopStory() {
+  const { refreshSubscription } = useSubscription();
   const [bannerDataUrl, setBannerDataUrl] = useState<string | null>(null);
   const [productImages, setProductImages] = useState<string[]>([]);
   const [shopNameInput, setShopNameInput] = useState('');
@@ -213,6 +218,23 @@ export function DashboardShopStory() {
     if (files?.length) void handleProductFiles(files);
   }, []);
 
+  const clearGeneratedOutputs = () => {
+    setError(null);
+    setCopied(null);
+    saveStory('');
+    saveBio('');
+    saveCharacterMeta('', '', '', null);
+    setTraits([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORY_KEY);
+      localStorage.removeItem(BIO_KEY);
+      localStorage.removeItem(CHARACTER_NAME_KEY);
+      localStorage.removeItem(CHARACTER_ROLE_KEY);
+      localStorage.removeItem(CHARACTER_SUMMARY_KEY);
+      localStorage.removeItem(CHARACTER_IMAGE_KEY);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!bannerDataUrl) {
       setError('Ajoute une image de bannière boutique.');
@@ -224,6 +246,15 @@ export function DashboardShopStory() {
     }
     if (city.trim().length < 2 || country.trim().length < 2) {
       setError('Indique la ville et le pays (comme sur ta fiche Etsy).');
+      return;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setError('Connecte-toi pour générer l’histoire et la biographie.');
       return;
     }
 
@@ -239,7 +270,10 @@ export function DashboardShopStory() {
     try {
       const res = await fetch('/api/shop-story/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           bannerImage: bannerDataUrl,
           productImages,
@@ -250,7 +284,15 @@ export function DashboardShopStory() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json?.success) {
-        setError(json?.message || json?.error || 'Impossible de générer histoire + biographie.');
+        const msg =
+          typeof json?.message === 'string' && json.message.trim()
+            ? json.message.trim()
+            : json?.error === 'QUOTA_EXCEEDED' || json?.error === 'SUBSCRIPTION_REQUIRED'
+              ? 'Crédits insuffisants ou abonnement actif requis.'
+              : json?.error === 'BILLING_FAILED'
+                ? 'La génération a réussi mais le débit des crédits a échoué. Contacte le support.'
+                : 'Impossible de générer histoire + biographie.';
+        setError(msg);
         return;
       }
 
@@ -265,6 +307,10 @@ export function DashboardShopStory() {
         character.imageDataUrl || character.imageUrl || null
       );
       setTraits(Array.isArray(character.traits) ? character.traits : []);
+      void refreshSubscription(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscription-refresh'));
+      }
     } catch {
       setError('Erreur réseau pendant la génération.');
     } finally {
@@ -303,6 +349,9 @@ export function DashboardShopStory() {
             <p className="text-white/60 text-sm">
               Bannière + photos produits + localisation → analyse visuelle, puis histoire, bio à la première personne et
               portrait cohérents.
+            </p>
+            <p className="mt-1 text-sm font-medium text-[#00d4ff]">
+              {STORY_GENERATION_CREDITS} crédit par génération
             </p>
           </div>
         </div>
@@ -448,15 +497,34 @@ export function DashboardShopStory() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={loading}
-            className="w-full sm:w-auto h-11 px-5 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? 'Génération…' : 'Générer histoire + biographie + portrait'}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              onClick={() => void handleGenerate()}
+              disabled={loading}
+              className="w-full sm:w-auto h-11 px-5 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-black font-semibold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {loading
+                ? 'Génération…'
+                : `Générer histoire + biographie + portrait (${STORY_GENERATION_CREDITS} crédit)`}
+            </button>
+            <button
+              type="button"
+              onClick={clearGeneratedOutputs}
+              disabled={loading}
+              className="w-full sm:w-auto h-11 px-5 rounded-lg border border-white/15 bg-white/5 text-white text-sm font-medium hover:bg-white/10 hover:border-[#00d4ff]/35 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4 text-[#00d4ff]" />
+              Nouvelle histoire &amp; biographie
+            </button>
+          </div>
+          {loading && (
+            <p className="text-xs text-white/45 max-w-xl">
+              Analyse des visuels + textes en un flux, puis portrait en parallèle — compte environ{' '}
+              <span className="text-[#00d4ff]/90">30 à 90 s</span> selon la charge des serveurs IA.
+            </p>
+          )}
           {error && <p className="text-xs text-red-300">{error}</p>}
         </div>
 

@@ -60,11 +60,12 @@ MENU LATÉRAL — UTILISE CES LIBELLÉS EXACTS QUAND TU REDIRIGES L'UTILISATEUR
 • "Top Etsy Sellers"
 • "Etsy Trends"
 • "Recherche de Niche"
+• "Carte des Opportunités" — Dans le menu Analyse du dashboard ; teaser « arrive très bientôt sur Etsmart » (fonctionnalité en préparation).
 
 [Catégorie] Branding
 • "Bannière" — Génération de bannière pour la boutique Etsy.
 • "Logo (maintenance)" — Génération logo ; l'UI indique que la fonction peut être en maintenance.
-• "Histoire & Biographie" — Texte type story / bio boutique.
+• "Histoire & Biographie" — Story + bio boutique + portrait (1 crédit par génération) ; bouton pour effacer et recommencer.
 
 [Bas de menu]
 • "Abonnement" — Plans et facturation.

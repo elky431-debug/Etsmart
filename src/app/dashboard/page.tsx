@@ -80,6 +80,7 @@ import { DashboardShopStory } from '@/components/dashboard/DashboardShopStory';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { DashboardCoach } from '@/components/dashboard/DashboardCoach';
 import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
+import { OpportunityMapComingSoon } from '@/components/dashboard/opportunity-map/OpportunityMapComingSoon';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -97,6 +98,7 @@ type DashboardSection =
   | 'etsy-trends'
   | 'top-etsy-sellers'
   | 'niche-finder'
+  | 'opportunity-map'
   | 'shop-name'
   | 'banner'
   | 'logo'
@@ -242,6 +244,7 @@ export default function DashboardPage() {
         'top-etsy-sellers',
         'etsy-trends',
         'niche-finder',
+        'opportunity-map',
         'coach',
       ].includes(section)
     ) {
@@ -340,7 +343,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'coach'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -1501,6 +1504,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Analyse',
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+        { id: 'opportunity-map', label: 'Carte des Opportunités', icon: Globe },
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
       ],
     },
@@ -2228,6 +2232,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
           {activeSection === 'niche-finder' && (
             <NicheFinderSection />
           )}
+
+          {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
 
           {activeSection === 'tracking' && (
             <DashboardTracking />

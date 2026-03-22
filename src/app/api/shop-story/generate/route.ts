@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import sharp from 'sharp';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
+
+/** Coût par génération (histoire + biographie + portrait) */
+const SHOP_STORY_CREDITS = 1;
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -176,7 +181,7 @@ async function generateFounderPortraitDataUrl(params: {
         prompt: prompt.slice(0, 3900),
         n: 1,
         size: '1024x1024',
-        quality: 'hd',
+        quality: 'standard',
         style: 'natural',
       });
       const d0 = img3.data?.[0];
@@ -262,6 +267,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'UNAUTHORIZED', message: 'Authentification requise.' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'UNAUTHORIZED', message: 'Session invalide ou expirée.' },
+        { status: 401 }
+      );
+    }
+
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    if (quotaInfo.status !== 'active') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'SUBSCRIPTION_REQUIRED',
+          message: 'Abonnement actif requis pour générer l’histoire et la biographie.',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (quotaInfo.quota !== -1 && quotaInfo.remaining < SHOP_STORY_CREDITS) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'QUOTA_EXCEEDED',
+          message: `Il te faut ${SHOP_STORY_CREDITS} crédit pour cette génération. Crédits restants : ${quotaInfo.remaining}.`,
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const bannerRaw = String(body?.bannerImage || '').trim();
     const productRaws: string[] = Array.isArray(body?.productImages)
@@ -320,57 +368,95 @@ export async function POST(request: NextRequest) {
       | { type: 'text'; text: string }
       | { type: 'image_url'; image_url: { url: string; detail: 'high' | 'low' | 'auto' } };
 
+    /** Un seul aller-retour LLM (vision + texte) au lieu de deux — gain net sur la latence. */
     const visionUserContent: VisionPart[] = [
       {
         type: 'text',
-        text: `You analyze Etsy shop branding from images.
+        text: `You are a senior Etsy brand strategist. Look at the images, then output ONE JSON object (no markdown).
 
 Image order:
-1) FIRST image = shop BANNER
-2) Following images = PRODUCT photos
+1) FIRST image = shop BANNER (analyze in detail)
+2) Following images = PRODUCT photos (supporting context)
 
 ${userContextNote}
-User location for coherence (use in your analysis; do not invent fake addresses): City: "${city}", Country: "${country}".
+User location: City "${city}", Country "${country}". Use for coherence; do not invent street addresses.
 
-Return ONLY valid JSON:
+STEP A — From the images, infer:
+STEP B — Using that same understanding, write the shop story and founder character in ENGLISH.
+
+Output ONLY valid JSON with ALL of these keys:
 {
   "shopNameFromVisuals": "exact shop name visible on banner or empty string",
   "listingTitleGuess": "short phrase summarizing main product line",
-  "nicheSummary": "3-5 sentences in English describing niche, quality level, audience, mood",
+  "nicheSummary": "3-5 sentences in English describing niche, quality, audience, mood",
   "productTypes": ["3-8 short labels in English"],
   "visualStyle": "1-2 sentences: colors, typography feel, aesthetic",
   "keywords": ["12-20 relevant English keywords for Etsy"],
-  "shopTone": "luxury_professional" or "chill_small"
+  "shopTone": "luxury_professional" or "chill_small",
+  "shopStory": "120-220 words in English — why they started the shop, passion, mission; premium human tone",
+  "character": {
+    "name": "Realistic FirstName LastName plausible for ${country}",
+    "role": "short role/title",
+    "personaSummary": "one sentence",
+    "biography": "90-170 words in English, FIRST PERSON (I, my, me)",
+    "traits": ["trait1","trait2","trait3","trait4"]
+  }
 }
-shopTone: use "luxury_professional" for high-end, premium, luxury, designer, expensive products. Use "chill_small" for handmade, craft, cozy, small-batch, affordable, indie.`,
+
+Rules:
+- shopTone: "luxury_professional" for high-end/premium; "chill_small" for handmade/cozy/indie.
+- Story and character MUST match city/country and product niche from the images.
+- Biography must stay first person. No fluff.`,
       },
       { type: 'image_url', image_url: { url: bannerDataUrl, detail: 'high' } },
       ...productDataUrls.map((url) => ({
         type: 'image_url' as const,
-        image_url: { url, detail: 'high' as const },
+        image_url: { url, detail: 'low' as const },
       })),
     ];
 
-    const visionCompletion = await openai.chat.completions.create({
+    const mergedCompletion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       response_format: { type: 'json_object' },
-      temperature: 0.3,
+      temperature: 0.45,
+      max_tokens: 4096,
       messages: [
         {
           role: 'system',
           content:
-            'You are a senior Etsy brand analyst. You only output strict JSON. Be accurate about what is visible; do not hallucinate text that is unreadable.',
+            'You output only strict JSON. Be accurate about visible text on the banner; do not invent unreadable text. Write compelling but credible Etsy copy.',
         },
         { role: 'user', content: visionUserContent },
       ],
     });
 
-    let vision: VisionExtract = {};
+    type MergedVisionStory = VisionExtract & {
+      shopStory?: string;
+      character?: {
+        name?: string;
+        role?: string;
+        personaSummary?: string;
+        biography?: string;
+        traits?: string[];
+      };
+    };
+
+    let merged: MergedVisionStory = {};
     try {
-      vision = JSON.parse(visionCompletion.choices[0]?.message?.content || '{}') as VisionExtract;
+      merged = JSON.parse(mergedCompletion.choices[0]?.message?.content || '{}') as MergedVisionStory;
     } catch {
-      vision = {};
+      merged = {};
     }
+
+    const vision: VisionExtract = {
+      shopNameFromVisuals: merged.shopNameFromVisuals,
+      nicheSummary: merged.nicheSummary,
+      productTypes: merged.productTypes,
+      visualStyle: merged.visualStyle,
+      keywords: merged.keywords,
+      listingTitleGuess: merged.listingTitleGuess,
+      shopTone: merged.shopTone,
+    };
 
     const resolvedShopName =
       shopNameUser ||
@@ -414,80 +500,21 @@ shopTone: use "luxury_professional" for high-end, premium, luxury, designer, exp
 
     const nicheContext = [context.listingTitle, ...context.tags].filter(Boolean).join(', ');
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      temperature: 0.6,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an Etsy branding expert. Output ONLY valid JSON. Write in natural English, concrete, no fluff.',
-        },
-        {
-          role: 'user',
-          content: `Generate an Etsy shop story + founder character consistent with the visuals and location. Output in ENGLISH.
-
-Critical constraints:
-- Human, credible, premium tone.
-- Story and character COHERENT with: city "${city}", country "${country}" (workshop, origin, local inspiration — naturally, no invented addresses).
-- Character plausible for this region and product niche.
-- Story explains why the person started their shop (passion, trigger, mission).
-- Biography in FIRST PERSON (I, my, me).
-- No inconsistency with product types. Ready for Etsy.
-
-Shop name: "${resolvedShopName}" (use in story if natural).
-
-Context from vision analysis:
-${JSON.stringify(
-  {
-    nicheSummary: vision.nicheSummary,
-    productTypes: vision.productTypes,
-    visualStyle: vision.visualStyle,
-    keywords: vision.keywords,
-    listingTitleGuess: vision.listingTitleGuess,
-  },
-  null,
-  2
-)}
-
-Return STRICTLY this JSON:
-{
-  "shopStory": "120-220 words in English",
-  "character": {
-    "name": "Realistic FirstName LastName for ${country}",
-    "role": "role/title",
-    "personaSummary": "1 sentence",
-    "biography": "90-170 words in English, first person",
-    "traits": ["trait1","trait2","trait3","trait4"]
-  }
-}`,
-        },
-      ],
-    });
-
-    const content = completion.choices[0]?.message?.content || '{}';
-    const parsed = JSON.parse(content) as {
-      shopStory?: string;
-      character?: {
-        name?: string;
-        role?: string;
-        personaSummary?: string;
-        biography?: string;
-        traits?: string[];
-      };
+    const parsed = {
+      shopStory: String(merged.shopStory || ''),
+      character: merged.character,
     };
 
     let biography = String(parsed.character?.biography || '');
-    if (firstPersonScore(biography) < 2) {
-      biography = await rewriteBiographyToFirstPerson(biography);
-    }
-
     const characterName = String(parsed.character?.name || 'Etsy Creator');
     const characterRole = String(parsed.character?.role || 'Artisan / Creator');
     const characterSummary = String(parsed.character?.personaSummary || '');
 
-    const aiPortrait = await generateFounderPortraitDataUrl({
+    const rewritePromise =
+      firstPersonScore(biography) < 2
+        ? rewriteBiographyToFirstPerson(biography)
+        : Promise.resolve(biography);
+    const portraitPromise = generateFounderPortraitDataUrl({
       client: openai,
       shopTone,
       city,
@@ -499,8 +526,23 @@ Return STRICTLY this JSON:
       personaSummary: characterSummary,
     });
 
+    const [biographyFinal, aiPortrait] = await Promise.all([rewritePromise, portraitPromise]);
+    biography = biographyFinal;
+
     const imageDataUrl = aiPortrait?.dataUrl || buildInlineAvatarDataUrl(characterName, characterRole);
     const imageSource: 'openai-portrait' | 'inline-svg' = aiPortrait ? 'openai-portrait' : 'inline-svg';
+
+    const deduct = await incrementAnalysisCount(user.id, SHOP_STORY_CREDITS);
+    if (!deduct.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'BILLING_FAILED',
+          message: deduct.error || 'Débit des crédits impossible après génération.',
+        },
+        { status: 402 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -524,6 +566,8 @@ Return STRICTLY this JSON:
         nicheContext,
         resolvedShopName,
       },
+      creditsUsed: SHOP_STORY_CREDITS,
+      creditsRemaining: deduct.remaining,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
