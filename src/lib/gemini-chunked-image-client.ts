@@ -16,13 +16,14 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** En prod: limiter un peu le parallélisme pour éviter les 504 en rafale sur Netlify. */
+/** Concurrence fixe orientée débit (1 seul modèle stable côté API). */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return engineMode === 'pro' ? 1 : 2;
+  if (typeof window === 'undefined') return 3;
   const host = window.location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1';
-  if (isLocal) return engineMode === 'pro' ? 2 : 3;
-  return engineMode === 'pro' ? 1 : 2;
+  if (isLocal) return 4;
+  // gemini-2.5-flash-image: 500 RPM → 3 en parallèle confortable
+  return 3;
 }
 
 /** Retries sur 502/503/504 / erreurs transitoires. */
@@ -140,8 +141,9 @@ export async function runChunkedImageGeneration(opts: {
 
   const runSingleIndex = async (index: number): Promise<void> => {
     let lastError = `Image ${index + 1}: aucun visuel retourné`;
+    console.log(`[CHUNKED] Slot ${index} start`);
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       const payload = {
         ...imageBase,
         quantity: 1,
@@ -165,6 +167,7 @@ export async function runChunkedImageGeneration(opts: {
         ) {
           firstQuotaError = normalizeQuotaMessage(parsed.message);
           markDone(index);
+          console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
           return;
         }
         lastError = parsed.message || `Image ${index + 1}: erreur API ${res.status}`;
@@ -178,6 +181,7 @@ export async function runChunkedImageGeneration(opts: {
       if (url) {
         slots[index] = { id: `img-${Date.now()}-${index}`, url };
         markDone(index);
+        console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
         return;
       }
       lastError = parsed.message || `Image ${index + 1}: aucun visuel retourné`;
@@ -185,6 +189,7 @@ export async function runChunkedImageGeneration(opts: {
 
     errors.push(lastError);
     markDone(index);
+    console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
   };
 
   const indexes = Array.from({ length: imageCount }, (_, i) => i);

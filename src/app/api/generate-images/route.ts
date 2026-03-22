@@ -9,11 +9,11 @@ try { sharp = require('sharp'); } catch { sharp = null; }
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
-const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 90_000;
+const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 28_000;
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
-const GEMINI_FAST_SINGLE_WALL_MS = 52_000;
+const GEMINI_FAST_SINGLE_WALL_MS = 45_000;
 /** Pro chunked : un peu plus de marge qu’un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
-const GEMINI_PRO_SINGLE_WALL_MS = 56_000;
+const GEMINI_PRO_SINGLE_WALL_MS = 45_000;
 /** Budget pour 2+ images dans un même POST (plusieurs vagues batch internes). */
 const GEMINI_PAIR_WALL_MS = 110_000;
 const GEMINI_MULTI_BATCH_WALL_MS = 115_000;
@@ -49,7 +49,7 @@ function geminiFetchSignal(timeoutMs: number): AbortSignal {
 
 async function runGeminiImagePromptsInBatches(
   prompts: string[],
-  generateOne: (prompt: string) => Promise<string | null>,
+  generateOne: (prompt: string, index: number) => Promise<string | null>,
   batchSize: number,
   startTime: number,
   wallMs: number
@@ -61,7 +61,8 @@ async function runGeminiImagePromptsInBatches(
       break;
     }
     const slice = prompts.slice(i, i + batchSize);
-    const batch = await Promise.all(slice.map((p) => generateOne(p)));
+    const batchOffset = i;
+    const batch = await Promise.all(slice.map((p, idx) => generateOne(p, idx + batchOffset)));
     for (const u of batch) {
       if (u) out.push(u);
     }
@@ -121,17 +122,12 @@ export async function POST(request: NextRequest) {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
-      clientChunkAttempt: clientChunkAttemptRaw,
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
       typeof singlePromptIndexRaw === 'number' && Number.isFinite(singlePromptIndexRaw)
         ? Math.max(0, Math.floor(singlePromptIndexRaw))
         : null;
-    const clientChunkAttempt =
-      typeof clientChunkAttemptRaw === 'number' && Number.isFinite(clientChunkAttemptRaw)
-        ? Math.max(0, Math.floor(clientChunkAttemptRaw))
-        : 0;
     const hasPromptStart =
       typeof promptStartIndexRaw === 'number' &&
       Number.isFinite(promptStartIndexRaw) &&
@@ -199,9 +195,6 @@ export async function POST(request: NextRequest) {
       const forceProToFlash31 = engineSafe === 'pro';
       /** Quand pro est mappé vers 3.1 Flash, on garde les réglages "flash" (plus rapides). */
       const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro' && !forceProToFlash31;
-      /** Paires / lots : pas de 2e passe Gemini (évite +1,2 s × prompts = génération rapide plus courte). */
-      const skipSecondGeminiAttempt = !isFastChunkedSingle && numImages >= 2;
-
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -341,31 +334,16 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
-      // Pro est volontairement mappé vers Gemini 3.1 Flash Image pour stabilité + vitesse.
-      // En fast single Netlify: 1 modèle par requête, rotation via clientChunkAttempt au retry client.
-      const modelCandidatesFull =
-        engineSafe === 'pro'
-          ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
-          : [
-              'gemini-2.5-flash-image',
-              'gemini-3.1-flash-image-preview',
-            ];
-      // Fast single : 3.1 d’abord, puis 2.5 au retry suivant si besoin.
-      const modelCandidatesFast =
-        engineSafe === 'pro'
-          ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
-          : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'];
-      // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
+      const STABILITY_KEY = process.env.STABILITY_API_KEY;
+      // Fallback Gemini unique, utilisé pour prompt mensurations et en secours Stability.
+      const modelCandidatesFull = ['gemini-2.5-flash-image'];
+      const modelCandidatesFast = ['gemini-2.5-flash-image'];
       const modelCandidates =
         isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
-      const si = singlePromptIndex ?? 0;
-      const modelsForGemini: string[] =
-        isFastChunkedSingle && modelCandidates.length > 0
-          ? [modelCandidates[(si + clientChunkAttempt) % modelCandidates.length]]
-          : modelCandidates;
+      const modelsForGemini: string[] = modelCandidates;
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProFastSingle);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
+        `[IMAGE GEN] Stability+Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
       );
 
       const tryGeminiOnce = async (
@@ -405,19 +383,15 @@ Pas de texte marketing. Pas de watermark.`
           const data = await res.json();
           const cand0 = data?.candidates?.[0];
           const parts = cand0?.content?.parts || [];
-          if (parts.length === 0 && cand0) {
-            console.warn(`[IMAGE GEN] Gemini ${model} réponse sans image`, {
-              finishReason: cand0.finishReason,
-              blockReason: data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason,
-            });
-          }
           for (const part of parts) {
             const b64 = part?.inlineData?.data;
             const mime = part?.inlineData?.mimeType || 'image/png';
-            if (typeof b64 === 'string' && b64.length > 100) {
-              return `data:${mime};base64,${b64}`;
-            }
+            if (typeof b64 === 'string' && b64.length > 100) return `data:${mime};base64,${b64}`;
           }
+          console.warn(`[IMAGE GEN] Gemini ${model} réponse sans image`, {
+            finishReason: cand0?.finishReason,
+            blockReason: data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason,
+          });
         } catch (e: any) {
           const name = e?.name || '';
           if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
@@ -429,48 +403,87 @@ Pas de texte marketing. Pas de watermark.`
         return null;
       };
 
-      const generateOneAttempt = async (prompt: string): Promise<string | null> => {
-        const multiFast = !isFastChunkedSingle && numImages >= 2;
-        const imagePartSets = isProFastSingle
-          ? [inlineImageParts]
-          : isFastChunkedSingle
-            ? [inlineImageParts]
-            : multiFast
-              ? [inlineImageParts]
-              : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
-        const fastStart = Date.now();
-        const batchTryTimeout = multiFast ? 56_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
-
-        for (const partsForAttempt of imagePartSets) {
-          for (const model of modelsForGemini) {
-            if (isFastChunkedSingle) {
-              const singleWallMs = chunkSingleWallMs;
-              const elapsed = Date.now() - fastStart;
-              const remaining = singleWallMs - elapsed - 1500;
-              if (remaining < (isNetlifyHost ? 12_000 : 10_000)) {
-                console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
-                return null;
-              }
-              const cap = isNetlifyHost ? 19_000 : isProFastSingle ? 50_000 : 42_000;
-              const timeoutMs = Math.min(cap, remaining);
-              const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
-              if (img) return img;
-            } else {
-              const img = await tryGeminiOnce(prompt, model, partsForAttempt, batchTryTimeout);
-              if (img) return img;
-            }
-          }
+      const tryStabilityAI = async (
+        prompt: string,
+        sourceImageB64: string,
+        engineMode: 'flash' | 'pro',
+        timeoutMs: number
+      ): Promise<string | null> => {
+        if (!STABILITY_KEY) {
+          console.warn('[IMAGE GEN] STABILITY_API_KEY manquante');
+          return null;
         }
-        return null;
+        const model = engineMode === 'pro' ? 'stable-image-ultra' : 'stable-image-core';
+        console.log(`[IMAGE GEN] Stability ${model} start...`);
+        try {
+          const imageBuffer = Buffer.from(sourceImageB64, 'base64');
+          const formData = new FormData();
+          formData.append('prompt', prompt);
+          formData.append('output_format', 'jpeg');
+          formData.append('image', new Blob([imageBuffer], { type: 'image/jpeg' }), 'product.jpg');
+          formData.append('strength', engineMode === 'pro' ? '0.75' : '0.80');
+
+          const res = await fetch(
+            `https://api.stability.ai/v2beta/stable-image/generate/${model === 'stable-image-ultra' ? 'ultra' : 'core'}`,
+            {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${STABILITY_KEY}`, Accept: 'image/*' },
+              body: formData,
+              signal: geminiFetchSignal(timeoutMs),
+            }
+          );
+
+          if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            console.warn(`[IMAGE GEN] Stability ${model} non-ok: ${res.status}`, t.substring(0, 150));
+            return null;
+          }
+
+          const arrayBuffer = await res.arrayBuffer();
+          const b64 = Buffer.from(arrayBuffer).toString('base64');
+          if (b64.length > 100) {
+            console.log(`[IMAGE GEN] Stability ${model} OK (${(b64.length / 1024).toFixed(0)}KB)`);
+            return `data:image/jpeg;base64,${b64}`;
+          }
+          return null;
+        } catch (e: any) {
+          const isAbort = e?.name === 'TimeoutError' || /abort/i.test(String(e?.message));
+          console.warn(`[IMAGE GEN] Stability ${model} ${isAbort ? 'timeout' : 'error'}:`, e?.message);
+          return null;
+        }
       };
 
-      const generateOne = async (prompt: string): Promise<string | null> => {
-        let r = await generateOneAttempt(prompt);
-        if (r) return r;
-        if (isFastChunkedSingle) return null;
-        if (skipSecondGeminiAttempt) return null;
-        await new Promise((x) => setTimeout(x, 800));
-        return generateOneAttempt(prompt);
+      const tryGeminiForMensurations = async (
+        prompt: string,
+        partsForAttempt: { inlineData: { mimeType: string; data: string } }[],
+        timeoutMs: number
+      ): Promise<string | null> => {
+        console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini uniquement');
+        return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', partsForAttempt, timeoutMs);
+      };
+
+      const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
+        const mainImageB64 = inlineImageParts[0]?.inlineData?.data || '';
+        const mainPart = [inlineImageParts[0]].filter(
+          (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
+        );
+        const isMensurationsPrompt = promptIndex === 3;
+
+        if (isMensurationsPrompt) {
+          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
+          const img = await tryGeminiForMensurations(prompt, mainPart, cap);
+          if (img) return img;
+          await new Promise((r) => setTimeout(r, 1500));
+          return tryGeminiForMensurations(prompt, mainPart, cap);
+        }
+
+        const stabilityTimeout = isNetlifyHost ? 18_000 : 25_000;
+        const stabilityImg = await tryStabilityAI(prompt, mainImageB64, engineSafe, stabilityTimeout);
+        if (stabilityImg) return stabilityImg;
+
+        console.warn(`[IMAGE GEN] Stability échoué pour prompt ${promptIndex + 1} → fallback Gemini`);
+        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
+        return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', mainPart, geminiCap);
       };
 
       try {
@@ -495,9 +508,10 @@ Pas de texte marketing. Pas de watermark.`
               : numImages >= 2
                 ? GEMINI_PAIR_WALL_MS
                 : 115_000;
+        const promptBaseIndex = promptStartIndex ?? singlePromptIndex ?? 0;
         const imageDataUrls = await runGeminiImagePromptsInBatches(
           promptsToUse,
-          generateOne,
+          (prompt, index) => generateOne(prompt, promptBaseIndex + index),
           batchSize,
           startTime,
           wallMs
