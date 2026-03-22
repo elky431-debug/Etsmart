@@ -128,8 +128,8 @@ export function DashboardQuickGenerate() {
   const [quantity, setQuantity] = useState(7);
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  /** Le bouton « Pro » reste affiché mais l’API utilise Flash (pipeline Pro Gemini trop instable / timeouts). */
-  const engineForApi: ImageEngine = engine === 'pro' ? 'flash' : engine;
+  /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
+  const engineForApi: ImageEngine = engine;
   const billingEngine: ImageEngine = engineForApi;
   const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, billingEngine);
   const quickGenerateCredits = quickGenerateTotalCredits(quantity, billingEngine);
@@ -297,6 +297,116 @@ export function DashboardQuickGenerate() {
     }
   };
 
+  const parseGenerateImageResponse = (json: Record<string, unknown>) => {
+    const imageTaskIds: string[] = Array.isArray(json.imageTaskIds)
+      ? (json.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
+      : [];
+    const imageDataUrls: string[] = Array.isArray(json.imageDataUrls)
+      ? (json.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
+      : [];
+    const message = typeof json.message === 'string' && json.message.trim().length > 0 ? json.message.trim() : null;
+    const errorCode = typeof json.error === 'string' ? json.error : null;
+    return { imageTaskIds, imageDataUrls, message, errorCode };
+  };
+
+  const pollSingleTaskImage = async (taskId: string, quantityForDeadline = 1): Promise<string | null> => {
+    const deadline = Date.now() + getImagePollDeadlineMs(quantityForDeadline);
+    const pollMs = getImagePollIntervalMs(quantityForDeadline);
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, pollMs));
+      try {
+        const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+        if (!res.ok) continue;
+        const statusData = await res.json();
+        if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
+          return statusData.url as string;
+        }
+        if (statusData.status === 'error') return null;
+      } catch {
+        // Retry until deadline
+      }
+    }
+    return null;
+  };
+
+  const generateImagesChunked = async ({
+    token,
+    imageBase,
+    imageCount,
+    engineMode,
+  }: {
+    token: string;
+    imageBase: Record<string, unknown>;
+    imageCount: number;
+    engineMode: ImageEngine;
+  }): Promise<{ images: GeneratedImage[]; warning: string | null }> => {
+    const concurrency = engineMode === 'pro' ? 2 : 3;
+    const maxWorkers = Math.max(1, Math.min(concurrency, imageCount));
+    const slots: Array<GeneratedImage | null> = Array.from({ length: imageCount }, () => null);
+    const errors: string[] = [];
+    let cursor = 0;
+
+    const worker = async () => {
+      while (true) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= imageCount) return;
+
+        try {
+          const payload = {
+            ...imageBase,
+            quantity: 1,
+            clientChunkedSingle: true,
+            singlePromptIndex: index,
+            promptStartIndex: index,
+          };
+          const res = await fetchGenerateImagesWithRetry(payload, token, 2);
+          let json: Record<string, unknown> = {};
+          try {
+            json = (await res.json()) as Record<string, unknown>;
+          } catch {
+            json = {};
+          }
+          const parsed = parseGenerateImageResponse(json);
+
+          if (!res.ok) {
+            if (
+              res.status === 403 &&
+              (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
+            ) {
+              throw new Error(normalizeQuotaMessage(parsed.message));
+            }
+            errors.push(parsed.message || `Image ${index + 1}: erreur API ${res.status}`);
+            continue;
+          }
+
+          let url: string | null = parsed.imageDataUrls[0] || null;
+          if (!url && parsed.imageTaskIds.length > 0) {
+            url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1);
+          }
+          if (url) {
+            slots[index] = { id: `img-${Date.now()}-${index}`, url };
+          } else {
+            errors.push(parsed.message || `Image ${index + 1}: aucun visuel retourné`);
+          }
+        } finally {
+          setPendingImagesCount((c) => Math.max(0, c - 1));
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: maxWorkers }, () => worker()));
+
+    const images = slots.filter((img): img is GeneratedImage => img !== null);
+    if (errors.length === 0) return { images, warning: null };
+    return {
+      images,
+      warning: images.length > 0
+        ? `Seulement ${images.length} image(s) sur ${imageCount}. ${errors[0]}`
+        : errors[0],
+    };
+  };
+
   const generateEverything = async () => {
     if (!sourceImagePreview) {
       alert('Veuillez sélectionner une image source');
@@ -393,7 +503,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // 2) Images : une seule requête API avec la quantité demandée.
+      // 2) Images : requêtes chunked (1 image / requête) pour éviter les timeouts en lot.
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imageBase = {
         sourceImage: imagePayload,
@@ -413,140 +523,33 @@ export function DashboardQuickGenerate() {
       };
 
       setQuickGenPhase('images');
-      setPendingImagesCount(quantity);
-      const imageRes = await fetchGenerateImagesWithRetry({ ...imageBase, quantity }, token, 3);
-      setPendingImagesCount(0);
-
-      let imgJson: Record<string, unknown> = {};
-      try {
-        imgJson = (await imageRes.json()) as Record<string, unknown>;
-      } catch {
-        imgJson = {};
-      }
-
-      if (!imageRes.ok) {
-        const code = imgJson.error;
-        if (
-          imageRes.status === 403 &&
-          (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
-        ) {
-          const qmsg =
-            typeof imgJson.message === 'string' && /quota|exceeded|crédits|insuffisant/i.test(imgJson.message)
-              ? imgJson.message
-              : QUOTA_MESSAGE_FR;
-          setError(qmsg);
-          return;
-        }
-        const msg =
-          (typeof imgJson.message === 'string' && imgJson.message) ||
-          'La génération des images a échoué. Utilise le listing puis « Générer les images » pour réessayer.';
-        setListingData(listing);
-        setGeneratedImages([]);
-        setHasGenerated(true);
-        setError(msg);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          sessionStorage.removeItem(`${storageKey}-images`);
-        }
-        return;
-      }
-
-      const imageTaskIds: string[] = Array.isArray(imgJson.imageTaskIds)
-        ? (imgJson.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
-        : [];
-      const imageDataUrls: string[] = Array.isArray(imgJson.imageDataUrls)
-        ? (imgJson.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
-        : [];
-      const apiMessage =
-        typeof imgJson.message === 'string' && imgJson.message.trim() ? imgJson.message : null;
-
-      if (imageDataUrls.length === 0 && imageTaskIds.length === 0) {
-        const msg =
-          apiMessage ||
-          'La génération des images a échoué. Utilise le listing puis « Générer les images » pour réessayer.';
-        setListingData(listing);
-        setGeneratedImages([]);
-        setHasGenerated(true);
-        setError(msg);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          sessionStorage.removeItem(`${storageKey}-images`);
-        }
-        return;
-      }
-
-      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls`);
-
-      if (imageDataUrls.length > 0) {
-        const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
-        setListingData(listing);
-        setGeneratedImages(directImages);
-        setHasGenerated(true);
-        setError(
-          directImages.length < quantity
-            ? `Vous avez reçu ${directImages.length} image(s) sur ${quantity}.${apiMessage ? ` ${apiMessage}` : ''}`
-            : apiMessage
-              ? apiMessage
-              : null
-        );
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          saveImagesToSession(directImages);
-        }
-        setTimeout(() => {
-          refreshSubscription(true);
-          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
-        }, 3000);
-        return;
-      }
-
-      let allImages: GeneratedImage[] = [];
-      setPendingImagesCount(imageTaskIds.length);
-      const deadline = Date.now() + getImagePollDeadlineMs(quantity);
-      const pollMs = getImagePollIntervalMs(quantity);
-
-      const results = await Promise.all(imageTaskIds.map(async (taskId, idx) => {
-        while (Date.now() < deadline) {
-          await new Promise(r => setTimeout(r, pollMs));
-          if (Date.now() >= deadline) break;
-          try {
-            const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data.status === 'ready' && data.url && String(data.url).startsWith('http')) {
-              setPendingImagesCount(c => Math.max(0, c - 1));
-              return { id: `img-${Date.now()}-${idx}`, url: data.url } as GeneratedImage;
-            }
-            if (data.status === 'error') return null;
-          } catch { /* retry */ }
-        }
-        return null;
-      }));
-      allImages = results.filter((r): r is GeneratedImage => r !== null);
-      setPendingImagesCount(0);
-
-      // Tout afficher en même temps : listing + images (ou message)
       setListingData(listing);
-      if (allImages.length === 0) {
+      setHasGenerated(true);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(storageKey, 'true');
+        sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+      }
+
+      setPendingImagesCount(quantity);
+      const chunkedResult = await generateImagesChunked({
+        token,
+        imageBase,
+        imageCount: quantity,
+        engineMode: engineForApi,
+      });
+      setPendingImagesCount(0);
+
+      if (chunkedResult.images.length === 0) {
         setGeneratedImages([]);
-        setHasGenerated(true);
         setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
           sessionStorage.removeItem(`${storageKey}-images`);
         }
       } else {
-        setGeneratedImages(allImages);
-        setHasGenerated(true);
-        setError(allImages.length < quantity ? `Vous avez reçu ${allImages.length} image${allImages.length > 1 ? 's' : ''} sur ${quantity}. Cliquez sur « Générer de nouvelles images » pour en ajouter.` : null);
+        setGeneratedImages(chunkedResult.images);
+        setError(chunkedResult.warning);
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-          saveImagesToSession(allImages);
+          saveImagesToSession(chunkedResult.images);
         }
       }
 
@@ -563,6 +566,7 @@ export function DashboardQuickGenerate() {
     } finally {
       setIsGenerating(false);
       setQuickGenPhase(null);
+      setPendingImagesCount(0);
     }
   };
 
@@ -673,93 +677,24 @@ export function DashboardQuickGenerate() {
           : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
       };
 
-      const regenRes = await fetchGenerateImagesWithRetry({ ...regenPayloadBase, quantity }, token, 3);
+      setPendingImagesCount(quantity);
+      const chunkedResult = await generateImagesChunked({
+        token,
+        imageBase: regenPayloadBase,
+        imageCount: quantity,
+        engineMode: engineForApi,
+      });
+      setPendingImagesCount(0);
 
-      let regenJson: Record<string, unknown> = {};
-      try {
-        regenJson = (await regenRes.json()) as Record<string, unknown>;
-      } catch {
-        regenJson = {};
-      }
-
-      if (!regenRes.ok) {
-        const code = regenJson.error;
-        if (
-          regenRes.status === 403 &&
-          (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
-        ) {
-          setError(normalizeQuotaMessage(typeof regenJson.message === 'string' ? regenJson.message : undefined));
-          setIsRegeneratingImages(false);
-          return;
-        }
-        setError(
-          normalizeQuotaMessage(
-            typeof regenJson.message === 'string' ? regenJson.message : 'La génération d\'images a échoué. Réessayez.'
-          )
-        );
-        setIsRegeneratingImages(false);
-        return;
-      }
-
-      const taskIds: string[] = Array.isArray(regenJson.imageTaskIds)
-        ? (regenJson.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
-        : [];
-      const dataUrls: string[] = Array.isArray(regenJson.imageDataUrls)
-        ? (regenJson.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
-        : [];
-      const regenApiMsg =
-        typeof regenJson.message === 'string' && regenJson.message.trim() ? regenJson.message : null;
-
-      console.log('[QUICK GENERATE] Regenerated images:', { taskIds: taskIds.length, dataUrls: dataUrls.length });
-
-      if (dataUrls.length > 0) {
-        const newImages: GeneratedImage[] = dataUrls
-          .filter((url): url is string => typeof url === 'string' && url.length > 10)
-          .map((url, i) => ({ id: `regen-${Date.now()}-${i}`, url }));
-        setGeneratedImages(prev => {
-          const next = [...prev, ...newImages];
+      if (chunkedResult.images.length > 0) {
+        setGeneratedImages((prev) => {
+          const next = [...prev, ...chunkedResult.images];
           if (typeof window !== 'undefined') saveImagesToSession(next);
           return next;
         });
-        if (dataUrls.length < quantity && regenApiMsg) {
-          setError(`Seulement ${dataUrls.length} image(s) sur ${quantity}. ${regenApiMsg}`);
-        }
-      } else if (taskIds.length === 0) {
-        setError(regenApiMsg || 'La génération d\'images a échoué. Réessayez.');
+        setError(chunkedResult.warning);
       } else {
-        const deadline = Date.now() + getImagePollDeadlineMs(quantity);
-        const pollMs = getImagePollIntervalMs(quantity);
-
-        const polled = await Promise.all(
-          taskIds.map(async (taskId, idx) => {
-            while (Date.now() < deadline) {
-              await new Promise((r) => setTimeout(r, pollMs));
-              try {
-                const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
-                if (!res.ok) continue;
-                const statusData = await res.json();
-                if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
-                  return { id: `regen-${Date.now()}-${idx}`, url: statusData.url } as GeneratedImage;
-                }
-                if (statusData.status === 'error') return null;
-              } catch {
-                /* retry */
-              }
-            }
-            return null;
-          })
-        );
-        const newImages = polled.filter((r): r is GeneratedImage => r !== null);
-
-        if (newImages.length > 0) {
-          setGeneratedImages(prev => {
-            const next = [...prev, ...newImages];
-            if (typeof window !== 'undefined') saveImagesToSession(next);
-            return next;
-          });
-        } else {
-          setError('La génération d\'images a échoué. Réessayez.');
-        }
+        setError(chunkedResult.warning || 'La génération d\'images a échoué. Réessayez.');
       }
 
       // Refresh subscription
@@ -776,6 +711,7 @@ export function DashboardQuickGenerate() {
       setError(normalizeQuotaMessage(msg));
     } finally {
       setIsRegeneratingImages(false);
+      setPendingImagesCount(0);
     }
   };
 
@@ -1092,7 +1028,7 @@ export function DashboardQuickGenerate() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
-                      title="Libellé Pro — génération identique à Flash pour la stabilité"
+                      title="Qualité maximale, plus lent que Flash"
                     >
                       Pro
                     </button>

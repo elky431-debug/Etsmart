@@ -89,8 +89,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  /** UI « Pro » : envoi réel Flash (stabilité / timeouts). Tarif = Flash. */
-  const engineForApi: ImageEngine = engine === 'pro' ? 'flash' : engine;
+  /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
+  const engineForApi: ImageEngine = engine;
   const creditsToDeduct = imagesOnlyTotalCredits(quantity, engineForApi);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -957,7 +957,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         : 'bg-black border border-white/10 text-white hover:border-white/20'
                     }`}
                     type="button"
-                    title="Libellé Pro — génération identique à Flash pour la stabilité"
+                    title="Qualité maximale, plus lent que Flash"
                   >
                     Pro
                   </button>
