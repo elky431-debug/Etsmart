@@ -47,15 +47,11 @@ interface ListingData {
 
 const QUOTA_MESSAGE_FR = 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
 
-/**
- * Plusieurs images Gemini : éviter un seul POST géant (timeout).
- * Stratégie génération rapide : paires (2 images / requête, prompts en parallèle côté serveur) + requêtes HTTP en parallèle, puis secours 1 image / slot si besoin.
- */
+/** Plusieurs images Gemini peuvent dépasser un premier timeout edge — on réessaie sur 502/503/504. */
 async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
   token: string,
-  attempts = 3,
-  backoffBaseMs = 2500
+  attempts = 3
 ): Promise<Response> {
   let last: Response | undefined;
   for (let i = 0; i < attempts; i++) {
@@ -71,285 +67,9 @@ async function fetchGenerateImagesWithRetry(
     if (last.ok) return last;
     const retryable = last.status === 502 || last.status === 503 || last.status === 504;
     if (!retryable || i === attempts - 1) return last;
-    await new Promise((r) => setTimeout(r, backoffBaseMs * (i + 1)));
+    await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
   }
   return last!;
-}
-
-type ImageBatchChunk = { start: number; qty: 1 | 2 | 3 };
-type QuickImageEngine = 'flash' | 'pro';
-
-/**
- * Flash : blocs de 3 (rapide, plusieurs Gemini / requête).
- * Pro : 1 image / requête uniquement (évite 504 Netlify ~60s quand le modèle Pro est lent).
- */
-function buildImageChunks(imageCount: number, engine: QuickImageEngine): ImageBatchChunk[] {
-  if (engine === 'pro') {
-    return Array.from({ length: imageCount }, (_, i) => ({ start: i, qty: 1 as const }));
-  }
-  const chunks: ImageBatchChunk[] = [];
-  let i = 0;
-  while (i < imageCount) {
-    const left = imageCount - i;
-    if (left >= 3) {
-      chunks.push({ start: i, qty: 3 });
-      i += 3;
-    } else if (left === 2) {
-      chunks.push({ start: i, qty: 2 });
-      i += 2;
-    } else {
-      chunks.push({ start: i, qty: 1 });
-      i += 1;
-    }
-  }
-  return chunks;
-}
-
-/**
- * Génération rapide — Flash : blocs de 3 + parallèle. Pro : 1 image / requête, enchaînement séquentiel (stabilité).
- */
-async function fetchGenerateImagesQuickBatched(
-  basePayload: Record<string, unknown>,
-  token: string,
-  imageCount: number,
-  opts?: {
-    onProgress?: (completed: number, total: number) => void;
-  }
-): Promise<{
-  imageDataUrls: string[];
-  imageTaskIds: string[];
-  firstErrorMessage: string | null;
-  quotaError?: string;
-}> {
-  const engine: QuickImageEngine = basePayload.engine === 'pro' ? 'pro' : 'flash';
-  const urlByIndex: (string | undefined)[] = new Array(imageCount);
-  const taskByIndex: (string | undefined)[] = new Array(imageCount);
-  let firstErrorMessage: string | null = null;
-
-  const countDone = () =>
-    urlByIndex.filter((u) => u && u.length > 20).length +
-    taskByIndex.filter((t) => t && t.length > 0).length;
-
-  const applyResponse = (
-    start: number,
-    data: Record<string, unknown>
-  ) => {
-    const urls = data.imageDataUrls;
-    const tasks = data.imageTaskIds;
-    if (Array.isArray(urls)) {
-      urls.forEach((u, j) => {
-        if (typeof u === 'string' && u.length > 20) urlByIndex[start + j] = u;
-      });
-    }
-    if (Array.isArray(tasks)) {
-      tasks.forEach((t, j) => {
-        if (typeof t === 'string' && t.length > 0) taskByIndex[start + j] = t;
-      });
-    }
-  };
-
-  async function runSingleIndex(index: number): Promise<'quota' | void> {
-    const res = await fetchGenerateImagesWithRetry(
-      {
-        ...basePayload,
-        quantity: 1,
-        singlePromptIndex: index,
-        clientChunkedSingle: true,
-      },
-      token,
-      engine === 'pro' ? 3 : 2,
-      engine === 'pro' ? 1400 : 1200
-    );
-    let data: Record<string, unknown> = {};
-    try {
-      data = (await res.json()) as Record<string, unknown>;
-    } catch {
-      data = {};
-    }
-    if (!res.ok) {
-      const code = data.error;
-      if (
-        res.status === 403 &&
-        (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
-      ) {
-        return 'quota';
-      }
-      const msg =
-        (typeof data.message === 'string' && data.message) ||
-        `Erreur ${res.status} (image ${index + 1}).`;
-      if (!firstErrorMessage) firstErrorMessage = msg;
-      opts?.onProgress?.(countDone(), imageCount);
-      return;
-    }
-    applyResponse(index, data);
-    opts?.onProgress?.(countDone(), imageCount);
-  }
-
-  async function runChunk(chunk: ImageBatchChunk): Promise<'quota' | void> {
-    const { start, qty } = chunk;
-    const body =
-      qty === 3
-        ? {
-            ...basePayload,
-            quantity: 3,
-            promptStartIndex: start,
-          }
-        : qty === 2
-          ? {
-              ...basePayload,
-              quantity: 2,
-              promptStartIndex: start,
-            }
-          : {
-              ...basePayload,
-              quantity: 1,
-              singlePromptIndex: start,
-              clientChunkedSingle: true,
-            };
-
-    const res = await fetchGenerateImagesWithRetry(
-      body,
-      token,
-      engine === 'pro' ? 3 : 2,
-      engine === 'pro' ? 1400 : 900
-    );
-    let data: Record<string, unknown> = {};
-    try {
-      data = (await res.json()) as Record<string, unknown>;
-    } catch {
-      data = {};
-    }
-
-    if (!res.ok) {
-      const code = data.error;
-      if (
-        res.status === 403 &&
-        (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
-      ) {
-        return 'quota';
-      }
-      if (qty === 3) {
-        const [a, b, c] = await Promise.all([
-          runSingleIndex(start),
-          runSingleIndex(start + 1),
-          runSingleIndex(start + 2),
-        ]);
-        if (a === 'quota' || b === 'quota' || c === 'quota') return 'quota';
-        return;
-      }
-      if (qty === 2) {
-        const [q1, q2] = await Promise.all([runSingleIndex(start), runSingleIndex(start + 1)]);
-        if (q1 === 'quota' || q2 === 'quota') return 'quota';
-        return;
-      }
-      if (!firstErrorMessage) {
-        firstErrorMessage =
-          (typeof data.message === 'string' && data.message) ||
-          `Erreur ${res.status} (images ${start + 1}+).`;
-      }
-      opts?.onProgress?.(countDone(), imageCount);
-      return;
-    }
-
-    applyResponse(start, data);
-    const slots =
-      qty === 3
-        ? [start, start + 1, start + 2]
-        : qty === 2
-          ? [start, start + 1]
-          : [start];
-    const gotUrls = slots.filter((s) => urlByIndex[s] && urlByIndex[s]!.length > 20).length;
-    if (gotUrls < qty) {
-      const jobs: Promise<'quota' | void>[] = [];
-      for (const s of slots) {
-        if (!urlByIndex[s] || urlByIndex[s]!.length <= 20) jobs.push(runSingleIndex(s));
-      }
-      if (jobs.length > 0) {
-        const r = await Promise.all(jobs);
-        if (r.some((x) => x === 'quota')) return 'quota';
-      }
-    }
-    opts?.onProgress?.(countDone(), imageCount);
-  }
-
-  const chunks = buildImageChunks(imageCount, engine);
-
-  let results: ('quota' | void)[];
-  if (engine === 'pro') {
-    /** Pro : une requête à la fois → chaque fonction reste sous le timeout gateway (~60s). */
-    results = [];
-    for (const c of chunks) {
-      results.push(await runChunk(c));
-      if (results[results.length - 1] === 'quota') break;
-    }
-  } else {
-    results = await Promise.all(chunks.map((c) => runChunk(c)));
-  }
-
-  if (results.some((r) => r === 'quota')) {
-    const msg = QUOTA_MESSAGE_FR;
-    const imageDataUrls: string[] = [];
-    const imageTaskIds: string[] = [];
-    for (let i = 0; i < imageCount; i++) {
-      const u = urlByIndex[i];
-      if (typeof u === 'string' && u.length > 20) imageDataUrls.push(u);
-      else {
-        const t = taskByIndex[i];
-        if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
-      }
-    }
-    return {
-      imageDataUrls,
-      imageTaskIds,
-      firstErrorMessage: msg,
-      quotaError: msg,
-    };
-  }
-
-  const missing: number[] = [];
-  for (let i = 0; i < imageCount; i++) {
-    const u = urlByIndex[i];
-    const t = taskByIndex[i];
-    if (!(typeof u === 'string' && u.length > 20) && !(typeof t === 'string' && t.length > 0)) {
-      missing.push(i);
-    }
-  }
-  if (missing.length > 0) {
-    const retryResults = await Promise.all(missing.map((idx) => runSingleIndex(idx)));
-    if (retryResults.some((r) => r === 'quota')) {
-      const msg = QUOTA_MESSAGE_FR;
-      const imageDataUrls: string[] = [];
-      const imageTaskIds: string[] = [];
-      for (let i = 0; i < imageCount; i++) {
-        const u = urlByIndex[i];
-        if (typeof u === 'string' && u.length > 20) imageDataUrls.push(u);
-        else {
-          const t = taskByIndex[i];
-          if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
-        }
-      }
-      return {
-        imageDataUrls,
-        imageTaskIds,
-        firstErrorMessage: msg,
-        quotaError: msg,
-      };
-    }
-  }
-
-  const imageDataUrls: string[] = [];
-  const imageTaskIds: string[] = [];
-  for (let i = 0; i < imageCount; i++) {
-    const u = urlByIndex[i];
-    if (typeof u === 'string' && u.length > 20) {
-      imageDataUrls.push(u);
-      continue;
-    }
-    const t = taskByIndex[i];
-    if (typeof t === 'string' && t.length > 0) imageTaskIds.push(t);
-  }
-
-  return { imageDataUrls, imageTaskIds, firstErrorMessage };
 }
 
 function normalizeQuotaMessage(msg: string | undefined | null): string {
@@ -673,7 +393,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // 2) Images : paires (2 visuels / requête) + requêtes en parallèle, avec repli 1 visuel / slot si besoin.
+      // 2) Images : une seule requête API avec la quantité demandée.
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imageBase = {
         sourceImage: imagePayload,
@@ -694,23 +414,52 @@ export function DashboardQuickGenerate() {
 
       setQuickGenPhase('images');
       setPendingImagesCount(quantity);
-      const seq = await fetchGenerateImagesQuickBatched(imageBase, token, quantity, {
-        onProgress: (completed, total) => setPendingImagesCount(Math.max(0, total - completed)),
-      });
+      const imageRes = await fetchGenerateImagesWithRetry({ ...imageBase, quantity }, token, 3);
       setPendingImagesCount(0);
 
-      if (seq.quotaError) {
-        setError(
-          /quota|exceeded|crédits|insuffisant/i.test(seq.quotaError)
-            ? seq.quotaError
-            : 'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.'
-        );
+      let imgJson: Record<string, unknown> = {};
+      try {
+        imgJson = (await imageRes.json()) as Record<string, unknown>;
+      } catch {
+        imgJson = {};
+      }
+
+      if (!imageRes.ok) {
+        const code = imgJson.error;
+        if (
+          imageRes.status === 403 &&
+          (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
+        ) {
+          const qmsg =
+            typeof imgJson.message === 'string' && /quota|exceeded|crédits|insuffisant/i.test(imgJson.message)
+              ? imgJson.message
+              : QUOTA_MESSAGE_FR;
+          setError(qmsg);
+          return;
+        }
+        const msg =
+          (typeof imgJson.message === 'string' && imgJson.message) ||
+          'La génération des images a échoué. Utilise le listing puis « Générer les images » pour réessayer.';
+        setListingData(listing);
+        setGeneratedImages([]);
+        setHasGenerated(true);
+        setError(msg);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+          sessionStorage.removeItem(`${storageKey}-images`);
+        }
         return;
       }
 
-      const imageTaskIds: string[] = seq.imageTaskIds;
-      const imageDataUrls: string[] = seq.imageDataUrls;
-      const apiMessage = seq.firstErrorMessage;
+      const imageTaskIds: string[] = Array.isArray(imgJson.imageTaskIds)
+        ? (imgJson.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
+        : [];
+      const imageDataUrls: string[] = Array.isArray(imgJson.imageDataUrls)
+        ? (imgJson.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
+        : [];
+      const apiMessage =
+        typeof imgJson.message === 'string' && imgJson.message.trim() ? imgJson.message : null;
 
       if (imageDataUrls.length === 0 && imageTaskIds.length === 0) {
         const msg =
@@ -728,7 +477,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls (batch)`);
+      console.log(`[QUICK GENERATE] Listing OK, images: ${imageTaskIds.length} taskIds, ${imageDataUrls.length} dataUrls`);
 
       if (imageDataUrls.length > 0) {
         const directImages: GeneratedImage[] = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
@@ -924,18 +673,44 @@ export function DashboardQuickGenerate() {
           : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
       };
 
-      const seqRegen = await fetchGenerateImagesQuickBatched(regenPayloadBase, token, quantity, {});
+      const regenRes = await fetchGenerateImagesWithRetry({ ...regenPayloadBase, quantity }, token, 3);
 
-      if (seqRegen.quotaError) {
-        setError(normalizeQuotaMessage(seqRegen.quotaError));
+      let regenJson: Record<string, unknown> = {};
+      try {
+        regenJson = (await regenRes.json()) as Record<string, unknown>;
+      } catch {
+        regenJson = {};
+      }
+
+      if (!regenRes.ok) {
+        const code = regenJson.error;
+        if (
+          regenRes.status === 403 &&
+          (code === 'SUBSCRIPTION_REQUIRED' || code === 'QUOTA_EXCEEDED')
+        ) {
+          setError(normalizeQuotaMessage(typeof regenJson.message === 'string' ? regenJson.message : undefined));
+          setIsRegeneratingImages(false);
+          return;
+        }
+        setError(
+          normalizeQuotaMessage(
+            typeof regenJson.message === 'string' ? regenJson.message : 'La génération d\'images a échoué. Réessayez.'
+          )
+        );
         setIsRegeneratingImages(false);
         return;
       }
 
-      const taskIds: string[] = seqRegen.imageTaskIds;
-      const dataUrls: string[] = seqRegen.imageDataUrls;
+      const taskIds: string[] = Array.isArray(regenJson.imageTaskIds)
+        ? (regenJson.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
+        : [];
+      const dataUrls: string[] = Array.isArray(regenJson.imageDataUrls)
+        ? (regenJson.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
+        : [];
+      const regenApiMsg =
+        typeof regenJson.message === 'string' && regenJson.message.trim() ? regenJson.message : null;
 
-      console.log('[QUICK GENERATE] Regenerated images (batch):', { taskIds: taskIds.length, dataUrls: dataUrls.length });
+      console.log('[QUICK GENERATE] Regenerated images:', { taskIds: taskIds.length, dataUrls: dataUrls.length });
 
       if (dataUrls.length > 0) {
         const newImages: GeneratedImage[] = dataUrls
@@ -946,14 +721,11 @@ export function DashboardQuickGenerate() {
           if (typeof window !== 'undefined') saveImagesToSession(next);
           return next;
         });
-        if (dataUrls.length < quantity && seqRegen.firstErrorMessage) {
-          setError(`Seulement ${dataUrls.length} image(s) sur ${quantity}. ${seqRegen.firstErrorMessage}`);
+        if (dataUrls.length < quantity && regenApiMsg) {
+          setError(`Seulement ${dataUrls.length} image(s) sur ${quantity}. ${regenApiMsg}`);
         }
       } else if (taskIds.length === 0) {
-        setError(
-          seqRegen.firstErrorMessage ||
-            'La génération d\'images a échoué. Réessayez.'
-        );
+        setError(regenApiMsg || 'La génération d\'images a échoué. Réessayez.');
       } else {
         const deadline = Date.now() + getImagePollDeadlineMs(quantity);
         const pollMs = getImagePollIntervalMs(quantity);
@@ -1029,19 +801,35 @@ export function DashboardQuickGenerate() {
   };
 
   const downloadImage = async (imageUrl: string, index: number) => {
+    const filename = `etsmart-image-${index + 1}.png`;
     try {
+      // data: et blob: — pas de fetch (sinon échec / skip dans « tout télécharger »)
+      if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = filename;
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+        }, 100);
+        return;
+      }
+
       const response = await fetch(imageUrl, {
         mode: 'cors',
         credentials: 'omit',
         cache: 'no-cache',
       });
-      
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `etsmart-image-${index + 1}.png`;
+        a.download = filename;
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
@@ -1054,25 +842,34 @@ export function DashboardQuickGenerate() {
       } else {
         window.open(imageUrl, '_blank');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[DOWNLOAD] Error downloading image:', error);
-      window.open(imageUrl, '_blank');
+      if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
+        try {
+          window.open(imageUrl, '_blank');
+        } catch {
+          /* ignore */
+        }
+      } else {
+        window.open(imageUrl, '_blank');
+      }
     }
   };
 
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const downloadAllImages = async () => {
-    if (generatedImages.length === 0) return;
+    const withUrl = generatedImages.filter(
+      (img) => img && typeof img.url === 'string' && img.url.trim().length > 0
+    );
+    if (withUrl.length === 0) return;
     setIsDownloadingAll(true);
     try {
-      for (let i = 0; i < generatedImages.length; i++) {
-        const img = generatedImages[i];
-        if (!img.url || !img.url.startsWith('http')) continue;
-        await downloadImage(img.url, i);
-        // Small delay between downloads to avoid browser blocking
-        if (i < generatedImages.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+      for (let i = 0; i < withUrl.length; i++) {
+        await downloadImage(withUrl[i].url, i);
+        // Délai entre chaque fichier pour limiter le blocage « pop-ups » du navigateur
+        if (i < withUrl.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 450));
         }
       }
     } catch (error) {
@@ -1657,7 +1454,8 @@ export function DashboardQuickGenerate() {
                     {/* Download All Button */}
                     {generatedImages.length > 1 && (
                       <button
-                        onClick={downloadAllImages}
+                        type="button"
+                        onClick={() => void downloadAllImages()}
                         disabled={isDownloadingAll}
                         className="flex-1 py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] hover:from-[#00bfe6] hover:to-[#00b5a5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >

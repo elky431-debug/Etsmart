@@ -11,15 +11,15 @@ export const IMAGE_STYLE_IDS = [
   'rustic_luxury',
   'natural_wood_organic',
   'mediterranean_villa',
-  'modern_farmhouse_chic',
   'moody_heritage',
   'japandi_harmony',
   'neo_vintage_boutique',
   'french_countryside',
-  'soft_editorial_canvas',
   'artisan_workshop',
-  'bbq_provence_summer',
   // Anciens presets (rétrocompat si requêtes / state obsolètes)
+  'modern_farmhouse_chic',
+  'soft_editorial_canvas',
+  'bbq_provence_summer',
   'realistic',
   'studio',
   'lifestyle',
@@ -35,7 +35,7 @@ export type ImageStylePreset = {
   hint: string;
 };
 
-/** Cartes affichées dans l’UI : aucun style + 11 ambiances type LG Studio */
+/** Cartes affichées dans l’UI : aucun style + 8 ambiances */
 export const IMAGE_STYLE_PRESETS: ImageStylePreset[] = [
     {
       id: 'no_style',
@@ -62,12 +62,6 @@ export const IMAGE_STYLE_PRESETS: ImageStylePreset[] = [
       hint: 'Blanc chaux, terre cuite, olivier, lumière du sud',
     },
     {
-      id: 'modern_farmhouse_chic',
-      label: 'Ferme moderne chic',
-      emoji: '🌾',
-      hint: 'Lambris clair, crème, touches métal noir',
-    },
-    {
       id: 'moody_heritage',
       label: 'Patrimoine tamisé',
       emoji: '🕰️',
@@ -92,22 +86,10 @@ export const IMAGE_STYLE_PRESETS: ImageStylePreset[] = [
       hint: 'Table rustique, lavande, pierre et lin',
     },
     {
-      id: 'soft_editorial_canvas',
-      label: 'Éditorial doux',
-      emoji: '🕊️',
-      hint: 'High-key, fond épuré, magazine lifestyle',
-    },
-    {
       id: 'artisan_workshop',
       label: 'Atelier artisan',
       emoji: '🔨',
       hint: 'Établi, outils, matières brutes, savoir-faire',
-    },
-    {
-      id: 'bbq_provence_summer',
-      label: 'BBQ & Provence',
-      emoji: '🥩',
-      hint: 'Table d’été, herbes, soleil, convivialité',
     },
   ];
 

@@ -6,6 +6,7 @@ import { Copy, Check, Loader2, Sparkles, Store, Upload, Lightbulb, Languages } f
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SHOP_NAME_LANGUAGES, type ShopNameLanguageCode } from '@/lib/shop-name-languages';
+import { DashboardFilterSelect } from '@/components/dashboard/DashboardFilterSelect';
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -195,25 +196,26 @@ export function DashboardShopNameIdeas() {
               </button>
             )}
 
-            <div className="mt-6">
-              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
-                <Languages className="h-4 w-4 text-[#00d4ff]" />
+            <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 ring-1 ring-inset ring-white/[0.04]">
+              <label className="mb-1 flex items-center gap-2 text-sm font-semibold text-white">
+                <Languages className="h-4 w-4 shrink-0 text-[#00d4ff]" />
                 2. Langue de la boutique (Etsy)
               </label>
-              <p className="mb-3 text-xs text-white/50">
+              <p className="mb-4 text-xs leading-relaxed text-white/50">
                 Tout sera généré dans cette langue : noms, slogans et angle de positionnement.
               </p>
-              <select
+              <DashboardFilterSelect
+                id="shop-name-language"
+                hideLabel
+                triggerAriaLabel="Langue de la boutique pour noms et slogans"
                 value={shopLanguage}
-                onChange={(e) => setShopLanguage(e.target.value as ShopNameLanguageCode)}
-                className="h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/40"
-              >
-                {SHOP_NAME_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code} className="bg-zinc-900">
-                    {l.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setShopLanguage(v as ShopNameLanguageCode)}
+                triggerClassName="w-full"
+                options={SHOP_NAME_LANGUAGES.map((l) => ({
+                  value: l.code,
+                  label: l.label,
+                }))}
+              />
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
