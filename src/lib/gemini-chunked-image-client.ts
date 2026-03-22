@@ -139,43 +139,51 @@ export async function runChunkedImageGeneration(opts: {
   };
 
   const runSingleIndex = async (index: number): Promise<void> => {
-    const payload = {
-      ...imageBase,
-      quantity: 1,
-      clientChunkedSingle: true,
-      singlePromptIndex: index,
-      promptStartIndex: index,
-    };
-    const res = await fetchGenerateImagesWithRetry(payload, token, retryAttemptsPerSlot, 1200);
-    let json: Record<string, unknown> = {};
-    try {
-      json = (await res.json()) as Record<string, unknown>;
-    } catch {
-      json = {};
-    }
-    const parsed = parseGenerateImageResponse(json);
-    if (!res.ok) {
-      if (
-        res.status === 403 &&
-        (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
-      ) {
-        firstQuotaError = normalizeQuotaMessage(parsed.message);
-      } else {
-        errors.push(parsed.message || `Image ${index + 1}: erreur API ${res.status}`);
+    let lastError = `Image ${index + 1}: aucun visuel retourné`;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const payload = {
+        ...imageBase,
+        quantity: 1,
+        clientChunkedSingle: true,
+        singlePromptIndex: index,
+        promptStartIndex: index,
+        clientChunkAttempt: attempt,
+      };
+      const res = await fetchGenerateImagesWithRetry(payload, token, retryAttemptsPerSlot, 1200);
+      let json: Record<string, unknown> = {};
+      try {
+        json = (await res.json()) as Record<string, unknown>;
+      } catch {
+        json = {};
       }
-      markDone(index);
-      return;
+      const parsed = parseGenerateImageResponse(json);
+      if (!res.ok) {
+        if (
+          res.status === 403 &&
+          (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
+        ) {
+          firstQuotaError = normalizeQuotaMessage(parsed.message);
+          markDone(index);
+          return;
+        }
+        lastError = parsed.message || `Image ${index + 1}: erreur API ${res.status}`;
+        continue;
+      }
+
+      let url = parsed.imageDataUrls[0] || null;
+      if (!url && parsed.imageTaskIds.length > 0) {
+        url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1);
+      }
+      if (url) {
+        slots[index] = { id: `img-${Date.now()}-${index}`, url };
+        markDone(index);
+        return;
+      }
+      lastError = parsed.message || `Image ${index + 1}: aucun visuel retourné`;
     }
 
-    let url = parsed.imageDataUrls[0] || null;
-    if (!url && parsed.imageTaskIds.length > 0) {
-      url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1);
-    }
-    if (url) {
-      slots[index] = { id: `img-${Date.now()}-${index}`, url };
-    } else {
-      errors.push(parsed.message || `Image ${index + 1}: aucun visuel retourné`);
-    }
+    errors.push(lastError);
     markDone(index);
   };
 

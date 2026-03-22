@@ -33,8 +33,8 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  // Netlify a souvent une gateway stricte: garder une marge réelle pour auth + compression + JSON.
-  if (isNetlifyRuntime()) return 19_000;
+  // Laisser une marge réelle pour auth, compression et sérialisation sous la gateway Netlify.
+  if (isNetlifyRuntime()) return 21_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -121,12 +121,17 @@ export async function POST(request: NextRequest) {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
+      clientChunkAttempt: clientChunkAttemptRaw,
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
       typeof singlePromptIndexRaw === 'number' && Number.isFinite(singlePromptIndexRaw)
         ? Math.max(0, Math.floor(singlePromptIndexRaw))
         : null;
+    const clientChunkAttempt =
+      typeof clientChunkAttemptRaw === 'number' && Number.isFinite(clientChunkAttemptRaw)
+        ? Math.max(0, Math.floor(clientChunkAttemptRaw))
+        : 0;
     const hasPromptStart =
       typeof promptStartIndexRaw === 'number' &&
       Number.isFinite(promptStartIndexRaw) &&
@@ -209,8 +214,8 @@ export async function POST(request: NextRequest) {
             const buf = Buffer.from(b64, 'base64');
             // Sur Netlify, privilégier des refs plus légères pour rester sous la gateway.
             const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
-            const maxSide = isNetlifyFastSingle ? 640 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
-            const jpegQ = isNetlifyFastSingle ? 72 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
+            const maxSide = isNetlifyFastSingle ? 768 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
+            const jpegQ = isNetlifyFastSingle ? 76 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -337,7 +342,7 @@ Pas de texte marketing. Pas de watermark.`
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
       // Pro est volontairement mappé vers Gemini 3.1 Flash Image pour stabilité + vitesse.
-      // En fast single sur Netlify: 1 seul modèle, 1 seule chance, pour éviter les 504 de gateway.
+      // En fast single Netlify: 1 modèle par requête, rotation via clientChunkAttempt au retry client.
       const modelCandidatesFull =
         engineSafe === 'pro'
           ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
@@ -345,18 +350,19 @@ Pas de texte marketing. Pas de watermark.`
               'gemini-2.5-flash-image',
               'gemini-3.1-flash-image-preview',
             ];
-      // Flash chunked : 3.1 d’abord pour limiter les allers-retours sur Netlify.
+      // Fast single : 3.1 d’abord, puis 2.5 au retry suivant si besoin.
       const modelCandidatesFast =
-        isNetlifyHost && isFastChunkedSingle
-          ? ['gemini-3.1-flash-image-preview']
-          : engineSafe === 'pro'
+        engineSafe === 'pro'
           ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
           : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'];
       // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
       const modelCandidates =
         isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
-      // Chunked : enchaîner tous les modèles candidats (comme avant) — beaucoup plus fiable que 1 modèle + timeout court.
-      const modelsForGemini: string[] = modelCandidates;
+      const si = singlePromptIndex ?? 0;
+      const modelsForGemini: string[] =
+        isFastChunkedSingle && modelCandidates.length > 0
+          ? [modelCandidates[(si + clientChunkAttempt) % modelCandidates.length]]
+          : modelCandidates;
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProFastSingle);
       console.log(
         `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
@@ -425,18 +431,13 @@ Pas de texte marketing. Pas de watermark.`
 
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const multiFast = !isFastChunkedSingle && numImages >= 2;
-        const primaryInlineImageParts = [inlineImageParts[0]].filter(
-          (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
-        );
         const imagePartSets = isProFastSingle
           ? [inlineImageParts]
           : isFastChunkedSingle
-            ? isNetlifyHost
-              ? [primaryInlineImageParts]
-              : [inlineImageParts, primaryInlineImageParts]
+            ? [inlineImageParts]
             : multiFast
               ? [inlineImageParts]
-              : [inlineImageParts, primaryInlineImageParts];
+              : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
         const fastStart = Date.now();
         const batchTryTimeout = multiFast ? 56_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
@@ -445,12 +446,12 @@ Pas de texte marketing. Pas de watermark.`
             if (isFastChunkedSingle) {
               const singleWallMs = chunkSingleWallMs;
               const elapsed = Date.now() - fastStart;
-              const remaining = singleWallMs - elapsed - 1200;
-              if (remaining < (isNetlifyHost ? 6_000 : 10_000)) {
+              const remaining = singleWallMs - elapsed - 1500;
+              if (remaining < (isNetlifyHost ? 12_000 : 10_000)) {
                 console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
                 return null;
               }
-              const cap = isNetlifyHost ? 14_000 : isProFastSingle ? 50_000 : 42_000;
+              const cap = isNetlifyHost ? 19_000 : isProFastSingle ? 50_000 : 42_000;
               const timeoutMs = Math.min(cap, remaining);
               const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
               if (img) return img;
