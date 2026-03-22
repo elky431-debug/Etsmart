@@ -29,6 +29,8 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
+  // Netlify a souvent une gateway stricte: sans override explicite, limiter le budget single.
+  if (process.env.NETLIFY === 'true') return 24_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 

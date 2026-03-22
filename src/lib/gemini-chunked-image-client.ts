@@ -1,7 +1,7 @@
 /**
  * Client de génération d'images:
- * - stratégie rapide: blocs (3/2/1) en parallèle, pour retrouver un temps proche d'avant.
- * - fallback: singles par slot si un bloc échoue.
+ * - stratégie rapide: 1 requête par image (single), plusieurs requêtes en parallèle.
+ * - évite les gros POST quantity>1 qui déclenchent des 504 Netlify.
  */
 import { getImagePollDeadlineMs, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 
@@ -86,27 +86,6 @@ export async function pollSingleTaskImage(
 export interface ChunkedGeneratedImage {
   id: string;
   url: string;
-}
-
-type ImageBatchChunk = { start: number; qty: 1 | 2 | 3 };
-
-function buildImageChunks(imageCount: number): ImageBatchChunk[] {
-  const chunks: ImageBatchChunk[] = [];
-  let i = 0;
-  while (i < imageCount) {
-    const left = imageCount - i;
-    if (left >= 3) {
-      chunks.push({ start: i, qty: 3 });
-      i += 3;
-    } else if (left === 2) {
-      chunks.push({ start: i, qty: 2 });
-      i += 2;
-    } else {
-      chunks.push({ start: i, qty: 1 });
-      i += 1;
-    }
-  }
-  return chunks;
 }
 
 async function runWithConcurrency<T>(
@@ -197,84 +176,8 @@ export async function runChunkedImageGeneration(opts: {
     markDone(index);
   };
 
-  const runChunk = async (chunk: ImageBatchChunk): Promise<void> => {
-    const { start, qty } = chunk;
-    const indexes = qty === 3 ? [start, start + 1, start + 2] : qty === 2 ? [start, start + 1] : [start];
-    const payload =
-      qty === 1
-        ? {
-            ...imageBase,
-            quantity: 1,
-            clientChunkedSingle: true,
-            singlePromptIndex: start,
-            promptStartIndex: start,
-          }
-        : {
-            ...imageBase,
-            quantity: qty,
-            promptStartIndex: start,
-          };
-
-    const res = await fetchGenerateImagesWithRetry(payload, token, 2, 900);
-    let json: Record<string, unknown> = {};
-    try {
-      json = (await res.json()) as Record<string, unknown>;
-    } catch {
-      json = {};
-    }
-    const parsed = parseGenerateImageResponse(json);
-
-    if (!res.ok) {
-      if (
-        res.status === 403 &&
-        (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
-      ) {
-        firstQuotaError = normalizeQuotaMessage(parsed.message);
-        indexes.forEach(markDone);
-        return;
-      }
-      await Promise.all(indexes.map((idx) => runSingleIndex(idx)));
-      return;
-    }
-
-    // Réponse d'un lot: mappe les URLs directes puis fallback par slot si manquant.
-    indexes.forEach((idx, local) => {
-      const url = parsed.imageDataUrls[local];
-      if (typeof url === 'string' && url.length > 20) {
-        slots[idx] = { id: `img-${Date.now()}-${idx}`, url };
-        markDone(idx);
-      }
-    });
-
-    const pendingFromTasks: Promise<void>[] = [];
-    indexes.forEach((idx, local) => {
-      if (slotDone[idx]) return;
-      const taskId = parsed.imageTaskIds[local];
-      if (typeof taskId === 'string' && taskId.length > 0) {
-        pendingFromTasks.push(
-          (async () => {
-            const url = await pollSingleTaskImage(taskId, qty);
-            if (url) {
-              slots[idx] = { id: `img-${Date.now()}-${idx}`, url };
-            } else {
-              errors.push(`Image ${idx + 1}: aucun visuel retourné`);
-            }
-            markDone(idx);
-          })()
-        );
-      }
-    });
-
-    if (pendingFromTasks.length > 0) await Promise.all(pendingFromTasks);
-
-    const missing = indexes.filter((idx) => !slotDone[idx]);
-    if (missing.length > 0) {
-      await Promise.all(missing.map((idx) => runSingleIndex(idx)));
-    }
-  };
-
-  const chunks = buildImageChunks(imageCount);
-  await runWithConcurrency(chunks, getImageChunkConcurrency(engineMode), runChunk);
+  const indexes = Array.from({ length: imageCount }, (_, i) => i);
+  await runWithConcurrency(indexes, getImageChunkConcurrency(engineMode), runSingleIndex);
 
   // Filet de sécurité: fermer les slots non marqués (ne devrait pas arriver).
   for (let i = 0; i < imageCount; i++) {
