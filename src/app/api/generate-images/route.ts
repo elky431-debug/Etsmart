@@ -414,24 +414,28 @@ Pas de texte marketing. Pas de watermark.`
           return null;
         }
         const model = engineMode === 'pro' ? 'stable-image-ultra' : 'stable-image-core';
+        // Image-to-image : même chemin core/ultra qu’en text-to-image, mais avec champs image + strength.
+        const endpoint =
+          engineMode === 'pro'
+            ? 'https://api.stability.ai/v2beta/stable-image/generate/ultra'
+            : 'https://api.stability.ai/v2beta/stable-image/generate/core';
         console.log(`[IMAGE GEN] Stability ${model} start...`);
         try {
           const imageBuffer = Buffer.from(sourceImageB64, 'base64');
           const formData = new FormData();
+          // Pas de préfixe générique : les 7 prompts IMAGE_PROMPTS_GEMINI restent intacts.
           formData.append('prompt', prompt);
           formData.append('output_format', 'jpeg');
           formData.append('image', new Blob([imageBuffer], { type: 'image/jpeg' }), 'product.jpg');
-          formData.append('strength', engineMode === 'pro' ? '0.75' : '0.80');
+          // Strength plus élevé = réinterprétation plus forte (évite “zoom” quasi identique à la source).
+          formData.append('strength', engineMode === 'pro' ? '0.85' : '0.90');
 
-          const res = await fetch(
-            `https://api.stability.ai/v2beta/stable-image/generate/${model === 'stable-image-ultra' ? 'ultra' : 'core'}`,
-            {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${STABILITY_KEY}`, Accept: 'image/*' },
-              body: formData,
-              signal: geminiFetchSignal(timeoutMs),
-            }
-          );
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${STABILITY_KEY}`, Accept: 'image/*' },
+            body: formData,
+            signal: geminiFetchSignal(timeoutMs),
+          });
 
           if (!res.ok) {
             const t = await res.text().catch(() => '');
