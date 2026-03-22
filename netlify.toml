@@ -11,10 +11,8 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Configuration pour Next.js API routes
-# IMPORTANT: Même avec le plan Pro, le timeout maximum est souvent ~50 secondes par fonction.
-# La génération rapide utilise des POST par paires (2 images / requête, prompts parallèles) + secours 1 image,
-# avec maxDuration côté route (generate-images) pour rester sous la limite hébergeur.
+# Génération d’images (Gemini) : 1 visuel = 1 requête API. Si 504, voir GEMINI_CHUNK_SINGLE_WALL_MS dans NETLIFY_ENV_SETUP.md
+# ou augmenter la durée max des fonctions (plan Netlify).
 
 [functions]
   # Configuration pour les fonctions Netlify (si utilisées)

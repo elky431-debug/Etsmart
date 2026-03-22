@@ -24,7 +24,7 @@ export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
   return engineMode === 'pro' ? 2 : 3;
 }
 
-/** Retries sur 502/503/504 ; clientChunkAttempt alterne le modèle côté API. */
+/** Retries sur 502/503/504 / erreurs transitoires. */
 export async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
   token: string,
@@ -36,7 +36,7 @@ export async function fetchGenerateImagesWithRetry(
       last = await fetch('/api/generate-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...payload, clientChunkAttempt: i }),
+        body: JSON.stringify(payload),
       });
     } catch {
       last = new Response(null, { status: 503, statusText: 'Network error' });
