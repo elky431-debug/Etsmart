@@ -148,10 +148,6 @@ export async function POST(request: NextRequest) {
     // Nanobanana seulement si pas de clé Gemini, ou si USE_NANOBANANA_IMAGES=true (opt-in explicite).
     const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true';
     const useGemini = !!GEMINI_KEY && !forceNano;
-    /** Si true : moteur UI « pro » = Gemini 3 Pro Image (quota RPD très bas). Sinon : Nano Banana 2 / 3.1 Flash Image d’abord. */
-    const geminiProUsesNative3ProImage =
-      process.env.GEMINI_PRO_IMAGE_NATIVE === 'true' || process.env.GEMINI_PRO_IMAGE_NATIVE === '1';
-
     if (!useGemini && !NANO_KEY) {
       console.error('[IMAGE GEN] Aucune clé image utilisable (GEMINI_API_KEY ou clés Nanobanana)');
       return NextResponse.json(
@@ -187,8 +183,10 @@ export async function POST(request: NextRequest) {
       const numImages = Math.min(Math.max(quantity, 1), 10);
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-      /** Pro + 1 requête / image : refs un peu plus légères pour réduire la latence Gemini. */
-      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
+      // Demande produit: le bouton "Pro" reste routé vers Gemini 3.1 Flash Image.
+      const forceProToFlash31 = engineSafe === 'pro';
+      /** Quand pro est mappé vers 3.1 Flash, on garde les réglages "flash" (plus rapides). */
+      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro' && !forceProToFlash31;
       /** Paires / lots : pas de 2e passe Gemini (évite +1,2 s × prompts = génération rapide plus courte). */
       const skipSecondGeminiAttempt = !isFastChunkedSingle && numImages >= 2;
 
@@ -230,7 +228,7 @@ export async function POST(request: NextRequest) {
       }
 
       const realismBoost =
-        engineSafe === 'pro'
+        engineSafe === 'pro' && !forceProToFlash31
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : isFastChunkedSingle
             ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
@@ -330,17 +328,10 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
-      // UI « pro » : par défaut Gemini 3.1 Flash Image (meilleur quota RPD que 3 Pro Image). Opt-in natif via GEMINI_PRO_IMAGE_NATIVE.
+      // Pro est volontairement mappé vers Gemini 3.1 Flash Image pour stabilité + vitesse.
       const modelCandidatesFull =
         engineSafe === 'pro'
-          ? geminiProUsesNative3ProImage
-            ? [
-                'gemini-3-pro-image-preview',
-                'nano-banana-pro-preview',
-                'gemini-3.1-flash-image-preview',
-                'gemini-2.5-flash-image',
-              ]
-            : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
+          ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
           : [
               'gemini-2.5-flash-image',
               'gemini-3.1-flash-image-preview',
@@ -349,9 +340,7 @@ Pas de texte marketing. Pas de watermark.`
       // Moins de modèles = moins de temps perdu en repli (génération rapide).
       const modelCandidatesFast =
         engineSafe === 'pro'
-          ? geminiProUsesNative3ProImage
-            ? ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
-            : ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
+          ? ['gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image']
           : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
       // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
       const modelCandidates =
