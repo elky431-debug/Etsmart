@@ -28,8 +28,8 @@ function readGeminiChunkSingleWallMs(): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  // Laisser ~4–5s pour auth, sharp et sérialisation JSON sous le plafond Netlify ~26s.
-  return 21_000;
+  // Laisser ~3–4s pour auth, sharp et JSON sous le plafond Netlify ~26s.
+  return 23_000;
 }
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
@@ -452,11 +452,11 @@ Pas de texte marketing. Pas de watermark.`
               const singleWallMs = chunkSingleWallMs;
               const elapsed = Date.now() - fastStart;
               const remaining = singleWallMs - elapsed - 1500;
-              if (remaining < 12_000) {
+              if (remaining < 10_000) {
                 console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
                 return null;
               }
-              const timeoutMs = Math.min(19_000, remaining);
+              const timeoutMs = Math.min(20_000, remaining);
               const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
               if (img) return img;
             } else {

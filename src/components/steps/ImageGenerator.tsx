@@ -18,8 +18,8 @@ import { ImageAltTextPanel } from '@/components/dashboard/ImageAltTextPanel';
 import { ImageStyleCards } from '@/components/dashboard/ImageStyleCards';
 import type { ImageStyleId } from '@/lib/image-style-presets';
 import { DEFAULT_IMAGE_STYLE } from '@/lib/image-style-presets';
-import { getImagePollMaxAttempts, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 import { imagesOnlyTotalCredits, roundCreditsToTenth } from '@/lib/image-listing-credits';
+import { runChunkedImageGeneration } from '@/lib/gemini-chunked-image-client';
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -382,183 +382,64 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       }
 
       console.log('[IMAGE GENERATION] 📊 Generating images independently', creditsToDeduct, 'crédits', backgroundBase64 ? '(with custom background)' : '');
-      
-      const response = await fetch('/api/generate-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+
+      // Même stratégie que la génération rapide : 1 visuel / requête HTTP (sinon Netlify ~26s → 504 sur quantity>1).
+      const imageBase: Record<string, unknown> = {
+        sourceImage: imageBase64,
+        backgroundImage: backgroundBase64,
+        customInstructions: customInstructions.trim() || undefined,
+        aspectRatio,
+        engine: engineForApi,
+        style,
+        productTitle: analysis.product.title || undefined,
+        productContext: {
+          title: analysis.product.title || '',
+          referenceImages: extraReferenceImages,
         },
-        body: JSON.stringify({
-          sourceImage: imageBase64,
-          backgroundImage: backgroundBase64,
-          customInstructions: customInstructions.trim() || undefined,
-          quantity,
-          aspectRatio,
-          engine: engineForApi,
-          style,
-          productTitle: analysis.product.title || undefined,
-          productContext: {
-            title: analysis.product.title || '',
-            referenceImages: extraReferenceImages,
-          },
-          skipCreditDeduction: true,
-          skipListingGeneration: true, // ⚠️ ALWAYS true — crédits déduits côté client (voir image-listing-credits)
-        }),
-      });
+        skipCreditDeduction: true,
+        skipListingGeneration: true,
+      };
 
-      if (!response.ok) {
-        // Some Next/Netlify failures may return HTML (not JSON). In that case, response.json()
-        // would throw and we'd lose the real reason. We fallback to response.text().
-        let errorMessage = `Erreur ${response.status}`;
-        let errorData: any = null;
-        let rawText = '';
-
-        try {
-          rawText = await response.text();
-          if (rawText) {
-            // Try parse JSON from the returned body (sometimes it is JSON with non-2xx).
-            try {
-              errorData = JSON.parse(rawText);
-            } catch {
-              // keep errorData null
-            }
-          }
-        } catch {
-          // ignore - we'll use status only
-        }
-
-        if (errorData && typeof errorData === 'object') {
-          // Prefer human-readable messages over error codes.
-          errorMessage =
-            (typeof errorData.message === 'string' && errorData.message) ||
-            (typeof errorData.detail === 'string' && errorData.detail) ||
-            (typeof errorData.error === 'string' && errorData.error) ||
-            `Erreur ${response.status}`;
-        } else if (response.status === 413) {
-          errorMessage = "Image trop lourde (payload trop grand). Essaie avec une image plus petite.";
-        } else if (rawText && rawText.trim().length > 0) {
-          // Keep it short to avoid dumping HTML.
-          const snippet = rawText.trim().slice(0, 180);
-          errorMessage = `Erreur ${response.status}: ${snippet}`;
-        }
-
-        console.error('[IMAGE GENERATION] API Error:', response.status, errorData || rawText || '(empty)');
-        throw new Error(errorMessage);
+      let chunkedResult: Awaited<ReturnType<typeof runChunkedImageGeneration>>;
+      try {
+        chunkedResult = await runChunkedImageGeneration({
+          token,
+          imageBase,
+          imageCount: quantity,
+          engineMode: engineForApi,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Erreur lors de la génération des images';
+        throw new Error(msg);
       }
 
-      const data = await response.json();
-      console.log('[IMAGE GENERATION] Response:', data);
-      
-      if (data.error) {
-        const details = data.details ? ` Détails: ${Array.isArray(data.details) ? data.details.join(', ') : data.details}` : '';
-        throw new Error(`${data.error}${details}`);
-      }
-      
-      // Gemini/Imagen : l’API renvoie directement imageDataUrls (pas de polling)
-      const imageDataUrls: string[] = data.imageDataUrls || [];
-      if (imageDataUrls.length > 0) {
-        const validImages = imageDataUrls.map((url, i) => ({ id: `img-${Date.now()}-${i}`, url }));
-        setGeneratedImages(validImages);
-        setHasGeneratedImage(true);
-        const refreshCredits = async () => {
-          try {
-            await refreshSubscription(true);
-            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
-          } catch (err) {
-            console.error('[IMAGE GENERATION] Refresh subscription error:', err);
-          }
-        };
-        setTimeout(() => { refreshCredits(); setTimeout(refreshCredits, 1000); setTimeout(refreshCredits, 2000); }, 3000);
-        persistGeneratedImages(validImages);
-        if (data.warning) console.warn('[IMAGE GENERATION]', data.warning);
-        return;
-      }
-      
-      // NanoBanana : API renvoie taskIds.
-      // On ne doit pas "bloquer" l'UI en attendant que tout soit prêt.
-      // Ici on poll en background et on affiche dès qu'une image est prête.
-      const taskIds: string[] = data.imageTaskIds || [];
-      if (taskIds.length === 0) {
-        throw new Error('Aucune image soumise. Réessayez.');
+      if (chunkedResult.images.length === 0) {
+        throw new Error(chunkedResult.warning || 'Aucune image générée. Réessayez.');
       }
 
-      console.log('[IMAGE GENERATION] Polling (background) for', taskIds.length, 'image(s)...');
-
-      const POLL_INTERVAL_MS = getImagePollIntervalMs(quantity);
-      const MAX_POLL_ATTEMPTS = getImagePollMaxAttempts(quantity);
+      const validImages = chunkedResult.images.map((img, i) => ({
+        id: img.id || `img-${Date.now()}-${i}`,
+        url: img.url,
+      }));
+      setGeneratedImages(validImages);
+      setHasGeneratedImage(true);
+      setError(chunkedResult.warning);
 
       const refreshCredits = async () => {
         try {
-          console.log('[IMAGE GENERATION] 🔄 Refreshing subscription credits...');
           await refreshSubscription(true);
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('subscription-refresh'));
-          }
-          console.log('[IMAGE GENERATION] ✅ Subscription refreshed');
+          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription-refresh'));
         } catch (err) {
-          console.error('❌ [IMAGE GENERATION] Error refreshing subscription after image generation:', err);
+          console.error('[IMAGE GENERATION] Refresh subscription error:', err);
         }
       };
-
-      const readyImages: { id: string; url: string }[] = [];
-      let completedCount = 0;
-
-      // Start pollers without awaiting them.
-      for (const taskId of taskIds) {
-        (async () => {
-          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-            try {
-              const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-              });
-              if (!res.ok) continue;
-              const s = await res.json();
-
-              if (s.status === 'ready' && s.url) {
-                const img = {
-                  id: `img-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  url: s.url as string,
-                };
-                readyImages.push(img);
-                setGeneratedImages([...readyImages]);
-                setHasGeneratedImage(true);
-                setError(null);
-                persistGeneratedImages([...readyImages]);
-                return;
-              }
-
-              if (s.status === 'error') return;
-            } catch {
-              // retry
-            }
-          }
-
-          // Task not ready within attempts
-          completedCount += 1;
-          if (completedCount === taskIds.length) {
-            const failedCount = taskIds.length - readyImages.length;
-            if (readyImages.length === 0) {
-              setError('Aucune image générée. Réessayez.');
-            } else if (failedCount > 0) {
-              setError(`${failedCount} image(s) n'ont pas pu être générée(s). ${readyImages.length} image(s) générée(s) avec succès.`);
-            }
-          }
-        })();
-      }
-
-      // Wait 3 seconds for database sync, then refresh multiple times
-      console.log('[IMAGE GENERATION] ⏳ Waiting 3 seconds for database sync before refreshing credits...');
       setTimeout(() => {
-        console.log('[IMAGE GENERATION] 🔄 Starting credit refresh sequence...');
         refreshCredits();
         setTimeout(refreshCredits, 1000);
         setTimeout(refreshCredits, 2000);
-        setTimeout(refreshCredits, 3000);
       }, 3000);
-
-      if (data.warning) console.warn('[IMAGE GENERATION]', data.warning);
+      persistGeneratedImages(validImages);
+      if (chunkedResult.warning) console.warn('[IMAGE GENERATION]', chunkedResult.warning);
     } catch (err: any) {
       console.error('Error generating images:', err);
       const rawMessage = (err?.message || 'Erreur lors de la génération des images') as string;
