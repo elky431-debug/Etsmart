@@ -71,7 +71,7 @@ async function fetchGenerateImagesWithRetry(
       last = await fetch('/api/generate-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, clientChunkAttempt: i }),
       });
     } catch {
       last = new Response(null, { status: 503, statusText: 'Network error' });
@@ -372,7 +372,7 @@ export function DashboardQuickGenerate() {
             singlePromptIndex: index,
             promptStartIndex: index,
           };
-          const res = await fetchGenerateImagesWithRetry(payload, token, 2);
+          const res = await fetchGenerateImagesWithRetry(payload, token, 4);
           let json: Record<string, unknown> = {};
           try {
             json = (await res.json()) as Record<string, unknown>;

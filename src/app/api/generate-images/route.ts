@@ -5,7 +5,7 @@ import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
 
-// Vercel: aligné avec vercel.json (plusieurs images Gemini = besoin de >25s). Netlify free reste limité ~26s.
+// Vercel: aligné avec vercel.json. Netlify: gateway ~26s → mode chunked = 1 modèle / requête, budget ~21s (voir readGeminiChunkSingleWallMs).
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
@@ -17,6 +17,20 @@ const GEMINI_PRO_SINGLE_WALL_MS = 56_000;
 /** Budget pour 2+ images dans un même POST (plusieurs vagues batch internes). */
 const GEMINI_PAIR_WALL_MS = 110_000;
 const GEMINI_MULTI_BATCH_WALL_MS = 115_000;
+
+/**
+ * 1 image / requête (génération rapide chunked). Netlify coupe souvent à ~26s → défaut 24s pour éviter 504.
+ * Sur Vercel / plan Netlify Pro, tu peux monter via GEMINI_CHUNK_SINGLE_WALL_MS (ex. 52000).
+ */
+function readGeminiChunkSingleWallMs(): number {
+  const raw = process.env.GEMINI_CHUNK_SINGLE_WALL_MS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
+  }
+  // Laisser ~4–5s pour auth, sharp et sérialisation JSON sous le plafond Netlify ~26s.
+  return 21_000;
+}
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -101,12 +115,17 @@ export async function POST(request: NextRequest) {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
+      clientChunkAttempt: clientChunkAttemptRaw,
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
       typeof singlePromptIndexRaw === 'number' && Number.isFinite(singlePromptIndexRaw)
         ? Math.max(0, Math.floor(singlePromptIndexRaw))
         : null;
+    const clientChunkAttempt =
+      typeof clientChunkAttemptRaw === 'number' && Number.isFinite(clientChunkAttemptRaw)
+        ? Math.max(0, Math.floor(clientChunkAttemptRaw))
+        : 0;
     const hasPromptStart =
       typeof promptStartIndexRaw === 'number' &&
       Number.isFinite(promptStartIndexRaw) &&
@@ -342,8 +361,15 @@ Pas de texte marketing. Pas de watermark.`
       // Lots 2+ images (génération rapide) : uniquement modèles rapides — évite 4 modèles × 2 refs = très lent.
       const modelCandidates =
         isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
+      /** 1 modèle / requête en chunked pour rester sous le timeout gateway (~26s) ; rotation via clientChunkAttempt aux retries. */
+      const si = singlePromptIndex ?? 0;
+      const modelsForGemini: string[] =
+        isFastChunkedSingle && modelCandidates.length > 0
+          ? [modelCandidates[(si + clientChunkAttempt) % modelCandidates.length]]
+          : modelCandidates;
+      const chunkSingleWallMs = readGeminiChunkSingleWallMs();
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, models=${modelCandidates.join(',')}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkAttempt=${clientChunkAttempt}, models=${modelsForGemini.join(',')}`
       );
 
       const tryGeminiOnce = async (
@@ -409,10 +435,11 @@ Pas de texte marketing. Pas de watermark.`
 
       const generateOneAttempt = async (prompt: string): Promise<string | null> => {
         const multiFast = !isFastChunkedSingle && numImages >= 2;
+        // Chunked single : une seule passe de refs (2 passes × 2 modèles dépassait le gateway ~26s → 504 Netlify).
         const imagePartSets = isProFastSingle
           ? [inlineImageParts]
           : isFastChunkedSingle
-            ? [inlineImageParts, [inlineImageParts[0]].filter(Boolean)]
+            ? [inlineImageParts]
             : multiFast
               ? [inlineImageParts]
               : [inlineImageParts, [inlineImageParts[0]].filter(Boolean)];
@@ -420,17 +447,16 @@ Pas de texte marketing. Pas de watermark.`
         const batchTryTimeout = multiFast ? 56_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
         for (const partsForAttempt of imagePartSets) {
-          for (const model of modelCandidates) {
+          for (const model of modelsForGemini) {
             if (isFastChunkedSingle) {
-              const singleWallMs = isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
+              const singleWallMs = chunkSingleWallMs;
               const elapsed = Date.now() - fastStart;
-              const remaining = singleWallMs - elapsed - 1200;
-              if (remaining < 10_000) {
+              const remaining = singleWallMs - elapsed - 1500;
+              if (remaining < 12_000) {
                 console.warn('[IMAGE GEN] Fast single: budget temps épuisé');
                 return null;
               }
-              const cap = isProFastSingle ? 50_000 : 42_000;
-              const timeoutMs = Math.min(cap, remaining);
+              const timeoutMs = Math.min(19_000, remaining);
               const img = await tryGeminiOnce(prompt, model, partsForAttempt, timeoutMs);
               if (img) return img;
             } else {
@@ -465,9 +491,7 @@ Pas de texte marketing. Pas de watermark.`
                 ? 2
                 : 1;
         const wallMs = isFastChunkedSingle
-          ? isProFastSingle
-            ? GEMINI_PRO_SINGLE_WALL_MS
-            : GEMINI_FAST_SINGLE_WALL_MS
+          ? chunkSingleWallMs
           : engineSafe === 'pro'
             ? Math.min(110_000, GEMINI_PRO_SINGLE_WALL_MS * numImages)
             : numImages >= 3
