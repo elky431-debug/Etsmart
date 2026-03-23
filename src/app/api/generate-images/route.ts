@@ -334,8 +334,7 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
-      const STABILITY_KEY = process.env.STABILITY_API_KEY;
-      // Fallback Gemini unique, utilisé pour prompt mensurations et en secours Stability.
+      // Fallback Gemini unique pour tous les prompts (y compris mensurations).
       const modelCandidatesFull = ['gemini-2.5-flash-image'];
       const modelCandidatesFast = ['gemini-2.5-flash-image'];
       const modelCandidates =
@@ -343,7 +342,7 @@ Pas de texte marketing. Pas de watermark.`
       const modelsForGemini: string[] = modelCandidates;
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProFastSingle);
       console.log(
-        `[IMAGE GEN] Stability+Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
       );
 
       const tryGeminiOnce = async (
@@ -403,71 +402,16 @@ Pas de texte marketing. Pas de watermark.`
         return null;
       };
 
-      const tryStabilityAI = async (
-        prompt: string,
-        sourceImageB64: string,
-        engineMode: 'flash' | 'pro',
-        timeoutMs: number
-      ): Promise<string | null> => {
-        if (!STABILITY_KEY) {
-          console.warn('[IMAGE GEN] STABILITY_API_KEY manquante');
-          return null;
-        }
-        const model = engineMode === 'pro' ? 'stable-image-ultra' : 'stable-image-core';
-        // Image-to-image : même chemin core/ultra qu’en text-to-image, mais avec champs image + strength.
-        const endpoint =
-          engineMode === 'pro'
-            ? 'https://api.stability.ai/v2beta/stable-image/generate/ultra'
-            : 'https://api.stability.ai/v2beta/stable-image/generate/core';
-        console.log(`[IMAGE GEN] Stability ${model} start...`);
-        try {
-          const imageBuffer = Buffer.from(sourceImageB64, 'base64');
-          const formData = new FormData();
-          // Pas de préfixe générique : les 7 prompts IMAGE_PROMPTS_GEMINI restent intacts.
-          formData.append('prompt', prompt);
-          formData.append('output_format', 'jpeg');
-          formData.append('image', new Blob([imageBuffer], { type: 'image/jpeg' }), 'product.jpg');
-          // Strength plus élevé = réinterprétation plus forte (évite “zoom” quasi identique à la source).
-          formData.append('strength', engineMode === 'pro' ? '0.85' : '0.90');
-
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${STABILITY_KEY}`, Accept: 'image/*' },
-            body: formData,
-            signal: geminiFetchSignal(timeoutMs),
-          });
-
-          if (!res.ok) {
-            const t = await res.text().catch(() => '');
-            console.warn(`[IMAGE GEN] Stability ${model} non-ok: ${res.status}`, t.substring(0, 150));
-            return null;
-          }
-
-          const arrayBuffer = await res.arrayBuffer();
-          const b64 = Buffer.from(arrayBuffer).toString('base64');
-          if (b64.length > 100) {
-            console.log(`[IMAGE GEN] Stability ${model} OK (${(b64.length / 1024).toFixed(0)}KB)`);
-            return `data:image/jpeg;base64,${b64}`;
-          }
-          return null;
-        } catch (e: any) {
-          const isAbort = e?.name === 'TimeoutError' || /abort/i.test(String(e?.message));
-          console.warn(`[IMAGE GEN] Stability ${model} ${isAbort ? 'timeout' : 'error'}:`, e?.message);
-          return null;
-        }
-      };
-
       const tryGeminiForMensurations = async (
         prompt: string,
         partsForAttempt: { inlineData: { mimeType: string; data: string } }[],
         timeoutMs: number
       ): Promise<string | null> => {
-        console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini uniquement');
+        console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini');
         return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', partsForAttempt, timeoutMs);
       };
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
-        const mainImageB64 = inlineImageParts[0]?.inlineData?.data || '';
         const mainPart = [inlineImageParts[0]].filter(
           (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
         );
@@ -481,11 +425,6 @@ Pas de texte marketing. Pas de watermark.`
           return tryGeminiForMensurations(prompt, mainPart, cap);
         }
 
-        const stabilityTimeout = isNetlifyHost ? 18_000 : 25_000;
-        const stabilityImg = await tryStabilityAI(prompt, mainImageB64, engineSafe, stabilityTimeout);
-        if (stabilityImg) return stabilityImg;
-
-        console.warn(`[IMAGE GEN] Stability échoué pour prompt ${promptIndex + 1} → fallback Gemini`);
         const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
         return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', mainPart, geminiCap);
       };

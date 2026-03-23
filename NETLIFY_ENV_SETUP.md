@@ -27,10 +27,13 @@ Vous devez ajouter les variables suivantes dans Netlify :
    - Votre clé API OpenAI
    - Trouvable sur : https://platform.openai.com/api-keys
 
-5. **`GEMINI_API_KEY`** (recommandé pour la génération d’images)
-   - Clé Google AI Studio / Gemini utilisée par `/api/generate-images`.
+5. **`GEMINI_API_KEY`** (recommandé — **visuels listing** `/api/generate-images`, **bannière** `/api/generate-banner`, **logo** `/api/generate-logo`)
+   - Clé [Google AI Studio](https://aistudio.google.com/apikey) ou Google Cloud — modèle image `gemini-2.5-flash-image`.
 
-6. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
+6. **`STABILITY_API_KEY`** (optionnel — module legacy non utilisé par bannière/logo ni par le flux Gemini des visuels)
+   - Tu peux l’omettre si tout passe par Gemini.
+
+7. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
    - Si non défini:
      - sur **Netlify**, l’application prend maintenant un budget auto d’environ **19 s** par image pour éviter les **504**,
      - hors Netlify, elle garde le budget long **~52 s (flash) / ~56 s (pro)**.

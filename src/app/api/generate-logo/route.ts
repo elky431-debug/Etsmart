@@ -10,6 +10,7 @@ import {
   briefBackgroundRgb,
   type LogoDesignBrief,
 } from '@/lib/etsy-logo-brief-prompt';
+import { geminiGenerateImageBuffer, GEMINI_IMAGE_MODEL } from '@/lib/gemini-image-generate';
 
 /** Vercel Pro : jusqu’à 300 s — évite les « Inactivity Timeout » du proxy pendant vision + image. */
 export const maxDuration = 300;
@@ -28,26 +29,6 @@ function parseBriefJson(raw: string): LogoDesignBrief | null {
   }
 }
 
-async function bufferFromOpenAiImageData(data: { b64_json?: string | null; url?: string | null }): Promise<Buffer | null> {
-  if (data.b64_json) {
-    try {
-      return Buffer.from(data.b64_json, 'base64');
-    } catch {
-      return null;
-    }
-  }
-  if (data.url) {
-    try {
-      const res = await fetch(data.url, { signal: AbortSignal.timeout(45_000) });
-      if (!res.ok) return null;
-      return Buffer.from(await res.arrayBuffer());
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -64,6 +45,13 @@ export async function POST(request: NextRequest) {
     if (!OPENAI_KEY) {
       return NextResponse.json(
         { error: 'OPENAI_API_KEY_MISSING', message: 'OPENAI_API_KEY manquante côté serveur.' },
+        { status: 500 }
+      );
+    }
+    const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
+    if (!GEMINI_KEY) {
+      return NextResponse.json(
+        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY manquante côté serveur (génération logo).' },
         { status: 500 }
       );
     }
@@ -164,44 +152,16 @@ export async function POST(request: NextRequest) {
 
     const imagePrompt = buildImageGenerationPromptFromBrief(brief);
 
-    // Étape 2 — Image : gpt-image-1 en priorité (souvent moins « icône d’app » générique que DALL·E 3), puis DALL·E 3.
+    // Étape 2 — Image : Gemini (même modèle que les visuels listing / bannière).
     let imageBuf: Buffer | null = null;
-    let imageModelUsed = '';
-
-    try {
-      const img1 = await openai.images.generate({
-        model: 'gpt-image-1',
-        prompt: imagePrompt.slice(0, 3800),
-        n: 1,
-        size: '1024x1024',
+    for (let attempt = 0; attempt < 3 && !imageBuf; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 600));
+      imageBuf = await geminiGenerateImageBuffer({
+        apiKey: GEMINI_KEY,
+        prompt: imagePrompt,
+        model: GEMINI_IMAGE_MODEL,
+        timeoutMs: 120_000,
       });
-      const d0 = img1.data?.[0];
-      if (d0) {
-        imageBuf = await bufferFromOpenAiImageData(d0);
-        if (imageBuf) imageModelUsed = 'gpt-image-1';
-      }
-    } catch (e) {
-      console.warn('[generate-logo] gpt-image-1 failed, trying dall-e-3:', e);
-    }
-
-    if (!imageBuf) {
-      try {
-        const img3 = await openai.images.generate({
-          model: 'dall-e-3',
-          prompt: imagePrompt.slice(0, 3900),
-          n: 1,
-          size: '1024x1024',
-          quality: 'hd',
-          style: 'natural',
-        });
-        const d0 = img3.data?.[0];
-        if (d0) {
-          imageBuf = await bufferFromOpenAiImageData(d0);
-          if (imageBuf) imageModelUsed = 'dall-e-3';
-        }
-      } catch (e2) {
-        console.error('[generate-logo] dall-e-3 failed:', e2);
-      }
     }
 
     if (!imageBuf) {
@@ -209,11 +169,13 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'IMAGE_GENERATION_FAILED',
-          message: 'La génération du logo a échoué. Réessaie dans un instant.',
+          message:
+            'La génération du logo (Gemini) a échoué. Vérifie GEMINI_API_KEY et les quotas, puis réessaie.',
         },
         { status: 502 }
       );
     }
+    const imageModelUsed = GEMINI_IMAGE_MODEL;
 
     const canvasBg = briefBackgroundRgb(brief);
 

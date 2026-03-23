@@ -156,7 +156,7 @@ export function DashboardBanner() {
               className="w-full h-11 rounded-lg bg-black/40 border border-white/10 px-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#00d4ff]/40 mb-4"
             />
 
-            <label className="block text-white/75 text-sm mb-2">Modèle Gemini</label>
+            <label className="block text-white/75 text-sm mb-2">Rendu (Gemini)</label>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {([
                 { id: 'pro', label: 'Pro' },

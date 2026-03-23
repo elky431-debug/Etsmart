@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quota';
+import { geminiGenerateImageBuffer, GEMINI_IMAGE_MODEL } from '@/lib/gemini-image-generate';
 import * as cheerio from 'cheerio';
 import sharp from 'sharp';
 
@@ -8,34 +9,6 @@ const BANNER_CREDITS = 2;
 
 export const maxDuration = 90;
 export const runtime = 'nodejs';
-
-/** Ratio natif bannière Etsy 1200×300 (4:1) — évite une image carrée + bandes latérales. */
-const BANNER_IMAGE_GENERATION_CONFIG = {
-  responseModalities: ['TEXT', 'IMAGE'],
-  imageConfig: {
-    aspectRatio: '4:1',
-  },
-} as const;
-
-/** Modèles Gemini qui acceptent imageConfig.aspectRatio (2.5 renvoie 400 sinon). */
-const ASPECT_RATIO_CAPABLE_MODELS = new Set([
-  'gemini-3-pro-image-preview',
-  'gemini-3.1-flash-image-preview',
-]);
-
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit & { timeoutMs?: number }
-): Promise<Response> {
-  const { timeoutMs = 50000, ...fetchOptions } = options;
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...fetchOptions, signal: ctrl.signal });
-  } finally {
-    clearTimeout(t);
-  }
-}
 
 async function scrapeEtsyContext(url: string): Promise<{
   shopName: string;
@@ -73,8 +46,8 @@ async function scrapeEtsyContext(url: string): Promise<{
           node?.['@type'] === 'Product'
             ? node
             : node?.mainEntity?.['@type'] === 'Product'
-            ? node.mainEntity
-            : null;
+              ? node.mainEntity
+              : null;
         if (product) {
           if (!listingTitle && product.name) listingTitle = String(product.name).trim();
           if (!description && product.description) description = String(product.description).trim();
@@ -139,7 +112,7 @@ export async function POST(request: NextRequest) {
     const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
     if (!GEMINI_KEY) {
       return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY manquante sur le serveur.' },
+        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY manquante sur le serveur (génération bannière).' },
         { status: 500 }
       );
     }
@@ -285,145 +258,57 @@ Strict rules:
 - no random symbols or abstract circles unrelated to the brand
 - no collage/grid/screenshot look
 - avoid clutter
-- one coherent hero banner ready for Etsy`;
+- one coherent hero banner ready for Etsy
 
-    const userParts: Array<Record<string, unknown>> = [{ text: prompt }];
+IMAGE QUALITY HINT (user preference "${modelPreference}"):
+${
+      modelPreference === 'pro'
+        ? 'Premium render: refined lighting, crisp typography, rich but not cluttered composition.'
+        : modelPreference === 'flash'
+          ? 'Clean efficient render: readable shop name, clear focal hierarchy, avoid excessive micro-detail.'
+          : 'Balanced Etsy-ready quality.'
+    }`;
+
+    let refJpeg: Buffer | undefined;
     const parsedRef = referenceImageData ? parseDataUrl(referenceImageData) : null;
     if (parsedRef) {
-      userParts.push({
-        inlineData: {
-          mimeType: parsedRef.mimeType,
-          data: parsedRef.data,
-        },
+      try {
+        refJpeg = await sharp(Buffer.from(parsedRef.data, 'base64'))
+          .resize(1536, 1536, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 88, mozjpeg: true })
+          .toBuffer();
+      } catch (e) {
+        console.warn('[generate-banner] ref jpeg prep failed', e);
+      }
+    }
+
+    const referenceInlineImages = refJpeg?.length
+      ? [{ mimeType: 'image/jpeg' as const, data: refJpeg.toString('base64') }]
+      : undefined;
+
+    let raw: Buffer | null = null;
+    for (let attempt = 0; attempt < 3 && !raw; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 600));
+      raw = await geminiGenerateImageBuffer({
+        apiKey: GEMINI_KEY,
+        prompt,
+        referenceInlineImages,
+        model: GEMINI_IMAGE_MODEL,
+        timeoutMs: 70_000,
       });
     }
 
-    // Toujours privilégier d’abord les modèles qui acceptent imageConfig.aspectRatio 4:1 (export 1200×300 sans recadrage destructif).
-    // gemini-2.5-flash-image en premier pour « Flash » produisait souvent un ratio approximatif → sharp cover + attention = nom décentré.
-    const modelCandidates =
-      modelPreference === 'pro'
-        ? [
-            'gemini-3-pro-image-preview',
-            'gemini-3.1-flash-image-preview',
-            'gemini-2.5-flash-image',
-          ]
-        : modelPreference === 'flash'
-        ? [
-            'gemini-3.1-flash-image-preview',
-            'gemini-2.5-flash-image',
-            'gemini-3-pro-image-preview',
-          ]
-        : [
-            'gemini-3.1-flash-image-preview',
-            'gemini-3-pro-image-preview',
-            'gemini-2.5-flash-image',
-          ];
-
-    let b64: string | null = null;
-    let lastError = '';
-    if (GEMINI_KEY) {
-      for (const model of modelCandidates) {
-        const genConfig = ASPECT_RATIO_CAPABLE_MODELS.has(model)
-          ? BANNER_IMAGE_GENERATION_CONFIG
-          : { responseModalities: ['TEXT', 'IMAGE'] };
-
-        try {
-          const res = await fetchWithTimeout(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_KEY,
-              },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: userParts,
-                },
-              ],
-              generationConfig: genConfig,
-            }),
-            timeoutMs: 70000,
-          }
-        );
-        const rawText = await res.text();
-        if (!res.ok) {
-          lastError = `${model}: ${res.status} ${rawText.slice(0, 300)}`;
-          console.warn('[generate-banner]', lastError);
-          if (res.status === 429) {
-            await new Promise((r) => setTimeout(r, 3000));
-            try {
-              const retryRes = await fetchWithTimeout(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': GEMINI_KEY,
-                  },
-                  body: JSON.stringify({
-                    contents: [{ role: 'user', parts: userParts }],
-                    generationConfig: genConfig,
-                  }),
-                  timeoutMs: 70000,
-                }
-              );
-              const retryText = await retryRes.text();
-              if (retryRes.ok) {
-                const retryData = JSON.parse(retryText);
-                const retryParts = retryData?.candidates?.[0]?.content?.parts ?? [];
-                const retryImg = retryParts.find((p: any) => typeof p?.inlineData?.data === 'string');
-                if (retryImg?.inlineData?.data) {
-                  b64 = retryImg.inlineData.data;
-            break;
-                }
-              }
-            } catch {
-              // ignore retry failure
-            }
-          }
-          continue;
-        }
-        let data: any;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          lastError = `${model}: invalid JSON`;
-          continue;
-        }
-        const candidate = data?.candidates?.[0];
-        const blockReason = candidate?.finishReason ?? data?.promptFeedback?.blockReason;
-        if (blockReason && blockReason !== 'STOP') {
-          lastError = `${model}: ${blockReason}`;
-        }
-        const parts = candidate?.content?.parts ?? [];
-        const imagePart = parts.find((p: any) => typeof p?.inlineData?.data === 'string');
-        if (imagePart?.inlineData?.data) {
-          b64 = imagePart.inlineData.data;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err?.message ?? String(err);
-        console.warn('[generate-banner]', model, err);
-      }
-    }
+    if (!raw) {
+      return NextResponse.json(
+        {
+          error: 'GENERATION_FAILED',
+          message:
+            'Bannière non générée (Gemini). Vérifie GEMINI_API_KEY, quotas API et réessaie. Voir les logs [Gemini image].',
+        },
+        { status: 500 }
+      );
     }
 
-    if (!b64) {
-      const isQuota = lastError.includes('429') || /quota|billing|limit/i.test(lastError);
-      const message = isQuota
-        ? 'Quota Gemini dépassé. Vérifie ton plan et la facturation dans Google AI Studio (aistudio.google.com), ou réessaie dans quelques minutes.'
-        : lastError
-          ? `Bannière non générée (${lastError.slice(0, 160)}). Vérifie ta clé Gemini et réessaie.`
-          : 'Aucune image générée par Gemini.';
-      return NextResponse.json({ error: 'GENERATION_FAILED', message }, { status: 500 });
-    }
-
-    // Sortie exacte 1200×300 pour Etsy. Ne pas utiliser position 'attention' : la salience suit les produits
-    // et décale le cadrage alors que le nom de boutique doit rester au centre géométrique.
-    const raw = Buffer.from(b64, 'base64');
     const meta = await sharp(raw).metadata();
     const w = meta.width ?? 0;
     const h = meta.height ?? 0;
@@ -431,14 +316,8 @@ Strict rules:
     const isNearFourToOne = Math.abs(ratio - 4) < 0.35;
 
     const bannerBuffer = isNearFourToOne
-      ? await sharp(raw)
-          .resize(1200, 300, { fit: 'fill' })
-          .png({ quality: 92 })
-          .toBuffer()
-      : await sharp(raw)
-          .resize(1200, 300, { fit: 'cover', position: 'centre' })
-          .png({ quality: 92 })
-          .toBuffer();
+      ? await sharp(raw).resize(1200, 300, { fit: 'fill' }).png({ quality: 92 }).toBuffer()
+      : await sharp(raw).resize(1200, 300, { fit: 'cover', position: 'centre' }).png({ quality: 92 }).toBuffer();
 
     const deductResult = await incrementAnalysisCount(user.id, BANNER_CREDITS);
     if (!deductResult.success) {
@@ -454,6 +333,8 @@ Strict rules:
         shopName,
         listingTitle,
         modelPreference,
+        imageEngine: 'gemini',
+        imageModel: GEMINI_IMAGE_MODEL,
       },
     });
   } catch (error: unknown) {
