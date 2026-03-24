@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 function getBearerToken(request: NextRequest): string | null {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  return authHeader.replace('Bearer ', '');
+  const authHeader = request.headers.get('authorization')?.trim();
+  if (!authHeader) return null;
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  return m?.[1]?.trim() || null;
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const token = getBearerToken(request);
@@ -30,7 +31,8 @@ export async function DELETE(
       );
     }
 
-    const id = context.params?.id;
+    const params = await Promise.resolve(context.params);
+    const id = params?.id;
     if (!id) {
       return NextResponse.json(
         { error: 'INVALID_ID', message: 'ID commande manquant.' },

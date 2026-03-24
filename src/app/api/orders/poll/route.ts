@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { fetchAliExpressOrder } from '@/lib/aliexpress';
-import { registerOnParcelsapp } from '@/lib/parcelsapp';
+import { tryUpdateOrderFromAliExpress } from '@/lib/orders-tracking-sync';
 
 export const runtime = 'nodejs';
 
@@ -52,38 +51,13 @@ export async function POST(request: NextRequest) {
 
     for (const order of list) {
       processed += 1;
-      try {
-        const accessToken = tokenByUserId.get(order.user_id) || undefined;
-        const details = await fetchAliExpressOrder(order.aliexpress_order_id, accessToken);
-        if (details.tracking_number) {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({
-              tracking_number: details.tracking_number,
-              carrier: details.carrier,
-              product_name: details.product_name,
-              product_image: details.product_image,
-              status: 'registered',
-              last_event: 'Numéro de suivi détecté via polling.',
-              last_event_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', order.id);
-
-          if (!updateError) {
-            updated += 1;
-            const reg = await registerOnParcelsapp(details.tracking_number, details.carrier);
-            if (reg.success) registered += 1;
-          } else {
-            errors.push({ order_id: order.id, error: updateError.message });
-          }
-        }
-      } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : 'poll item error';
-        errors.push({
-          order_id: order.id,
-          error: message,
-        });
+      const accessToken = tokenByUserId.get(order.user_id) || undefined;
+      const result = await tryUpdateOrderFromAliExpress(supabase, order, accessToken);
+      if (result.updated) {
+        updated += 1;
+        if (result.parcelsRegistered) registered += 1;
+      } else if (result.error) {
+        errors.push({ order_id: order.id, error: result.error });
       }
 
       await new Promise((resolve) => setTimeout(resolve, 300));

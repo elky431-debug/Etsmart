@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Package, Plus, Trash2, Truck, Link as LinkIcon, X } from 'lucide-react';
+import { Package, Plus, RefreshCw, Trash2, Truck, Link as LinkIcon, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -65,6 +65,8 @@ export default function DashboardOrdersPage() {
   const [orderIdInput, setOrderIdInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const addToast = useCallback((message: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -179,22 +181,74 @@ export default function DashboardOrdersPage() {
   };
 
   const handleDeleteOrder = async (id: string) => {
-    const token = await getAuthToken();
-    if (!token) {
-      setError('Session expirée. Reconnecte-toi.');
-      return;
+    if (!window.confirm('Supprimer cette commande du suivi ?')) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('Session expirée. Reconnecte-toi.');
+        return;
+      }
+      const res = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.message || 'Suppression impossible.';
+        setError(msg);
+        addToast(msg);
+        return;
+      }
+      setOrders((prev) => prev.filter((o) => o.id !== id));
+      addToast('Commande supprimée.');
+    } catch {
+      const msg = 'Erreur réseau lors de la suppression.';
+      setError(msg);
+      addToast(msg);
+    } finally {
+      setDeletingId(null);
     }
-    const res = await fetch(`/api/orders/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(data?.message || 'Suppression impossible.');
-      return;
+  };
+
+  const handleSyncPending = async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('Session expirée. Reconnecte-toi.');
+        return;
+      }
+      const res = await fetch('/api/orders/sync-mine', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.message || 'Synchronisation impossible.';
+        setError(msg);
+        addToast(msg);
+        return;
+      }
+      await loadOrders();
+      const u = typeof data.updated === 'number' ? data.updated : 0;
+      const c = typeof data.checked === 'number' ? data.checked : 0;
+      addToast(
+        u > 0
+          ? `${u} commande(s) mise(s) à jour avec un numéro de suivi.`
+          : c > 0
+            ? 'Aucun nouveau suivi : AliExpress n’a pas encore fourni de numéro, ou le compte n’a pas accès à cette commande.'
+            : 'Rien à synchroniser.'
+      );
+    } catch {
+      const msg = 'Erreur réseau lors de la synchronisation.';
+      setError(msg);
+      addToast(msg);
+    } finally {
+      setSyncing(false);
     }
-    setOrders((prev) => prev.filter((o) => o.id !== id));
-    addToast('Commande supprimée.');
   };
 
   return (
@@ -207,14 +261,35 @@ export default function DashboardOrdersPage() {
               Suivi AliExpress + tracking Parcelsapp en temps réel.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-2.5 font-semibold text-black transition-opacity hover:opacity-90"
-          >
-            <Plus className="h-4 w-4" />
-            Ajouter une commande
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => void handleSyncPending()}
+              disabled={syncing || !user}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#00d4ff]/40 bg-[#00d4ff]/10 px-4 py-2.5 text-sm font-semibold text-[#8befff] transition-colors hover:bg-[#00d4ff]/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Synchronisation…' : 'Actualiser le suivi'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-2.5 font-semibold text-black transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter une commande
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white/65 sm:text-sm">
+          <p>
+            Le numéro de suivi n’apparaît que lorsqu’AliExpress l’expose pour{' '}
+            <strong className="text-white/85">ta commande</strong> (souvent après expédition). Il faut un jeton API
+            valide : variable <code className="text-[#8befff]">ALIEXPRESS_ACCESS_TOKEN</code> côté serveur ou compte
+            AliExpress connecté à ton profil. Clique sur « Actualiser le suivi » pour relancer une requête sans
+            attendre le cron horaire.
+          </p>
         </div>
 
         {error && (
@@ -311,7 +386,8 @@ export default function DashboardOrdersPage() {
                     <button
                       type="button"
                       onClick={() => void handleDeleteOrder(order.id)}
-                      className="rounded-lg border border-red-400/30 bg-red-500/10 p-2 text-red-200 hover:bg-red-500/20"
+                      disabled={deletingId === order.id}
+                      className="rounded-lg border border-red-400/30 bg-red-500/10 p-2 text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                       title="Supprimer la commande"
                     >
                       <Trash2 className="h-4 w-4" />
