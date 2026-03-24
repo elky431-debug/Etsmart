@@ -1,0 +1,23 @@
+# ==============================
+# APIFY - configuration serveur
+# ==============================
+# Colle ces variables dans ton fichier .env.local (sans guillemets).
+# Redémarre ensuite le serveur Next.js.
+
+# 1) Token API Apify (Settings > Integrations > API tokens)
+APIFY_API_TOKEN=apify_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# 2) Actor pour analyser un listing produit
+# Tu peux mettre l'ID brut (ex: MIEVd9O3R4Td5AbV9)
+# OU l'URL actor complète (ex: https://console.apify.com/actors/MIEVd9O3R4Td5AbV9)
+APIFY_ACTOR_LISTING_ID=MIEVd9O3R4Td5AbV9
+
+# 3) (Optionnel) Actor pour analyser une boutique
+# Si tu n'as pas encore d'actor boutique, laisse vide pour l'instant.
+APIFY_ACTOR_SHOP_ID=
+
+# 4) (Optionnel) fallback global si LISTING_ID n'est pas défini
+# APIFY_ACTOR_ID=MIEVd9O3R4Td5AbV9
+
+# 5) Timeout max pour attendre la fin d'un run sync
+APIFY_TIMEOUT_SECS=45

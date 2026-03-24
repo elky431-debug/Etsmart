@@ -39,6 +39,21 @@ Vous devez ajouter les variables suivantes dans Netlify :
      - hors Netlify, elle garde le budget long **~52 s (flash) / ~56 s (pro)**.
    - Si besoin, vous pouvez forcer une valeur manuelle, par ex. `18000` à `22000` sur Netlify selon votre plan.
 
+8. **`ALIEXPRESS_APP_KEY`** (requis pour importer les commandes AliExpress)
+   - Clé application AliExpress Open Platform.
+
+9. **`ALIEXPRESS_APP_SECRET`** (requis pour la signature MD5 AliExpress)
+   - Secret application AliExpress Open Platform.
+
+10. **`ALIEXPRESS_ACCESS_TOKEN`** (requis comme fallback serveur)
+   - Token AliExpress global utilisé si l’utilisateur n’a pas encore connecté son OAuth.
+
+11. **`PARCELSAPP_API_KEY`** (requis pour l’enregistrement tracking)
+   - Clé API Parcelsapp utilisée par `/api/orders/add` et `/api/orders/poll`.
+
+12. **`CRON_SECRET`** (requis pour sécuriser le cron)
+   - Secret envoyé dans le header `x-cron-secret` vers `/api/orders/poll`.
+
 ## 🔧 Comment configurer sur Netlify
 
 ### Étape 1 : Accéder aux paramètres d'environnement

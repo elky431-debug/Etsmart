@@ -81,9 +81,11 @@ import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { DashboardCoach } from '@/components/dashboard/DashboardCoach';
 import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 import { OpportunityMapComingSoon } from '@/components/dashboard/opportunity-map/OpportunityMapComingSoon';
+import { DashboardEtsyListingAnalyzer } from '@/components/dashboard/DashboardEtsyListingAnalyzer';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
+  | 'apify-test'
   | 'analyze'
   | 'analyse-simulation'
   | 'listing'
@@ -1505,6 +1507,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Analyse',
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
+        { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3 },
         { id: 'opportunity-map', label: 'Carte des Opportunités', icon: Globe },
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
       ],
@@ -2239,6 +2242,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
+
+          {activeSection === 'apify-test' && <DashboardEtsyListingAnalyzer />}
 
           {activeSection === 'tracking' && (
             <DashboardTracking />

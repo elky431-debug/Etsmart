@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { fetchAliExpressProductQuick } from '@/lib/aliexpress-product-quick';
+import { isApifyConfigured, mapApifyItemToListing, runApifyActorByTarget } from '@/lib/apify-scraper';
 
 export const maxDuration = 15;
 
@@ -46,13 +47,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const product = await fetchAliExpressProductQuick(normalizedUrl);
+    let product = await fetchAliExpressProductQuick(normalizedUrl);
+
+    // Fallback optionnel via Apify (si configuré), utile quand l'API AliExpress renvoie du HTML anti-bot.
+    if (!product && isApifyConfigured('listing')) {
+      try {
+        const items = await runApifyActorByTarget(
+          'listing',
+          {
+            url: normalizedUrl,
+            urls: [normalizedUrl],
+            startUrls: [{ url: normalizedUrl }],
+            maxItems: 1,
+          },
+          { timeoutSecs: 40, maxItems: 1 }
+        );
+        const mapped = mapApifyItemToListing(items[0]);
+        if (mapped?.title) {
+          product = {
+            id: `apify-aliexpress-${Date.now()}`,
+            url: normalizedUrl,
+            source: 'aliexpress' as const,
+            title: mapped.title,
+            description: mapped.description || mapped.title,
+            images: mapped.images.length > 0 ? mapped.images : ['https://via.placeholder.com/600x600?text=AliExpress'],
+            price: mapped.price || 0,
+            currency: 'USD',
+            variants: [{ id: 'v1', name: 'Standard', price: mapped.price || 0 }],
+            category: 'General',
+            shippingTime: '15-30 days',
+            minOrderQuantity: 1,
+            supplierRating: 4.5,
+            createdAt: new Date().toISOString(),
+          };
+        }
+      } catch (apifyError) {
+        console.warn('[parse-product-quick] fallback Apify failed:', apifyError);
+      }
+    }
 
     if (!product) {
       return NextResponse.json(
         {
           error:
-            'Impossible de récupérer ce produit rapidement. Vérifie le lien ou utilise la récupération complète.',
+            'Impossible de récupérer ce produit rapidement. Vérifie le lien ou configure Apify en fallback.',
         },
         { status: 422 }
       );

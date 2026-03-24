@@ -17,6 +17,7 @@
 [functions]
   # Configuration pour les fonctions Netlify (si utilisées)
   # Le timeout est configuré dans le code à 45s pour éviter le timeout Netlify (50s)
+  directory = "netlify/functions"
 
 # Configuration pour le déploiement continu
 # Netlify déploiera automatiquement à chaque push sur la branche main
