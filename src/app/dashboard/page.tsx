@@ -104,6 +104,7 @@ type DashboardSection =
   | 'logo'
   | 'video-generator'
   | 'tracking'
+  | 'orders'
   | 'store-manager'
   | 'shop-story'
   | 'coach';
@@ -1639,6 +1640,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   <button
                     key={item.id}
                     onClick={() => {
+                      if (item.href) {
+                        router.push(item.href);
+                        return;
+                      }
                       setActiveSection(item.id);
                       setSelectedAnalysis(null);
                     }}

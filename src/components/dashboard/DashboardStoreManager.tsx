@@ -81,7 +81,35 @@ const INITIAL_PRODUCTS: Product[] = [];
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 /** Libellés axe X du graphique annuel : janvier → décembre (année civile). */
 const ANNUAL_CHART_MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-const ETSY_PLATFORM_FEE_RATE = 0.153; // 15.3%
+// Frais Etsy (estimés) d'après la grille affichée par Etsy.
+const ETSY_TRANSACTION_RATE = 0.065;
+const ETSY_PAYMENT_RATE = 0.04;
+const ETSY_PAYMENT_FIXED = 0.3;
+const ETSY_REGULATORY_RATE = 0.0047;
+
+function calculateEtsyFees(amountPaid: number) {
+  if (!Number.isFinite(amountPaid) || amountPaid <= 0) {
+    return {
+      transactionFee: 0,
+      paymentFee: 0,
+      regulatoryFee: 0,
+      totalFees: 0,
+      netAfterEtsy: 0,
+    };
+  }
+  const transactionFee = amountPaid * ETSY_TRANSACTION_RATE;
+  const paymentFee = amountPaid * ETSY_PAYMENT_RATE + ETSY_PAYMENT_FIXED;
+  const regulatoryFee = amountPaid * ETSY_REGULATORY_RATE;
+  const totalFees = transactionFee + paymentFee + regulatoryFee;
+  const netAfterEtsy = amountPaid - totalFees;
+  return {
+    transactionFee: Number(transactionFee.toFixed(2)),
+    paymentFee: Number(paymentFee.toFixed(2)),
+    regulatoryFee: Number(regulatoryFee.toFixed(2)),
+    totalFees: Number(totalFees.toFixed(2)),
+    netAfterEtsy: Number(netAfterEtsy.toFixed(2)),
+  };
+}
 
 // Liste des pays (noms en français, ordre alphabétique)
 const COUNTRIES = [
@@ -336,6 +364,9 @@ export function DashboardStoreManager() {
   const [newProductSupplierPrice, setNewProductSupplierPrice] = useState('');
   const [newProductShippingCost, setNewProductShippingCost] = useState('');
   const [newProductSellingPrice, setNewProductSellingPrice] = useState('');
+  const [newProductImageUrl, setNewProductImageUrl] = useState('');
+  const [newProductAutoFillLoading, setNewProductAutoFillLoading] = useState(false);
+  const [newProductAutoFillError, setNewProductAutoFillError] = useState('');
   // Formulaire nouvelle transaction
   const [newTxDate, setNewTxDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [newTxStatus, setNewTxStatus] = useState('À envoyer');
@@ -388,8 +419,8 @@ export function DashboardStoreManager() {
       setNewTxPlatformFees('');
       return;
     }
-    const fees = amountPaid * ETSY_PLATFORM_FEE_RATE;
-    setNewTxPlatformFees(fees.toFixed(2));
+    const { totalFees } = calculateEtsyFees(amountPaid);
+    setNewTxPlatformFees(totalFees.toFixed(2));
   }, [newTxAmountPaid]);
 
   const shopTransactions = useMemo(
@@ -454,11 +485,13 @@ export function DashboardStoreManager() {
 
   const kpi = useMemo(() => {
     const revenue = statsTransactions.reduce((s, t) => s + t.amountPaid, 0);
-    const profit = statsTransactions.reduce((s, t) => s + t.profit, 0);
+    const netAfterEtsy = statsTransactions.reduce((s, t) => s + (t.amountPaid - t.platformFees), 0);
+    const netFinal = statsTransactions.reduce((s, t) => s + t.profit, 0);
     const orders = statsTransactions.length;
     return {
       revenue,
-      profit,
+      netAfterEtsy,
+      netFinal,
       avgBasket: orders > 0 ? revenue / orders : 0,
       orders,
       productsCount: orders,
@@ -511,6 +544,77 @@ export function DashboardStoreManager() {
     (p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  const handleAutoFillFromSupplierUrl = async () => {
+    const normalized = normalizeExternalUrl(newProductSupplierUrl);
+    if (!normalized) {
+      setNewProductAutoFillError('Ajoute un lien fournisseur valide (AliExpress/Alibaba).');
+      return;
+    }
+    setNewProductAutoFillError('');
+    setNewProductAutoFillLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setNewProductAutoFillError('Session expirée. Reconnecte-toi.');
+        return;
+      }
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 16_000);
+      let res: Response;
+      try {
+        res = await fetch('/api/parse-product-quick', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ url: normalized }),
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success || !data?.product) {
+        setNewProductAutoFillError(
+          data?.error || data?.message || 'Impossible de récupérer automatiquement les données fournisseur.'
+        );
+        return;
+      }
+      const parsedProduct = data.product as {
+        title?: string;
+        description?: string;
+        price?: number;
+        images?: string[];
+      };
+      if (!newProductName.trim() && parsedProduct.title) {
+        setNewProductName(String(parsedProduct.title));
+      }
+      if ((!newProductDescription.trim() || newProductDescription === '-') && parsedProduct.description) {
+        setNewProductDescription(String(parsedProduct.description));
+      }
+      if ((!newProductSupplierPrice || Number(newProductSupplierPrice) <= 0) && Number(parsedProduct.price) > 0) {
+        setNewProductSupplierPrice(String(Number(parsedProduct.price).toFixed(2)));
+      }
+      if (Array.isArray(parsedProduct.images) && parsedProduct.images[0]) {
+        setNewProductImageUrl(String(parsedProduct.images[0]));
+      }
+      setNewProductAutoFillError('');
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        setNewProductAutoFillError('Délai dépassé. Réessaie ou saisis le prix à la main.');
+        return;
+      }
+      const message = e instanceof Error ? e.message : 'Erreur réseau lors de la récupération automatique.';
+      setNewProductAutoFillError(message);
+    } finally {
+      setNewProductAutoFillLoading(false);
+    }
+  };
+
   const handleCreateShop = () => {
     if (!newShopName.trim()) return;
     const id = String(Date.now());
@@ -540,6 +644,7 @@ export function DashboardStoreManager() {
                 ...p,
                 name: newProductName.trim(),
                 description: newProductDescription.trim() || '-',
+                image: newProductImageUrl || p.image,
                 supplierUrl: supplierUrlNorm,
                 supplierPrice,
                 shippingCost,
@@ -556,7 +661,7 @@ export function DashboardStoreManager() {
           shopId: selectedShopId,
           name: newProductName.trim(),
           description: newProductDescription.trim() || '-',
-          image: '/examples/placeholder-product.jpg',
+          image: newProductImageUrl || '/examples/placeholder-product.jpg',
           supplierUrl: supplierUrlNorm,
           supplierPrice,
           shippingCost,
@@ -610,6 +715,9 @@ export function DashboardStoreManager() {
     setNewProductSupplierPrice('');
     setNewProductShippingCost('');
     setNewProductSellingPrice('');
+    setNewProductImageUrl('');
+    setNewProductAutoFillError('');
+    setNewProductAutoFillLoading(false);
     setCreateProductModalOpen(false);
   };
 
@@ -623,6 +731,9 @@ export function DashboardStoreManager() {
     setNewProductSupplierPrice(product.supplierPrice ? String(product.supplierPrice) : '');
     setNewProductShippingCost(product.shippingCost ? String(product.shippingCost) : '');
     setNewProductSellingPrice(product.sellingPrice ? String(product.sellingPrice) : '');
+    setNewProductImageUrl(product.image || '');
+    setNewProductAutoFillError('');
+    setNewProductAutoFillLoading(false);
     setCreateProductModalOpen(true);
   };
 
@@ -634,6 +745,9 @@ export function DashboardStoreManager() {
     setNewProductSupplierPrice('');
     setNewProductShippingCost('');
     setNewProductSellingPrice('');
+    setNewProductImageUrl('');
+    setNewProductAutoFillError('');
+    setNewProductAutoFillLoading(false);
     setCreateProductModalOpen(true);
   };
 
@@ -645,7 +759,8 @@ export function DashboardStoreManager() {
   const handleAddTransaction = () => {
     const amountPaid = parseFloat(newTxAmountPaid.replace(',', '.')) || 0;
     const productCost = parseFloat(newTxProductCost.replace(',', '.')) || 0;
-    const platformFees = Number((amountPaid * ETSY_PLATFORM_FEE_RATE).toFixed(2));
+    const { totalFees } = calculateEtsyFees(amountPaid);
+    const platformFees = totalFees;
     const profit = amountPaid - productCost - platformFees;
     const country = newTxCountry || 'Autre';
     const city = newTxCity || '';
@@ -899,9 +1014,10 @@ export function DashboardStoreManager() {
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <KpiCard title="Chiffre d'affaires" value={`${kpi.revenue.toFixed(2)} €`} />
-              <KpiCard title="Profit" value={kpi.profit >= 0 ? `+${kpi.profit.toFixed(2)} €` : `${kpi.profit.toFixed(2)} €`} profit />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              <KpiCard title="CA brut" value={`${kpi.revenue.toFixed(2)} €`} />
+              <KpiCard title="CA net (après Etsy)" value={`${kpi.netAfterEtsy.toFixed(2)} €`} />
+              <KpiCard title="Net final (après AliExpress)" value={kpi.netFinal >= 0 ? `+${kpi.netFinal.toFixed(2)} €` : `${kpi.netFinal.toFixed(2)} €`} profit />
               <KpiCard title="Panier moyen" value={`${kpi.avgBasket.toFixed(2)} €`} />
               <KpiCard title="Commandes" value={String(kpi.orders)} />
             </div>
@@ -1008,17 +1124,18 @@ export function DashboardStoreManager() {
                       <tr>
                         <th className="py-2.5 px-3 text-left font-medium w-16">#</th>
                         <th className="py-2.5 px-3 text-left font-medium">Produit</th>
-                        <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Prix fournisseur</th>
+                        <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Prix AliExpress/Fournisseur</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Frais livraison</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Prix vente</th>
-                        <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Profit</th>
+                        <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Net estimé</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap">Marge</th>
                         <th className="py-2.5 px-3 text-right font-medium whitespace-nowrap w-[88px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {shopProducts.map((p, index) => {
-                        const profit = p.sellingPrice - p.supplierPrice - p.shippingCost;
+                        const etsyFees = calculateEtsyFees(p.sellingPrice).totalFees;
+                        const profit = p.sellingPrice - etsyFees - p.supplierPrice - p.shippingCost;
                         const margin =
                           p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
                         const hasPricing = p.sellingPrice > 0 || p.supplierPrice > 0 || p.shippingCost > 0;
@@ -1134,7 +1251,9 @@ export function DashboardStoreManager() {
                       <th className="py-3.5 px-4 font-semibold">Date & statut</th>
                       <th className="py-3.5 px-4 font-semibold">Libellé</th>
                       <th className="py-3.5 px-4 font-semibold">Destination</th>
-                      <th className="py-3.5 px-4 font-semibold">Profit</th>
+                      <th className="py-3.5 px-4 font-semibold">CA brut</th>
+                      <th className="py-3.5 px-4 font-semibold">CA net Etsy</th>
+                      <th className="py-3.5 px-4 font-semibold">Net final</th>
                       <th className="py-3.5 px-4 font-semibold">Tracking</th>
                       <th className="py-3.5 px-4 w-24 font-semibold">Actions</th>
                     </tr>
@@ -1173,7 +1292,11 @@ export function DashboardStoreManager() {
                         </td>
                         <td className="py-3.5 px-4 text-white/90">{t.label}</td>
                         <td className="py-3.5 px-4 text-white/70">{t.destination}</td>
-                        <td className="py-3.5 px-4 text-emerald-400 font-medium">+{t.profit.toFixed(2)} €</td>
+                        <td className="py-3.5 px-4 text-white/80 font-medium tabular-nums">{t.amountPaid.toFixed(2)} €</td>
+                        <td className="py-3.5 px-4 text-cyan-300 font-medium tabular-nums">{(t.amountPaid - t.platformFees).toFixed(2)} €</td>
+                        <td className="py-3.5 px-4 text-emerald-400 font-medium tabular-nums">
+                          {t.profit >= 0 ? '+' : ''}{t.profit.toFixed(2)} €
+                        </td>
                         <td className="py-3.5 px-4 text-white/60">{t.tracking}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-1">
@@ -1234,17 +1357,18 @@ export function DashboardStoreManager() {
                     <div className="min-w-[640px]">
                       <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_auto] px-4 py-3 text-[11px] text-white/40 uppercase tracking-wide border-b border-white/5 gap-2">
                         <span className="text-left">Produit</span>
-                        <span className="text-right">Prix fournisseur</span>
+                        <span className="text-right">Prix AliExpress/Fournisseur</span>
                         <span className="text-right">Frais livraison</span>
                         <span className="text-right">Prix vente</span>
-                        <span className="text-right">Profit / marge</span>
+                        <span className="text-right">Net estimé / marge</span>
                         <span className="text-center w-[88px] shrink-0">Actions</span>
                       </div>
                       <div className="divide-y divide-white/5">
                         {shopProducts.map((p) => {
                           const supplierHref = normalizeExternalUrl(p.supplierUrl);
                           const cost = p.supplierPrice + p.shippingCost;
-                          const profit = p.sellingPrice - cost;
+                          const etsyFees = calculateEtsyFees(p.sellingPrice).totalFees;
+                          const profit = p.sellingPrice - etsyFees - cost;
                           const margin = p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
                           return (
                             <div
@@ -1779,10 +1903,13 @@ export function DashboardStoreManager() {
                     <input type="text" value={newTxProductCost} onChange={(e) => setNewTxProductCost(e.target.value)} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#00d4ff]/40 focus:ring-1 focus:ring-[#00d4ff]/20" />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/50 mb-1.5 min-h-[2.25rem] flex items-end">Frais plateforme (15,3%)</label>
+                    <label className="block text-xs text-white/50 mb-1.5 min-h-[2.25rem] flex items-end">Frais Etsy estimés</label>
                     <input type="text" value={newTxPlatformFees} readOnly placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-black/20 border border-white/10 text-white/80 placeholder-white/30 text-sm cursor-not-allowed" />
                   </div>
                 </div>
+                <p className="mt-2 text-[11px] text-white/45">
+                  Estimation: 6.5% transaction + 4% paiement + 0.30€ + 0.47% réglementaire.
+                </p>
               </div>
 
               {/* Destination */}
@@ -1919,7 +2046,7 @@ export function DashboardStoreManager() {
                     <th className="pb-3 pr-4 font-medium w-16">Image</th>
                     <th className="pb-3 pr-4 font-medium">Nom</th>
                     <th className="pb-3 pr-4 font-medium">Description</th>
-                    <th className="pb-3 pr-4 font-medium whitespace-nowrap">Prix fournisseur</th>
+                    <th className="pb-3 pr-4 font-medium whitespace-nowrap">Prix AliExpress/Fournisseur</th>
                     <th className="pb-3 pr-4 font-medium whitespace-nowrap">Frais livraison</th>
                     <th className="pb-3 pr-4 font-medium whitespace-nowrap">Prix vente</th>
                     <th className="pb-3 pr-4 font-medium whitespace-nowrap">Profit / marge</th>
@@ -2156,16 +2283,37 @@ export function DashboardStoreManager() {
                   autoComplete="url"
                   value={newProductSupplierUrl}
                   onChange={(e) => setNewProductSupplierUrl(e.target.value)}
+                  onBlur={() => {
+                    if (
+                      newProductSupplierUrl.trim() &&
+                      (!newProductName.trim() || !newProductSupplierPrice.trim())
+                    ) {
+                      void handleAutoFillFromSupplierUrl();
+                    }
+                  }}
                   placeholder="https://www.aliexpress.com/item/... (https ajouté si absent)"
                   className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#00d4ff]/50"
                 />
                 <p className="text-[11px] text-white/35 mt-1">
-                  Pour AliExpress, une vignette est récupérée automatiquement quand c&apos;est possible (sinon icône par défaut).
+                  Pour AliExpress/Alibaba, tu peux auto-remplir le titre + prix fournisseur depuis l&apos;API.
                 </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoFillFromSupplierUrl}
+                    disabled={!newProductSupplierUrl.trim() || newProductAutoFillLoading}
+                    className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/40 bg-[#00d4ff]/10 text-[#8eefff] text-xs font-medium hover:bg-[#00d4ff]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {newProductAutoFillLoading ? 'Récupération...' : 'Auto-remplir depuis le lien'}
+                  </button>
+                  {newProductAutoFillError && (
+                    <span className="text-[11px] text-red-300">{newProductAutoFillError}</span>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1">Prix fournisseur (€)</label>
+                  <label className="block text-xs text-white/50 mb-1">Prix AliExpress/Fournisseur (€)</label>
                   <input
                     type="text"
                     value={newProductSupplierPrice}
@@ -2208,6 +2356,9 @@ export function DashboardStoreManager() {
                   setNewProductSupplierPrice('');
                   setNewProductShippingCost('');
                   setNewProductSellingPrice('');
+                  setNewProductImageUrl('');
+                  setNewProductAutoFillError('');
+                  setNewProductAutoFillLoading(false);
                 }}
                 className="flex-1 py-2.5 rounded-lg bg-white/10 text-white font-medium hover:bg-white/15"
               >
