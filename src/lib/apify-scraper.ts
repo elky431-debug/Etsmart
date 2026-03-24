@@ -1,3 +1,6 @@
+import { extractListingPriceFromItem } from '@/lib/listing-price-extract';
+import { extractListingTagsFromItem } from '@/lib/listing-tags-extract';
+
 type ScrapeTarget = 'listing' | 'shop';
 
 const APIFY_BASE = 'https://api.apify.com/v2';
@@ -54,13 +57,6 @@ function getApifyToken(): string | null {
     process.env.APIFY_TOKEN?.trim() ||
     process.env.APIFY_API_KEY?.trim();
   return token || null;
-}
-
-function defaultTimeoutSecs(): number {
-  const raw = process.env.APIFY_TIMEOUT_SECS;
-  const n = Number.parseInt(raw || '', 10);
-  if (Number.isFinite(n) && n >= 10 && n <= 180) return n;
-  return 45;
 }
 
 function extractNumericPrice(value: unknown): number {
@@ -131,7 +127,6 @@ export async function runApifyActorByTarget(
     throw new Error(`Configuration Apify manquante pour la cible "${target}".`);
   }
 
-  const timeoutSecs = options.timeoutSecs ?? defaultTimeoutSecs();
   const maxItems = options.maxItems ?? 5;
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -161,6 +156,10 @@ export async function runApifyActorByTarget(
   let lastError = '';
   for (const actorId of actorCandidates) {
     try {
+      /** Budget global (démarrage + polls + dataset). Doit rester < timeout fetch client. */
+      const wallStart = Date.now();
+      const MAX_TOTAL_MS = 175_000;
+
       // 1) Lance le run de façon asynchrone
       const runStartEndpoint =
         `${APIFY_BASE}/acts/${encodeURIComponent(actorId)}/runs` +
@@ -194,16 +193,14 @@ export async function runApifyActorByTarget(
         throw new Error('Apify: run id manquant au démarrage.');
       }
 
-      // 2) Poll jusqu'à fin du run (évite les faux timeouts du sync endpoint)
-      const deadline = Date.now() + Math.max(timeoutSecs, 70) * 1000;
-      let finalStatus = '';
-      while (Date.now() < deadline) {
-        const runStatusEndpoint =
-          `${APIFY_BASE}/actor-runs/${encodeURIComponent(runId)}` +
-          `?token=${encodeURIComponent(token)}`;
+      const runStatusEndpoint =
+        `${APIFY_BASE}/actor-runs/${encodeURIComponent(runId)}` +
+        `?token=${encodeURIComponent(token)}`;
+
+      const readRunStatus = async (): Promise<string> => {
         const runRes = await fetch(runStatusEndpoint, {
           method: 'GET',
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(12_000),
         });
         const runText = await runRes.text();
         let runJson: unknown = null;
@@ -215,13 +212,20 @@ export async function runApifyActorByTarget(
         if (!runRes.ok) {
           throw new Error(`Apify run status HTTP ${runRes.status}: ${runText.slice(0, 220)}`);
         }
-
         const data = (runJson as { data?: Record<string, unknown> } | null)?.data || {};
-        finalStatus = typeof data.status === 'string' ? data.status : '';
-        if (!datasetId && typeof data.defaultDatasetId === 'string') datasetId = data.defaultDatasetId;
+        const status = typeof data.status === 'string' ? data.status : '';
+        if (!datasetId && typeof data.defaultDatasetId === 'string') {
+          datasetId = data.defaultDatasetId as string;
+        }
+        return status;
+      };
 
+      // 2) Poll jusqu'à fin du run (évite les faux timeouts du sync endpoint)
+      let finalStatus = '';
+      while (Date.now() - wallStart < MAX_TOTAL_MS) {
+        finalStatus = await readRunStatus();
         if (['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(finalStatus)) break;
-        await sleep(2000);
+        await sleep(1500);
       }
 
       if (!datasetId) {
@@ -230,22 +234,29 @@ export async function runApifyActorByTarget(
 
       // 3) Récupère les items du dataset.
       // Même si le run est encore RUNNING, certains items peuvent déjà être disponibles.
-      const firstBatch = await fetchDatasetItems(datasetId);
+      let firstBatch = await fetchDatasetItems(datasetId);
       if (firstBatch.length > 0) return firstBatch;
 
-      // Si run encore en cours mais dataset vide, on attend un peu plus avant d'échouer.
-      if (finalStatus === 'RUNNING' || finalStatus === 'READY' || finalStatus === '') {
-        const extraDeadline = Date.now() + 45_000;
-        while (Date.now() < extraDeadline) {
-          await sleep(3000);
-          const batch = await fetchDatasetItems(datasetId);
-          if (batch.length > 0) return batch;
+      // Dataset pas encore peuplé : RUNNING long ou écriture retardée dans le dataset.
+      while (Date.now() - wallStart < MAX_TOTAL_MS) {
+        await sleep(2000);
+        finalStatus = await readRunStatus();
+        firstBatch = await fetchDatasetItems(datasetId);
+        if (firstBatch.length > 0) return firstBatch;
+        if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(finalStatus)) {
+          throw new Error(`Apify run ${runId} terminé avec statut ${finalStatus}.`);
         }
+      }
+
+      if (finalStatus === 'RUNNING' || finalStatus === 'READY' || finalStatus === '') {
         throw new Error(`Apify run ${runId} toujours en cours et dataset vide (statut ${finalStatus || 'unknown'}).`);
       }
 
       if (finalStatus && finalStatus !== 'SUCCEEDED') {
         throw new Error(`Apify run ${runId} terminé avec statut ${finalStatus}.`);
+      }
+      if (finalStatus === 'SUCCEEDED' && firstBatch.length === 0) {
+        throw new Error(`Apify run ${runId} terminé avec succès mais dataset vide.`);
       }
       return firstBatch;
     } catch (e) {
@@ -269,41 +280,6 @@ export type ApifyMappedListing = {
   sourceItem: Record<string, unknown>;
 };
 
-function normalizeTag(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 20);
-}
-
-function tagsFromUnknown(value: unknown): string[] {
-  const out: string[] = [];
-  if (Array.isArray(value)) {
-    for (const v of value) {
-      if (typeof v === 'string' && v.trim()) out.push(normalizeTag(v));
-      else if (v && typeof v === 'object') {
-        const rec = v as Record<string, unknown>;
-        const s = rec.tag || rec.name || rec.keyword || rec.value;
-        if (typeof s === 'string' && s.trim()) out.push(normalizeTag(s));
-      }
-    }
-  } else if (typeof value === 'string' && value.trim()) {
-    for (const p of value.split(/[,\n|]/g)) {
-      if (p.trim()) out.push(normalizeTag(p));
-    }
-  }
-  return [...new Set(out)].filter((t) => t.length >= 2).slice(0, 13);
-}
-
-function generateTagsFromTitle(title: string | null): string[] {
-  if (!title) return [];
-  const words = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .split(/\s+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length >= 3 && w.length <= 20);
-  const uniq = [...new Set(words)];
-  return uniq.slice(0, 13);
-}
-
 export function mapApifyItemToListing(item: unknown): ApifyMappedListing | null {
   if (!item || typeof item !== 'object') return null;
   const rec = item as Record<string, unknown>;
@@ -312,37 +288,10 @@ export function mapApifyItemToListing(item: unknown): ApifyMappedListing | null 
   const description = firstString(rec, ['description', 'productDescription', 'summary']);
   const image = firstImage(rec);
 
-  let price = 0;
-  for (const key of ['price', 'productPrice', 'salePrice', 'minPrice', 'maxPrice']) {
-    price = extractNumericPrice(rec[key]);
-    if (price > 0) break;
-  }
+  const { amount: price } = extractListingPriceFromItem(item);
 
   const images = image ? [image] : [];
-  let tags: string[] = [];
-
-  for (const key of [
-    'tags',
-    'tag',
-    'keywords',
-    'keyword',
-    'searchKeywords',
-    'search_terms',
-    'seoTags',
-    'listingTags',
-    'materials',
-    'attributes',
-  ]) {
-    const fromKey = tagsFromUnknown(rec[key]);
-    if (fromKey.length > 0) {
-      tags = fromKey;
-      break;
-    }
-  }
-
-  if (tags.length === 0) {
-    tags = generateTagsFromTitle(title);
-  }
+  const tags = extractListingTagsFromItem(item);
 
   return {
     title: title || null,

@@ -44,6 +44,7 @@ import {
   Loader2,
   Package,
   Store,
+  Building2,
   Truck,
   KeyRound,
   Bot,
@@ -82,6 +83,7 @@ import { DashboardCoach } from '@/components/dashboard/DashboardCoach';
 import { DashboardLogoGenerator } from '@/components/dashboard/DashboardLogoGenerator';
 import { OpportunityMapComingSoon } from '@/components/dashboard/opportunity-map/OpportunityMapComingSoon';
 import { DashboardEtsyListingAnalyzer } from '@/components/dashboard/DashboardEtsyListingAnalyzer';
+import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompetitorShop';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -109,7 +111,8 @@ type DashboardSection =
   | 'orders'
   | 'store-manager'
   | 'shop-story'
-  | 'coach';
+  | 'coach'
+  | 'competitor-shop';
 
 interface MenuItem {
   id: DashboardSection;
@@ -249,6 +252,7 @@ export default function DashboardPage() {
         'niche-finder',
         'opportunity-map',
         'coach',
+        'competitor-shop',
       ].includes(section)
     ) {
       setActiveSection(section as DashboardSection);
@@ -346,7 +350,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach', 'competitor-shop'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -1508,6 +1512,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
         { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3 },
+        { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2 },
         { id: 'opportunity-map', label: 'Carte des Opportunités', icon: Globe },
         { id: 'competitors', label: 'Analyse boutique', icon: Target },
       ],
@@ -2244,6 +2249,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
 
           {activeSection === 'apify-test' && <DashboardEtsyListingAnalyzer />}
+
+          {activeSection === 'competitor-shop' && <DashboardCompetitorShop />}
 
           {activeSection === 'tracking' && (
             <DashboardTracking />

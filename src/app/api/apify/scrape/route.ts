@@ -7,12 +7,23 @@ import {
   type ScrapeTarget,
 } from '@/lib/apify-scraper';
 
-export const maxDuration = 60;
+/** Apify (Etsy + proxy) peut dépasser 1 min ; aligné sur le polling côté scraper. */
+export const maxDuration = 300;
 
 function normalizedUrl(url: string): string {
   const raw = url.trim();
   if (!raw) return '';
-  return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  const withProto = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  try {
+    const u = new URL(withProto);
+    if (u.hostname.includes('etsy.com') && u.pathname.includes('/listing/')) {
+      u.search = '';
+      u.hash = '';
+    }
+    return u.toString();
+  } catch {
+    return withProto;
+  }
 }
 
 function buildActorInput(url: string, target: ScrapeTarget, actorId: string): Record<string, unknown> {
@@ -32,7 +43,7 @@ function buildActorInput(url: string, target: ScrapeTarget, actorId: string): Re
   if (target === 'listing' && (isEtsyActor || isEtsyUrl)) {
     return {
       maxItems: 10,
-      includeDescription: false,
+      includeDescription: true,
       includeUsedVariationPrices: false,
       proxy: {
         useApifyProxy: true,
@@ -47,7 +58,13 @@ function buildActorInput(url: string, target: ScrapeTarget, actorId: string): Re
 
 function isApifyTimeoutLikeError(message: string): boolean {
   const m = message.toLowerCase();
-  return m.includes('timed-out') || m.includes('run-failed') || m.includes('timeout');
+  return (
+    m.includes('timed-out') ||
+    m.includes('run-failed') ||
+    m.includes('timeout') ||
+    m.includes('dataset vide') ||
+    m.includes('toujours en cours')
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -120,11 +137,16 @@ export async function POST(request: NextRequest) {
         const retryInput: Record<string, unknown> = {
           startUrls: [url],
           maxItems: 1,
-          proxy: { useApifyProxy: true },
+          includeDescription: false,
+          includeUsedVariationPrices: false,
+          proxy: {
+            useApifyProxy: true,
+            apifyProxyGroups: ['RESIDENTIAL'],
+          },
         };
         items = await runApifyActorByTarget(target, retryInput, {
           maxItems: 1,
-          timeoutSecs: Math.max(70, typeof body?.timeoutSecs === 'number' ? body.timeoutSecs : 70),
+          timeoutSecs: Math.max(120, typeof body?.timeoutSecs === 'number' ? body.timeoutSecs : 120),
           actorIdOverride: typeof body?.actorId === 'string' ? body.actorId : undefined,
         });
       } else {

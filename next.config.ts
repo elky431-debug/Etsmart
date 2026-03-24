@@ -4,7 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Note: Pour l'App Router, la limite de taille du body est gérée dans chaque route
   // via export const maxDuration et la configuration du runtime
-  
+
+  /** Évite que Turbopack embarque playwright-core (fichiers .ttf / assets Vite du recorder). */
+  serverExternalPackages: ['playwright-core', 'playwright'],
+
   // Solution de secours : ignorer les erreurs TypeScript dans le dossier extension
   // (les fichiers de l'extension sont compilés séparément avec leur propre tsconfig.json)
   typescript: {

@@ -2,6 +2,44 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { extractListingPriceFromItem } from '@/lib/listing-price-extract';
+import { extractListingTagsFromItem } from '@/lib/listing-tags-extract';
+import { extractListingVideoFromItem } from '@/lib/listing-video-extract';
+import {
+  clampScore,
+  letterGradeVerbal,
+  scoreBadgeClasses,
+  scoreToLetterGrade,
+} from '@/lib/etsy/listing-letter-grade';
+
+/** Palette Etsmart : bleu / cyan (#00d4ff → #00c9b7), alignée abonnement / réglages */
+const ES = {
+  brand: 'text-cyan-300',
+  border: 'border-cyan-500/35',
+  bgTint: 'bg-cyan-500/10',
+  ring: 'ring-1 ring-cyan-500/15',
+  barStrong: 'bg-cyan-500',
+  gradientBtn: 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]',
+  focus: 'focus:border-cyan-500/55',
+} as const;
+
+/** Attente max côté app : Apify (Etsy + proxy) a besoin souvent de 1–3 min ; on coupe avant l’infini. */
+const SCRAPE_FETCH_TIMEOUT_MS = 180_000;
+
+function createFetchTimeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
+function isAbortError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === 'AbortError') return true;
+  if (err instanceof Error && err.name === 'AbortError') return true;
+  return false;
+}
 
 type ApiResponse = {
   success?: boolean;
@@ -83,123 +121,260 @@ function extractVariationLabels(rec: Record<string, unknown>): string[] {
   return labels.slice(0, 8);
 }
 
-type ScoreBlock = {
+/** Style RankHero : pastilles vert / ambre / rouge */
+type FeedbackLevel = 'good' | 'warn' | 'bad';
+
+type FeedbackItem = { level: FeedbackLevel; text: string };
+
+type SectionScore = {
   score: number;
-  feedback: string[];
+  /** Sous-titre type « 12 / 13 tags » ou « 139 / 140 caractères » */
+  summary?: string;
+  feedback: FeedbackItem[];
 };
 
-function clampScore(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, Math.round(n)));
+function scoreTierColors(score: number): { bar: string; text: string } {
+  if (score >= 80) return { bar: 'bg-cyan-500', text: 'text-cyan-400' };
+  if (score >= 50) return { bar: 'bg-sky-400', text: 'text-sky-300' };
+  return { bar: 'bg-rose-500', text: 'text-rose-400' };
 }
 
-function scoreTitle(title: string): ScoreBlock {
+function dotClass(level: FeedbackLevel): string {
+  if (level === 'good') return 'bg-emerald-400';
+  if (level === 'warn') return 'bg-sky-400';
+  return 'bg-rose-500';
+}
+
+/** Logique proche RankHero : titre (clarté + SEO + longueur) */
+function scoreTitleRankHero(title: string, tags: string[]): SectionScore {
   const t = title.trim();
-  if (!t) return { score: 0, feedback: ['Aucun titre detecte.'] };
-  const words = t.split(/\s+/).filter(Boolean);
-  const uniq = new Set(words.map((w) => w.toLowerCase())).size;
-  const len = t.length;
-  let score = 60;
-  if (len >= 70 && len <= 140) score += 20;
-  else if (len >= 40) score += 10;
-  if (words.length >= 6) score += 10;
-  if (uniq >= Math.max(3, Math.floor(words.length * 0.65))) score += 10;
-  const feedback: string[] = [];
-  feedback.push(`Longueur: ${len}/140 caracteres (zone ideale Etsy: 70-140).`);
-  feedback.push(`${words.length} mots detectes dont ${uniq} uniques.`);
-  feedback.push('Un titre performant combine intention de recherche + caracteristique produit + style.');
-  if (len < 40) feedback.push('Titre trop court: ajoute la categorie, le style et l’usage.');
-  if (len > 140) feedback.push('Titre trop long pour Etsy: simplifie sous 140 caracteres.');
-  return { score: clampScore(score), feedback };
-}
-
-function scoreTags(tags: string[]): ScoreBlock {
-  if (!tags || tags.length === 0) {
-    return {
-      score: 90,
-      feedback: [
-        'Tags non fournis par l actor.',
-        'Score par defaut applique (90/100) pour ne pas bloquer le workflow.',
-        'Conseil: garder 11-13 tags differents, axes intention + materiau + style + occasion.',
-      ],
-    };
+  if (!t) {
+    return { score: 0, summary: '—', feedback: [{ level: 'bad', text: 'Aucun titre détecté.' }] };
   }
-  const unique = new Set(tags.map((t) => t.toLowerCase())).size;
-  const score = 70 + Math.min(30, unique * 2);
-  return {
-    score: clampScore(score),
-    feedback: [
-      `${tags.length} tags detectes (${unique} uniques).`,
-      'Vise des tags non dupliques et complementaires (pas les memes mots dans un ordre different).',
-    ],
-  };
+  const words = t.split(/\s+/).filter(Boolean);
+  const len = t.length;
+  const wordCount = words.length;
+  let score = 55;
+
+  const feedback: FeedbackItem[] = [];
+
+  if (wordCount <= 15) {
+    feedback.push({
+      level: 'good',
+      text: `Clarté : ${wordCount} mot(s) (Etsy recommande souvent moins de 15 pour la lisibilité).`,
+    });
+    score += 12;
+  } else {
+    feedback.push({
+      level: 'warn',
+      text: `Le titre contient ${wordCount} mots. Etsy recommande moins de 15 pour la clarté et la scannabilité.`,
+    });
+    score -= 10;
+  }
+
+  if (len >= 70 && len <= 140) {
+    feedback.push({ level: 'good', text: `Longueur SEO fréquente : ${len}/140 caractères.` });
+    score += 18;
+  } else if (len >= 40 && len < 70) {
+    feedback.push({ level: 'warn', text: `Titre un peu court (${len}/140). Vise souvent 70–140 caractères.` });
+    score += 6;
+  } else if (len > 140) {
+    feedback.push({ level: 'warn', text: `Titre au-dessus de 140 caractères (${len}). Etsy tronque l’affichage : simplifie.` });
+    score -= 12;
+  } else {
+    feedback.push({ level: 'bad', text: `Titre très court (${len} caractères).` });
+    score -= 18;
+  }
+
+  const freq = new Map<string, number>();
+  for (const w of words) {
+    const k = w.toLowerCase().replace(/[^a-z0-9àâäéèêëïîôùûüç-]/gi, '');
+    if (k.length < 3) continue;
+    freq.set(k, (freq.get(k) || 0) + 1);
+  }
+  const heavy = [...freq.entries()].filter(([, c]) => c > 2);
+  if (heavy.length === 0) {
+    feedback.push({ level: 'good', text: 'Pas de mot trop répété dans le titre.' });
+    score += 5;
+  } else {
+    feedback.push({ level: 'warn', text: `Mots fréquents : ${heavy.map(([w]) => w).join(', ')}.` });
+    score -= 6;
+  }
+
+  const lowerTitle = t.toLowerCase();
+  const tagsInTitle = tags.filter((tag) => tag && lowerTitle.includes(tag.toLowerCase()));
+  if (tagsInTitle.length > 0) {
+    feedback.push({
+      level: 'good',
+      text: `SEO : le titre inclut ${tagsInTitle.length} tag(s) : ${tagsInTitle.slice(0, 4).join(', ')}.`,
+    });
+    score += 10;
+  } else if (tags.length > 0) {
+    feedback.push({
+      level: 'warn',
+      text: 'Aucun tag ne figure tel quel dans le titre (optionnel mais utile pour la cohérence).',
+    });
+  }
+
+  return { score: clampScore(score), summary: `${len}/140 caractères · ${wordCount} mots`, feedback };
 }
 
-function scoreImages(imageCount: number): ScoreBlock {
+function scoreImagesRankHero(count: number): SectionScore {
+  const MAX = 20;
+  const REC = 7;
   let score = 0;
-  if (imageCount >= 10) score = 100;
-  else if (imageCount >= 8) score = 90;
-  else if (imageCount >= 6) score = 75;
-  else if (imageCount >= 4) score = 60;
-  else if (imageCount >= 2) score = 45;
-  else if (imageCount === 1) score = 30;
-  return {
-    score: clampScore(score),
-    feedback: [
-      `${imageCount} image(s) detectee(s). Etsy performe mieux avec 8-10 visuels.`,
-      'Ajoute au moins: hero shot, contexte d’usage, close-up matiere, dimensions, variantes.',
-    ],
+  if (count >= REC) score = 100;
+  else if (count >= 6) score = 86;
+  else if (count >= 5) score = 72;
+  else if (count >= 4) score = 56;
+  else score = Math.max(12, Math.round((count / REC) * 62));
+
+  const feedback: FeedbackItem[] = [];
+  if (count >= REC) {
+    feedback.push({ level: 'good', text: `Nombre d’images solide (${count} / ${REC}+ recommandé).` });
+  } else {
+    feedback.push({
+      level: 'warn',
+      text: `Ajoute des visuels : Etsy performe mieux avec au moins ${REC} photos (tu en as ${count}).`,
+    });
+  }
+  feedback.push({ level: 'good', text: `Etsy autorise jusqu’à ${MAX} images par listing.` });
+  return { score: clampScore(score), summary: `${count} / ${MAX} images`, feedback };
+}
+
+function scoreVideoRankHero(
+  firstItem: Record<string, unknown>,
+  videoDetectedOnEtsyPage: boolean
+): SectionScore {
+  const { url, hasVideo } = extractListingVideoFromItem(firstItem);
+  const has = hasVideo || videoDetectedOnEtsyPage;
+  const score = has ? 100 : 0;
+  const feedbackGood = (): FeedbackItem[] => {
+    if (url) return [{ level: 'good', text: 'Vidéo détectée dans les données Apify (URL extraite).' }];
+    if (hasVideo)
+      return [{ level: 'good', text: 'Vidéo signalée dans les données scraper (lien parfois absent).' }];
+    return [
+      {
+        level: 'good',
+        text: 'Vidéo détectée sur la page Etsy (analyse HTML ; souvent absente des données Apify).',
+      },
+    ];
   };
-}
-
-function scoreDescription(desc: string): ScoreBlock {
-  const len = desc.trim().length;
-  let score = 0;
-  if (len >= 450) score = 100;
-  else if (len >= 250) score = 85;
-  else if (len >= 120) score = 70;
-  else if (len >= 40) score = 50;
-  else if (len > 0) score = 25;
-  const feedback = [
-    len > 0 ? `Description detectee (${len} caracteres).` : 'Aucune description detectee.',
-    'Structure conseillee: benefices -> details techniques -> dimensions -> livraison/retours.',
-  ];
-  return { score: clampScore(score), feedback };
-}
-
-function scoreMaterials(variationLines: string[]): ScoreBlock {
-  const hasMaterial = variationLines.some((v) => /material|mati[eè]re|fabric|wood|metal|cotton|linen/i.test(v));
-  const score = hasMaterial ? 70 : 0;
   return {
     score,
-    feedback: hasMaterial
-      ? ['Indice de matieres detecte dans les variations.', 'Bon point SEO: Etsy valorise les attributs matiere.']
-      : ['Aucune matiere explicite detectee.', 'Ajoute les matieres principales pour mieux ressortir en recherche.'],
+    summary: has ? (url ? '1 / 1 vidéo' : '1 / 1 vidéo') : '0 / 1 vidéo',
+    feedback: has
+      ? feedbackGood()
+      : [
+          { level: 'bad', text: 'Aucune vidéo détectée (ni Apify ni page publique).' },
+          { level: 'warn', text: 'Une vidéo peut fortement améliorer la confiance et la conversion.' },
+        ],
   };
 }
 
-function ScoreRow({ label, score }: { label: string; score: number }) {
-  const isGood = score >= 80;
-  const isWarn = score >= 50 && score < 80;
-  const barColor = isGood ? 'bg-[#14d4b0]' : isWarn ? 'bg-amber-400' : 'bg-pink-500';
-  const scoreColor = isGood ? 'text-[#14d4b0]' : isWarn ? 'text-amber-300' : 'text-pink-400';
+function scoreDescriptionRankHero(desc: string): SectionScore {
+  const t = desc.trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  const len = t.length;
+  if (!t) {
+    return {
+      score: 0,
+      summary: '0 mots',
+      feedback: [{ level: 'bad', text: 'Aucune description détectée.' }],
+    };
+  }
+
+  let score = 40;
+  if (words.length >= 400) score = 100;
+  else if (words.length >= 250) score = 88;
+  else if (words.length >= 150) score = 74;
+  else if (words.length >= 90) score = 58;
+  else score = 40;
+
+  const feedback: FeedbackItem[] = [
+    { level: 'good', text: `${words.length} mots · ${len} caractères` },
+  ];
+  if (words.length >= 120) {
+    feedback.push({ level: 'good', text: 'Description dans une plage souvent recommandée pour Etsy.' });
+  } else {
+    feedback.push({
+      level: 'warn',
+      text: 'Description courte : ajoute bénéfices, détails techniques, dimensions, livraison et retours.',
+    });
+  }
+
+  return { score: clampScore(score), summary: `${words.length} mots · ${len} caractères`, feedback };
+}
+
+function SectionScoreCard({ label, data }: { label: string; data: SectionScore }) {
+  const { bar, text } = scoreTierColors(data.score);
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-white/85">{label}</span>
-        <span className={scoreColor}>{score}/100</span>
+    <div className={`rounded-2xl border border-white/10 bg-black/35 p-5 ${ES.ring}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-white">{label}</h4>
+          {data.summary ? <p className="mt-0.5 text-xs text-white/45">{data.summary}</p> : null}
+        </div>
+        <span className={`text-sm font-bold tabular-nums ${text}`}>{data.score}/100</span>
       </div>
-      <div className="h-2 w-full rounded-full bg-white/10">
-        <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${score}%` }} />
+      <div className="mt-3 h-2 w-full rounded-full bg-white/10">
+        <div className={`h-full rounded-full ${bar} transition-all`} style={{ width: `${data.score}%` }} />
+      </div>
+      <div className="mt-4">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">Feedback</p>
+        <ul className="mt-2 space-y-2">
+          {data.feedback.map((item, idx) => (
+            <li key={idx} className="flex gap-2.5 text-xs leading-relaxed text-white/80">
+              <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass(item.level)}`} aria-hidden />
+              <span>{item.text}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 }
 
-function scoreBadgeClasses(score: number): string {
-  if (score >= 80) return 'text-[#14d4b0] border-[#14d4b0]/40 bg-[#14d4b0]/10';
-  if (score >= 60) return 'text-amber-300 border-amber-300/40 bg-amber-300/10';
-  return 'text-pink-400 border-pink-400/40 bg-pink-400/10';
+function OverviewScoreRow({ label, score }: { label: string; score: number }) {
+  const { bar, text } = scoreTierColors(score);
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 ring-1 ring-cyan-500/10 sm:flex-row sm:items-center sm:gap-4">
+      <span className="min-w-0 flex-1 text-sm font-medium text-white/90">{label}</span>
+      <div className="flex items-center gap-3 sm:justify-end">
+        <span className={`text-sm font-bold tabular-nums ${text}`}>{score}/100</span>
+        <div className="h-2 w-full min-w-[6rem] max-w-[8rem] flex-1 overflow-hidden rounded-full bg-white/10 sm:w-28">
+          <div className={`h-full rounded-full ${bar}`} style={{ width: `${score}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeading({
+  step,
+  title,
+  subtitle,
+}: {
+  step: string;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="mb-5">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <span
+          className="inline-flex h-10 min-w-[2.5rem] shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-sm font-bold tabular-nums text-cyan-400"
+          aria-hidden
+        >
+          {step}
+        </span>
+        <div className="min-w-0 flex-1 border-b border-white/10 pb-4">
+          <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
+          {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-white/45">{subtitle}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function DashboardEtsyListingAnalyzer() {
@@ -207,6 +382,8 @@ export function DashboardEtsyListingAnalyzer() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [error, setError] = useState('');
+  /** Complément Apify : détection vidéo sur le HTML du listing (souvent plus fiable que l’actor). */
+  const [videoFromHtmlPage, setVideoFromHtmlPage] = useState(false);
 
   const mapped = result?.mapped;
   const firstItemRec = toRecord(result?.firstItem);
@@ -220,7 +397,7 @@ export function DashboardEtsyListingAnalyzer() {
     const fromMapped = Array.isArray(mapped?.images) ? mapped.images : [];
     const fromJson = pickStringArray(firstItemRec, ['images', 'imageUrls', 'gallery']);
     const all = [...fromMapped, ...fromJson];
-    return [...new Set(all)].slice(0, 8);
+    return [...new Set(all)].slice(0, 20);
   }, [mapped?.images, firstItemRec]);
 
   const sellerRec = useMemo(() => toRecord(firstItemRec.seller), [firstItemRec]);
@@ -234,42 +411,71 @@ export function DashboardEtsyListingAnalyzer() {
   );
   const rating = useMemo(() => pickNumber(firstItemRec, ['rating']), [firstItemRec]);
   const reviews = useMemo(() => pickNumber(firstItemRec, ['numberOfReviews', 'reviewCount']), [firstItemRec]);
-  const rawPrice = useMemo(
-    () => pickString(firstItemRec, ['Price', 'price', 'original Price', 'Original Price']),
-    [firstItemRec]
-  );
+  const priceInfo = useMemo(() => extractListingPriceFromItem(firstItemRec), [firstItemRec]);
   const priceDisplay =
-    (typeof mapped?.price === 'number' && mapped.price > 0 ? `${mapped.price}` : '') ||
-    rawPrice ||
+    priceInfo.display ||
+    (typeof mapped?.price === 'number' && mapped.price > 0 ? String(mapped.price) : '') ||
     '—';
   const variationLines = useMemo(() => extractVariationLabels(firstItemRec), [firstItemRec]);
   const listingDate = useMemo(() => pickString(firstItemRec, ['listedOn', 'createdAt', 'date']), [firstItemRec]);
   const listingUrl = useMemo(() => pickString(firstItemRec, ['url', 'listingUrl']), [firstItemRec]);
-  const titleText = mapped?.title || pickString(firstItemRec, ['name', 'title']) || '';
-  const descriptionText = mapped?.description || pickString(firstItemRec, ['description', 'summary']) || '';
-  const tagsList = Array.isArray(mapped?.tags) ? mapped.tags : [];
 
-  const titleBlock = useMemo(() => scoreTitle(titleText), [titleText]);
-  const tagsBlock = useMemo(() => scoreTags(tagsList), [tagsList]);
-  const imagesBlock = useMemo(() => scoreImages(gallery.length), [gallery.length]);
-  const videosBlock = useMemo<ScoreBlock>(() => ({ score: 0, feedback: ['Aucune video detectee (actor listing standard).'] }), []);
-  const materialsBlock = useMemo(() => scoreMaterials(variationLines), [variationLines]);
-  const descriptionBlock = useMemo(() => scoreDescription(descriptionText), [descriptionText]);
+  /** Textes les plus complets possibles pour l’affichage (plusieurs clés côté Apify). */
+  const listingTitleDisplay = useMemo(() => {
+    const fromMapped = mapped?.title || '';
+    const fromItem = pickString(firstItemRec, ['name', 'title', 'listingTitle', 'productTitle', 'itemTitle']);
+    return (fromItem.length > fromMapped.length ? fromItem : fromMapped) || '';
+  }, [mapped?.title, firstItemRec]);
+
+  const listingDescriptionDisplay = useMemo(() => {
+    const fromMapped = mapped?.description || '';
+    const fromItem = pickString(firstItemRec, [
+      'description',
+      'fullDescription',
+      'longDescription',
+      'body',
+      'htmlDescription',
+      'productDescription',
+      'summary',
+    ]);
+    return (fromItem.length > fromMapped.length ? fromItem : fromMapped) || '';
+  }, [mapped?.description, firstItemRec]);
+
+  /** Tags uniquement pour cohérence titre / SEO (non affichés). */
+  const tagsForTitle = useMemo(() => {
+    const fromMapped = Array.isArray(mapped?.tags) ? mapped.tags : [];
+    if (fromMapped.length > 0) return fromMapped;
+    return extractListingTagsFromItem(firstItemRec);
+  }, [mapped?.tags, firstItemRec]);
+
+  const titleBlock = useMemo(
+    () => scoreTitleRankHero(listingTitleDisplay, tagsForTitle),
+    [listingTitleDisplay, tagsForTitle]
+  );
+  const imagesBlock = useMemo(() => scoreImagesRankHero(gallery.length), [gallery.length]);
+  const videosBlock = useMemo(
+    () => scoreVideoRankHero(firstItemRec, videoFromHtmlPage),
+    [firstItemRec, videoFromHtmlPage]
+  );
+  const descriptionBlock = useMemo(
+    () => scoreDescriptionRankHero(listingDescriptionDisplay),
+    [listingDescriptionDisplay]
+  );
+  /** Anciennement + tags + matériaux : redistribué sur titre / images / description / vidéo. */
   const globalScore = useMemo(() => {
     const weighted =
-      titleBlock.score * 0.25 +
-      tagsBlock.score * 0.2 +
-      imagesBlock.score * 0.2 +
-      descriptionBlock.score * 0.2 +
-      materialsBlock.score * 0.1 +
-      videosBlock.score * 0.05;
+      titleBlock.score * (25 / 70) +
+      imagesBlock.score * (20 / 70) +
+      descriptionBlock.score * (20 / 70) +
+      videosBlock.score * (5 / 70);
     return clampScore(weighted);
-  }, [titleBlock.score, tagsBlock.score, imagesBlock.score, descriptionBlock.score, materialsBlock.score, videosBlock.score]);
+  }, [titleBlock.score, imagesBlock.score, descriptionBlock.score, videosBlock.score]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setResult(null);
+    setVideoFromHtmlPage(false);
 
     const cleanUrl = url.trim();
     if (!cleanUrl) {
@@ -298,19 +504,70 @@ export function DashboardEtsyListingAnalyzer() {
           target: 'listing',
           url: cleanUrl,
           maxItems: 1,
-          timeoutSecs: 35,
+          timeoutSecs: 120,
         }),
+        signal: createFetchTimeoutSignal(SCRAPE_FETCH_TIMEOUT_MS),
       });
 
-      const data = (await response.json().catch(() => ({}))) as ApiResponse;
+      const raw = await response.text();
+      let data: ApiResponse = {};
+      try {
+        data = raw ? (JSON.parse(raw) as ApiResponse) : {};
+      } catch {
+        setError(
+          raw.trim()
+            ? `Réponse invalide (${response.status}) : ${raw.slice(0, 280)}`
+            : `Erreur HTTP ${response.status}. Réessaie ou vérifie la console serveur.`
+        );
+        setResult(null);
+        return;
+      }
+
       if (!response.ok || !data?.success) {
-        setError(data?.error || 'Échec du test Apify.');
+        const apiErr =
+          typeof data.error === 'string' && data.error.trim()
+            ? data.error.trim()
+            : '';
+        setError(
+          apiErr ||
+            (response.status === 400
+              ? 'Configuration Apify manquante : ajoute APIFY_API_TOKEN (et éventuellement APIFY_ACTOR_LISTING_ID) dans .env.local, puis redémarre npm run dev. Voir APIFY_ENV_TEMPLATE.txt.'
+              : 'Échec de l’analyse Apify. Vérifie les variables d’environnement et les crédits Apify.')
+        );
         setResult(null);
         return;
       }
       setResult(data);
+
+      void (async () => {
+        try {
+          const htmlRes = await fetch('/api/etsy/scrape-listing', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ url: cleanUrl }),
+            signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+              ? AbortSignal.timeout(35_000)
+              : undefined,
+          });
+          const htmlJson = (await htmlRes.json()) as { listing?: { hasVideo?: boolean } };
+          if (htmlRes.ok && htmlJson?.listing?.hasVideo === true) {
+            setVideoFromHtmlPage(true);
+          }
+        } catch {
+          /* secondaire */
+        }
+      })();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur réseau.');
+      if (isAbortError(err)) {
+        setError(
+          'Délai dépassé (3 min). Réessaie ou vérifie Apify / ta connexion.'
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Erreur réseau.');
+      }
     } finally {
       setLoading(false);
     }
@@ -318,195 +575,276 @@ export function DashboardEtsyListingAnalyzer() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-5xl p-4 sm:p-7">
-        <h1 className="text-2xl font-bold">Analyseur Listing Etsy</h1>
-        <p className="mt-2 text-sm text-white/60">
-          Colle un lien Etsy pour obtenir une analyse rapide de la qualite du listing.
-        </p>
-        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#14d4b0]/35 bg-[#14d4b0]/10 px-3 py-1.5 text-xs font-semibold text-[#14d4b0]">
-          1 credit par analyse
-        </div>
-
-        <form onSubmit={onSubmit} className="mt-6 space-y-5 rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <header className="flex flex-col gap-4 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <label className="mb-1.5 block text-xs text-white/60">Lien Etsy du listing</label>
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.etsy.com/listing/..."
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00d4ff]/50"
-            />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-400/90">Etsmart</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Analyseur Listing Etsy</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+              Colle un lien de fiche produit : analyse type RankHero (titre, images, description…).
+            </p>
           </div>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${ES.border} ${ES.bgTint} ${ES.brand}`}
+            >
+              1 crédit par analyse
+            </span>
+            <p className="text-xs text-white/40">Jusqu’à ~3 min si le scraper est lent.</p>
+          </div>
+        </header>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-60"
-          >
-            {loading ? 'Analyse en cours...' : 'Lancer l analyse'}
-          </button>
-
+        <form
+          onSubmit={onSubmit}
+          className={`mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 ${ES.ring}`}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-4">
+            <div className="min-w-0 flex-1">
+              <label className="mb-2 block text-xs font-medium text-white/55">Lien du listing</label>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.etsy.com/listing/…"
+                className={`w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 ${ES.focus}`}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`shrink-0 rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110 disabled:opacity-60 lg:min-w-[11rem] ${ES.gradientBtn}`}
+            >
+              {loading ? 'Analyse…' : 'Analyser'}
+            </button>
+          </div>
           {error ? (
-            <div className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            <div className="mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
         </form>
 
         {result ? (
-          <div className="mt-7 space-y-5">
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-white/45">Note globale du listing</p>
-                  <p className="mt-1 text-3xl font-bold text-white">{globalScore}/100</p>
-                </div>
-                <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${scoreBadgeClasses(globalScore)}`}>
-                  {globalScore >= 80 ? 'Tres bon' : globalScore >= 60 ? 'Correct' : 'A optimiser'}
-                </span>
-              </div>
-              <div className="mt-4 h-2.5 w-full rounded-full bg-white/10">
-                <div
-                  className={`h-full rounded-full ${globalScore >= 80 ? 'bg-[#14d4b0]' : globalScore >= 60 ? 'bg-amber-400' : 'bg-pink-500'}`}
-                  style={{ width: `${globalScore}%` }}
-                />
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-white/55">
-                Score global calcule via ponderation: Title 25%, Tags 20%, Images 20%, Description 20%, Materials 10%, Videos 5%.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-              <h2 className="text-sm font-semibold text-white">Resume listing</h2>
-              <div className="mt-5 grid gap-5 sm:grid-cols-[160px_1fr]">
-                <div>
-                  {firstImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={firstImage}
-                      alt="Apercu produit"
-                      className="h-[140px] w-[140px] rounded-lg border border-white/10 object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-[140px] w-[140px] items-center justify-center rounded-lg border border-white/10 text-xs text-white/45">
-                      no image
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2 text-sm leading-relaxed text-white/80">
-                  <p><span className="text-white/50">Items retournes:</span> {result.count ?? 0}</p>
-                  <p><span className="text-white/50">Titre:</span> {mapped?.title || pickString(firstItemRec, ['name', 'title']) || '—'}</p>
-                  <p><span className="text-white/50">Prix:</span> {priceDisplay}</p>
-                  <p><span className="text-white/50">Description:</span> {mapped?.description || '—'}</p>
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="text-white/50">URL:</span>
-                    <span>{displayUrl(listingUrl)}</span>
-                    {listingUrl ? (
-                      <a
-                        href={listingUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded border border-white/15 px-2 py-0.5 text-xs text-[#14d4b0] hover:bg-[#14d4b0]/10"
+          <div className="mt-12 space-y-14">
+            {/* 1 — Synthèse : score + aperçu + infos clés */}
+            <section>
+              <SectionHeading
+                step="1"
+                title="Synthèse"
+                subtitle="Note globale, aperçu visuel et informations principales du listing."
+              />
+              <div
+                className={`overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-cyan-950/20 ${ES.ring}`}
+              >
+                <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-12 lg:items-start lg:gap-10">
+                  <div className="lg:col-span-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-cyan-200/55">Note globale</p>
+                    <div className="mt-3 flex flex-wrap items-end gap-3">
+                      <p
+                        className="text-5xl font-bold leading-none tracking-tight text-white sm:text-6xl"
+                        title={`${globalScore}/100`}
+                        aria-label={`Note globale ${scoreToLetterGrade(globalScore)}, ${globalScore} sur 100`}
                       >
-                        ouvrir
-                      </a>
-                    ) : null}
-                  </p>
-                  <p><span className="text-white/50">Date listing:</span> {listingDate || '—'}</p>
-                  <p><span className="text-white/50">Tags:</span> {Array.isArray(mapped?.tags) && mapped.tags.length > 0 ? mapped.tags.join(', ') : 'non fournis par l actor'}</p>
+                        {scoreToLetterGrade(globalScore)}
+                      </p>
+                      <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${scoreBadgeClasses(globalScore)}`}>
+                        {letterGradeVerbal(scoreToLetterGrade(globalScore))}
+                      </span>
+                    </div>
+                    <div className="mt-5 h-3 w-full overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className={`h-full rounded-full ${globalScore >= 80 ? ES.barStrong : globalScore >= 60 ? 'bg-sky-400' : 'bg-rose-500'}`}
+                        style={{ width: `${globalScore}%` }}
+                      />
+                    </div>
+                    <p className="mt-4 text-xs leading-relaxed text-white/45">
+                      Pondération : titre ~36 % · images ~29 % · description ~29 % · vidéo ~7 %.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-center lg:col-span-3 lg:justify-start">
+                    {firstImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={firstImage}
+                        alt="Aperçu produit"
+                        className="h-40 w-40 rounded-2xl border border-cyan-500/30 object-cover shadow-xl shadow-black/50 sm:h-44 sm:w-44"
+                      />
+                    ) : (
+                      <div className="flex h-40 w-40 items-center justify-center rounded-2xl border border-dashed border-white/15 text-xs text-white/35">
+                        Pas d’image
+                      </div>
+                    )}
+                  </div>
+
+                  <dl className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-black/35 p-1 text-sm lg:col-span-4">
+                    <div className="flex items-start justify-between gap-3 px-4 py-3">
+                      <dt className="text-white/45">Items retournés</dt>
+                      <dd className="text-right font-medium text-white">{result.count ?? 0}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 px-4 py-3">
+                      <dt className="text-white/45">Prix</dt>
+                      <dd className="text-right font-medium text-white">{priceDisplay}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 px-4 py-3">
+                      <dt className="shrink-0 text-white/45">Lien</dt>
+                      <dd className="min-w-0 text-right">
+                        <span className="break-all text-white/80">{displayUrl(listingUrl)}</span>
+                        {listingUrl ? (
+                          <a
+                            href={listingUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-2 inline-block rounded-lg border border-cyan-500/35 px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-500/10"
+                          >
+                            Ouvrir
+                          </a>
+                        ) : null}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 px-4 py-3">
+                      <dt className="text-white/45">Date</dt>
+                      <dd className="text-right font-medium text-white/90">{listingDate || '—'}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-              <h3 className="text-sm font-semibold text-white">Listing Quality Score</h3>
-              <div className="mt-5 space-y-4">
-                <ScoreRow label="Title" score={titleBlock.score} />
-                <ScoreRow label="Tags" score={tagsBlock.score} />
-                <ScoreRow label="Images" score={imagesBlock.score} />
-                <ScoreRow label="Videos" score={videosBlock.score} />
-                <ScoreRow label="Materials" score={materialsBlock.score} />
-                <ScoreRow label="Description" score={descriptionBlock.score} />
+            {/* 2 — Contenu analysé */}
+            <section>
+              <SectionHeading
+                step="2"
+                title="Contenu analysé"
+                subtitle="Texte et éléments utilisés pour calculer les scores."
+              />
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-5 ring-1 ring-cyan-500/10">
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200/60">Titre</p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-white">
+                  {listingTitleDisplay.trim() ? listingTitleDisplay : '—'}
+                </p>
+                <p className="mt-2 text-xs text-white/35">{listingTitleDisplay.length} caractères</p>
               </div>
-            </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-              <h3 className="text-sm font-semibold text-white">Feedback details</h3>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {[
-                  { label: 'Title', data: titleBlock },
-                  { label: 'Tags', data: tagsBlock },
-                  { label: 'Images', data: imagesBlock },
-                  { label: 'Videos', data: videosBlock },
-                  { label: 'Materials', data: materialsBlock },
-                  { label: 'Description', data: descriptionBlock },
-                ].map((section) => (
-                  <div key={section.label} className="rounded-lg border border-white/10 bg-black/30 p-4">
-                    <p className="text-sm font-semibold text-white">{section.label}</p>
-                    <ul className="mt-2.5 space-y-1.5 text-xs leading-relaxed text-white/70">
-                      {section.data.feedback.map((f, idx) => (
-                        <li key={`${section.label}-${idx}`}>- {f}</li>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 ring-1 ring-cyan-500/10">
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200/60">Description</p>
+                <div className="mt-3 max-h-[min(360px,55vh)] overflow-y-auto rounded-xl border border-cyan-500/20 bg-black/50 p-4">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/90">
+                    {listingDescriptionDisplay.trim() ? listingDescriptionDisplay : '—'}
+                  </p>
+                </div>
+                <p className="mt-2 text-xs text-white/35">
+                  {listingDescriptionDisplay.length} caractères ·{' '}
+                  {listingDescriptionDisplay.trim()
+                    ? listingDescriptionDisplay.trim().split(/\s+/).filter(Boolean).length
+                    : 0}{' '}
+                  mots
+                </p>
+              </div>
+            </section>
+
+            {/* 3 — Scores */}
+            <section>
+              <SectionHeading
+                step="3"
+                title="Scores par critère"
+                subtitle="Chaque critère est noté sur 100. Barres : cyan = bon · bleu clair = moyen · rouge = faible."
+              />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <OverviewScoreRow label="Titre" score={titleBlock.score} />
+                <OverviewScoreRow label="Images" score={imagesBlock.score} />
+                <OverviewScoreRow label="Vidéo" score={videosBlock.score} />
+                <OverviewScoreRow label="Description" score={descriptionBlock.score} />
+              </div>
+            </section>
+
+            {/* 4 — Feedback détaillé */}
+            <section>
+              <SectionHeading
+                step="4"
+                title="Feedback détaillé"
+                subtitle="Conseils par bloc. Pastilles vertes = point positif."
+              />
+              <div className="grid gap-5 lg:grid-cols-2">
+                <SectionScoreCard label="Titre" data={titleBlock} />
+                <SectionScoreCard label="Images" data={imagesBlock} />
+                <SectionScoreCard label="Vidéo" data={videosBlock} />
+                <SectionScoreCard label="Description" data={descriptionBlock} />
+              </div>
+            </section>
+
+            {/* 5 — Boutique & variations */}
+            <section>
+              <SectionHeading step="5" title="Boutique & variations" />
+              <div className="grid gap-5 lg:grid-cols-2">
+                <div className={`rounded-2xl border border-white/10 bg-white/[0.03] p-6 ${ES.ring}`}>
+                  <h3 className="text-sm font-semibold text-cyan-100">Vendeur</h3>
+                  <dl className="mt-4 space-y-3 text-sm text-white/85">
+                    <div>
+                      <dt className="text-white/45">Nom</dt>
+                      <dd className="mt-0.5 font-medium">{sellerName || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-white/45">Boutique</dt>
+                      <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                        <span>{displayUrl(sellerUrl)}</span>
+                        {sellerUrl ? (
+                          <a
+                            href={sellerUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg border border-cyan-500/35 px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-500/10"
+                          >
+                            Ouvrir
+                          </a>
+                        ) : null}
+                      </dd>
+                    </div>
+                    <div className="flex gap-8">
+                      <div>
+                        <dt className="text-white/45">Note</dt>
+                        <dd className="mt-0.5 font-medium">{rating ?? '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-white/45">Avis</dt>
+                        <dd className="mt-0.5 font-medium">{reviews ?? '—'}</dd>
+                      </div>
+                    </div>
+                  </dl>
+                </div>
+                <div className={`rounded-2xl border border-white/10 bg-white/[0.03] p-6 ${ES.ring}`}>
+                  <h3 className="text-sm font-semibold text-cyan-100">Variations</h3>
+                  {variationLines.length > 0 ? (
+                    <ul className="mt-4 space-y-2 text-sm leading-relaxed text-white/85">
+                      {variationLines.map((line) => (
+                        <li key={line} className="flex gap-2 border-l-2 border-cyan-500/40 pl-3">
+                          {line}
+                        </li>
                       ))}
                     </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-                <h3 className="text-sm font-semibold text-white">Seller + performance</h3>
-                <div className="mt-4 grid gap-2.5 text-sm leading-relaxed text-white/80 sm:grid-cols-2">
-                  <p><span className="text-white/50">Seller:</span> {sellerName || '—'}</p>
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="text-white/50">Shop URL:</span>
-                    <span>{displayUrl(sellerUrl)}</span>
-                    {sellerUrl ? (
-                      <a
-                        href={sellerUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded border border-white/15 px-2 py-0.5 text-xs text-[#14d4b0] hover:bg-[#14d4b0]/10"
-                      >
-                        ouvrir
-                      </a>
-                    ) : null}
-                  </p>
-                  <p><span className="text-white/50">Rating:</span> {rating ?? '—'}</p>
-                  <p><span className="text-white/50">Reviews:</span> {reviews ?? '—'}</p>
+                  ) : (
+                    <p className="mt-4 text-sm text-white/45">Aucune variation renvoyée.</p>
+                  )}
                 </div>
               </div>
+            </section>
 
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-                <h3 className="text-sm font-semibold text-white">Variations detectees</h3>
-                {variationLines.length > 0 ? (
-                  <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-white/80">
-                    {variationLines.map((line) => (
-                      <li key={line}>- {line}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-white/50">Aucune variation retournee.</p>
-                )}
-              </div>
-            </div>
-
+            {/* 6 — Galerie */}
             {gallery.length > 1 ? (
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-                <h3 className="text-sm font-semibold text-white">Galerie images</h3>
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {gallery.map((img) => (
+              <section>
+                <SectionHeading step="6" title="Galerie images" subtitle={`${gallery.length} visuels détectés.`} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {gallery.map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={img}
                       src={img}
-                      alt="gallery"
-                      className="aspect-square w-full rounded-md border border-white/10 object-cover"
+                      alt={`Visuel ${i + 1}`}
+                      className="aspect-square w-full rounded-xl border border-cyan-500/20 object-cover transition hover:ring-2 hover:ring-cyan-500/30"
                     />
                   ))}
                 </div>
-              </div>
+              </section>
             ) : null}
           </div>
         ) : null}

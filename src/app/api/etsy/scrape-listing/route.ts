@@ -3,6 +3,8 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import * as cheerio from 'cheerio';
 import { scoreListing, ListingData } from '@/lib/etsy/listing-scorer';
 
+export const maxDuration = 60;
+
 /**
  * Route pour scraper un listing Etsy (pour concurrents)
  * POST /api/etsy/scrape-listing
@@ -44,13 +46,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Scraper la page
+    // Scraper la page (timeout pour ne jamais bloquer indéfiniment)
     try {
       const response = await fetch(url, {
+        signal: AbortSignal.timeout(25_000),
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
         },
       });
 
@@ -124,14 +127,24 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      const shopName =
+        $('a[href*="/shop/"]').first().text().trim() ||
+        $('[data-shop-name]').first().text().trim() ||
+        $('meta[property="og:site_name"]').attr('content')?.trim() ||
+        '';
+
       // Extraire les images
       const images: Array<{ url: string }> = [];
-      $('img[data-listing-image], img[src*="etsy"]').each((_, el) => {
-        const src = $(el).attr('src') || $(el).attr('data-src');
-        if (src && !src.includes('placeholder') && !images.find(img => img.url === src)) {
-          images.push({ url: src });
-        }
+      const pushImg = (src: string | undefined) => {
+        if (!src || src.includes('placeholder') || src.includes('data:')) return;
+        const abs = src.startsWith('http') ? src : `https:${src}`;
+        if (!images.find((img) => img.url === abs)) images.push({ url: abs });
+      };
+      $('img[data-listing-image], img[src*="etsystatic"], img[src*="etsy"]').each((_, el) => {
+        pushImg($(el).attr('src') || $(el).attr('data-src'));
       });
+      const ogImg = $('meta[property="og:image"]').attr('content');
+      if (ogImg) pushImg(ogImg);
 
       // Extraire le prix
       const priceText = $('[data-buy-box-region] [class*="price"], [class*="price"]').first().text() ||
@@ -140,8 +153,24 @@ export async function POST(request: NextRequest) {
       const priceMatch = priceText.match(/[\d,.]+/);
       const price = priceMatch ? parseFloat(priceMatch[0].replace(/,/g, '')) : 0;
 
-      // Vérifier s'il y a une vidéo
-      const hasVideo = $('video, [class*="video"]').length > 0;
+      // Vidéo : balises + données embarquées (Etsy charge souvent le player en JS ; le HTML brut contient encore des indices)
+      const hasVideoDom =
+        $('video').length > 0 ||
+        $('[data-video-id]').length > 0 ||
+        $('[data-listing-video-id]').length > 0 ||
+        $('[data-listing-video-key]').length > 0 ||
+        $('[class*="listing-video"]').length > 0 ||
+        $('[class*="Listing-Video"]').length > 0 ||
+        $('[class*="ListingVideo"]').length > 0 ||
+        $('[aria-label*="video" i]').length > 0 ||
+        $('iframe[src*="video" i]').length > 0;
+      const hasVideoInPayload =
+        /hasListingVideo["']?\s*:\s*true/i.test(html) ||
+        /"listingVideo"\s*:\s*\{/.test(html) ||
+        /listingVideoId["']?\s*:\s*\d+/.test(html) ||
+        /listing_video/i.test(html) && /\.m3u8|playback|videoUrl/i.test(html) ||
+        /etsystatic\.com\/.*\/(video|listing-video)/i.test(html);
+      const hasVideo = hasVideoDom || hasVideoInPayload;
 
       // Préparer les données pour le scoring
       const listingData: ListingData = {
@@ -156,16 +185,19 @@ export async function POST(request: NextRequest) {
       // Scorer le listing
       const scores = scoreListing(listingData);
 
+      const imageUrls = images.slice(0, 20).map((img) => img.url);
+
       return NextResponse.json({
         success: true,
         listing: {
           title,
-          description: description.substring(0, 500) + (description.length > 500 ? '...' : ''),
+          description,
           tags: uniqueTags,
           materials,
           price,
-          images: images.slice(0, 5).map(img => img.url), // Retourner seulement les URLs
+          images: imageUrls,
           hasVideo,
+          shopName,
         },
         scores,
       });
