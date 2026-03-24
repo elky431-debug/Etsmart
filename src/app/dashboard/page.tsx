@@ -253,6 +253,7 @@ export default function DashboardPage() {
         'opportunity-map',
         'coach',
         'competitor-shop',
+        'apify-test',
       ].includes(section)
     ) {
       setActiveSection(section as DashboardSection);
@@ -350,7 +351,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach', 'competitor-shop'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach', 'competitor-shop', 'apify-test'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -2250,7 +2251,18 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'apify-test' && <DashboardEtsyListingAnalyzer />}
 
-          {activeSection === 'competitor-shop' && <DashboardCompetitorShop />}
+          {activeSection === 'competitor-shop' && (
+            <DashboardCompetitorShop
+              onOpenListingAnalysis={(listingUrl) => {
+                try {
+                  sessionStorage.setItem('etsmart-prefill-listing-url', listingUrl);
+                } catch {
+                  /* ignore */
+                }
+                setActiveSection('apify-test');
+              }}
+            />
+          )}
 
           {activeSection === 'tracking' && (
             <DashboardTracking />

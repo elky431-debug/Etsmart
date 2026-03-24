@@ -31,8 +31,8 @@ function buildListingPayloadForGpt(
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const authHeader = request.headers.get('authorization')?.trim();
+    const token = authHeader?.replace(/^Bearer\s+/i, '').trim() ?? '';
     if (!token) {
       return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Authentification requise' }, { status: 401 });
     }
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     const shopUrlRaw = String(body?.shopUrl || body?.url || '').trim();
     const maxListings =
       typeof body?.maxListings === 'number' && Number.isFinite(body.maxListings)
-        ? Math.min(Math.max(Math.round(body.maxListings), 8), 60)
-        : 40;
+        ? Math.min(Math.max(Math.round(body.maxListings), 8), 32)
+        : 18;
 
     const shopUrl = normalizeShopUrl(shopUrlRaw);
     if (!shopUrl || !isEtsyShopUrl(shopUrl)) {
@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
 
     let shop;
     try {
-      shop = await scrapeEtsyShop(shopUrlRaw, { maxListings });
+      shop = await scrapeEtsyShop(shopUrlRaw, {
+        maxListings,
+        maxEnrichListings: 12,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'SCRAPE_FAILED' || msg.includes('SCRAPE')) {

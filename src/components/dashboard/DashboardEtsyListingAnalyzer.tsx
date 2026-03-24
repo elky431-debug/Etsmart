@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { extractListingPriceFromItem } from '@/lib/listing-price-extract';
 import { extractListingTagsFromItem } from '@/lib/listing-tags-extract';
@@ -25,6 +25,8 @@ const ES = {
 
 /** Attente max côté app : Apify (Etsy + proxy) a besoin souvent de 1–3 min ; on coupe avant l’infini. */
 const SCRAPE_FETCH_TIMEOUT_MS = 180_000;
+
+const PREFILL_LISTING_URL_KEY = 'etsmart-prefill-listing-url';
 
 function createFetchTimeoutSignal(ms: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -385,6 +387,21 @@ export function DashboardEtsyListingAnalyzer() {
   /** Complément Apify : détection vidéo sur le HTML du listing (souvent plus fiable que l’actor). */
   const [videoFromHtmlPage, setVideoFromHtmlPage] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const pre = sessionStorage.getItem(PREFILL_LISTING_URL_KEY);
+      if (pre?.trim()) {
+        sessionStorage.removeItem(PREFILL_LISTING_URL_KEY);
+        setUrl(pre.trim());
+        setResult(null);
+        setError('');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const mapped = result?.mapped;
   const firstItemRec = toRecord(result?.firstItem);
   const firstImage = useMemo(() => {
@@ -485,9 +502,12 @@ export function DashboardEtsyListingAnalyzer() {
 
     setLoading(true);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      let session = refreshed.session;
+      if (!session?.access_token) {
+        const { data: { session: cached } } = await supabase.auth.getSession();
+        session = cached;
+      }
       const token = session?.access_token;
       if (!token) {
         setError('Session expirée. Reconnecte-toi.');

@@ -5,6 +5,8 @@
 
 import * as cheerio from 'cheerio';
 import { decodeListingTitleEntities } from '@/lib/etsy/decode-listing-title';
+import { extractListingTagsFromItem } from '@/lib/listing-tags-extract';
+import { isApifyConfigured, mapApifyItemToListing, runApifyActorByTarget } from '@/lib/apify-scraper';
 import { scrapeEtsyPageHtmlWithZenRowsBrowser } from '@/services/scraping/zenrowsBrowser';
 
 export type ScrapedListing = {
@@ -672,6 +674,84 @@ function absolutizeEtsyImg(src: string): string | null {
   return null;
 }
 
+function tryEtsyCdnUrl(v: unknown): string | null {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const u = absolutizeEtsyImg(v.trim());
+  if (u && /etsystatic|etsyimg/i.test(u)) return u;
+  return null;
+}
+
+/** Logo / bannière boutique depuis le JSON Apify (objets shop / seller sur les items). */
+function extractApifyShopBrandingFromItems(items: unknown[]): {
+  bannerUrl: string | null;
+  logoUrl: string | null;
+} {
+  let bannerUrl: string | null = null;
+  let logoUrl: string | null = null;
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const shop =
+      rec.shop && typeof rec.shop === 'object' ? (rec.shop as Record<string, unknown>) : null;
+    const seller =
+      rec.seller && typeof rec.seller === 'object' ? (rec.seller as Record<string, unknown>) : null;
+
+    if (shop && !bannerUrl) {
+      for (const k of [
+        'image_url_760x100',
+        'banner_image_url',
+        'header_image_url',
+        'image_url_fullxfull',
+        'shop_banner_url',
+      ]) {
+        const u = tryEtsyCdnUrl(shop[k]);
+        if (u && (/760x100|banner|570xN|680x680|1588xN/i.test(u) || /banner/i.test(String(k)))) {
+          bannerUrl = u;
+          break;
+        }
+      }
+    }
+
+    if (shop && !logoUrl) {
+      for (const k of [
+        'icon_url_fullxfull',
+        'shop_icon_url_fullxfull',
+        'shop_icon_url',
+        'shopIconUrl',
+        'shop_icon_image_url',
+        'image_url_140x140',
+        'image_url_75x75',
+      ]) {
+        const u = tryEtsyCdnUrl(shop[k]);
+        if (u && !/760x100|570xN|680x680|1588xN|banner/i.test(u)) {
+          logoUrl = u;
+          break;
+        }
+      }
+    }
+
+    if (seller && !logoUrl) {
+      for (const k of ['icon_url_fullxfull', 'avatar_url', 'image_url_75x75', 'profile_image_url']) {
+        const u = tryEtsyCdnUrl(seller[k]);
+        if (u) {
+          logoUrl = u;
+          break;
+        }
+      }
+    }
+
+    if (!logoUrl) {
+      const u = tryEtsyCdnUrl(rec.shopIconUrl || rec.shop_icon_url);
+      if (u) logoUrl = u;
+    }
+
+    if (bannerUrl && logoUrl) break;
+  }
+
+  return { bannerUrl, logoUrl };
+}
+
 /**
  * Dernier recours : images carrées i.etsystatic (il_…). Tailles type avatar (≈140px), pas miniatures listing.
  */
@@ -923,9 +1003,491 @@ function dedupeListings(listings: ScrapedListing[]): ScrapedListing[] {
   return out;
 }
 
+function firstStringFromRecord(rec: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = rec[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function pickNumberFromApifyRecord(rec: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const v = rec[key];
+    if (typeof v === 'number' && Number.isFinite(v) && v >= 0) return v;
+    if (typeof v === 'string' && v.trim()) {
+      const n = parseFloat(v.replace(/,/g, '.').replace(/[^\d.-]/g, ''));
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+  }
+  return undefined;
+}
+
+function pickListingUrlFromApifyRecord(rec: Record<string, unknown>): string | null {
+  const keys = ['url', 'listingUrl', 'link', 'canonicalUrl', 'href', 'listing_url', 'listingURL'];
+  for (const key of keys) {
+    const v = rec[key];
+    if (typeof v === 'string' && v.includes('/listing/')) {
+      const raw = v.trim();
+      try {
+        const u = raw.startsWith('http') ? new URL(raw) : new URL(raw, 'https://www.etsy.com');
+        u.search = '';
+        u.hash = '';
+        return u.toString();
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+function extractApifyShopMetaFromItems(items: unknown[]): {
+  salesCount: number;
+  rating: number;
+  reviewCount: number;
+  activeListingCount: number | null;
+  favoritesCount: number | null;
+  shopAge: string;
+} {
+  let salesCount = 0;
+  let rating = 0;
+  let ratingSamples = 0;
+  let reviewCount = 0;
+  let activeListingCount: number | null = null;
+  let favoritesCount: number | null = null;
+  let shopAge = '';
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const shopRec =
+      rec.shop && typeof rec.shop === 'object' ? (rec.shop as Record<string, unknown>) : null;
+    const seller = rec.seller && typeof rec.seller === 'object' ? (rec.seller as Record<string, unknown>) : null;
+
+    const salesFlat = pickNumberFromApifyRecord(rec, [
+      'shopLifetimeSales',
+      'shop_sales_count',
+      'shopSalesCount',
+      'shopSoldCount',
+      'shop_transaction_sold_count',
+      'numberOfShopSales',
+      'shopNumSales',
+      'shopSales',
+    ]);
+    const salesNested = shopRec
+      ? pickNumberFromApifyRecord(shopRec, [
+          'transaction_sold_count',
+          'sales_count',
+          'num_sales',
+          'sold_count',
+        ])
+      : undefined;
+    const salesCandidate = Math.max(salesFlat ?? 0, salesNested ?? 0);
+    if (salesCandidate > salesCount) salesCount = Math.round(salesCandidate);
+
+    const rFlat = pickNumberFromApifyRecord(rec, [
+      'shopRating',
+      'shop_rating',
+      'shopAverageRating',
+      'sellerAverageRating',
+      'average_shop_rating',
+    ]);
+    const rSeller = seller
+      ? pickNumberFromApifyRecord(seller, ['rating', 'averageRating', 'review_average', 'avg_rating'])
+      : undefined;
+    const rShop = shopRec ? pickNumberFromApifyRecord(shopRec, ['rating', 'average_rating']) : undefined;
+    const rCandidate = rFlat ?? rSeller ?? rShop ?? 0;
+    if (rCandidate > 0 && rCandidate <= 5) {
+      rating += rCandidate;
+      ratingSamples += 1;
+    }
+
+    const rvFlat = pickNumberFromApifyRecord(rec, [
+      'shopReviewCount',
+      'shop_review_count',
+      'shopNumReviews',
+      'shop_reviews',
+    ]);
+    const rvSeller = seller
+      ? pickNumberFromApifyRecord(seller, ['reviewCount', 'num_reviews', 'reviewsCount', 'review_count'])
+      : undefined;
+    const rvShop = shopRec ? pickNumberFromApifyRecord(shopRec, ['review_count', 'reviewCount']) : undefined;
+    const rvCandidate = Math.max(rvFlat ?? 0, rvSeller ?? 0, rvShop ?? 0);
+    if (rvCandidate > reviewCount) reviewCount = Math.round(rvCandidate);
+
+    if (activeListingCount == null && shopRec) {
+      const al = pickNumberFromApifyRecord(shopRec, [
+        'active_listing_count',
+        'listingCount',
+        'listing_count',
+        'num_listings',
+      ]);
+      if (al && al > 0) activeListingCount = Math.round(al);
+    }
+
+    if (favoritesCount == null) {
+      const fav = pickNumberFromApifyRecord(rec, [
+        'shopFavorites',
+        'shop_favorite_count',
+        'num_favorers',
+        'shop_favorers',
+      ]);
+      const favShop = shopRec
+        ? pickNumberFromApifyRecord(shopRec, ['favorites_count', 'favorers_count', 'num_favorers'])
+        : undefined;
+      const fc = Math.max(fav ?? 0, favShop ?? 0);
+      if (fc > 0) favoritesCount = Math.round(fc);
+    }
+
+    if (!shopAge) {
+      const y = firstStringFromRecord(rec, ['shopOpenedYear', 'shopSinceYear']);
+      if (y && /^\d{4}$/.test(y)) shopAge = y;
+      else {
+        const opened = firstStringFromRecord(rec, ['shopOpenedOn', 'shopOpened', 'openedDate']);
+        const m = opened?.match(/(19|20)\d{2}/);
+        if (m) shopAge = m[0];
+      }
+    }
+  }
+
+  const avgRating = ratingSamples > 0 ? rating / ratingSamples : 0;
+
+  return {
+    salesCount,
+    rating: avgRating,
+    reviewCount,
+    activeListingCount,
+    favoritesCount,
+    shopAge,
+  };
+}
+
+function applyApifyShopMetaToPayload(
+  meta: ReturnType<typeof extractApifyShopMetaFromItems>,
+  metrics: { salesCount: number; reviewCount: number; rating: number; shopAge: string },
+  extraCounts: { activeListingCount: number | null; favoritesCount: number | null }
+): void {
+  if (meta.salesCount > metrics.salesCount) metrics.salesCount = meta.salesCount;
+  if (meta.rating > 0) metrics.rating = meta.rating;
+  if (meta.reviewCount > metrics.reviewCount) metrics.reviewCount = meta.reviewCount;
+  if (meta.shopAge && !metrics.shopAge) metrics.shopAge = meta.shopAge;
+  if (meta.activeListingCount != null && extraCounts.activeListingCount == null) {
+    extraCounts.activeListingCount = meta.activeListingCount;
+  }
+  if (meta.favoritesCount != null && extraCounts.favoritesCount == null) {
+    extraCounts.favoritesCount = meta.favoritesCount;
+  }
+}
+
+/** Complète les trous quand le JSON Apify ne donne pas les totaux boutique. */
+function fillShopMetricsFromListingsSample(
+  listings: ScrapedListing[],
+  metrics: { salesCount: number; reviewCount: number; rating: number; shopAge: string }
+): void {
+  const rated = listings.filter((l) => (l.rating ?? 0) > 0);
+  if (metrics.rating <= 0 && rated.length > 0) {
+    metrics.rating = rated.reduce((a, l) => a + (l.rating || 0), 0) / rated.length;
+  }
+  if (metrics.reviewCount <= 0) {
+    const sum = listings.reduce((a, l) => a + (l.reviews ?? 0), 0);
+    if (sum > 0) metrics.reviewCount = sum;
+  }
+  if (metrics.salesCount <= 0) {
+    const sumSales = listings.reduce((a, l) => a + (l.sales ?? 0), 0);
+    if (sumSales > 0) metrics.salesCount = sumSales;
+  }
+}
+
+function pickShopNameHintFromApifyRecord(rec: Record<string, unknown>): string | null {
+  const direct = firstStringFromRecord(rec, ['shopName', 'shop_name', 'storeName', 'sellerName']);
+  if (direct) return direct;
+  const seller = rec.seller;
+  if (seller && typeof seller === 'object') {
+    const s = firstStringFromRecord(seller as Record<string, unknown>, ['name', 'shopName', 'shop_name']);
+    if (s) return s;
+  }
+  return null;
+}
+
+function normalizeEtsyStarRating(n: number): number | undefined {
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  if (n <= 5) return n;
+  if (n <= 100) return (n / 100) * 5;
+  return undefined;
+}
+
+/** Parcourt le JSON Apify (souvent imbriqué) pour récupérer toutes les URLs d’images listing. */
+function collectListingImageUrlsFromItem(root: unknown): string[] {
+  const out = new Set<string>();
+  const pushUrl = (s: string) => {
+    const t = s.trim();
+    if (!/^https?:\/\//i.test(t)) return;
+    if (!/etsystatic|etsyimg|i\.etsystatic/i.test(t)) return;
+    out.add(t.split('?')[0]);
+  };
+
+  const visit = (node: unknown, depth: number) => {
+    if (depth > 10 || node == null) return;
+    if (typeof node === 'string') {
+      pushUrl(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const x of node) visit(x, depth + 1);
+      return;
+    }
+    if (typeof node !== 'object') return;
+    const rec = node as Record<string, unknown>;
+
+    if (typeof rec.url === 'string' && /etsystatic|etsyimg/i.test(rec.url)) pushUrl(rec.url);
+    if (typeof rec.full === 'string') pushUrl(rec.full);
+    if (typeof rec.fullxfull === 'string') pushUrl(rec.fullxfull);
+    if (typeof rec.imageUrl === 'string') pushUrl(rec.imageUrl);
+
+    const preferKeys = [
+      'images',
+      'imageUrls',
+      'image_url',
+      'gallery',
+      'photos',
+      'media',
+      'thumbnails',
+      'listingImages',
+      'listing_images',
+      'image',
+      'img',
+      'pictures',
+    ];
+    for (const k of preferKeys) {
+      if (rec[k] !== undefined && rec[k] !== null) visit(rec[k], depth + 1);
+    }
+
+    if (depth < 5) {
+      for (const nest of ['listing', 'product', 'item', 'data', 'listingData', 'result', 'payload']) {
+        const v = rec[nest];
+        if (v && typeof v === 'object') visit(v, depth + 1);
+      }
+    }
+
+    if (depth < 3) {
+      for (const [k, v] of Object.entries(rec)) {
+        if (v == null || typeof v === 'string' || typeof v === 'number') continue;
+        if (/image|photo|gallery|thumb|picture|img|visual/i.test(k)) visit(v, depth + 1);
+      }
+    }
+  };
+
+  visit(root, 0);
+  return [...out].slice(0, 32);
+}
+
+function readRatingReviewsFromRecord(rec: Record<string, unknown>): { rating?: number; reviews?: number } {
+  let rating: number | undefined;
+  let reviews: number | undefined;
+
+  for (const key of [
+    'rating',
+    'averageRating',
+    'ratingValue',
+    'stars',
+    'starRating',
+    'review_average',
+    'avgRating',
+    'reviewAvg',
+    'average_rating',
+    'avg_rating',
+  ]) {
+    const v = rec[key];
+    if (typeof v === 'number') {
+      const n = normalizeEtsyStarRating(v);
+      if (n != null) rating = n;
+    } else if (typeof v === 'string' && v.trim()) {
+      const n = normalizeEtsyStarRating(parseFloat(v.replace(/,/g, '.')));
+      if (n != null) rating = n;
+    }
+  }
+
+  const rev = pickNumberFromApifyRecord(rec, [
+    'reviewCount',
+    'reviews',
+    'numberOfReviews',
+    'num_reviews',
+    'review_count',
+    'ratingCount',
+    'reviewTotal',
+    'numReviews',
+    'review_count_total',
+  ]);
+  if (rev != null && rev > 0) reviews = Math.round(rev);
+
+  const ar = rec.aggregateRating;
+  if (ar && typeof ar === 'object') {
+    const a = ar as Record<string, unknown>;
+    const rv = pickNumberFromApifyRecord(a, ['ratingValue', 'rating', 'rating_value']);
+    const rc = pickNumberFromApifyRecord(a, ['reviewCount', 'ratingCount', 'review_count']);
+    if (rv != null) {
+      const n = normalizeEtsyStarRating(rv);
+      if (n != null) rating = n;
+    }
+    if (rc != null && rc > 0) reviews = Math.round(rc);
+  }
+
+  return { rating, reviews };
+}
+
+/** Note / avis listing : champs plats + objets imbriqués (JSON Apify / schema.org). */
+function extractListingRatingReviewsFromApifyItem(item: unknown): { rating?: number; reviews?: number } {
+  if (!item || typeof item !== 'object') return {};
+  const rec = item as Record<string, unknown>;
+
+  let best = readRatingReviewsFromRecord(rec);
+  if (best.rating != null || (best.reviews != null && best.reviews > 0)) return best;
+
+  for (const nest of ['listing', 'product', 'item', 'data', 'listingData', 'result', 'page', 'metadata']) {
+    const sub = rec[nest];
+    if (sub && typeof sub === 'object') {
+      const got = readRatingReviewsFromRecord(sub as Record<string, unknown>);
+      if (got.rating != null || (got.reviews != null && got.reviews > 0)) return got;
+    }
+  }
+
+  for (const v of Object.values(rec)) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const got = readRatingReviewsFromRecord(v as Record<string, unknown>);
+    if (got.rating != null || (got.reviews != null && got.reviews > 0)) return got;
+  }
+
+  return {};
+}
+
+function apifyItemToScrapedListing(item: unknown): ScrapedListing | null {
+  const mapped = mapApifyItemToListing(item);
+  if (!mapped) return null;
+  const rec = mapped.sourceItem;
+  const url = pickListingUrlFromApifyRecord(rec);
+  if (!url) return null;
+
+  const sales = pickNumberFromApifyRecord(rec, [
+    'totalSales',
+    'sales',
+    'numSales',
+    'quantitySold',
+    'sold',
+    'salesCount',
+    'num_sales',
+    'itemsSold',
+  ]);
+
+  const deepRR = extractListingRatingReviewsFromApifyItem(item);
+  let rating = deepRR.rating;
+  let reviews = deepRR.reviews;
+
+  const rFlat = pickNumberFromApifyRecord(rec, [
+    'rating',
+    'averageRating',
+    'reviewStarRating',
+    'stars',
+    'review_average',
+  ]);
+  if (rating == null && rFlat != null) rating = normalizeEtsyStarRating(rFlat);
+
+  const revFlat = pickNumberFromApifyRecord(rec, [
+    'reviewCount',
+    'reviews',
+    'numberOfReviews',
+    'num_reviews',
+    'review_count',
+  ]);
+  if ((reviews == null || reviews <= 0) && revFlat != null && revFlat > 0) {
+    reviews = Math.round(revFlat);
+  }
+
+  const gatheredImages = collectListingImageUrlsFromItem(item);
+  const images = gatheredImages.length > 0 ? gatheredImages : mapped.images;
+
+  const tagList = extractListingTagsFromItem(item);
+
+  const hasBody = Boolean(mapped.description && mapped.description.length > 40);
+  const hasTags = tagList.length > 0;
+
+  return {
+    title: mapped.title || 'Listing Etsy',
+    url,
+    price: mapped.price,
+    sales,
+    rating,
+    reviews,
+    images,
+    tags: hasTags ? tagList : undefined,
+    description: mapped.description || undefined,
+    isPartialData: !hasTags && !hasBody,
+  };
+}
+
+/**
+ * Etsy bloque souvent le fetch serveur sur les pages boutique : même acteur listing Apify
+ * (URL boutique en startUrls) renvoie plusieurs fiches — proxy résidentiel déjà requis.
+ */
+async function fetchShopListingsViaApify(
+  shopUrl: string,
+  maxListings: number
+): Promise<{
+  listings: ScrapedListing[];
+  shopNameHint?: string;
+  shopMeta?: ReturnType<typeof extractApifyShopMetaFromItems>;
+  branding?: { bannerUrl: string | null; logoUrl: string | null };
+}> {
+  if (!isApifyConfigured('listing')) {
+    return { listings: [] };
+  }
+
+  const n = Math.min(Math.max(maxListings, 8), 60);
+  const input: Record<string, unknown> = {
+    maxItems: n,
+    includeDescription: true,
+    includeUsedVariationPrices: false,
+    proxy: {
+      useApifyProxy: true,
+      apifyProxyGroups: ['RESIDENTIAL'],
+    },
+    startUrls: [shopUrl],
+    urls: [shopUrl],
+    url: shopUrl,
+  };
+
+  const items = await runApifyActorByTarget('listing', input, { maxItems: n });
+  const shopMeta = extractApifyShopMetaFromItems(items);
+  const branding = extractApifyShopBrandingFromItems(items);
+  const out: ScrapedListing[] = [];
+  let shopNameHint: string | undefined;
+
+  for (const it of items) {
+    if (!shopNameHint) {
+      const mapped = mapApifyItemToListing(it);
+      const hint = mapped ? pickShopNameHintFromApifyRecord(mapped.sourceItem) : null;
+      if (hint) shopNameHint = hint;
+    }
+    const row = apifyItemToScrapedListing(it);
+    if (row) out.push(row);
+  }
+
+  return {
+    listings: dedupeListings(out).slice(0, maxListings),
+    shopNameHint,
+    shopMeta,
+    branding,
+  };
+}
+
 export type ScrapeShopOptions = {
   /** Nombre max de listings enrichis (1–80). Défaut 12. */
   maxListings?: number;
+  /**
+   * Plafond d’appels `enrichListing` (1 fetch lourd par fiche). Au-delà, les listings sont gardés tels quels.
+   * Utile pour l’analyse concurrente (évite 10+ minutes après Apify).
+   */
+  maxEnrichListings?: number;
 };
 
 /**
@@ -939,83 +1501,164 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
     throw new Error('INVALID_SHOP_URL');
   }
 
-  const html = await fetchEtsyHtmlWithFallback(shopUrl, 'fr-FR,fr;q=0.9,en;q=0.8');
-  if (!html) {
-    throw new Error('SCRAPE_FAILED');
-  }
-  const $ = cheerio.load(html);
-  const pageText = $('body').text();
-
-  const h1 = $('h1').first().text().trim();
-  const title = $('title').text().replace(/\s*\|\s*Etsy.*$/i, '').trim();
-  const shopName = h1 || title || shopInput;
-
-  const metrics = extractShopMetrics($, pageText);
-  const extraCounts = extractShopExtraCounts(html, pageText);
   const shopSlugMatch = shopUrl.match(/\/shop\/([^/?#]+)/);
   const shopSlug = shopSlugMatch ? decodeURIComponent(shopSlugMatch[1]) : null;
-  const branding = extractShopBranding($, html, shopSlug);
 
-  const ldCap = Math.max(maxListings, 40);
-  const listingsFromLd = extractListingsFromLdJson($, ldCap);
-  const fromAnchors: ScrapedListing[] = $('a[href*="/listing/"]')
-    .toArray()
-    .slice(0, Math.min(200, maxListings * 4))
-    .map((el) => {
-      const anchor = $(el);
-      const href = anchor.attr('href') || '';
-      const u = href.startsWith('http') ? href.split('?')[0] : `https://www.etsy.com${href}`.split('?')[0];
-      const card = anchor.closest('li, div');
-      const titleText =
-        anchor.attr('title') ||
-        anchor.find('h3').first().text().trim() ||
-        card.find('h3').first().text().trim() ||
-        '';
-      const priceText =
-        card.find('[class*="price"]').first().text() || anchor.parent().find('[class*="price"]').first().text();
-      const price = parsePriceValue(priceText);
-      const image =
-        card.find('img').first().attr('src') ||
-        card.find('img').first().attr('data-src') ||
-        '';
-      return {
-        title: titleText || 'Listing Etsy',
-        url: u,
-        price: Number.isFinite(price) ? price : 0,
-        images: image ? [image] : [],
-      };
-    })
-    .filter((l) => l.url.includes('/listing/'));
+  let apifyShopMeta: ReturnType<typeof extractApifyShopMetaFromItems> | undefined;
+  let apifyBranding: { bannerUrl: string | null; logoUrl: string | null } | undefined;
 
-  const merged = dedupeListings([...listingsFromLd, ...fromAnchors]);
-  const targetListings = merged.slice(0, maxListings);
+  const html = await fetchEtsyHtmlWithFallback(shopUrl, 'fr-FR,fr;q=0.9,en;q=0.8');
+  const htmlOk = Boolean(html && html.length > 1000);
+
+  let shopName = shopSlug || shopInput;
+  let metrics = { salesCount: 0, reviewCount: 0, rating: 0, shopAge: '' };
+  let extraCounts: { activeListingCount: number | null; favoritesCount: number | null } = {
+    activeListingCount: null,
+    favoritesCount: null,
+  };
+  let branding: { bannerUrl: string | null; logoUrl: string | null } = {
+    bannerUrl: null,
+    logoUrl: null,
+  };
+
+  let merged: ScrapedListing[] = [];
+
+  if (htmlOk && html) {
+    const $ = cheerio.load(html);
+    const pageText = $('body').text();
+
+    const h1 = $('h1').first().text().trim();
+    const title = $('title').text().replace(/\s*\|\s*Etsy.*$/i, '').trim();
+    shopName = h1 || title || shopName;
+
+    metrics = extractShopMetrics($, pageText);
+    extraCounts = extractShopExtraCounts(html, pageText);
+    branding = extractShopBranding($, html, shopSlug);
+
+    const ldCap = Math.max(maxListings, 40);
+    const listingsFromLd = extractListingsFromLdJson($, ldCap);
+    const fromAnchors: ScrapedListing[] = $('a[href*="/listing/"]')
+      .toArray()
+      .slice(0, Math.min(200, maxListings * 4))
+      .map((el) => {
+        const anchor = $(el);
+        const href = anchor.attr('href') || '';
+        const u = href.startsWith('http') ? href.split('?')[0] : `https://www.etsy.com${href}`.split('?')[0];
+        const card = anchor.closest('li, div');
+        const titleText =
+          anchor.attr('title') ||
+          anchor.find('h3').first().text().trim() ||
+          card.find('h3').first().text().trim() ||
+          '';
+        const priceText =
+          card.find('[class*="price"]').first().text() || anchor.parent().find('[class*="price"]').first().text();
+        const price = parsePriceValue(priceText);
+        const image =
+          card.find('img').first().attr('src') ||
+          card.find('img').first().attr('data-src') ||
+          '';
+        return {
+          title: titleText || 'Listing Etsy',
+          url: u,
+          price: Number.isFinite(price) ? price : 0,
+          images: image ? [image] : [],
+        };
+      })
+      .filter((l) => l.url.includes('/listing/'));
+
+    merged = dedupeListings([...listingsFromLd, ...fromAnchors]);
+  }
+
+  let targetListings = merged.slice(0, maxListings);
+  let usedApifyListings = false;
+
+  if (targetListings.length === 0) {
+    try {
+      const { listings: fromApify, shopNameHint, shopMeta, branding } = await fetchShopListingsViaApify(
+        shopUrl,
+        maxListings
+      );
+      apifyShopMeta = shopMeta;
+      apifyBranding = branding;
+      if (fromApify.length) {
+        targetListings = fromApify;
+        usedApifyListings = true;
+        if (shopNameHint && (!htmlOk || merged.length === 0)) {
+          shopName = shopNameHint;
+        }
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn('[SHOP_SCRAPE] Apify fallback failed:', msg);
+    }
+  }
+
+  if (targetListings.length === 0 && !htmlOk) {
+    throw new Error('SCRAPE_FAILED');
+  }
 
   const detailedListings: ScrapedListing[] = [];
-  const concurrency = 4;
-  for (let i = 0; i < targetListings.length; i += concurrency) {
-    const batch = targetListings.slice(i, i + concurrency);
-    const batchResults = await Promise.all(
-      batch.map(async (l) => {
-        const details = await enrichListing(l.url);
-        const detailsMissing =
-          Object.keys(details).length === 0 ||
-          (!details.images?.length &&
-            !details.tags?.length &&
-            !details.materials?.length &&
-            !details.description &&
-            !details.hasVideo);
-        return {
-          ...l,
-          ...details,
-          title: details.title && details.title.length > l.title.length ? details.title : l.title,
-          price: details.price && details.price > 0 ? details.price : l.price,
-          images: details.images && details.images.length ? details.images : l.images,
-          tags: details.tags && details.tags.length ? details.tags : l.tags,
-          isPartialData: Boolean(details.isPartialData || detailsMissing),
-        } as ScrapedListing;
-      })
+
+  if (usedApifyListings) {
+    // Données déjà fournies par Apify : re-enrichir 40× la page listing ferait exploser le temps (timeouts navigateur / hébergeur).
+    for (const l of targetListings) {
+      detailedListings.push({ ...l });
+    }
+  } else {
+    const enrichCap = Math.min(
+      options.maxEnrichListings ?? targetListings.length,
+      targetListings.length
     );
-    detailedListings.push(...batchResults);
+    const head = targetListings.slice(0, enrichCap);
+    const tail = targetListings.slice(enrichCap);
+
+    const concurrency = 4;
+    for (let i = 0; i < head.length; i += concurrency) {
+      const batch = head.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map(async (l) => {
+          const details = await enrichListing(l.url);
+          const detailsMissing =
+            Object.keys(details).length === 0 ||
+            (!details.images?.length &&
+              !details.tags?.length &&
+              !details.materials?.length &&
+              !details.description &&
+              !details.hasVideo);
+          return {
+            ...l,
+            ...details,
+            title: details.title && details.title.length > l.title.length ? details.title : l.title,
+            price: details.price && details.price > 0 ? details.price : l.price,
+            images: details.images && details.images.length ? details.images : l.images,
+            tags: details.tags && details.tags.length ? details.tags : l.tags,
+            isPartialData: Boolean(details.isPartialData || detailsMissing),
+          } as ScrapedListing;
+        })
+      );
+      detailedListings.push(...batchResults);
+    }
+
+    for (const l of tail) {
+      detailedListings.push({ ...l, isPartialData: true });
+    }
+  }
+
+  if (usedApifyListings) {
+    if (apifyShopMeta) {
+      applyApifyShopMetaToPayload(apifyShopMeta, metrics, extraCounts);
+    }
+    fillShopMetricsFromListingsSample(detailedListings, metrics);
+    if (apifyBranding) {
+      if (!branding.bannerUrl && apifyBranding.bannerUrl) branding.bannerUrl = apifyBranding.bannerUrl;
+      if (!branding.logoUrl && apifyBranding.logoUrl) branding.logoUrl = apifyBranding.logoUrl;
+    }
+  }
+
+  if (metrics.rating > 5 && metrics.rating <= 100) {
+    metrics.rating = (metrics.rating / 100) * 5;
+  } else if (metrics.rating > 5) {
+    metrics.rating = 0;
   }
 
   const derived = computeDerivedShopStats(

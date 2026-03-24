@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Loader2,
@@ -12,10 +12,15 @@ import {
   Lightbulb,
   AlertTriangle,
   CheckCircle2,
+  BarChart3,
 } from 'lucide-react';
 import type { CompetitorShopAnalysis } from '@/types/competitor-shop-analysis';
 import { decodeListingTitleEntities } from '@/lib/etsy/decode-listing-title';
 import type { ShopPayload } from '@/lib/etsy/shop-scrape-service';
+import {
+  getCompetitorListingScoreBreakdown,
+  scoreCompetitorListingCard,
+} from '@/lib/etsy/competitor-listing-score';
 import {
   etsyStarsToScore100,
   letterGradeVerbal,
@@ -39,12 +44,46 @@ function listingThumbUrl(images?: string[]): string | null {
   return `https://${u.replace(/^\/+/, '')}`.split('?')[0];
 }
 
-export function DashboardCompetitorShop() {
+function formatFrInt(n: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
+}
+
+const PREFILL_LISTING_URL_KEY = 'etsmart-prefill-listing-url';
+
+export type DashboardCompetitorShopProps = {
+  /** Navigation SPA vers l’analyseur de listing avec URL préremplie */
+  onOpenListingAnalysis?: (listingUrl: string) => void;
+};
+
+export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardCompetitorShopProps = {}) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shop, setShop] = useState<ShopPayload | null>(null);
   const [analysis, setAnalysis] = useState<CompetitorShopAnalysis | null>(null);
+
+  const sampleMedianPrice = useMemo(() => {
+    const prices = shop?.listings.map((l) => l.price).filter((x) => x > 0) ?? [];
+    if (!prices.length) return undefined;
+    const sorted = [...prices].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }, [shop?.listings]);
+
+  const openListingAnalyzer = (listingUrl: string) => {
+    const u = listingUrl.trim();
+    if (!u) return;
+    try {
+      sessionStorage.setItem(PREFILL_LISTING_URL_KEY, u);
+    } catch {
+      /* ignore */
+    }
+    if (onOpenListingAnalysis) {
+      onOpenListingAnalysis(u);
+    } else if (typeof window !== 'undefined') {
+      window.location.assign('/dashboard?section=apify-test');
+    }
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,25 +98,55 @@ export function DashboardCompetitorShop() {
 
     setLoading(true);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // getSession() peut renvoyer un access_token déjà expiré (cache local) : le serveur
+      // répond alors « Session invalide ». On force un refresh pour un JWT valide.
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      let session = refreshed.session;
+      if (!session?.access_token) {
+        const { data: { session: cached } } = await supabase.auth.getSession();
+        session = cached;
+      }
       const token = session?.access_token;
       if (!token) {
         setError('Session expirée. Reconnecte-toi.');
         return;
       }
 
-      const res = await fetch('/api/etsy/competitor-shop-analysis', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ shopUrl: clean, maxListings: 40 }),
-      });
+      const controller = new AbortController();
+      /** Apify peut monter ~3 min + GPT-4o jusqu’à 120 s + marge réseau */
+      const timeoutMs = 330_000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const data = (await res.json()) as ApiOk & ApiErr;
+      let res: Response;
+      try {
+        res = await fetch('/api/etsy/competitor-shop-analysis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ shopUrl: clean, maxListings: 18 }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const rawText = await res.text();
+      let data = {} as ApiOk & ApiErr;
+      if (rawText.trim()) {
+        try {
+          data = JSON.parse(rawText) as ApiOk & ApiErr;
+        } catch {
+          setError(
+            res.ok
+              ? 'Réponse serveur illisible. Réessaie dans un instant.'
+              : `Erreur ${res.status} — réponse non JSON.`
+          );
+          return;
+        }
+      }
+
       if (!res.ok) {
         setError(data.message || data.error || `Erreur ${res.status}`);
         if (data.shop) setShop(data.shop as ShopPayload);
@@ -86,8 +155,16 @@ export function DashboardCompetitorShop() {
       if (data.success && data.shop && data.analysis) {
         setShop(data.shop);
         setAnalysis(data.analysis);
+      } else {
+        setError('Réponse incomplète du serveur. Réessaie.');
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError(
+          'Délai dépassé (~5 min) : scraping + analyse IA trop longs. Réessaie ou vérifie ta connexion / les logs serveur.'
+        );
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Erreur réseau');
     } finally {
       setLoading(false);
@@ -133,6 +210,10 @@ export function DashboardCompetitorShop() {
               )}
             </button>
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-white/40">
+            Compte souvent 2 à 5 minutes : scraping Etsy (Apify) puis synthèse GPT-4o. Laisse l’onglet ouvert pendant le
+            chargement.
+          </p>
           {error ? (
             <div className="mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -153,25 +234,33 @@ export function DashboardCompetitorShop() {
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/15 to-black/70" />
                 </div>
-              ) : null}
+              ) : (
+                <div className="relative h-16 w-full bg-gradient-to-r from-cyan-950/40 via-black/50 to-violet-950/30 sm:h-20">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_0%,rgba(0,212,255,0.12),transparent_55%)]" />
+                  <p className="absolute bottom-2 left-5 text-[10px] text-white/35">
+                    Bannière non fournie par le scraper (souvent présente quand la page boutique est chargée ou dans le JSON
+                    Apify).
+                  </p>
+                </div>
+              )}
 
               <div
                 className={`px-5 pb-6 pt-6 sm:px-8 ${shop.bannerUrl ? 'sm:pt-6' : 'sm:pt-8'}`}
               >
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:gap-5">
-                    {shop.logoUrl ? (
-                      <div className="shrink-0">
-                        <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-[#0a0a0a] bg-black shadow-lg shadow-black/50 ring-1 ring-white/10 sm:h-24 sm:w-24">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={shop.logoUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
+                    <div className="shrink-0">
+                      <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-[#0a0a0a] bg-black shadow-lg shadow-black/50 ring-1 ring-white/10 sm:h-24 sm:w-24">
+                        {shop.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={shop.logoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/10 to-black text-lg font-bold text-white/40 sm:text-xl">
+                            {(shop.shopName || '?').slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
                       </div>
-                    ) : null}
+                    </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium uppercase tracking-wide text-cyan-200/55">Boutique</p>
                       <h2 className="mt-1 text-xl font-semibold text-white sm:text-2xl">{shop.shopName}</h2>
@@ -190,12 +279,29 @@ export function DashboardCompetitorShop() {
                   <dl className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2 text-sm sm:text-right lg:grid-cols-3">
                     <div>
                       <dt className="text-white/45">Ventes (boutique)</dt>
-                      <dd className="font-semibold text-white">{shop.salesCount || '—'}</dd>
+                      <dd className="font-semibold text-white">
+                        {shop.salesCount > 0 ? formatFrInt(shop.salesCount) : '—'}
+                      </dd>
                     </div>
                     <div>
                       <dt className="text-white/45">Note / avis</dt>
                       <dd className="font-semibold text-white">
-                        {shop.rating ? `${shop.rating.toFixed(1)}` : '—'} · {shop.reviewCount || '—'}
+                        {shop.rating > 0 ? (
+                          <>
+                            <span className="tabular-nums">{shop.rating.toFixed(1)}</span>
+                            <span className="text-white/50"> / 5</span>
+                            {shop.reviewCount > 0 ? (
+                              <>
+                                {' '}
+                                · <span className="tabular-nums">{formatFrInt(shop.reviewCount)}</span> avis
+                              </>
+                            ) : (
+                              ' · —'
+                            )}
+                          </>
+                        ) : (
+                          '— · —'
+                        )}
                       </dd>
                     </div>
                     <div>
@@ -208,18 +314,27 @@ export function DashboardCompetitorShop() {
                     </div>
                     <div>
                       <dt className="text-white/45">Listings actifs (page)</dt>
-                      <dd className="font-semibold text-white">{shop.activeListingCount ?? '—'}</dd>
+                      <dd className="font-semibold text-white">
+                        {shop.activeListingCount != null && shop.activeListingCount > 0
+                          ? formatFrInt(shop.activeListingCount)
+                          : '—'}
+                      </dd>
                     </div>
                     <div>
                       <dt className="text-white/45">Favoris</dt>
-                      <dd className="font-semibold text-white">{shop.favoritesCount ?? '—'}</dd>
+                      <dd className="font-semibold text-white">
+                        {shop.favoritesCount != null && shop.favoritesCount > 0
+                          ? formatFrInt(shop.favoritesCount)
+                          : '—'}
+                      </dd>
                     </div>
                   </dl>
                 </div>
 
                 <p className="mt-5 text-xs text-white/40">
-                  Données issues de la page boutique Etsy (échantillon visible). Les ventes par listing ne sont pas
-                  toujours exposées publiquement.
+                  Totaux boutique : page HTML quand elle est lisible, sinon champs présents dans le JSON Apify. Si un
+                  total manque, les ventes / avis peuvent correspondre à la somme ou à la moyenne sur l’échantillon de
+                  fiches scrapées (indicatif).
                 </p>
               </div>
             </section>
@@ -291,21 +406,44 @@ export function DashboardCompetitorShop() {
                   <div>
                     <h3 className="text-lg font-semibold text-white">3 fiches produits</h3>
                     <p className="mt-1 text-xs text-white/45">
-                      Couverture + note en lettre (comme l’analyseur de listing), détail Etsy en petit.
+                      Note qualité interne (titre, médias, texte, tags) +, quand le scraper les fournit, étoiles et avis
+                      Etsy.
                     </p>
                   </div>
                 </div>
                 <div className="mt-6 grid gap-5 sm:grid-cols-3">
-                  {shop.listings.slice(0, 3).map((l) => {
+                  {shop.listings.slice(0, 3).map((l, idx) => {
+                    const top3 = shop.listings.slice(0, 3);
+                    const peerTitles = top3.filter((_, j) => j !== idx).map((x) => x.title || '');
+                    const cardCtx = {
+                      shopMedianPrice: sampleMedianPrice,
+                      peerTitlesInSample: peerTitles,
+                    };
+
                     const cover = listingThumbUrl(l.images);
+                    const titleDisplay = decodeListingTitleEntities(l.title || 'Fiche Etsy');
+                    const qualityInput = {
+                      title: l.title || '',
+                      price: l.price,
+                      images: l.images,
+                      tags: l.tags,
+                      description: l.description,
+                      sales: l.sales,
+                      listingStars: l.rating != null && l.rating > 0 ? l.rating : undefined,
+                      listingReviews:
+                        l.reviews != null && l.reviews > 0 ? Math.round(l.reviews) : undefined,
+                    };
+                    const quality = scoreCompetitorListingCard(qualityInput, cardCtx);
+                    const breakdown = getCompetitorListingScoreBreakdown(qualityInput, cardCtx);
+
                     const listingStars = l.rating != null && l.rating > 0 ? l.rating : null;
                     const shopStars = shop.rating > 0 ? shop.rating : null;
                     const effectiveStars = listingStars ?? shopStars ?? null;
                     const isShopFallback = listingStars == null && shopStars != null;
-                    const score100 =
+                    const etsyScore100 =
                       effectiveStars != null ? etsyStarsToScore100(effectiveStars) : null;
-                    const grade = score100 != null ? scoreToLetterGrade(score100) : null;
-                    const titleDisplay = decodeListingTitleEntities(l.title || 'Fiche Etsy');
+                    const etsyGrade = etsyScore100 != null ? scoreToLetterGrade(etsyScore100) : null;
+
                     return (
                       <article
                         key={l.url}
@@ -340,62 +478,110 @@ export function DashboardCompetitorShop() {
                           >
                             {titleDisplay}
                           </a>
-                          <div className="mt-auto border-t border-white/10 pt-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-cyan-200/55">
-                              Note globale
-                            </p>
-                            {effectiveStars != null && score100 != null && grade ? (
-                              <>
-                                <div className="mt-2 flex flex-wrap items-end gap-2">
-                                  <p
-                                    className="text-4xl font-bold leading-none tracking-tight text-white"
-                                    title={
-                                      isShopFallback
-                                        ? `Moyenne boutique ${effectiveStars.toFixed(1)}/5 (note listing non récupérée)`
-                                        : `${effectiveStars.toFixed(1)}/5 sur la fiche ≈ ${score100}/100`
-                                    }
-                                  >
-                                    {grade}
+                          <div className="mt-auto space-y-4 border-t border-white/10 pt-3">
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-cyan-200/55">
+                                Note qualité fiche
+                              </p>
+                              <p className="mt-0.5 text-[10px] leading-relaxed text-white/38">
+                                Scores distincts par fiche : titre vs les 2 autres, prix vs médiane boutique, images
+                                extraites du JSON, social Etsy si présent.
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-end gap-2">
+                                <p className="text-3xl font-bold leading-none tracking-tight text-white">
+                                  {quality.grade}
+                                </p>
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${scoreBadgeClasses(quality.score100)}`}
+                                >
+                                  {quality.verbal}
+                                </span>
+                              </div>
+                              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                <div
+                                  className={`h-full rounded-full ${scoreBarClass(quality.score100)}`}
+                                  style={{ width: `${quality.score100}%` }}
+                                />
+                              </div>
+                              <p className="mt-1.5 text-[10px] tabular-nums text-white/45">
+                                {quality.score100} / 100
+                              </p>
+                              <ul className="mt-3 space-y-2 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/42">
+                                {(
+                                  [
+                                    ['Titre', breakdown.title],
+                                    ['Tags', breakdown.tags],
+                                    ['Images', breakdown.images],
+                                    ['Description', breakdown.description],
+                                    ['Prix (boutique)', breakdown.price],
+                                    ['Social (★ / avis / ventes)', breakdown.social],
+                                  ] as const
+                                ).map(([label, axis]) => (
+                                  <li key={label}>
+                                    <span className="font-medium text-white/55">{label}</span>{' '}
+                                    <span className="tabular-nums text-cyan-200/70">{axis.score}/100</span>
+                                    <span className="text-white/35"> — </span>
+                                    {axis.detail}
+                                  </li>
+                                ))}
+                              </ul>
+                              <button
+                                type="button"
+                                onClick={() => openListingAnalyzer(l.url)}
+                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/15 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/55 hover:bg-cyan-500/25"
+                              >
+                                <BarChart3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                Analyse détaillée (listing)
+                              </button>
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-white/45">
+                                Avis clients Etsy
+                              </p>
+                              {effectiveStars != null && etsyScore100 != null && etsyGrade ? (
+                                <div className="mt-2 space-y-2">
+                                  <p className="text-sm font-semibold tabular-nums text-white/90">
+                                    {effectiveStars.toFixed(1)}★ sur 5
+                                    {!isShopFallback && l.reviews != null && l.reviews > 0 ? (
+                                      <span> · {formatFrInt(Math.round(l.reviews))} avis</span>
+                                    ) : isShopFallback && shop.reviewCount > 0 ? (
+                                      <span> · {formatFrInt(shop.reviewCount)} avis (totaux boutique)</span>
+                                    ) : (
+                                      <span className="text-white/45"> · avis non trouvés sur cette fiche</span>
+                                    )}
                                   </p>
-                                  <span
-                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${scoreBadgeClasses(score100)}`}
-                                  >
-                                    {letterGradeVerbal(grade)}
-                                  </span>
-                                </div>
-                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                                  <div
-                                    className={`h-full rounded-full ${scoreBarClass(score100)}`}
-                                    style={{ width: `${score100}%` }}
-                                  />
-                                </div>
-                                <p className="mt-2 text-[10px] leading-relaxed text-white/40">
-                                  <span className="tabular-nums text-white/55">
-                                    {effectiveStars.toFixed(1)} / 5
-                                  </span>
-                                  {!isShopFallback && l.reviews != null && l.reviews > 0 ? (
-                                    <span className="tabular-nums"> · {l.reviews} avis</span>
-                                  ) : null}
-                                  {isShopFallback && shop.reviewCount > 0 ? (
-                                    <span className="tabular-nums"> · {shop.reviewCount} avis boutique</span>
-                                  ) : null}
-                                  <span className="text-white/35">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-lg font-bold tabular-nums text-white">
+                                      {etsyGrade}
+                                    </span>
+                                    <span
+                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${scoreBadgeClasses(etsyScore100)}`}
+                                    >
+                                      {letterGradeVerbal(etsyGrade)}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] leading-relaxed text-white/45">
                                     {isShopFallback
-                                      ? ' · Moyenne boutique (fiche sans note)'
-                                      : ' · Moyenne Etsy (fiche)'}
+                                      ? 'Note moyenne de la boutique (fiche sans étoiles dans le JSON).'
+                                      : 'Données issues du JSON listing (scraping).'}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="mt-1.5 text-[10px] leading-relaxed text-white/40">
+                                  Étoiles et nombre d’avis non fournis par le scraper pour cette fiche. Les totaux
+                                  boutique (si présents) sont affichés dans l’en-tête.
+                                </p>
+                              )}
+                              {l.sales != null && l.sales > 0 ? (
+                                <p className="mt-2 text-[10px] text-white/50">
+                                  Ventes (fiche, si fourni) :{' '}
+                                  <span className="font-semibold tabular-nums text-white/75">
+                                    {formatFrInt(l.sales)}
                                   </span>
                                 </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="mt-2 text-3xl font-bold leading-none text-white/30">—</p>
-                                <p className="mt-1.5 text-[10px] leading-relaxed text-white/40">
-                                  Aucune moyenne lisible : ajoute{' '}
-                                  <span className="font-mono text-white/50">ZENROWS_BROWSER_WS_URL</span> pour charger
-                                  les fiches comme un navigateur, ou ouvre une boutique avec des avis visibles.
-                                </p>
-                              </>
-                            )}
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       </article>
@@ -532,7 +718,7 @@ export function DashboardCompetitorShop() {
               <section>
                 <h3 className="mb-4 text-lg font-semibold text-white">Données brutes (échantillon)</h3>
                 <div className="overflow-x-auto rounded-xl border border-white/10">
-                  <table className="w-full min-w-[800px] text-left text-sm">
+                  <table className="w-full min-w-[920px] text-left text-sm">
                     <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wide text-white/45">
                       <tr>
                         <th className="w-[76px] px-4 py-3">Image</th>
@@ -540,7 +726,8 @@ export function DashboardCompetitorShop() {
                         <th className="px-4 py-3">Prix</th>
                         <th className="px-4 py-3">Ventes (listing)</th>
                         <th className="px-4 py-3">Tags</th>
-                        <th className="whitespace-nowrap px-4 py-3">Fiche</th>
+                        <th className="whitespace-nowrap px-4 py-3">Fiche Etsy</th>
+                        <th className="whitespace-nowrap px-4 py-3">Analyse</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -600,6 +787,16 @@ export function DashboardCompetitorShop() {
                               <span>Voir la fiche</span>
                               <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
                             </a>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-2 align-middle">
+                            <button
+                              type="button"
+                              onClick={() => openListingAnalyzer(l.url)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/35 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-100 transition-colors hover:border-violet-400/50 hover:bg-violet-500/20"
+                            >
+                              <BarChart3 className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                              <span>Analyser</span>
+                            </button>
                           </td>
                         </tr>
                         );
