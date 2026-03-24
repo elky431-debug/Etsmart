@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
 
 export async function POST(request: NextRequest) {
   try {
@@ -117,6 +118,7 @@ SEO/QUALITY CONSTRAINTS:
 - Human, fluent, high-converting copy
 - No keyword stuffing
 - Emoji usage must remain controlled and relevant
+- NO Markdown: never use ** or __ for bold, * for italic, # headings, backticks, or [text](url). Etsy does not render Markdown — output plain text only. Use a simple "-" at the start of lines for bullets if needed.
 
 INPUTS:
 - Product visual description: ${productVisualDescription}
@@ -187,7 +189,8 @@ Return JSON exactly:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert Etsy copywriter specializing in conversion-optimized product descriptions that comply with Etsy guidelines.',
+            content:
+              'You are an expert Etsy copywriter specializing in conversion-optimized product descriptions that comply with Etsy guidelines. Never use Markdown (no **, *, #, or code fences); Etsy descriptions are plain text only.',
           },
           {
             role: 'user',
@@ -217,7 +220,8 @@ Return JSON exactly:
     }
 
     const descriptionData = await descriptionResponse.json();
-    const description = descriptionData.choices[0]?.message?.content?.trim();
+    const descriptionRaw = descriptionData.choices[0]?.message?.content?.trim() || '';
+    const description = sanitizeEtsyDescriptionPlainText(descriptionRaw);
 
     if (!description) {
       return NextResponse.json(

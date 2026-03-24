@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
 
 export const maxDuration = 25;
 export const runtime = 'nodejs';
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
             {
               role: 'system',
               content:
-                'You are an expert in Etsy SEO and high-converting product descriptions. Write only in natural, premium, persuasive ENGLISH. Never output French.',
+                'You are an expert in Etsy SEO and high-converting product descriptions. Write only in natural, premium, persuasive ENGLISH. Never output French. Never use Markdown (no **, *, #, or code fences); Etsy descriptions are plain text only.',
             },
             {
               role: 'user',
@@ -102,6 +103,7 @@ SEO/QUALITY CONSTRAINTS:
 - Human, fluent, high-converting copy
 - No keyword stuffing
 - Emoji usage must remain controlled and relevant
+- NO Markdown: never use ** or __ for bold, * for italic, # headings, backticks, or [text](url). Etsy does not render Markdown — output plain text only. Use a simple "-" at the start of lines for bullets if needed.
 
 INPUTS:
 - Product visual description: ${productDesc}
@@ -236,6 +238,7 @@ Return JSON exactly:
 
     const title = titleData.title || String(productDesc).replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 140);
     const tags = titleData.tags.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
+    const listingDescription = sanitizeEtsyDescriptionPlainText(description || productDesc);
 
     console.log('[LISTING] Done');
 
@@ -243,7 +246,7 @@ Return JSON exactly:
       success: true,
       listing: {
         title,
-        description: description || productDesc,
+        description: listingDescription,
         tags,
         materials: titleData.materials || 'Various materials',
       },
