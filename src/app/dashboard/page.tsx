@@ -48,7 +48,8 @@ import {
   Truck,
   KeyRound,
   Bot,
-  Coins
+  Coins,
+  Search,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -112,7 +113,8 @@ type DashboardSection =
   | 'store-manager'
   | 'shop-story'
   | 'coach'
-  | 'competitor-shop';
+  | 'competitor-shop'
+  | 'etsy-keyword-analyze';
 
 interface MenuItem {
   id: DashboardSection;
@@ -254,6 +256,7 @@ export default function DashboardPage() {
         'coach',
         'competitor-shop',
         'apify-test',
+        'etsy-keyword-analyze',
       ].includes(section)
     ) {
       setActiveSection(section as DashboardSection);
@@ -351,7 +354,7 @@ export default function DashboardPage() {
       } else if (section === 'keyword-research') {
         setActiveSection('dashboard-home');
         window.history.replaceState({}, '', '/dashboard');
-      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach', 'competitor-shop', 'apify-test'].includes(section)) {
+      } else if (section && ['analyze', 'dashboard-home', 'analysis', 'analyse-simulation', 'listing', 'images', 'quick-generate', 'keyword-research', 'profile', 'settings', 'subscription', 'competitors', 'shop-name', 'banner', 'logo', 'video-generator', 'tracking', 'store-manager', 'shop-story', 'top-etsy-sellers', 'etsy-trends', 'niche-finder', 'opportunity-map', 'coach', 'competitor-shop', 'apify-test', 'etsy-keyword-analyze'].includes(section)) {
         setActiveSection(section as DashboardSection);
       } else {
         setActiveSection('dashboard-home');
@@ -1511,6 +1514,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Analyse',
       items: [
+        {
+          id: 'etsy-keyword-analyze',
+          label: 'Analyse de keyword',
+          icon: Search,
+          href: '/dashboard/keywords',
+        },
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
         { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3 },
         { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2 },

@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveEtsyOAuthClientId } from '@/lib/keywords-env';
 
 /**
  * Route pour initier le flux OAuth Etsy
  * GET /api/etsy/auth
- * 
+ *
  * Redirige l'utilisateur vers la page d'autorisation Etsy
  */
 export async function GET(request: NextRequest) {
   try {
-    const clientId = process.env.ETSY_API_KEY;
-    const redirectUri = process.env.ETSY_REDIRECT_URI;
+    const clientId = resolveEtsyOAuthClientId();
+    const redirectUri = process.env.ETSY_REDIRECT_URI?.trim();
 
     if (!clientId || !redirectUri) {
       return NextResponse.json(
-        { error: 'ETSY_API_KEY or ETSY_REDIRECT_URI not configured' },
+        {
+          error: 'CONFIG',
+          message:
+            'ETSY_API_KEY (keystring ou keystring:secret) et ETSY_REDIRECT_URI requis pour OAuth.',
+        },
         { status: 500 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getEtsyShop } from '@/lib/etsy/client';
+import { resolveEtsyXApiKey } from '@/lib/keywords-env';
 
 /**
  * Route pour finaliser la connexion Etsy après OAuth
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
       const shopsResponse = await fetch('https://api.etsy.com/v3/application/users/me/shops', {
         headers: {
           'Authorization': `Bearer ${access_token}`,
-          'x-api-key': process.env.ETSY_API_KEY || '',
+          'x-api-key': resolveEtsyXApiKey() || '',
         },
       });
 

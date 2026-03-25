@@ -3,7 +3,13 @@
  * Documentation: https://developers.etsy.com/documentation/
  */
 
+import { resolveEtsyOAuthClientId, resolveEtsyOAuthClientSecret, resolveEtsyXApiKey } from '@/lib/keywords-env';
+
 const ETSY_API_BASE = 'https://api.etsy.com/v3';
+
+function etsyXApiKeyHeader(): string {
+  return resolveEtsyXApiKey() || '';
+}
 
 export interface EtsyShop {
   shop_id: number;
@@ -128,7 +134,7 @@ export async function getEtsyShop(accessToken: string, shopId: number): Promise<
   const response = await fetch(`${ETSY_API_BASE}/application/shops/${shopId}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'x-api-key': process.env.ETSY_API_KEY || '',
+      'x-api-key': etsyXApiKeyHeader(),
     },
   });
 
@@ -154,7 +160,7 @@ export async function getEtsyShopListings(
     {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'x-api-key': process.env.ETSY_API_KEY || '',
+        'x-api-key': etsyXApiKeyHeader(),
       },
     }
   );
@@ -207,7 +213,7 @@ export async function getEtsyListing(
   const response = await fetch(`${ETSY_API_BASE}/application/listings/${listingId}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'x-api-key': process.env.ETSY_API_KEY || '',
+      'x-api-key': etsyXApiKeyHeader(),
     },
   });
 
@@ -229,7 +235,7 @@ export async function getEtsyListingImages(
   const response = await fetch(`${ETSY_API_BASE}/application/listings/${listingId}/images`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'x-api-key': process.env.ETSY_API_KEY || '',
+      'x-api-key': etsyXApiKeyHeader(),
     },
   });
 
@@ -251,12 +257,14 @@ export async function exchangeEtsyOAuthCode(code: string): Promise<{
   expires_in: number;
   token_type: string;
 }> {
-  const clientId = process.env.ETSY_API_KEY;
-  const clientSecret = process.env.ETSY_API_SECRET;
-  const redirectUri = process.env.ETSY_REDIRECT_URI;
+  const clientId = resolveEtsyOAuthClientId();
+  const clientSecret = resolveEtsyOAuthClientSecret();
+  const redirectUri = process.env.ETSY_REDIRECT_URI?.trim();
 
   if (!clientId || !clientSecret || !redirectUri) {
-    throw new Error('Etsy OAuth credentials not configured');
+    throw new Error(
+      'Etsy OAuth credentials not configured (client_id + shared secret + ETSY_REDIRECT_URI). Utilise ETSY_API_KEY=keystring:secret ou secret dans ETSY_API_SECRET.'
+    );
   }
 
   const response = await fetch('https://api.etsy.com/v3/public/oauth/token', {

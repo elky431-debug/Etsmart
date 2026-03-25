@@ -130,35 +130,58 @@ export async function runApifyActorByTarget(
   const maxItems = options.maxItems ?? 5;
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const isRetryableApifyStatus = (status: number) => status === 502 || status === 503 || status === 504;
+
   const fetchDatasetItems = async (datasetId: string): Promise<unknown[]> => {
     const datasetEndpoint =
       `${APIFY_BASE}/datasets/${encodeURIComponent(datasetId)}/items` +
       `?token=${encodeURIComponent(token)}` +
       `&clean=true&format=json&limit=${encodeURIComponent(String(maxItems))}`;
-    const dsRes = await fetch(datasetEndpoint, {
-      method: 'GET',
-      signal: AbortSignal.timeout(15_000),
-    });
-    const dsText = await dsRes.text();
-    let dsJson: unknown = [];
-    try {
-      dsJson = dsText ? JSON.parse(dsText) : [];
-    } catch {
-      dsJson = [];
+    const maxAttempts = 3;
+    let lastErr: unknown = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const dsRes = await fetch(datasetEndpoint, {
+          method: 'GET',
+          signal: AbortSignal.timeout(15_000),
+        });
+        const dsText = await dsRes.text();
+        let dsJson: unknown = [];
+        try {
+          dsJson = dsText ? JSON.parse(dsText) : [];
+        } catch {
+          dsJson = [];
+        }
+        if (!dsRes.ok) {
+          if (isRetryableApifyStatus(dsRes.status) && attempt < maxAttempts - 1) {
+            lastErr = new Error(`Apify dataset HTTP ${dsRes.status}`);
+            await sleep(700 * (attempt + 1));
+            continue;
+          }
+          throw new Error(`Apify dataset HTTP ${dsRes.status}: ${dsText.slice(0, 220)}`);
+        }
+        if (Array.isArray(dsJson)) return dsJson;
+        if (dsJson && typeof dsJson === 'object') return [dsJson];
+        return [];
+      } catch (e: unknown) {
+        lastErr = e;
+        if (attempt >= maxAttempts - 1) break;
+        await sleep(700 * (attempt + 1));
+      }
     }
-    if (!dsRes.ok) {
-      throw new Error(`Apify dataset HTTP ${dsRes.status}: ${dsText.slice(0, 220)}`);
-    }
-    if (Array.isArray(dsJson)) return dsJson;
-    if (dsJson && typeof dsJson === 'object') return [dsJson];
-    return [];
+
+    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    throw new Error(`Apify dataset fetch failed (dataset ${datasetId}): ${msg}`);
   };
   let lastError = '';
   for (const actorId of actorCandidates) {
     try {
       /** Budget global (démarrage + polls + dataset). Doit rester < timeout fetch client. */
       const wallStart = Date.now();
-      const MAX_TOTAL_MS = 175_000;
+      // Budget par run Apify : plus bas = moins de “Finalisation…” qui tourne longtemps.
+      // Si le dataset n'arrive pas à temps, le run échoue (puis on retente selon les retries).
+      const MAX_TOTAL_MS = 60_000;
 
       // 1) Lance le run de façon asynchrone
       const runStartEndpoint =
@@ -198,26 +221,46 @@ export async function runApifyActorByTarget(
         `?token=${encodeURIComponent(token)}`;
 
       const readRunStatus = async (): Promise<string> => {
-        const runRes = await fetch(runStatusEndpoint, {
-          method: 'GET',
-          signal: AbortSignal.timeout(12_000),
-        });
-        const runText = await runRes.text();
-        let runJson: unknown = null;
-        try {
-          runJson = runText ? JSON.parse(runText) : null;
-        } catch {
-          runJson = null;
+        const maxAttempts = 3;
+        let lastErr: unknown = null;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const runRes = await fetch(runStatusEndpoint, {
+              method: 'GET',
+              signal: AbortSignal.timeout(12_000),
+            });
+            const runText = await runRes.text();
+            let runJson: unknown = null;
+            try {
+              runJson = runText ? JSON.parse(runText) : null;
+            } catch {
+              runJson = null;
+            }
+            if (!runRes.ok) {
+              if (isRetryableApifyStatus(runRes.status) && attempt < maxAttempts - 1) {
+                lastErr = new Error(`Apify run status HTTP ${runRes.status}`);
+                await sleep(900 * (attempt + 1));
+                continue;
+              }
+              throw new Error(`Apify run status HTTP ${runRes.status}: ${runText.slice(0, 220)}`);
+            }
+
+            const data = (runJson as { data?: Record<string, unknown> } | null)?.data || {};
+            const status = typeof data.status === 'string' ? data.status : '';
+            if (!datasetId && typeof data.defaultDatasetId === 'string') {
+              datasetId = data.defaultDatasetId as string;
+            }
+            return status;
+          } catch (e: unknown) {
+            lastErr = e;
+            if (attempt >= maxAttempts - 1) break;
+            await sleep(900 * (attempt + 1));
+          }
         }
-        if (!runRes.ok) {
-          throw new Error(`Apify run status HTTP ${runRes.status}: ${runText.slice(0, 220)}`);
-        }
-        const data = (runJson as { data?: Record<string, unknown> } | null)?.data || {};
-        const status = typeof data.status === 'string' ? data.status : '';
-        if (!datasetId && typeof data.defaultDatasetId === 'string') {
-          datasetId = data.defaultDatasetId as string;
-        }
-        return status;
+
+        const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+        throw new Error(`Apify run status fetch failed (run ${runId}): ${msg}`);
       };
 
       // 2) Poll jusqu'à fin du run (évite les faux timeouts du sync endpoint)
