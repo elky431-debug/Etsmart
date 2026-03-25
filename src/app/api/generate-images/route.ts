@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
       const netlifyShortBudget = isNetlifyRestrictedImageBudget();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-      const GEMINI_FLASH_MODEL = 'gemini-3.1-flash-image-preview';
+      const GEMINI_FLASH_MODEL = 'gemini-2.5-flash-image';
       const GEMINI_PRO_MODEL = 'gemini-3-pro-image-preview';
       const modelForRequest = engineSafe === 'pro' ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
       const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
