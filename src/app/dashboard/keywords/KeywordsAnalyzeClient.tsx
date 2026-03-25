@@ -234,6 +234,7 @@ export default function KeywordsAnalyzeClient() {
     const applyStatusPayload = (data: Record<string, unknown>) => {
       if (data.status === 'done') {
         finish();
+        setError(null);
         setResult({
           keyword: String(data.keyword || ''),
           metrics: data.metrics as Metrics,

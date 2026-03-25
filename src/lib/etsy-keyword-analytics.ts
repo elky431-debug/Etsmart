@@ -6,6 +6,7 @@ import { runApifyActorByTarget, mapApifyItemToListing } from '@/lib/apify-scrape
 
 /** Acteur Etsy Search documenté côté Apify (epctex / etsy-scraper). */
 const ETSY_SCRAPER_ACTOR = 'epctex~etsy-scraper';
+const ETSY_SEARCH_COUNT_ACTOR = 'apify~cheerio-scraper';
 
 const ETSY_OPENAPI_PING = 'https://api.etsy.com/v3';
 
@@ -292,6 +293,77 @@ function buildEtsyScraperRunInput(keyword: string, maxItems: number): Record<str
   };
 }
 
+function buildEtsySearchCountRunInput(keyword: string): Record<string, unknown> {
+  const url = `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}`;
+  const pageFunction = `async function pageFunction(context) {
+    const { $, body, request } = context;
+    const pageText = $('body').text().replace(/\\s+/g, ' ').trim();
+    const h1Text = $('h1').first().text().replace(/\\s+/g, ' ').trim();
+    const candidates = [h1Text, pageText.slice(0, 4000), body.slice(0, 4000)];
+    let totalResults = 0;
+    for (const txt of candidates) {
+      if (!txt) continue;
+      const m =
+        txt.match(/([0-9][0-9,\\.\\s]{0,12})\\s+results?/i) ||
+        txt.match(/([0-9][0-9,\\.\\s]{0,12})\\s+resultats?/i) ||
+        txt.match(/([0-9][0-9,\\.\\s]{0,12})\\s+items?/i);
+      if (!m || !m[1]) continue;
+      const n = parseInt(String(m[1]).replace(/[^0-9]/g, ''), 10);
+      if (Number.isFinite(n) && n > 0) {
+        totalResults = n;
+        break;
+      }
+    }
+    await context.pushData({
+      source: 'etsy-search-count',
+      url: request.url,
+      totalResults,
+      h1Text,
+    });
+  }`;
+  return {
+    startUrls: [{ url }],
+    maxRequestsPerCrawl: 1,
+    maxConcurrency: 1,
+    proxyConfiguration: buildEtsyScraperProxyInput(),
+    pageFunction,
+  };
+}
+
+async function fetchEtsySearchCountDirect(keyword: string): Promise<number> {
+  try {
+    const url = `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+        Referer: 'https://www.etsy.com/',
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return 0;
+    const html = await res.text();
+    const snippets = [
+      html.slice(0, 6000),
+      html.replace(/\s+/g, ' ').slice(0, 6000),
+    ];
+    for (const txt of snippets) {
+      const m =
+        txt.match(/([0-9][0-9,.\s]{0,12})\s+results?/i) ||
+        txt.match(/([0-9][0-9,.\s]{0,12})\s+r[eé]sultats?/i) ||
+        txt.match(/([0-9][0-9,.\s]{0,12})\s+items?/i);
+      if (!m || !m[1]) continue;
+      const n = parseInt(String(m[1]).replace(/[^0-9]/g, ''), 10);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Test keystring:secret (utilisé par `/api/keywords/etsy-ping` uniquement).
  */
@@ -475,6 +547,10 @@ async function fetchApifyEtsySearchListings(keyword: string, maxItems: number): 
     console.error('[etsy-keyword-analytics] Apify listings failed', e);
     return [];
   }
+  return normalizeEtsySearchListingsFromRaw(rawItems);
+}
+
+function normalizeEtsySearchListingsFromRaw(rawItems: unknown[]): NormalizedScrapedListing[] {
   const out: NormalizedScrapedListing[] = [];
   for (const item of rawItems) {
     if (!item || typeof item !== 'object') continue;
@@ -499,6 +575,19 @@ async function fetchApifyEtsySearchRaw(keyword: string, maxItems: number): Promi
   } catch (e) {
     console.error('[etsy-keyword-analytics] Apify raw failed', e);
     return [];
+  }
+}
+
+async function fetchApifyEtsySearchTotal(keyword: string): Promise<number> {
+  try {
+    const rows = await runApifyActorByTarget('search-count', buildEtsySearchCountRunInput(keyword), {
+      maxItems: 1,
+      actorIdOverride: ETSY_SEARCH_COUNT_ACTOR,
+    });
+    return extractTotalListingsFromRaw(rows);
+  } catch (e) {
+    console.error('[etsy-keyword-analytics] Apify search count failed', e);
+    return 0;
   }
 }
 
@@ -608,6 +697,28 @@ function buildTitleDerivedLongTail(keyword: string, listings: NormalizedScrapedL
   return out;
 }
 
+function buildKeywordHeuristicSeeds(keyword: string): string[] {
+  const base = keyword.trim().toLowerCase();
+  if (!base) return [];
+  const suffixes = [
+    'gift',
+    'wall art',
+    'decor',
+    'handmade',
+    'vintage',
+    'personalized',
+    'for home',
+    'for office',
+  ];
+  const out: string[] = [];
+  for (const s of suffixes) {
+    const k = `${base} ${s}`.trim();
+    if (k !== base) out.push(k);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -661,14 +772,18 @@ export async function runFullKeywordAnalysisPipeline(
   const relatedMax = env.relatedMaxItems ?? 12;
   const maxRelatedTags = Math.min(8, Math.max(0, env.maxRelatedTags ?? 4));
 
-  const [rawMain, normalizedMain, suggestions] = await Promise.all([
+  const [rawMain, suggestions, totalFromSearchPage, totalFromDirectHtml] = await Promise.all([
     fetchApifyEtsySearchRaw(keyword, mainMax),
-    fetchApifyEtsySearchListings(keyword, mainMax),
     fetchEtsySearchSuggestions(keyword),
+    fetchApifyEtsySearchTotal(keyword),
+    fetchEtsySearchCountDirect(keyword),
   ]);
 
+  // Important perf: on évite de lancer Apify 2 fois (raw + normalized) pour le même keyword.
+  const normalizedMain = normalizeEtsySearchListingsFromRaw(rawMain);
   const scrapedCount = normalizedMain.length;
-  const totalListings = extractTotalListingsFromRaw(rawMain) || scrapedCount;
+  const totalListings =
+    totalFromSearchPage || totalFromDirectHtml || extractTotalListingsFromRaw(rawMain) || scrapedCount;
   const metrics = buildMetricsFromScrapedListings(normalizedMain, totalListings);
   const sampleTitles = normalizedMain.map((n) => n.title).filter(Boolean).slice(0, 15);
   const topListings = extractTopListings(rawMain, 6);
@@ -696,7 +811,10 @@ export async function runFullKeywordAnalysisPipeline(
   const gptLongTail = env.openaiApiKey
     ? await generateLongTailKeywordsWithOpenAi(keyword, sampleTitles, env.openaiApiKey)
     : [];
-  const seed = [...suggestions, ...titleLongTail, ...gptLongTail].map((s) => s.trim()).filter(Boolean);
+  const heuristicSeeds = buildKeywordHeuristicSeeds(keyword);
+  const seed = [...suggestions, ...titleLongTail, ...gptLongTail, ...heuristicSeeds]
+    .map((s) => s.trim())
+    .filter(Boolean);
   const seen = new Set<string>([keyword.toLowerCase().trim()]);
   const similarSeeds: string[] = [];
   for (const s of seed) {

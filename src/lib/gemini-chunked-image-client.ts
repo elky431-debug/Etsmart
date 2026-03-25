@@ -16,13 +16,13 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Concurrence fixe orientée débit (1 seul modèle stable côté API). */
+/** Concurrence par mode (pro plus prudent pour stabilité). */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return 3;
+  if (typeof window === 'undefined') return engineMode === 'pro' ? 1 : 3;
   const host = window.location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (engineMode === 'pro') return isLocal ? 2 : 1;
   if (isLocal) return 4;
-  // gemini-2.5-flash-image: 500 RPM → 3 en parallèle confortable
   return 3;
 }
 
@@ -61,7 +61,10 @@ export function parseGenerateImageResponse(json: Record<string, unknown>) {
     : [];
   const message = typeof json.message === 'string' && json.message.trim().length > 0 ? json.message.trim() : null;
   const errorCode = typeof json.error === 'string' ? json.error : null;
-  return { imageTaskIds, imageDataUrls, message, errorCode };
+  const provider = typeof json.provider === 'string' ? json.provider : null;
+  const model = typeof json.model === 'string' ? json.model : null;
+  const requestedEngine = typeof json.requestedEngine === 'string' ? json.requestedEngine : null;
+  return { imageTaskIds, imageDataUrls, message, errorCode, provider, model, requestedEngine };
 }
 
 export async function pollSingleTaskImage(
@@ -160,6 +163,11 @@ export async function runChunkedImageGeneration(opts: {
         json = {};
       }
       const parsed = parseGenerateImageResponse(json);
+      if (parsed.model || parsed.provider || parsed.requestedEngine) {
+        console.log(
+          `[CHUNKED] Slot ${index} engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`
+        );
+      }
       if (!res.ok) {
         if (
           res.status === 403 &&

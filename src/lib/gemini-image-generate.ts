@@ -3,7 +3,7 @@
  * Utilisé pour bannière boutique, logo Etsy, etc.
  */
 
-export const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image';
+export const GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {

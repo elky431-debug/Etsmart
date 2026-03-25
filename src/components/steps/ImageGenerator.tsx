@@ -87,7 +87,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [customInstructions, setCustomInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
-  const [engine, setEngine] = useState<ImageEngine>('flash');
+  const [engine, setEngine] = useState<ImageEngine>('pro');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
   const engineForApi: ImageEngine = engine;

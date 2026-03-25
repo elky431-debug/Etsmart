@@ -98,7 +98,7 @@ export function DashboardQuickGenerate() {
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(7);
-  const [engine, setEngine] = useState<ImageEngine>('flash');
+  const [engine, setEngine] = useState<ImageEngine>('pro');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
   const engineForApi: ImageEngine = engine;

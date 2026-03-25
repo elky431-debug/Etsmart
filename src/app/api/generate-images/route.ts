@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       productTitle,
       tags,
       materials,
-      engine,
+      engine = 'pro',
       style,
       skipCreditDeduction,
       productContext,
@@ -135,6 +135,64 @@ export async function POST(request: NextRequest) {
     const promptStartIndex = hasPromptStart ? Math.floor(promptStartIndexRaw) : null;
     if (!sourceImage) return NextResponse.json({ error: 'Image source requise' }, { status: 400 });
     if (quantity < 1 || quantity > 10) return NextResponse.json({ error: 'Quantité entre 1 et 10' }, { status: 400 });
+
+    const extractDimensionsForImage4 = (text: string | undefined | null): {
+      unit: string | null;
+      values: number[];
+    } => {
+      const raw = String(text || '').toLowerCase().replace(',', '.');
+      if (!raw.trim()) return { unit: null, values: [] };
+
+      // Prefer strict triplet "L x l x H cm|mm|in|inch" if it exists.
+      const triplet = raw.match(
+        /(\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(\d+(?:\.\d+)?)\s*(cm|mm|in|inch)\b/
+      );
+      if (triplet) {
+        const a = Number.parseFloat(triplet[1]!);
+        const b = Number.parseFloat(triplet[2]!);
+        const c = Number.parseFloat(triplet[3]!);
+        const unit = triplet[4] === 'inch' ? 'inch' : triplet[4] === 'in' ? 'in' : triplet[4];
+        const values = [a, b, c].filter((n) => Number.isFinite(n) && n > 0);
+        return { unit, values };
+      }
+
+      // Fallback: any occurrences "number unit". We keep up to 3 values.
+      const matches = Array.from(raw.matchAll(/(\d+(?:\.\d+)?)\s*(cm|mm|in|inch)\b/g));
+      const normalized = matches
+        .map((m) => ({
+          n: Number.parseFloat(m[1] ?? ''),
+          unit: m[2] === 'inch' ? 'inch' : m[2] === 'in' ? 'in' : m[2],
+        }))
+        .filter((x) => Number.isFinite(x.n) && x.n > 0);
+
+      if (normalized.length === 0) return { unit: null, values: [] };
+
+      // Pick the most common unit.
+      const unitCounts = normalized.reduce<Record<string, number>>((acc, it) => {
+        acc[it.unit] = (acc[it.unit] || 0) + 1;
+        return acc;
+      }, {});
+      const unit = Object.entries(unitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const values = normalized.filter((v) => (unit ? v.unit === unit : true)).slice(0, 3).map((v) => v.n);
+      return { unit, values };
+    };
+
+    const dimsSourceText = `${productTitle || ''} ${customInstructions || ''}`.trim();
+    const dims = extractDimensionsForImage4(dimsSourceText);
+    const dimensionsStrictBlock =
+      dims.unit && dims.values.length > 0
+        ? (() => {
+            const v = dims.values.map((n) => {
+              const rounded = Math.round(n * 100) / 100;
+              // Avoid trailing zeros like 10.00.
+              return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+            });
+            const unit = dims.unit!;
+            if (v.length >= 3) return `DIMENSIONS EXACTES (NE PAS INVENTER): Longueur ${v[0]} ${unit}, Largeur ${v[1]} ${unit}, Hauteur ${v[2]} ${unit}.`;
+            if (v.length === 2) return `DIMENSIONS EXACTES (NE PAS INVENTER): Longueur ${v[0]} ${unit}, Largeur ${v[1]} ${unit}.`;
+            return `DIMENSIONS EXACTES (NE PAS INVENTER): Taille ${v[0]} ${unit}.`;
+          })()
+        : `DIMENSIONS NON FOURNIES: NE PAS INVENTER DE NOMBRES. Dessine uniquement des flèches de dimension avec des labels "--" (ou "N/A") et pas de valeurs chiffrées.`;
 
     // Quand skipCreditDeduction est true (ex: génération rapide), on ne vérifie pas le quota restant ni on ne déduit (déjà fait côté client).
     if (!skipCreditDeduction) {
@@ -191,10 +249,18 @@ export async function POST(request: NextRequest) {
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
       const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-      // Demande produit: le bouton "Pro" reste routé vers Gemini 3.1 Flash Image.
-      const forceProToFlash31 = engineSafe === 'pro';
-      /** Quand pro est mappé vers 3.1 Flash, on garde les réglages "flash" (plus rapides). */
-      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro' && !forceProToFlash31;
+      const GEMINI_FLASH_MODEL = 'gemini-3.1-flash-image-preview';
+      const GEMINI_PRO_MODEL = 'gemini-3-pro-image-preview';
+      const modelForRequest = engineSafe === 'pro' ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
+      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
+      const geminiAspectSizeMap: Record<string, string> = {
+        '16:9': '16:9',
+        '9:16': '9:16',
+        '4:3': '4:3',
+        '3:4': '3:4',
+      };
+      const imgSize =
+        geminiAspectSizeMap[typeof aspectRatio === 'string' ? aspectRatio : ''] || '1:1';
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -205,10 +271,8 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            // Sur Netlify, privilégier des refs plus légères pour rester sous la gateway.
-            const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
-            const maxSide = isNetlifyFastSingle ? 768 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
-            const jpegQ = isNetlifyFastSingle ? 76 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
+            const maxSide = engineSafe === 'pro' ? 1280 : 1024;
+            const jpegQ = engineSafe === 'pro' ? 90 : 85;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -234,23 +298,32 @@ export async function POST(request: NextRequest) {
       }
 
       const realismBoost =
-        engineSafe === 'pro' && !forceProToFlash31
+        engineSafe === 'pro'
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : isFastChunkedSingle
             ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
             : 'Fast realistic render with clean natural lighting.';
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost} CRITICAL: Use ONLY the provided reference images as the product source of truth. Keep EXACT same shape, silhouette, geometry, proportions, colors and materials. Never replace the product with another object/person. The product must be naturally integrated in the scene (no sticker/cutout look): proper contact shadow on surfaces, coherent occlusion, coherent perspective, coherent depth of field, coherent color temperature. Only change scene/background/camera angle. SOURCE CLEANUP (MANDATORY): Reference screenshots often include marketplace watermarks, AliExpress/Amazon-style logos, supplier brand marks, corner badges, promotional strips, price tags, QR codes, or overlaid text — DO NOT reproduce any of them. Remove them completely. Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}
+CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
+Never replace the main product with another object/person.
+Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
+ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
+ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
+SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text — DO NOT reproduce any of them. Remove them completely.
+Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
       const GLOBAL_PROMPT_RULES_GEMINI =
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
-        `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, texte incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
+        `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
         `Pas de watermark. ` +
-        `Pas de texte marketing sur l'image (sauf les mensurations sur l'image 4). ` +
+        `ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. ` +
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
         `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
         `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
-        `Cohérence visuelle entre toutes les images générées (même produit, même style global, variantes d'angles/background seulement).`;
+        `ANTI-COPIER STRICT: chaque prompt doit générer un arrière-plan + décor + éclairage clairement différents (pas un recadrage, pas un copier/coller, pas des éléments identiques). ` +
+        `Ne réutilise pas la même disposition des rideaux/tapis/coussins/objets autour du produit d'une image à l'autre. ` +
+        `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).`;
 
       const STYLE_EXPECTED_GEMINI =
         `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
@@ -258,54 +331,64 @@ export async function POST(request: NextRequest) {
       const IMAGE_PROMPTS_GEMINI = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – ANGLE DE VUE ÉLOIGNÉ (CONTEXTE & AMBIANCE):
-Génère une photo produit avec un angle éloigné montrant l’article dans un environnement réaliste et chaleureux.
-Le produit doit être clairement visible, intégré à la scène (home decor / lifestyle usage naturel), rendu photo Etsy haut de gamme.
+PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
+Plan large, produit intégré dans une pièce réaliste et chaleureuse (salon, chambre ou cuisine selon le produit).
+Le produit apparaît à son échelle réelle — visible mais pas surdimensionné par rapport aux meubles et à la pièce.
+Cadrage large montrant le mobilier, les murs et le sol autour du produit.
+Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 2 – ANGLE DE VUE INTERMÉDIAIRE (ÉQUILIBRE PRODUIT / DÉTAIL):
-Génère une photo produit avec un angle intermédiaire: produit au centre, environnement visible, composition équilibrée.
-Met en valeur formes, design et proportions globales. Rendu réaliste et net, ombres cohérentes, fond sobre.
+PROMPT 2 – PLAN MOYEN / ÉQUILIBRE PRODUIT-SCÈNE:
+Plan moyen: produit au centre, scène visible autour (meubles, mur, sol).
+Met en valeur design, formes et proportions globales à leur vraie taille dans l'espace.
+Éclairage chaud type lampe à droite hors-champ, mur beige doux, surface en bois devant.
+Décor sobre: 1-2 accessoires neutres (plante, bougie, livre) sans surcharger la scène.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 3 – ZOOM / DÉTAIL PRODUIT:
-Génère un gros plan sur le produit (texture, matière, finitions) avec une netteté premium.
-Le fond doit rester simple et élégant pour ne pas détourner l’attention.
+PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
+Photo rapprochée focalisée sur la texture, les matériaux et les finitions du produit.
+Netteté maximale sur les détails de surface, léger bokeh sur le fond.
+Fond épuré (surface neutre mate ou studio clair), lumière douce directionnelle révélant les reliefs.
+Produit occupant 60-70% du cadre, sans distorsion de perspective.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
-Génère une image du produit avec les mensurations clairement visibles:
-- flèches de dimension (guidelines) et labels numériques lisibles,
-- style graphique simple et propre (traits fins),
-- texte uniquement pour les dimensions (pas de texte marketing).
-Le produit reste le sujet principal, rendu cohérent et crédible Etsy.`
+Image type fiche produit sur fond clair et épuré: dimensions clairement visibles.
+${dimensionsStrictBlock}
+Flèches de dimension fines avec labels numériques nets. Style graphique minimaliste.
+Texte uniquement pour les mensurations (pas de texte marketing).`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – IMAGE STRATÉGIQUE (À VALEUR AJOUTÉE):
-Génère une image supplémentaire qui ajoute de la valeur à la fiche:
-angle/variation d’ambiance pertinente, focus usage (avant / après, détail clé, ou mise en situation alternative).
-Objectif: augmenter la compréhension et la confiance.
+PROMPT 5 – AMBIANCE SOIR / ÉCLAIRAGE CHAUD:
+Photo lifestyle avec éclairage chaud de soirée (lumière tamisée, ambiance cosy).
+Produit mis en valeur avec éclairage indirect doux, ombres longues et douces, teintes dorées.
+Intérieur feutré: bougie ou lampe d'appoint visible en arrière-plan, textile doux.
+Plan moyen, produit à son échelle réelle dans la scène.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – SCÈNE ALTERNATIVE / AUTRE PIÈCE:
-Même produit dans un autre contexte d’intérieur crédible (autre pièce ou ambiance légèrement différente).
-Composition fraîche mais cohérente avec le set, lumière douce, rendu photo Etsy premium.
+PROMPT 6 – AUTRE PIÈCE / AUTRE AMBIANCE:
+Même produit dans une pièce ou un contexte d'intérieur complètement différent des images 1 et 2.
+Si image 1 = salon, utiliser cuisine scandinave ou bureau minimaliste ou chambre cosy.
+Palette de couleurs différente, lumière naturelle zénithale.
+Cadrage large, produit visible et à l'échelle.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – MISE EN VALEUR USAGE / ÉCHELLE:
-Image qui montre le produit en situation d’usage ou avec une référence d’échelle subtile (sans personnage si évitable, ou mains/objet neutre).
-Renforce la compréhension de la taille et de l’usage, rendu naturel et haut de gamme.
+PROMPT 7 – RÉFÉRENCE D'ÉCHELLE / USAGE:
+Photo montrant la taille réelle du produit grâce à une référence d'échelle discrète.
+Un objet commun connu (tasse, livre, plante en pot) posé à côté du produit pour donner l'échelle.
+Plan moyen, produit et objet de référence nets et bien cadrés.
+Fond épuré, lumière naturelle douce, rendu naturel et haut de gamme.
 Pas de texte marketing. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
@@ -335,8 +418,8 @@ Pas de texte marketing. Pas de watermark.`
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
       // Fallback Gemini unique pour tous les prompts (y compris mensurations).
-      const modelCandidatesFull = ['gemini-2.5-flash-image'];
-      const modelCandidatesFast = ['gemini-2.5-flash-image'];
+      const modelCandidatesFull = [modelForRequest];
+      const modelCandidatesFast = [modelForRequest];
       const modelCandidates =
         isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
       const modelsForGemini: string[] = modelCandidates;
@@ -366,6 +449,9 @@ Pas de texte marketing. Pas de watermark.`
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
+                  imageGenerationConfig: {
+                    aspectRatio: imgSize,
+                  },
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),
@@ -408,7 +494,7 @@ Pas de texte marketing. Pas de watermark.`
         timeoutMs: number
       ): Promise<string | null> => {
         console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini');
-        return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', partsForAttempt, timeoutMs);
+        return tryGeminiOnce(prompt, modelForRequest, partsForAttempt, timeoutMs);
       };
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
@@ -426,7 +512,7 @@ Pas de texte marketing. Pas de watermark.`
         }
 
         const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
-        return tryGeminiOnce(prompt, 'gemini-2.5-flash-image', mainPart, geminiCap);
+        return tryGeminiOnce(prompt, modelForRequest, mainPart, geminiCap);
       };
 
       try {
@@ -483,6 +569,9 @@ Pas de texte marketing. Pas de watermark.`
           success: true,
           imageTaskIds: [],
           imageDataUrls,
+          provider: 'gemini',
+          model: modelForRequest,
+          requestedEngine: engineSafe,
           ...(partial && {
             message: `Seulement ${imageDataUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
           }),
@@ -575,51 +664,70 @@ Pas de texte marketing. Pas de watermark.`
     const reglesCommunes = `RÈGLE ABSOLUE: l'objet principal (${produitRef}) doit garder sa forme, ses proportions, couleurs et matières EXACTES.
 Tu ne modifies que l'arrière-plan/décor et l'angle de prise de vue (pas de changement de produit).
 Rendu réaliste photo Etsy haut de gamme (pas de style "IA"), chaleureux et naturel.
-RÈGLES VISUELLES: Pas de watermark. Pas de texte marketing sur l'image (sauf mensurations sur l'image 4).
+RÈGLES VISUELLES: Pas de watermark.
+ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4.
+ANTI-COPIER: ne pas reproduire les codes de page AliExpress/marketplace (bannières, coins/badges, overlays, prix affiché, QR codes, textes incrustés). Recréer un décor photo Etsy propre.
+ANTI-SIMILARITÉ STRICT: ne pas réutiliser les mêmes éléments du décor d'une image à l'autre (rideaux/tapis/coussins/objets autour du produit). Décor et éclairage doivent être clairement différents.
 Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, fond simple (table/mur clair/studio léger).
 Cohérence entre tous les visuels (même produit, même style global, variantes d'angles/background uniquement).`;
 
+    const dimensionsStrictBlockNano = dimensionsStrictBlock; // même logique côté prompt mensurations
+
     const IMAGE_PROMPTS = [
       `${productContextText}
-PROMPT 1 – ANGLE DE VUE ÉLOIGNÉ (CONTEXTE & AMBIANCE):
-Plan large, produit intégré dans une scène lifestyle réaliste (home decor / usage naturel).
-Le produit est clairement visible, lumière douce, tons chauds, fond simple et élégant.
+PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
+Plan large, produit intégré dans une pièce réaliste et chaleureuse (salon, chambre ou cuisine selon le produit).
+Le produit apparaît à son échelle réelle — visible mais pas surdimensionné par rapport aux meubles et à la pièce.
+Cadrage large montrant le mobilier, les murs et le sol autour du produit.
+Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond.
 Pas de texte. Pas de watermark.
 ${reglesCommunes}`,
       `${productContextText}
-PROMPT 2 – ANGLE DE VUE INTERMÉDIAIRE (ÉQUILIBRE PRODUIT / DÉTAIL):
-Angle intermédiaire, produit au centre, environnement visible mais fond sobre.
-Met en valeur design, formes et proportions globales, ombres cohérentes et rendu net.
+PROMPT 2 – PLAN MOYEN / ÉQUILIBRE PRODUIT-SCÈNE:
+Plan moyen: produit au centre, scène visible autour (meubles, mur, sol).
+Met en valeur design, formes et proportions globales à leur vraie taille dans l'espace.
+Éclairage chaud type lampe à droite hors-champ, mur beige doux, surface en bois devant.
+Décor sobre: 1-2 accessoires neutres (plante, bougie, livre) sans surcharger la scène.
 Pas de texte. Pas de watermark.
 ${reglesCommunes}`,
       `${productContextText}
-PROMPT 3 – ZOOM / DÉTAIL PRODUIT:
-Gros plan sur texture, matière et finitions, netteté premium.
-Fond simple et élégant pour ne pas détourner l’attention.
+PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
+Photo rapprochée focalisée sur la texture, les matériaux et les finitions du produit.
+Netteté maximale sur les détails de surface, léger bokeh sur le fond.
+Fond épuré (surface neutre mate ou studio clair), lumière douce directionnelle révélant les reliefs.
+Produit occupant 60-70% du cadre, sans distorsion de perspective.
 Pas de texte. Pas de watermark.
 ${reglesCommunes}`,
       `${productContextText}
 PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
-Image type fiche produit: dimensions clairement visibles avec flèches de dimension et labels numériques lisibles.
-Style graphique simple (traits fins, texte clair) et esthétique.
+Image type fiche produit sur fond clair et épuré: dimensions clairement visibles.
+${dimensionsStrictBlockNano}
+Flèches de dimension fines avec labels numériques nets. Style graphique minimaliste.
 Texte uniquement pour les mensurations (pas de texte marketing).
 ${reglesCommunes}`,
       `${productContextText}
-PROMPT 5 – IMAGE STRATÉGIQUE (À VALEUR AJOUTÉE):
-Image supplémentaire pertinente: mise en situation alternative ou focus usage / détail clé.
-Objectif: augmenter compréhension et confiance, rendu photo Etsy haut de gamme.
+PROMPT 5 – AMBIANCE SOIR / ÉCLAIRAGE CHAUD:
+Photo lifestyle avec éclairage chaud de soirée (lumière tamisée, ambiance cosy).
+Produit mis en valeur avec éclairage indirect doux, ombres longues et douces, teintes dorées.
+Intérieur feutré: bougie ou lampe d'appoint visible en arrière-plan, textile doux.
+Plan moyen, produit à son échelle réelle dans la scène.
 Pas de texte. Pas de watermark.
 ${reglesCommunes}`,
       `${productContextText}
-PROMPT 6 – SCÈNE ALTERNATIVE / AUTRE AMBIANCE:
-Même produit dans un autre décor intérieur crédible (autre pièce ou lumière légèrement différente).
-Composition soignée, tons chauds, fond simple, style photo Etsy premium.
+PROMPT 6 – AUTRE PIÈCE / AUTRE AMBIANCE:
+Même produit dans une pièce ou un contexte d'intérieur complètement différent des images 1 et 2.
+Si image 1 = salon, utiliser cuisine scandinave ou bureau minimaliste ou chambre cosy.
+Palette de couleurs différente, lumière naturelle zénithale.
+Cadrage large, produit visible et à l'échelle.
 Pas de texte. Pas de watermark.
 ${reglesCommunes}`,
       `${productContextText}
-PROMPT 7 – USAGE / ÉCHELLE:
-Mise en situation qui aide à juger taille et usage (référence d’échelle discrète, mains neutres ou objet de comparaison simple).
-Rendu naturel, pas de texte marketing, pas de watermark.
+PROMPT 7 – RÉFÉRENCE D'ÉCHELLE / USAGE:
+Photo montrant la taille réelle du produit grâce à une référence d'échelle discrète.
+Un objet commun connu (tasse, livre, plante en pot) posé à côté du produit pour donner l'échelle.
+Plan moyen, produit et objet de référence nets et bien cadrés.
+Fond épuré, lumière naturelle douce, rendu naturel et haut de gamme.
+Pas de texte marketing. Pas de watermark.
 ${reglesCommunes}`,
     ];
     const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
@@ -784,6 +892,9 @@ ${reglesCommunes}`,
     return NextResponse.json({
       success: true,
       imageTaskIds: taskIds,
+      provider: 'nanobanana',
+      model: engineSafe === 'pro' ? 'nanobanana-generate-pro' : 'nanobanana-generate',
+      requestedEngine: engineSafe,
     });
 
   } catch (error: any) {

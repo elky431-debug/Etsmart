@@ -1,10 +1,11 @@
 import { extractListingPriceFromItem } from '@/lib/listing-price-extract';
 import { extractListingTagsFromItem } from '@/lib/listing-tags-extract';
 
-type ScrapeTarget = 'listing' | 'shop';
+type ScrapeTarget = 'listing' | 'shop' | 'search-count';
 
 const APIFY_BASE = 'https://api.apify.com/v2';
 const DEFAULT_ETSY_LISTING_ACTOR = 'epctex~etsy-scraper';
+const DEFAULT_CHEERIO_SCRAPER_ACTOR = 'apify~cheerio-scraper';
 
 type ApifyRunOptions = {
   timeoutSecs?: number;
@@ -37,6 +38,14 @@ function getActorId(target: ScrapeTarget): string | null {
       null
     );
   }
+  if (target === 'search-count') {
+    return (
+      parseActorId(process.env.APIFY_ACTOR_ETSY_COUNT_ID) ||
+      DEFAULT_CHEERIO_SCRAPER_ACTOR ||
+      parseActorId(process.env.APIFY_ACTOR_ID) ||
+      null
+    );
+  }
   return parseActorId(process.env.APIFY_ACTOR_SHOP_ID) || null;
 }
 
@@ -44,6 +53,8 @@ function getActorCandidates(target: ScrapeTarget, override?: string): string[] {
   const candidates = [
     parseActorId(override),
     target === 'listing' ? DEFAULT_ETSY_LISTING_ACTOR : null,
+    target === 'search-count' ? parseActorId(process.env.APIFY_ACTOR_ETSY_COUNT_ID) : null,
+    target === 'search-count' ? DEFAULT_CHEERIO_SCRAPER_ACTOR : null,
     target === 'listing' ? parseActorId(process.env.APIFY_ACTOR_LISTING_ID) : null,
     parseActorId(process.env.APIFY_ACTOR_SHOP_ID),
     parseActorId(process.env.APIFY_ACTOR_ID),

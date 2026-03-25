@@ -92,6 +92,21 @@ export async function POST(request: NextRequest) {
 
     if (cached?.result && typeof cached.result === 'object' && cached.result !== null) {
       const p = cached.result as Record<string, unknown>;
+
+      const metricsObj = p.metrics as Record<string, unknown> | null;
+      const similarArr = Array.isArray(p.similarKeywords) ? (p.similarKeywords as unknown[]) : [];
+      const metricsOk =
+        !!metricsObj &&
+        typeof metricsObj.globalScore === 'number' &&
+        typeof metricsObj.totalListings === 'number';
+      const similarOk = similarArr.some(
+        (x) => x && typeof x === 'object' && typeof (x as Record<string, unknown>).globalScore === 'number'
+      );
+
+      // Evite le “stale cache” après des changements de logique (ex: similarKeywords/metrics).
+      if (!metricsOk || !similarOk) {
+        // Continue : on relance un job frais plutôt que de renvoyer un résultat partiellement cassé.
+      } else {
       return NextResponse.json({
         jobId: cached.id,
         status: 'done',
@@ -107,6 +122,7 @@ export async function POST(request: NextRequest) {
         conversionRate: p.conversionRate,
         trendDirection: p.trendDirection,
       });
+      }
     }
 
     const quota = await getUserQuotaInfo(user.id);
