@@ -16,14 +16,13 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Concurrence fixe orientée débit (1 seul modèle stable côté API). */
+/** Concurrence : trop de POST Gemini en parallèle → 429 / réponses vides ; 2 reste plus fiable. */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return 3;
+  if (typeof window === 'undefined') return 2;
   const host = window.location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1';
-  if (isLocal) return 4;
-  // gemini-2.5-flash-image: 500 RPM → 3 en parallèle confortable
-  return 3;
+  if (isLocal) return 2;
+  return 2;
 }
 
 /** Retries sur 502/503/504 / erreurs transitoires. */

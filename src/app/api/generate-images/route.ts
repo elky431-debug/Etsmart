@@ -508,6 +508,11 @@ Pas de texte marketing. Pas de watermark.`
         return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
       };
 
+      /** Hors Netlify : budget complet 28s. Netlify : court pour la gateway. */
+      const geminiHttpCapMs = isNetlifyHost
+        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 18_000)
+        : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
           (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
@@ -515,15 +520,23 @@ Pas de texte marketing. Pas de watermark.`
         const isMensurationsPrompt = promptIndex === 3;
 
         if (isMensurationsPrompt) {
-          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
-          const img = await tryGeminiForMensurations(prompt, mainPart, cap);
-          if (img) return img;
-          await new Promise((r) => setTimeout(r, 1500));
-          return tryGeminiForMensurations(prompt, mainPart, cap);
+          for (let round = 0; round < 3; round++) {
+            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            if (img) return img;
+            await new Promise((r) => setTimeout(r, 1500));
+            img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            if (img) return img;
+            if (round < 2) await new Promise((r) => setTimeout(r, 1000 * (round + 1)));
+          }
+          return null;
         }
 
-        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
-        return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, mainPart, geminiCap);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const img = await tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, mainPart, geminiHttpCapMs);
+          if (img) return img;
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
+        }
+        return null;
       };
 
       try {
