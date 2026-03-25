@@ -5,7 +5,7 @@ import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
 
-// Vercel: aligné avec vercel.json. Netlify: gateway ~26s → mode chunked = 1 modèle / requête, budget ~21s (voir readGeminiChunkSingleWallMs).
+// Vercel: aligné avec vercel.json. Netlify: gateway ~26s → mode chunked, budget serré (voir readGeminiChunkSingleWallMs + cap Gemini).
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
@@ -33,8 +33,8 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  // Laisser une marge réelle pour auth, compression et sérialisation sous la gateway Netlify.
-  if (isNetlifyRuntime()) return 21_000;
+  // Marge sous la gateway Netlify (~26s) incluant auth, Sharp et sérialisation JSON.
+  if (isNetlifyRuntime()) return 25_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -504,14 +504,14 @@ Pas de texte marketing. Pas de watermark.`
         const isMensurationsPrompt = promptIndex === 3;
 
         if (isMensurationsPrompt) {
-          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
+          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 24_000 : 26_000);
           const img = await tryGeminiForMensurations(prompt, mainPart, cap);
           if (img) return img;
           await new Promise((r) => setTimeout(r, 1500));
           return tryGeminiForMensurations(prompt, mainPart, cap);
         }
 
-        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
+        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 24_000 : 26_000);
         return tryGeminiOnce(prompt, modelForRequest, mainPart, geminiCap);
       };
 

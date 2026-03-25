@@ -1,11 +1,14 @@
 /**
  * Client de génération d'images:
- * - stratégie rapide: 1 requête par image (single), plusieurs requêtes en parallèle.
+ * - stratégie rapide: 1 requête par image (single), plusieurs requêtes en parallèle seulement en local.
  * - évite les gros POST quantity>1 qui déclenchent des 504 Netlify.
  */
 import { getImagePollDeadlineMs, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 
 export type ImageEngineMode = 'flash' | 'pro';
+
+/** Marge légère au-dessus du maxDuration API (120s Vercel / route Next). */
+const GENERATE_IMAGES_FETCH_TIMEOUT_MS = 125_000;
 
 export const QUOTA_MESSAGE_FR =
   'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
@@ -16,14 +19,29 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Concurrence par mode (pro plus prudent pour stabilité). */
+function isLocalHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1';
+}
+
+/**
+ * En prod (hors localhost), toujours 1 requête à la fois : plusieurs POST lourds en parallèle
+ * satureraient Netlify/Vercel (cold starts, limites de concurrence) et les fetch pouvaient ne jamais se terminer côté navigateur.
+ */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return engineMode === 'pro' ? 1 : 3;
-  const host = window.location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
-  if (engineMode === 'pro') return isLocal ? 2 : 1;
-  if (isLocal) return 4;
-  return 3;
+  if (typeof window === 'undefined') return 1;
+  const isLocal = isLocalHost();
+  if (!isLocal) return 1;
+  if (engineMode === 'pro') return 2;
+  return 4;
+}
+
+function abortSignalForGenerateImagesFetch(): AbortSignal | undefined {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(GENERATE_IMAGES_FETCH_TIMEOUT_MS);
+  }
+  return undefined;
 }
 
 /** Retries sur 502/503/504 / erreurs transitoires. */
@@ -40,9 +58,15 @@ export async function fetchGenerateImagesWithRetry(
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
+        signal: abortSignalForGenerateImagesFetch(),
       });
-    } catch {
-      last = new Response(null, { status: 503, statusText: 'Network error' });
+    } catch (e: unknown) {
+      const name = e && typeof e === 'object' && 'name' in e ? String((e as { name?: string }).name) : '';
+      const isTimeout = name === 'AbortError' || name === 'TimeoutError';
+      last = new Response(null, {
+        status: isTimeout ? 504 : 503,
+        statusText: isTimeout ? 'Client fetch timeout' : 'Network error',
+      });
     }
     if (last.ok) return last;
     const retryable = last.status === 502 || last.status === 503 || last.status === 504;
