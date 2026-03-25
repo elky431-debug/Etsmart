@@ -58,8 +58,14 @@ const formatCredits = (n: number) => {
 };
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
-/** Passe à `false` pour rouvrir la génération rapide. */
-const QUICK_GENERATE_MAINTENANCE = true;
+/**
+ * Maintenance : activée tant que `NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE` n’est pas `false`.
+ * Même code en local et en prod — en local, mets dans `.env.local` :
+ *   NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE=false
+ * puis redémarre `npm run dev` pour retrouver l’UI complète pendant que la prod reste en maintenance.
+ */
+const QUICK_GENERATE_MAINTENANCE =
+  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE !== 'false';
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
