@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 28_000;
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
 const GEMINI_FAST_SINGLE_WALL_MS = 45_000;
-/** Pro chunked : un peu plus de marge qu’un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
+/** Pro chunked : un peu plus de marge qu'un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
 const GEMINI_PRO_SINGLE_WALL_MS = 45_000;
 /** Budget pour 2+ images dans un même POST (plusieurs vagues batch internes). */
 const GEMINI_PAIR_WALL_MS = 110_000;
@@ -43,6 +43,35 @@ function geminiFetchSignal(timeoutMs: number): AbortSignal {
   const c = new AbortController();
   setTimeout(() => c.abort(), timeoutMs);
   return c.signal;
+}
+
+async function uploadBase64ToSupabase(
+  supabase: any,
+  base64DataUrl: string,
+  userId: string,
+  index: number
+): Promise<string | null> {
+  try {
+    const match = base64DataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) return null;
+    const mime = match[1];
+    const b64 = match[2];
+    const ext = mime.includes('png') ? 'png' : 'jpg';
+    const fileName = `${userId}/${Date.now()}_${index}.${ext}`;
+    const buffer = Buffer.from(b64, 'base64');
+    const { error } = await supabase.storage
+      .from('generated-images')
+      .upload(fileName, buffer, { contentType: mime, upsert: true });
+    if (error) {
+      console.warn('[IMAGE GEN] Supabase upload error:', error.message);
+      return null;
+    }
+    const { data } = supabase.storage.from('generated-images').getPublicUrl(fileName);
+    return data?.publicUrl ?? null;
+  } catch (e: any) {
+    console.warn('[IMAGE GEN] Supabase upload crash:', e.message);
+    return null;
+  }
 }
 
 async function runGeminiImagePromptsInBatches(
@@ -500,7 +529,7 @@ Pas de texte marketing. Pas de watermark.`
       try {
         // Fast single : 1 image / requête.
         // Pro (hors chunked) : jamais de parallèle interne — évite 504 sur hébergeurs ~60s.
-        // Flash 2+ : jusqu’à 3 prompts Gemini en parallèle par vague.
+        // Flash 2+ : jusqu'à 3 prompts Gemini en parallèle par vague.
         const batchSize = isFastChunkedSingle
           ? 1
           : engineSafe === 'pro'
@@ -543,19 +572,32 @@ Pas de texte marketing. Pas de watermark.`
             console.error(`[IMAGE GEN] Credit deduction error: ${e.message}`);
           }
         }
-        const partial = imageDataUrls.length < numImages;
+        // ── Upload to Supabase Storage to avoid Netlify 6MB response limit ──
+        const uploadedUrls: string[] = [];
+        for (let i = 0; i < imageDataUrls.length; i++) {
+          const url = await uploadBase64ToSupabase(supabase, imageDataUrls[i], user.id, i);
+          if (url) {
+            uploadedUrls.push(url);
+            console.log(`[IMAGE GEN] Uploaded image ${i + 1} to Supabase: ${url.substring(0, 80)}`);
+          } else {
+            // Fallback: return base64 if upload fails (local dev or bucket missing)
+            uploadedUrls.push(imageDataUrls[i]);
+            console.warn(`[IMAGE GEN] Upload failed for image ${i + 1}, falling back to base64`);
+          }
+        }
+        const partial = uploadedUrls.length < numImages;
         console.log(
-          `[IMAGE GEN] Gemini image-edit: ${imageDataUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ' (partial)' : ''}`
+          `[IMAGE GEN] Gemini image-edit: ${uploadedUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ' (partial)' : ''}`
         );
         return NextResponse.json({
           success: true,
           imageTaskIds: [],
-          imageDataUrls,
+          imageDataUrls: uploadedUrls,
           provider: 'gemini',
           model: GEMINI_IMAGE_EDIT_MODEL,
           requestedEngine: engineSafe,
           ...(partial && {
-            message: `Seulement ${imageDataUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
+            message: `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
           }),
         });
       } catch (e: any) {
