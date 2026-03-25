@@ -23,16 +23,8 @@ function isNetlifyRuntime(): boolean {
 }
 
 /**
- * Netlify (surtout plan gratuit) : gateway souvent ~26s → budget court pour limiter les 504.
- * Plan avec fonctions longues : définir GEMINI_NETLIFY_LONG_FUNCTIONS=true pour réutiliser
- * les mêmes délais qu’hors Netlify restreint (~45s mur, ~28s appel Google).
- */
-function isNetlifyRestrictedImageBudget(): boolean {
-  return isNetlifyRuntime() && process.env.GEMINI_NETLIFY_LONG_FUNCTIONS !== 'true';
-}
-
-/**
  * Budget « 1 image / requête » (génération rapide chunked).
+ * Sur Netlify gratuit (~26s gateway), défaut court — voir GEMINI_CHUNK_SINGLE_WALL_MS.
  */
 function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
   const raw = process.env.GEMINI_CHUNK_SINGLE_WALL_MS;
@@ -40,7 +32,7 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  if (isNetlifyRestrictedImageBudget()) return 25_000;
+  if (isNetlifyRuntime()) return 21_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -253,20 +245,12 @@ export async function POST(request: NextRequest) {
 
       const numImages = Math.min(Math.max(quantity, 1), 10);
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
-      const netlifyShortBudget = isNetlifyRestrictedImageBudget();
+      const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-      const GEMINI_FLASH_MODEL = 'gemini-2.5-flash-image';
-      const GEMINI_PRO_MODEL = 'gemini-3-pro-image-preview';
-      const modelForRequest = engineSafe === 'pro' ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
-      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
-      const geminiAspectSizeMap: Record<string, string> = {
-        '16:9': '16:9',
-        '9:16': '9:16',
-        '4:3': '4:3',
-        '3:4': '3:4',
-      };
-      const imgSize =
-        geminiAspectSizeMap[typeof aspectRatio === 'string' ? aspectRatio : ''] || '1:1';
+      /** Routage historique : bouton Pro utilise le même modèle image rapide (stable prod). */
+      const forceProToFlash25 = engineSafe === 'pro';
+      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro' && !forceProToFlash25;
+      const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -277,8 +261,9 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            const maxSide = engineSafe === 'pro' ? 1280 : 1024;
-            const jpegQ = engineSafe === 'pro' ? 90 : 85;
+            const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
+            const maxSide = isNetlifyFastSingle ? 768 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
+            const jpegQ = isNetlifyFastSingle ? 76 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -304,7 +289,7 @@ export async function POST(request: NextRequest) {
       }
 
       const realismBoost =
-        engineSafe === 'pro'
+        engineSafe === 'pro' && !forceProToFlash25
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : isFastChunkedSingle
             ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
@@ -423,15 +408,9 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
-      // Fallback Gemini unique pour tous les prompts (y compris mensurations).
-      const modelCandidatesFull = [modelForRequest];
-      const modelCandidatesFast = [modelForRequest];
-      const modelCandidates =
-        isFastChunkedSingle || numImages >= 2 ? modelCandidatesFast : modelCandidatesFull;
-      const modelsForGemini: string[] = modelCandidates;
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProFastSingle);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, models=${modelsForGemini.join(',')}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${GEMINI_IMAGE_EDIT_MODEL}`
       );
 
       const tryGeminiOnce = async (
@@ -455,9 +434,6 @@ Pas de texte marketing. Pas de watermark.`
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
-                  imageConfig: {
-                    aspectRatio: imgSize,
-                  },
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),
@@ -500,7 +476,7 @@ Pas de texte marketing. Pas de watermark.`
         timeoutMs: number
       ): Promise<string | null> => {
         console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini');
-        return tryGeminiOnce(prompt, modelForRequest, partsForAttempt, timeoutMs);
+        return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
       };
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
@@ -510,19 +486,15 @@ Pas de texte marketing. Pas de watermark.`
         const isMensurationsPrompt = promptIndex === 3;
 
         if (isMensurationsPrompt) {
-          const cap = netlifyShortBudget
-            ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 24_000)
-            : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
           const img = await tryGeminiForMensurations(prompt, mainPart, cap);
           if (img) return img;
           await new Promise((r) => setTimeout(r, 1500));
           return tryGeminiForMensurations(prompt, mainPart, cap);
         }
 
-        const geminiCap = netlifyShortBudget
-          ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 24_000)
-          : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
-        return tryGeminiOnce(prompt, modelForRequest, mainPart, geminiCap);
+        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 18_000 : 26_000);
+        return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, mainPart, geminiCap);
       };
 
       try {
@@ -556,16 +528,12 @@ Pas de texte marketing. Pas de watermark.`
           wallMs
         );
         if (imageDataUrls.length === 0) {
-          const netlifyHint = isNetlifyRestrictedImageBudget()
-            ? ' Sur Netlify, la génération Gemini image dépasse souvent la limite ~26s du plan gratuit — essaie GEMINI_NETLIFY_LONG_FUNCTIONS=true (si ton plan autorise des fonctions longues), ou déploie l’app sur Vercel (maxDuration 120s sur cette route).'
-            : '';
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message:
-              `Gemini n'a pas renvoyé d'image. Vérifie GEMINI_API_KEY et les quotas.${netlifyHint}`,
+            message: 'Gemini n\'a pas renvoyé d\'image. Vérifie la clé et les permissions image generation.',
           });
         }
         if (!skipCreditDeduction) {
@@ -584,7 +552,7 @@ Pas de texte marketing. Pas de watermark.`
           imageTaskIds: [],
           imageDataUrls,
           provider: 'gemini',
-          model: modelForRequest,
+          model: GEMINI_IMAGE_EDIT_MODEL,
           requestedEngine: engineSafe,
           ...(partial && {
             message: `Seulement ${imageDataUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,

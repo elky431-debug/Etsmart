@@ -1,14 +1,11 @@
 /**
  * Client de génération d'images:
- * - stratégie rapide: 1 requête par image (single), plusieurs requêtes en parallèle seulement en local.
+ * - stratégie rapide: 1 requête par image (single), plusieurs requêtes en parallèle.
  * - évite les gros POST quantity>1 qui déclenchent des 504 Netlify.
  */
 import { getImagePollDeadlineMs, getImagePollIntervalMs } from '@/lib/image-gen-polling';
 
 export type ImageEngineMode = 'flash' | 'pro';
-
-/** Marge légère au-dessus du maxDuration API (120s Vercel / route Next). */
-const GENERATE_IMAGES_FETCH_TIMEOUT_MS = 125_000;
 
 export const QUOTA_MESSAGE_FR =
   'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
@@ -19,29 +16,14 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-function isLocalHost(): boolean {
-  if (typeof window === 'undefined') return false;
-  const h = window.location.hostname;
-  return h === 'localhost' || h === '127.0.0.1';
-}
-
-/**
- * En prod (hors localhost), toujours 1 requête à la fois : plusieurs POST lourds en parallèle
- * satureraient Netlify/Vercel (cold starts, limites de concurrence) et les fetch pouvaient ne jamais se terminer côté navigateur.
- */
+/** Concurrence fixe orientée débit (1 seul modèle stable côté API). */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (typeof window === 'undefined') return 1;
-  const isLocal = isLocalHost();
-  if (!isLocal) return 1;
-  if (engineMode === 'pro') return 2;
-  return 4;
-}
-
-function abortSignalForGenerateImagesFetch(): AbortSignal | undefined {
-  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-    return AbortSignal.timeout(GENERATE_IMAGES_FETCH_TIMEOUT_MS);
-  }
-  return undefined;
+  if (typeof window === 'undefined') return 3;
+  const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (isLocal) return 4;
+  // gemini-2.5-flash-image: 500 RPM → 3 en parallèle confortable
+  return 3;
 }
 
 /** Retries sur 502/503/504 / erreurs transitoires. */
@@ -58,15 +40,9 @@ export async function fetchGenerateImagesWithRetry(
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
-        signal: abortSignalForGenerateImagesFetch(),
       });
-    } catch (e: unknown) {
-      const name = e && typeof e === 'object' && 'name' in e ? String((e as { name?: string }).name) : '';
-      const isTimeout = name === 'AbortError' || name === 'TimeoutError';
-      last = new Response(null, {
-        status: isTimeout ? 504 : 503,
-        statusText: isTimeout ? 'Client fetch timeout' : 'Network error',
-      });
+    } catch {
+      last = new Response(null, { status: 503, statusText: 'Network error' });
     }
     if (last.ok) return last;
     const retryable = last.status === 502 || last.status === 503 || last.status === 504;
