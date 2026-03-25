@@ -23,9 +23,16 @@ function isNetlifyRuntime(): boolean {
 }
 
 /**
+ * Netlify (surtout plan gratuit) : gateway souvent ~26s → budget court pour limiter les 504.
+ * Plan avec fonctions longues : définir GEMINI_NETLIFY_LONG_FUNCTIONS=true pour réutiliser
+ * les mêmes délais qu’hors Netlify restreint (~45s mur, ~28s appel Google).
+ */
+function isNetlifyRestrictedImageBudget(): boolean {
+  return isNetlifyRuntime() && process.env.GEMINI_NETLIFY_LONG_FUNCTIONS !== 'true';
+}
+
+/**
  * Budget « 1 image / requête » (génération rapide chunked).
- * Défaut = comportement d’origine (52s flash / 56s pro) pour que Gemini ait le temps de répondre.
- * Sur Netlify gratuit (~26s gateway), mets GEMINI_CHUNK_SINGLE_WALL_MS=24000 (ou upgrade) pour éviter les 504.
  */
 function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
   const raw = process.env.GEMINI_CHUNK_SINGLE_WALL_MS;
@@ -33,8 +40,7 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  // Marge sous la gateway Netlify (~26s) incluant auth, Sharp et sérialisation JSON.
-  if (isNetlifyRuntime()) return 25_000;
+  if (isNetlifyRestrictedImageBudget()) return 25_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -247,7 +253,7 @@ export async function POST(request: NextRequest) {
 
       const numImages = Math.min(Math.max(quantity, 1), 10);
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
-      const isNetlifyHost = isNetlifyRuntime();
+      const netlifyShortBudget = isNetlifyRestrictedImageBudget();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       const GEMINI_FLASH_MODEL = 'gemini-3.1-flash-image-preview';
       const GEMINI_PRO_MODEL = 'gemini-3-pro-image-preview';
@@ -504,14 +510,18 @@ Pas de texte marketing. Pas de watermark.`
         const isMensurationsPrompt = promptIndex === 3;
 
         if (isMensurationsPrompt) {
-          const cap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 24_000 : 26_000);
+          const cap = netlifyShortBudget
+            ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 24_000)
+            : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
           const img = await tryGeminiForMensurations(prompt, mainPart, cap);
           if (img) return img;
           await new Promise((r) => setTimeout(r, 1500));
           return tryGeminiForMensurations(prompt, mainPart, cap);
         }
 
-        const geminiCap = Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, isNetlifyHost ? 24_000 : 26_000);
+        const geminiCap = netlifyShortBudget
+          ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 24_000)
+          : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
         return tryGeminiOnce(prompt, modelForRequest, mainPart, geminiCap);
       };
 
@@ -546,12 +556,16 @@ Pas de texte marketing. Pas de watermark.`
           wallMs
         );
         if (imageDataUrls.length === 0) {
+          const netlifyHint = isNetlifyRestrictedImageBudget()
+            ? ' Sur Netlify, la génération Gemini image dépasse souvent la limite ~26s du plan gratuit — essaie GEMINI_NETLIFY_LONG_FUNCTIONS=true (si ton plan autorise des fonctions longues), ou déploie l’app sur Vercel (maxDuration 120s sur cette route).'
+            : '';
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: 'Gemini n\'a pas renvoyé d\'image. Vérifie la clé et les permissions image generation.',
+            message:
+              `Gemini n'a pas renvoyé d'image. Vérifie GEMINI_API_KEY et les quotas.${netlifyHint}`,
           });
         }
         if (!skipCreditDeduction) {
