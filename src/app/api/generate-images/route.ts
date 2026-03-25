@@ -449,7 +449,7 @@ Pas de texte marketing. Pas de watermark.`
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
-                  imageGenerationConfig: {
+                  imageConfig: {
                     aspectRatio: imgSize,
                   },
                 },
