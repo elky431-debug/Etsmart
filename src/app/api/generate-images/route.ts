@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
+      forceNanobanana,
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
@@ -251,7 +252,7 @@ export async function POST(request: NextRequest) {
       process.env.NANOBANANA_KEY;
     // Priorité Gemini dès que GEMINI_API_KEY est définie (comportement attendu sur Etsmart).
     // Nanobanana seulement si pas de clé Gemini, ou si USE_NANOBANANA_IMAGES=true (opt-in explicite).
-    const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true';
+    const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true' || forceNanobanana === true;
     const useGemini = !!GEMINI_KEY && !forceNano;
     if (!useGemini && !NANO_KEY) {
       console.error('[IMAGE GEN] Aucune clé image utilisable (GEMINI_API_KEY ou clés Nanobanana)');

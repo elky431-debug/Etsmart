@@ -1,5 +1,5 @@
 /**
- * Analyse keywords : autosuggest Etsy (sans clé) + listings via Apify (epctex~etsy-scraper) + GPT-4o mini.
+ * Analyse keywords : DataForSEO (source prioritaire si clés dispo) → Apify (epctex~etsy-scraper) → fallback heuristique.
  */
 
 import { runApifyActorByTarget, mapApifyItemToListing } from '@/lib/apify-scraper';
@@ -578,6 +578,92 @@ async function fetchApifyEtsySearchRaw(keyword: string, maxItems: number): Promi
   }
 }
 
+// ---------------------------------------------------------------------------
+// DataForSEO — recherche volume + compétition réels (Google Ads data)
+// Inscription gratuite : https://app.dataforseo.com/register
+// Env vars : DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD
+// ---------------------------------------------------------------------------
+
+type DataForSeoKeywordMetrics = {
+  searchVolume: number;    // recherches mensuelles Google (ex: 12100)
+  competitionIndex: number; // 0-100 competition Google Ads
+  cpcHigh: number;          // enchère max estimée (signal valeur commerciale)
+};
+
+export function demandScoreFromSearchVolume(volume: number): number {
+  if (volume <= 0) return 10;
+  if (volume < 100) return 20;
+  if (volume < 500) return 35;
+  if (volume < 2000) return 50;
+  if (volume < 10000) return 65;
+  if (volume < 50000) return 80;
+  return 92;
+}
+
+export function competitionScoreFromGoogleAds(index: number): number {
+  // index 0-100 → score de concurrence 10-95
+  return Math.round(10 + index * 0.85);
+}
+
+export function estimateEtsyListingsFromCompetitionIndex(index: number): number {
+  if (index <= 5) return 1000;
+  if (index <= 20) return 8000;
+  if (index <= 40) return 30000;
+  if (index <= 60) return 80000;
+  if (index <= 75) return 200000;
+  if (index <= 90) return 500000;
+  return 1000000;
+}
+
+async function fetchDataForSeoKeywordData(keyword: string): Promise<DataForSeoKeywordMetrics | null> {
+  const login = process.env.DATAFORSEO_LOGIN?.trim();
+  const password = process.env.DATAFORSEO_PASSWORD?.trim();
+  if (!login || !password) return null;
+
+  const credentials = Buffer.from(`${login}:${password}`).toString('base64');
+  try {
+    const res = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([{
+        keywords: [keyword],
+        location_code: 2840, // US
+        language_code: 'en',
+      }]),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.warn(`[etsy-keyword-analytics] DataForSEO ${res.status}:`, text.slice(0, 120));
+      return null;
+    }
+    const json = await res.json() as {
+      tasks?: Array<{
+        result?: Array<{
+          keyword: string;
+          search_volume: number;
+          competition_index: number;
+          high_top_of_page_bid?: number;
+        }>
+      }>
+    };
+    const result = json.tasks?.[0]?.result?.[0];
+    if (!result) return null;
+    console.log(`[etsy-keyword-analytics] DataForSEO OK — "${keyword}": volume=${result.search_volume}, competition=${result.competition_index}`);
+    return {
+      searchVolume: result.search_volume ?? 0,
+      competitionIndex: result.competition_index ?? 0,
+      cpcHigh: result.high_top_of_page_bid ?? 0,
+    };
+  } catch (e) {
+    console.warn('[etsy-keyword-analytics] DataForSEO failed:', (e as Error).message?.slice(0, 80));
+    return null;
+  }
+}
+
 async function fetchApifyEtsySearchTotal(keyword: string): Promise<number> {
   try {
     const rows = await runApifyActorByTarget('search-count', buildEtsySearchCountRunInput(keyword), {
@@ -772,19 +858,34 @@ export async function runFullKeywordAnalysisPipeline(
   const relatedMax = env.relatedMaxItems ?? 12;
   const maxRelatedTags = Math.min(8, Math.max(0, env.maxRelatedTags ?? 4));
 
-  const [rawMain, suggestions, totalFromSearchPage, totalFromDirectHtml] = await Promise.all([
+  const [rawMain, suggestions, totalFromSearchPage, totalFromDirectHtml, dfsMetrics] = await Promise.all([
     fetchApifyEtsySearchRaw(keyword, mainMax),
     fetchEtsySearchSuggestions(keyword),
     fetchApifyEtsySearchTotal(keyword),
     fetchEtsySearchCountDirect(keyword),
+    fetchDataForSeoKeywordData(keyword),
   ]);
 
   // Important perf: on évite de lancer Apify 2 fois (raw + normalized) pour le même keyword.
   const normalizedMain = normalizeEtsySearchListingsFromRaw(rawMain);
   const scrapedCount = normalizedMain.length;
-  const totalListings =
-    totalFromSearchPage || totalFromDirectHtml || extractTotalListingsFromRaw(rawMain) || scrapedCount;
-  const metrics = buildMetricsFromScrapedListings(normalizedMain, totalListings);
+  const scrapedTotal = totalFromSearchPage || totalFromDirectHtml || extractTotalListingsFromRaw(rawMain) || scrapedCount;
+
+  // DataForSEO disponible → scores réels (volume Google Ads + compétition réelle)
+  let totalListings: number;
+  let metricsOverride: Partial<KeywordAnalysisPayload['metrics']> | null = null;
+  if (dfsMetrics) {
+    totalListings = scrapedTotal > scrapedCount ? scrapedTotal : estimateEtsyListingsFromCompetitionIndex(dfsMetrics.competitionIndex);
+    const competitionScore = competitionScoreFromGoogleAds(dfsMetrics.competitionIndex);
+    const demandScore = demandScoreFromSearchVolume(dfsMetrics.searchVolume);
+    const globalScore = globalScoreFrom(competitionScore, demandScore);
+    metricsOverride = { competitionScore, demandScore, globalScore, totalListings };
+  } else {
+    totalListings = scrapedTotal;
+  }
+
+  const baseMetrics = buildMetricsFromScrapedListings(normalizedMain, totalListings);
+  const metrics = metricsOverride ? { ...baseMetrics, ...metricsOverride } : baseMetrics;
   const sampleTitles = normalizedMain.map((n) => n.title).filter(Boolean).slice(0, 15);
   const topListings = extractTopListings(rawMain, 6);
   const conversionRate = conversionRateFromListings(normalizedMain, totalListings);
