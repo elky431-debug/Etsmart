@@ -485,12 +485,10 @@ export function DashboardStoreManager() {
 
   const kpi = useMemo(() => {
     const revenue = statsTransactions.reduce((s, t) => s + t.amountPaid, 0);
-    const netAfterEtsy = statsTransactions.reduce((s, t) => s + (t.amountPaid - t.platformFees), 0);
     const netFinal = statsTransactions.reduce((s, t) => s + t.profit, 0);
     const orders = statsTransactions.length;
     return {
       revenue,
-      netAfterEtsy,
       netFinal,
       avgBasket: orders > 0 ? revenue / orders : 0,
       orders,
@@ -1014,9 +1012,8 @@ export function DashboardStoreManager() {
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <KpiCard title="CA brut" value={`${kpi.revenue.toFixed(2)} €`} />
-              <KpiCard title="CA net (après Etsy)" value={`${kpi.netAfterEtsy.toFixed(2)} €`} />
               <KpiCard title="Net final (après AliExpress)" value={kpi.netFinal >= 0 ? `+${kpi.netFinal.toFixed(2)} €` : `${kpi.netFinal.toFixed(2)} €`} profit />
               <KpiCard title="Panier moyen" value={`${kpi.avgBasket.toFixed(2)} €`} />
               <KpiCard title="Commandes" value={String(kpi.orders)} />

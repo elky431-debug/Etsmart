@@ -87,6 +87,7 @@ import { OpportunityMapComingSoon } from '@/components/dashboard/opportunity-map
 import { DashboardEtsyListingAnalyzer } from '@/components/dashboard/DashboardEtsyListingAnalyzer';
 import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompetitorShop';
 import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompare';
+import { DashboardComingSoonPanel } from '@/components/dashboard/DashboardComingSoonPanel';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -124,6 +125,20 @@ interface MenuItem {
   label: string;
   icon: any;
   href?: string;
+  /** Affiche « Arrive bientôt » sous le libellé dans le menu. */
+  comingSoon?: boolean;
+}
+
+/** Sections « Analyse » : contenu remplacé par un panneau « Arrive bientôt ». */
+const ANALYSIS_COMING_SOON_TITLE: Partial<Record<DashboardSection, string>> = {
+  'etsy-keyword-analyze': 'Analyse de keyword',
+  'apify-test': 'Analyseur Listing Etsy',
+  'competitor-shop': 'Boutique concurrente',
+  'shop-compare': 'Comparaison de boutiques',
+};
+
+function isAnalysisComingSoonSection(section: DashboardSection): boolean {
+  return Object.prototype.hasOwnProperty.call(ANALYSIS_COMING_SOON_TITLE, section);
 }
 
 interface MenuCategory {
@@ -1550,16 +1565,16 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Analyse',
       items: [
+        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
         {
           id: 'etsy-keyword-analyze',
           label: 'Analyse de keyword',
           icon: Search,
-          href: '/dashboard/keywords',
+          comingSoon: true,
         },
-        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
-        { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3 },
-        { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2 },
-        { id: 'shop-compare', label: 'Comparaison de boutiques', icon: GitCompare },
+        { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3, comingSoon: true },
+        { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2, comingSoon: true },
+        { id: 'shop-compare', label: 'Comparaison de boutiques', icon: GitCompare, comingSoon: true },
       ],
     },
     {
@@ -1709,8 +1724,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     `}
                   >
                     <Icon size={20} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
-                      {item.label}
+                    <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75 flex flex-col items-start gap-0.5">
+                      <span>{item.label}</span>
+                      {item.comingSoon ? (
+                        <span className="text-[10px] font-medium text-amber-400/90">Arrive bientôt</span>
+                      ) : null}
                     </span>
                     {isActive && (
                       <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1900,7 +1918,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       `}
                     >
                             <Icon size={20} className="flex-shrink-0" />
-                      <span>{item.label}</span>
+                      <span className="flex flex-col items-start gap-0.5 text-left">
+                        <span>{item.label}</span>
+                        {item.comingSoon ? (
+                          <span className="text-[10px] font-medium text-amber-400/90">Arrive bientôt</span>
+                        ) : null}
+                      </span>
                     </button>
                   );
                 })}
@@ -1986,6 +2009,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
               : 'flex-1 overflow-auto bg-black'
           }
         >
+          {isAnalysisComingSoonSection(activeSection) ? (
+            <DashboardComingSoonPanel title={ANALYSIS_COMING_SOON_TITLE[activeSection]!} />
+          ) : (
+            <>
           {activeSection === 'coach' && (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <DashboardCoach />
@@ -2335,6 +2362,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'settings' && user && (
             <DashboardSettings user={user} />
+          )}
+            </>
           )}
         </div>
       </main>
