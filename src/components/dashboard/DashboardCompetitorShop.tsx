@@ -251,8 +251,10 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
             </button>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-white/40">
-            Deux étapes côté serveur : récupération des listings (Apify), puis synthèse GPT-4o. Sur l’hébergement, chaque
-            étape reste sous ~1 min pour éviter les coupures réseau (504) — en local, ça peut être plus long.
+            En production : récupération des listings via la page boutique (ZenRows si configuré) ; Apify est désactivé
+            par défaut pour éviter les 504 Netlify. Active{' '}
+            <code className="text-white/50">COMPETITOR_SHOP_USE_APIFY=true</code> sur Netlify si tu acceptes un timeout
+            plus long (plan Pro recommandé). Puis synthèse GPT-4o en 2ᵉ requête.
           </p>
           {error ? (
             <div className="mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">

@@ -1791,6 +1791,11 @@ export type ScrapeShopOptions = {
   disableApifyFallback?: boolean;
   /** Si true, n’appelle pas Apify une 2e fois uniquement pour le branding (gain de temps sur Netlify). */
   skipBrandingApifyFallback?: boolean;
+  /**
+   * Si true et ZenRows configuré : charge d’abord la page boutique via navigateur (HTML hydraté),
+   * avant le fetch simple — indispensable sur hébergeurs où le fetch Etsy renvoie une coquille vide.
+   */
+  preferZenRowsForShopHtml?: boolean;
 };
 
 /**
@@ -1810,7 +1815,21 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
   let apifyShopMeta: ReturnType<typeof extractApifyShopMetaFromItems> | undefined;
   let apifyBranding: { bannerUrl: string | null; logoUrl: string | null } | undefined;
 
-  const html = await fetchEtsyHtmlWithFallback(shopUrl, 'fr-FR,fr;q=0.9,en;q=0.8');
+  const shopLang = 'fr-FR,fr;q=0.9,en;q=0.8';
+  let html: string | null = null;
+  if (options.preferZenRowsForShopHtml && process.env.ZENROWS_BROWSER_WS_URL?.trim()) {
+    try {
+      html = await scrapeEtsyPageHtmlWithZenRowsBrowser(shopUrl);
+      if (!html || html.length < 2500) html = null;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn('[SHOP_SCRAPE] preferZenRowsForShopHtml failed:', msg);
+      html = null;
+    }
+  }
+  if (!html) {
+    html = await fetchEtsyHtmlWithFallback(shopUrl, shopLang);
+  }
   const htmlOk = Boolean(html && html.length > 1000);
 
   let shopName = shopSlug || shopInput;

@@ -7,7 +7,10 @@ export function isNetlifyCompetitorHost(): boolean {
 }
 
 /**
- * Options scrape pour l’analyse concurrente : sur Netlify, Apify est plafonné pour tenir dans une fonction (~60 s max).
+ * Options scrape pour l’analyse concurrente sur Netlify :
+ * - Le gateway coupe souvent avant 60 s (plan gratuit ~10 s) : Apify long = 504 HTML.
+ * - Par défaut : pas d’Apify ; HTML boutique d’abord via ZenRows si `ZENROWS_BROWSER_WS_URL`.
+ * - Apify : `COMPETITOR_SHOP_USE_APIFY=true` (+ idéalement plan Netlify Pro pour timeouts >10 s).
  */
 export function getCompetitorScrapeOptions(requestedMaxListings?: number): ScrapeShopOptions {
   const raw =
@@ -17,15 +20,18 @@ export function getCompetitorScrapeOptions(requestedMaxListings?: number): Scrap
   const maxListings = Math.min(Math.max(raw, 8), 32);
 
   if (isNetlifyCompetitorHost()) {
+    const useApify = process.env.COMPETITOR_SHOP_USE_APIFY === 'true';
     const apifyMs = Math.min(
-      120_000,
-      Math.max(25_000, parseInt(process.env.COMPETITOR_SHOP_APIFY_MAX_MS || '52000', 10))
+      55_000,
+      Math.max(15_000, parseInt(process.env.COMPETITOR_SHOP_APIFY_MAX_MS || '22000', 10))
     );
     return {
       maxListings: Math.min(maxListings, 16),
       maxEnrichListings: Math.min(12, maxListings),
-      apifyMaxTotalWaitMs: apifyMs,
+      preferZenRowsForShopHtml: true,
       skipBrandingApifyFallback: true,
+      disableApifyFallback: !useApify,
+      ...(useApify ? { apifyMaxTotalWaitMs: apifyMs } : {}),
     };
   }
 
