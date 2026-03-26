@@ -37,8 +37,18 @@ function readGeminiChunkSingleWallMs(isProEngine: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  if (isNetlifyRuntime()) return 21_000;
+  if (isNetlifyRuntime()) return 23_000;
   return isProEngine ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
+}
+
+/** Timeout HTTP Gemini pour 1 image en mode chunked sur Netlify (gateway ~26 s : laisser marge à sharp + upload + JSON). */
+function readGeminiNetlifyFastHttpMs(): number {
+  const raw = process.env.GEMINI_NETLIFY_FAST_HTTP_MS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 12_000 && n <= 24_000) return Math.floor(n);
+  }
+  return 19_000;
 }
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
@@ -324,25 +334,6 @@ export async function POST(request: NextRequest) {
 
       const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map(toInlineImagePart))).filter((p): p is { inlineData: { mimeType: string; data: string } } => !!p);
       if (inlineImageParts.length === 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
-          body: JSON.stringify({
-            sessionId: '3a18fa',
-            runId: 'pre-fix',
-            hypothesisId: 'H-C',
-            location: 'generate-images/route.ts:inlineImageParts',
-            message: 'no valid reference inline parts',
-            data: {
-              refInputsCount: refInputs.length,
-              firstRefLen: typeof refInputs[0] === 'string' ? refInputs[0].length : 0,
-              firstRefPrefix: typeof refInputs[0] === 'string' ? refInputs[0].slice(0, 24) : '',
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         return NextResponse.json({
           success: false,
           imageTaskIds: [],
@@ -547,28 +538,6 @@ Pas de texte marketing. Pas de watermark.`
           const errMsg = `No image in response (${elapsed}ms) finish=${finishReason} block=${blockReason} candidates=${data?.candidates?.length ?? 0}`;
           console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
           geminiErrors.push(errMsg);
-          // #region agent log
-          const p0 = parts[0];
-          fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
-            body: JSON.stringify({
-              sessionId: '3a18fa',
-              runId: 'pre-fix',
-              hypothesisId: 'H-E',
-              location: 'generate-images/route.ts:tryGeminiOnce',
-              message: 'gemini response no inline image',
-              data: {
-                model,
-                finishReason: String(finishReason ?? ''),
-                blockReason: String(blockReason ?? ''),
-                partsLen: parts.length,
-                part0keys: p0 && typeof p0 === 'object' ? Object.keys(p0 as object) : [],
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
         } catch (e: any) {
           const name = e?.name || '';
           if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
@@ -593,20 +562,30 @@ Pas de texte marketing. Pas de watermark.`
         return tryGeminiOnce(prompt, geminiImageEditModel, partsForAttempt, timeoutMs);
       };
 
-      /** Pro preview très lent ; hors Netlify on laisse respirer. Sur Netlify gateway ~26s on reste serré. */
-      const geminiHttpCapMs = isNetlifyHost
-        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === 'pro' ? 25_000 : 20_000)
-        : engineSafe === 'pro'
-          ? 95_000
-          : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+      /**
+       * Netlify : gateway ~26 s → une seule tentative Gemini assez courte (chunked 1 image / requête).
+       * Hors Netlify ou hors chunked : budgets longs + retries.
+       */
+      const netlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
+      const geminiHttpCapMs = netlifyFastSingle
+        ? readGeminiNetlifyFastHttpMs()
+        : isNetlifyHost
+          ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === 'pro' ? 25_000 : 20_000)
+          : engineSafe === 'pro'
+            ? 95_000
+            : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
           (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
         );
         const isMensurationsPrompt = promptIndex === 3;
+        const maxStandardAttempts = netlifyFastSingle ? 1 : 3;
 
         if (isMensurationsPrompt) {
+          if (netlifyFastSingle) {
+            return tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+          }
           for (let round = 0; round < 3; round++) {
             let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
             if (img) return img;
@@ -618,10 +597,10 @@ Pas de texte marketing. Pas de watermark.`
           return null;
         }
 
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < maxStandardAttempts; attempt++) {
           const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
           if (img) return img;
-          if (attempt < 2) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
+          if (attempt < maxStandardAttempts - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
         }
         return null;
       };
@@ -661,35 +640,16 @@ Pas de texte marketing. Pas de watermark.`
             ? geminiErrors.slice(-3).join(' | ')
             : 'Aucune erreur Gemini capturée (réponses vides ?)';
           console.error(`[IMAGE GEN] Gemini 0 images. Errors: ${geminiDetail}`);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
-            body: JSON.stringify({
-              sessionId: '3a18fa',
-              runId: 'pre-fix',
-              hypothesisId: 'H-A',
-              location: 'generate-images/route.ts:zeroImages',
-              message: 'gemini produced zero urls',
-              data: {
-                model: geminiImageEditModel,
-                engine: engineSafe,
-                geminiHttpCapMs,
-                chunkSingleWallMs: isFastChunkedSingle ? chunkSingleWallMs : null,
-                wallMs,
-                errorsTail: geminiErrors.slice(-5),
-                elapsedMs: Date.now() - startTime,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
+          const netlifyHint =
+            netlifyFastSingle && isNetlifyHost
+              ? ' Sur Netlify (~25 s max par requête), réessaie ou utilise « Nano Banana (2.5) » si l’IA est trop lente.'
+              : '';
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: `Gemini ${geminiImageEditModel}: ${geminiDetail}`,
+            message: `Gemini ${geminiImageEditModel}: ${geminiDetail}${netlifyHint}`,
           });
         }
         if (!skipCreditDeduction) {
@@ -713,21 +673,6 @@ Pas de texte marketing. Pas de watermark.`
             console.error(
               `[IMAGE GEN] Upload failed for image ${i + 1}; refusing base64 in prod (réponse JSON > limite gateway)`
             );
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
-              body: JSON.stringify({
-                sessionId: '3a18fa',
-                runId: 'pre-fix',
-                hypothesisId: 'H-D',
-                location: 'generate-images/route.ts:supabaseUpload',
-                message: 'storage upload failed no base64 fallback',
-                data: { imageIndex: i, nodeEnv: process.env.NODE_ENV },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
             return NextResponse.json(
               {
                 success: false,

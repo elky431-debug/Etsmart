@@ -172,7 +172,15 @@ export async function runChunkedImageGeneration(opts: {
     let lastError = `Image ${index + 1}: aucun visuel retourné`;
     console.log(`[CHUNKED] Slot ${index} start`);
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const isProdSite =
+      typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1';
+    const slotHttpAttempts = isProdSite ? 2 : retryAttemptsPerSlot;
+    const slotInnerTries = isProdSite ? 1 : 2;
+    const retryBackoffMs = isProdSite ? 700 : 1200;
+
+    for (let attempt = 0; attempt < slotInnerTries; attempt++) {
       const payload = {
         ...imageBase,
         quantity: 1,
@@ -181,7 +189,7 @@ export async function runChunkedImageGeneration(opts: {
         promptStartIndex: index,
         clientChunkAttempt: attempt,
       };
-      const res = await fetchGenerateImagesWithRetry(payload, token, retryAttemptsPerSlot, 1200);
+      const res = await fetchGenerateImagesWithRetry(payload, token, slotHttpAttempts, retryBackoffMs);
       let json: Record<string, unknown> = {};
       try {
         json = (await res.json()) as Record<string, unknown>;
@@ -198,31 +206,6 @@ export async function runChunkedImageGeneration(opts: {
         payloadHint,
         `engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`,
       );
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
-        body: JSON.stringify({
-          sessionId: '3a18fa',
-          runId: 'pre-fix',
-          hypothesisId: 'H-CLIENT',
-          location: 'gemini-chunked-image-client.ts:runSingleIndex',
-          message: 'chunked slot api response',
-          data: {
-            slot: index,
-            attempt,
-            httpStatus: res.status,
-            ok: res.ok,
-            successField: json.success === true ? true : json.success === false ? false : null,
-            err: typeof json.error === 'string' ? json.error : null,
-            msgSnippet: (parsed.message || '').slice(0, 280),
-            urlCount: parsed.imageDataUrls.length,
-            model: parsed.model,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!res.ok) {
         if (
           res.status === 403 &&

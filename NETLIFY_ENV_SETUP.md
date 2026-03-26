@@ -34,24 +34,27 @@ Vous devez ajouter les variables suivantes dans Netlify :
    - Tu peux l’omettre si tout passe par Gemini.
 
 7. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
-   - Si non défini:
-     - sur **Netlify**, l’application prend maintenant un budget auto d’environ **19 s** par image pour éviter les **504**,
-     - hors Netlify, elle garde le budget long **~52 s (flash) / ~56 s (pro)**.
-   - Si besoin, vous pouvez forcer une valeur manuelle, par ex. `18000` à `22000` sur Netlify selon votre plan.
+   - Sur **Netlify**, défaut interne **~23 s** (budget interne par image en mode chunked).
+   - Hors Netlify, budgets longs (flash / pro).
+   - Plage possible si tu forces la variable : `12000`–`120000`.
 
-8. **`ALIEXPRESS_APP_KEY`** (requis pour importer les commandes AliExpress)
+8. **`GEMINI_NETLIFY_FAST_HTTP_MS`** (optionnel)
+   - Timeout **une** requête HTTP vers Gemini pour **1 image** en mode chunked sur Netlify (évite les **504** gateway ~26 s).
+   - Défaut **19000** (19 s). Plage **12000**–**24000** si tu la définis.
+
+9. **`ALIEXPRESS_APP_KEY`** (requis pour importer les commandes AliExpress)
    - Clé application AliExpress Open Platform.
 
-9. **`ALIEXPRESS_APP_SECRET`** (requis pour la signature MD5 AliExpress)
+10. **`ALIEXPRESS_APP_SECRET`** (requis pour la signature MD5 AliExpress)
    - Secret application AliExpress Open Platform.
 
-10. **`ALIEXPRESS_ACCESS_TOKEN`** (requis comme fallback serveur)
+11. **`ALIEXPRESS_ACCESS_TOKEN`** (requis comme fallback serveur)
    - Token AliExpress global utilisé si l’utilisateur n’a pas encore connecté son OAuth.
 
-11. **`PARCELSAPP_API_KEY`** (requis pour l’enregistrement tracking)
+12. **`PARCELSAPP_API_KEY`** (requis pour l’enregistrement tracking)
    - Clé API Parcelsapp utilisée par `/api/orders/add` et `/api/orders/poll`.
 
-12. **`CRON_SECRET`** (requis pour sécuriser le cron)
+13. **`CRON_SECRET`** (requis pour sécuriser le cron)
    - Secret envoyé dans le header `x-cron-secret` vers `/api/orders/poll`.
 
 ## 🔧 Comment configurer sur Netlify
