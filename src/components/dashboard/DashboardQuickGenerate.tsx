@@ -59,13 +59,12 @@ const formatCredits = (n: number) => {
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
 /**
- * Maintenance : activée tant que `NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE` n’est pas `false`.
- * Même code en local et en prod — en local, mets dans `.env.local` :
- *   NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE=false
- * puis redémarre `npm run dev` pour retrouver l’UI complète pendant que la prod reste en maintenance.
+ * Maintenance : uniquement si `NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE=true` (ou `1`) au build.
+ * Sinon l’UI complète « Génération rapide » est affichée.
  */
 const QUICK_GENERATE_MAINTENANCE =
-  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE !== 'false';
+  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === 'true' ||
+  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === '1';
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -336,6 +335,7 @@ export function DashboardQuickGenerate() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ sourceImage: imageBase64 }),
+        signal: AbortSignal.timeout(120_000),
       });
 
       // Parser listing – si échec, on arrête tout (on ne génère PAS les images seules)
@@ -432,7 +432,14 @@ export function DashboardQuickGenerate() {
       
     } catch (error: any) {
       console.error('Error generating:', error);
-      setError(error.message || 'Erreur lors de la génération');
+      const name = error?.name || '';
+      if (name === 'AbortError' || name === 'TimeoutError') {
+        setError(
+          'Délai dépassé pendant la génération du listing (souvent un timeout serveur). Réessaie dans un instant.'
+        );
+      } else {
+        setError(error.message || 'Erreur lors de la génération');
+      }
       setGeneratedImages([]);
       setListingData(null);
     } finally {

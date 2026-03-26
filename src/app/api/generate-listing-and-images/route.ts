@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
 
-export const maxDuration = 25;
+/** Netlify / hébergeurs : laisser assez de marge pour 2 appels OpenAI + vision (évite 504 + chargement infini côté client). */
+export const maxDuration = 60;
 export const runtime = 'nodejs';
 
 /**
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
         ]}],
         max_tokens: 240,
       }),
+      signal: AbortSignal.timeout(55_000),
     });
     if (!analysisResp.ok) return NextResponse.json({ error: 'IMAGE_ANALYSIS_FAILED' }, { status: 500 });
     const analysisData = await analysisResp.json();
@@ -58,6 +60,7 @@ export async function POST(request: NextRequest) {
       fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(55_000),
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
@@ -124,6 +127,7 @@ Return ONLY the final description text.`,
       fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(55_000),
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [

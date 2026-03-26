@@ -66,12 +66,25 @@ async function uploadBase64ToSupabase(
       console.warn('[IMAGE GEN] Supabase upload error:', error.message);
       return null;
     }
+    // URL signée (fonctionne même si le bucket n’est pas « public » en lecture).
+    const signed = await supabase.storage
+      .from('generated-images')
+      .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+    if (!signed.error && signed.data?.signedUrl) {
+      return signed.data.signedUrl;
+    }
     const { data } = supabase.storage.from('generated-images').getPublicUrl(fileName);
     return data?.publicUrl ?? null;
   } catch (e: any) {
     console.warn('[IMAGE GEN] Supabase upload crash:', e.message);
     return null;
   }
+}
+
+function allowBase64ImageFallback(): boolean {
+  return (
+    process.env.NODE_ENV === 'development' || process.env.IMAGE_ALLOW_BASE64_FALLBACK === 'true'
+  );
 }
 
 async function runGeminiImagePromptsInBatches(
@@ -592,10 +605,24 @@ Pas de texte marketing. Pas de watermark.`
           if (url) {
             uploadedUrls.push(url);
             console.log(`[IMAGE GEN] Uploaded image ${i + 1} to Supabase: ${url.substring(0, 80)}`);
-          } else {
-            // Fallback: return base64 if upload fails (local dev or bucket missing)
+          } else if (allowBase64ImageFallback()) {
             uploadedUrls.push(imageDataUrls[i]);
-            console.warn(`[IMAGE GEN] Upload failed for image ${i + 1}, falling back to base64`);
+            console.warn(`[IMAGE GEN] Upload failed for image ${i + 1}, falling back to base64 (dev only)`);
+          } else {
+            console.error(
+              `[IMAGE GEN] Upload failed for image ${i + 1}; refusing base64 in prod (réponse JSON > limite gateway)`
+            );
+            return NextResponse.json(
+              {
+                success: false,
+                imageTaskIds: [],
+                imageDataUrls: [],
+                error: 'IMAGE_STORAGE_FAILED',
+                message:
+                  'Enregistrement des images impossible (Supabase). Vérifie le bucket « generated-images », les droits du service role, et NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY sur Netlify.',
+              },
+              { status: 500 }
+            );
           }
         }
         const partial = uploadedUrls.length < numImages;
