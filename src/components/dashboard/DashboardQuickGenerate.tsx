@@ -106,12 +106,11 @@ export function DashboardQuickGenerate() {
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(7);
-  /** Prod : Nano Banana (2.5) par défaut — moins de timeouts Netlify que Gemini 3.1 (option « Pro »). */
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
-  const engineForApi: ImageEngine = engine;
-  const billingEngine: ImageEngine = engineForApi;
+  /** Dashboard : requêtes image en mode flash (voir `engine` pour l’état des boutons uniquement). */
+  const engineForApi: ImageEngine = 'flash';
+  const billingEngine: ImageEngine = 'flash';
   const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, billingEngine);
   const quickGenerateCredits = quickGenerateTotalCredits(quantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -490,7 +489,7 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // Deduct credits côté client (pricing dépend de engine + quantity)
+      // Deduct credits côté client (tarif images = flash sur ce flux)
       const creditsToDeduct = imagesOnlyCredits;
       const quotaCheck = await fetch('/api/deduct-credits', {
         method: 'POST',
@@ -926,9 +925,9 @@ export function DashboardQuickGenerate() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
-                      title="Nano Banana 2 (Gemini 3.1 Flash Image) — plus de crédits, meilleure qualité ; peut dépasser le délai Netlify si le job async n’est pas actif."
+                      title="Profil Nano Banana 2"
                     >
-                      Nano Banana 2 (Gemini 3.1)
+                      Nano Banana 2
                     </button>
                   </div>
                 </div>
