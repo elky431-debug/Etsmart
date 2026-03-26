@@ -51,14 +51,33 @@ export async function fetchGenerateImagesWithRetry(
   return last!;
 }
 
+function pickApiMessage(json: Record<string, unknown>): string | null {
+  const m = json.message;
+  if (typeof m === 'string' && m.trim().length > 0) return m.trim();
+  if (m != null && typeof m === 'object') {
+    try {
+      const s = JSON.stringify(m);
+      return s.length > 400 ? `${s.slice(0, 400)}…` : s;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function parseGenerateImageResponse(json: Record<string, unknown>) {
   const imageTaskIds: string[] = Array.isArray(json.imageTaskIds)
     ? (json.imageTaskIds as unknown[]).filter((t): t is string => typeof t === 'string' && t.length > 0)
     : [];
   const imageDataUrls: string[] = Array.isArray(json.imageDataUrls)
-    ? (json.imageDataUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.length > 20)
+    ? (json.imageDataUrls as unknown[]).filter((u): u is string => {
+        if (typeof u !== 'string') return false;
+        const t = u.trim();
+        if (t.length < 12) return false;
+        return t.startsWith('http') || t.startsWith('data:image/');
+      })
     : [];
-  const message = typeof json.message === 'string' && json.message.trim().length > 0 ? json.message.trim() : null;
+  const message = pickApiMessage(json);
   const errorCode = typeof json.error === 'string' ? json.error : null;
   const provider = typeof json.provider === 'string' ? json.provider : null;
   const model = typeof json.model === 'string' ? json.model : null;
@@ -99,7 +118,8 @@ async function runWithConcurrency<T>(
   maxConcurrency: number,
   worker: (item: T) => Promise<void>
 ): Promise<void> {
-  const cap = Math.max(1, Math.min(maxConcurrency, items.length || 1));
+  if (items.length === 0) return;
+  const cap = Math.max(1, Math.min(maxConcurrency, items.length));
   let cursor = 0;
   const runners = Array.from({ length: cap }, async () => {
     while (true) {
@@ -145,7 +165,7 @@ export async function runChunkedImageGeneration(opts: {
     let lastError = `Image ${index + 1}: aucun visuel retourné`;
     console.log(`[CHUNKED] Slot ${index} start`);
 
-    for (let attempt = 0; attempt < 1; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const payload = {
         ...imageBase,
         quantity: 1,
@@ -162,11 +182,15 @@ export async function runChunkedImageGeneration(opts: {
         json = {};
       }
       const parsed = parseGenerateImageResponse(json);
-      if (parsed.model || parsed.provider || parsed.requestedEngine) {
-        console.log(
-          `[CHUNKED] Slot ${index} engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`
-        );
-      }
+      const apiDeclined = json.success === false;
+      const successStr =
+        json.success === true ? 'true' : json.success === false ? 'false' : '∅';
+      const payloadHint = `status=${res.status} ok=${res.ok} success=${successStr} urls=${parsed.imageDataUrls.length} tasks=${parsed.imageTaskIds.length}`;
+      console.log(
+        `[CHUNKED] Slot ${index} attempt=${attempt}`,
+        payloadHint,
+        `engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`,
+      );
       if (!res.ok) {
         if (
           res.status === 403 &&
@@ -177,7 +201,22 @@ export async function runChunkedImageGeneration(opts: {
           console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
           return;
         }
-        lastError = parsed.message || `Image ${index + 1}: erreur API ${res.status}`;
+        lastError =
+          parsed.message ||
+          (parsed.errorCode
+            ? `Image ${index + 1}: ${parsed.errorCode} (HTTP ${res.status})`
+            : `Image ${index + 1}: erreur API ${res.status}`);
+        console.error(`[CHUNKED] Slot ${index} HTTP ${res.status}`, parsed.errorCode, parsed.message);
+        continue;
+      }
+
+      if (apiDeclined && parsed.imageDataUrls.length === 0 && parsed.imageTaskIds.length === 0) {
+        lastError =
+          parsed.message ||
+          (parsed.errorCode
+            ? `Image ${index + 1}: ${parsed.errorCode} (réponse success=false)`
+            : `Image ${index + 1}: réponse API success=false sans détail`);
+        console.error(`[CHUNKED] Slot ${index} success=false`, lastError);
         continue;
       }
 
@@ -191,12 +230,17 @@ export async function runChunkedImageGeneration(opts: {
         console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
         return;
       }
-      lastError = parsed.message || `Image ${index + 1}: aucun visuel retourné`;
+      lastError =
+        parsed.message ||
+        (parsed.errorCode
+          ? `Image ${index + 1}: ${parsed.errorCode}`
+          : `Image ${index + 1}: aucun visuel retourné`);
+      console.error(`[CHUNKED] Slot ${index} pas d’URL après réponse OK`, lastError, payloadHint);
     }
 
     errors.push(lastError);
     markDone(index);
-    console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
+    console.error(`[CHUNKED] Slot ${index} terminé en échec — ${lastError}`);
   };
 
   const indexes = Array.from({ length: imageCount }, (_, i) => i);
@@ -216,7 +260,12 @@ export async function runChunkedImageGeneration(opts: {
   }
 
   const images = slots.filter((img): img is ChunkedGeneratedImage => img !== null);
-  if (errors.length === 0) return { images, warning: null };
+  if (errors.length === 0) {
+    if (images.length === 0) {
+      return { images, warning: `Aucun visuel retourné (${imageCount} tentative(s)).` };
+    }
+    return { images, warning: null };
+  }
   return {
     images,
     warning: images.length > 0

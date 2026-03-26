@@ -126,7 +126,6 @@ export default function LabQuickPage() {
   const [copiedTags, setCopiedTags] = useState(false);
   const [copiedDescription, setCopiedDescription] = useState(false);
   const [copiedMaterials, setCopiedMaterials] = useState(false);
-  const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
   const [pendingImagesCount, setPendingImagesCount] = useState(0);
   /** listing | images — pour l’overlay de chargement */
@@ -149,11 +148,10 @@ export default function LabQuickPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem(storageKey);
+      const savedImages = sessionStorage.getItem(`${storageKey}-images`);
+      const savedListing = sessionStorage.getItem(`${storageKey}-listing`);
+
       if (saved === 'true') {
-        setHasGenerated(true);
-        // Si on a des données sauvegardées, les restaurer aussi
-        const savedImages = sessionStorage.getItem(`${storageKey}-images`);
-        const savedListing = sessionStorage.getItem(`${storageKey}-listing`);
         if (savedImages) {
           try {
             const raw = JSON.parse(savedImages);
@@ -167,19 +165,20 @@ export default function LabQuickPage() {
             console.error('Error parsing saved images:', e);
           }
         }
-        if (savedListing) {
-          try {
-            const raw = JSON.parse(savedListing);
-            const listing: ListingData = {
-              title: typeof raw?.title === 'string' ? raw.title : '',
-              description: typeof raw?.description === 'string' ? raw.description : '',
-              tags: Array.isArray(raw?.tags) ? raw.tags : (typeof raw?.tags === 'string' ? raw.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
-              materials: typeof raw?.materials === 'string' ? raw.materials : (raw?.materials != null ? String(raw.materials) : ''),
-            };
-            setListingData(listing);
-          } catch (e) {
-            console.error('Error parsing saved listing:', e);
-          }
+      }
+
+      if (savedListing) {
+        try {
+          const raw = JSON.parse(savedListing);
+          const listing: ListingData = {
+            title: typeof raw?.title === 'string' ? raw.title : '',
+            description: typeof raw?.description === 'string' ? raw.description : '',
+            tags: Array.isArray(raw?.tags) ? raw.tags : (typeof raw?.tags === 'string' ? raw.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
+            materials: typeof raw?.materials === 'string' ? raw.materials : (raw?.materials != null ? String(raw.materials) : ''),
+          };
+          setListingData(listing);
+        } catch (e) {
+          console.error('Error parsing saved listing:', e);
         }
       }
     }
@@ -385,7 +384,6 @@ export default function LabQuickPage() {
         engine: engineForApi,
         style,
         skipCreditDeduction: true,
-        forceNanobanana: true,
         productContext: {
           title: listing.title || '',
           category: '',
@@ -396,9 +394,7 @@ export default function LabQuickPage() {
 
       setQuickGenPhase('images');
       setListingData(listing);
-      setHasGenerated(true);
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem(storageKey, 'true');
         sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
       }
 
@@ -414,14 +410,19 @@ export default function LabQuickPage() {
 
       if (chunkedResult.images.length === 0) {
         setGeneratedImages([]);
-        setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
         if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(storageKey);
           sessionStorage.removeItem(`${storageKey}-images`);
         }
+        setError(
+          chunkedResult.warning ||
+            'La génération des images a échoué. Les visuels ne sont pas encore prêts. Utilise le bloc « Générer les images » ci-dessous ou réessaie.'
+        );
       } else {
         setGeneratedImages(chunkedResult.images);
         setError(chunkedResult.warning);
         if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
           saveImagesToSession(chunkedResult.images);
         }
       }
@@ -570,7 +571,10 @@ export default function LabQuickPage() {
       if (chunkedResult.images.length > 0) {
         setGeneratedImages((prev) => {
           const next = [...prev, ...chunkedResult.images];
-          if (typeof window !== 'undefined') saveImagesToSession(next);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(storageKey, 'true');
+            saveImagesToSession(next);
+          }
           return next;
         });
         setError(chunkedResult.warning);
@@ -785,8 +789,6 @@ export default function LabQuickPage() {
                           setGeneratedImages([]);
                           setListingData(null);
                           setError(null);
-                          // Réinitialiser le statut de génération si on supprime l'image
-                          setHasGenerated(false);
                           if (typeof window !== 'undefined') {
                             sessionStorage.removeItem(storageKey);
                             sessionStorage.removeItem(`${storageKey}-images`);
@@ -947,7 +949,7 @@ export default function LabQuickPage() {
             <div className="mt-8 pt-6 border-t border-white/10">
               <button
                 onClick={generateEverything}
-                disabled={isGenerating || !sourceImagePreview || hasGenerated || (generatedImages.length > 0 && !!listingData)}
+                disabled={isGenerating || !sourceImagePreview || !!listingData}
                 className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-2xl hover:opacity-95 hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/25 flex items-center justify-center gap-3"
               >
                 {isGenerating ? (
@@ -955,7 +957,7 @@ export default function LabQuickPage() {
                     <Loader2 size={20} className="animate-spin" />
                     Génération en cours...
                   </>
-                ) : hasGenerated || (generatedImages.length > 0 && !!listingData) ? (
+                ) : generatedImages.length > 0 && listingData ? (
                   <>
                     <Sparkles size={20} />
                     Génération déjà effectuée
@@ -970,11 +972,10 @@ export default function LabQuickPage() {
                   </>
                 )}
               </button>
-              {!isGenerating && (hasGenerated || (generatedImages.length > 0 && listingData)) && (
+              {!isGenerating && listingData && (
                 <button
                   onClick={() => {
                     // Reset tout l'état pour permettre une nouvelle génération
-                    setHasGenerated(false);
                     setGeneratedImages([]);
                     setListingData(null);
                     setSourceImagePreview(null);

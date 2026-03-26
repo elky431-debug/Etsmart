@@ -456,6 +456,8 @@ Pas de texte marketing. Pas de watermark.`
         `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${GEMINI_IMAGE_EDIT_MODEL}`
       );
 
+      const geminiErrors: string[] = [];
+
       const tryGeminiOnce = async (
         prompt: string,
         model: string,
@@ -463,6 +465,7 @@ Pas de texte marketing. Pas de watermark.`
         timeoutMs: number
       ): Promise<string | null> => {
         try {
+          const t0 = Date.now();
           const res = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
             {
@@ -482,9 +485,12 @@ Pas de texte marketing. Pas de watermark.`
               signal: geminiFetchSignal(timeoutMs),
             }
           );
+          const elapsed = Date.now() - t0;
           if (!res.ok) {
             const t = await res.text().catch(() => '');
-            console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, res.status, t.substring(0, 180));
+            const errMsg = `HTTP ${res.status} (${elapsed}ms): ${t.substring(0, 200)}`;
+            console.warn(`[IMAGE GEN] Gemini ${model} non-ok:`, errMsg);
+            geminiErrors.push(errMsg);
             if (res.status === 429 || res.status === 503) {
               await new Promise((r) => setTimeout(r, 400));
             }
@@ -496,18 +502,26 @@ Pas de texte marketing. Pas de watermark.`
           for (const part of parts) {
             const b64 = part?.inlineData?.data;
             const mime = part?.inlineData?.mimeType || 'image/png';
-            if (typeof b64 === 'string' && b64.length > 100) return `data:${mime};base64,${b64}`;
+            if (typeof b64 === 'string' && b64.length > 100) {
+              console.log(`[IMAGE GEN] Gemini ${model} OK (${elapsed}ms), image ${b64.length} bytes`);
+              return `data:${mime};base64,${b64}`;
+            }
           }
-          console.warn(`[IMAGE GEN] Gemini ${model} réponse sans image`, {
-            finishReason: cand0?.finishReason,
-            blockReason: data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason,
-          });
+          const finishReason = cand0?.finishReason;
+          const blockReason = data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason;
+          const errMsg = `No image in response (${elapsed}ms) finish=${finishReason} block=${blockReason}`;
+          console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
+          geminiErrors.push(errMsg);
         } catch (e: any) {
           const name = e?.name || '';
           if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
-            console.warn(`[IMAGE GEN] Gemini ${model} timeout/abort`);
+            const errMsg = `Timeout/abort after ${timeoutMs}ms`;
+            console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
+            geminiErrors.push(errMsg);
           } else {
-            console.warn(`[IMAGE GEN] Gemini ${model} error:`, e?.message || e);
+            const errMsg = `Exception: ${e?.message || e}`;
+            console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
+            geminiErrors.push(errMsg);
           }
         }
         return null;
@@ -584,12 +598,16 @@ Pas de texte marketing. Pas de watermark.`
           wallMs
         );
         if (imageDataUrls.length === 0) {
+          const geminiDetail = geminiErrors.length > 0
+            ? geminiErrors.slice(-3).join(' | ')
+            : 'Aucune erreur Gemini capturée (réponses vides ?)';
+          console.error(`[IMAGE GEN] Gemini 0 images. Errors: ${geminiDetail}`);
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: 'Gemini n\'a pas renvoyé d\'image. Vérifie la clé et les permissions image generation.',
+            message: `Gemini ${GEMINI_IMAGE_EDIT_MODEL}: ${geminiDetail}`,
           });
         }
         if (!skipCreditDeduction) {
@@ -843,7 +861,7 @@ ${reglesCommunes}`,
               callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
             }
           : {
-              type: 'IMAGETOIAMGE',
+              type: 'IMAGETOIMAGE',
               prompt,
               imageUrls: baseImageUrls,
               image_size: imgSize,
@@ -887,6 +905,7 @@ ${reglesCommunes}`,
         finalPrompt += ` Pas de watermark, pas de logos/textes AliExpress ou marketplace sur l'image — photo produit propre. Pas de texte marketing.`;
       }
       if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
+      const attemptErrors: string[] = [];
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const result = await submitOnce(finalPrompt, engineSafe);
@@ -894,10 +913,14 @@ ${reglesCommunes}`,
             console.log(`[IMAGE GEN] Image ${index + 1} submitted (attempt ${attempt + 1}): ${result.taskId}`);
             return result;
           }
-          console.warn(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} failed: ${result.error}`);
+          const err = result.error || 'unknown error';
+          attemptErrors.push(`try${attempt + 1}: ${err}`);
+          console.warn(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} failed: ${err}`);
           if (attempt < 2) await new Promise(r => setTimeout(r, 500));
         } catch (e: any) {
-          console.error(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} crash: ${e?.message}`);
+          const err = e?.message || 'crash';
+          attemptErrors.push(`try${attempt + 1}: crash ${err}`);
+          console.error(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} crash: ${err}`);
           if (attempt < 2) await new Promise(r => setTimeout(r, 500));
         }
       }
@@ -910,10 +933,13 @@ ${reglesCommunes}`,
           console.warn(`[IMAGE GEN] Pro fallback to Flash succeeded for image ${index + 1}: ${fallback.taskId}`);
           return fallback;
         }
-        return { taskId: null, error: fallback.error || 'Pro submit failed and flash fallback failed' };
+        return {
+          taskId: null,
+          error: `Pro failed; flash fallback failed: ${fallback.error || 'unknown'}${attemptErrors.length ? ` | ${attemptErrors.join(' | ')}` : ''}`,
+        };
       }
 
-      return { taskId: null, error: 'All 3 attempts failed' };
+      return { taskId: null, error: `All 3 attempts failed${attemptErrors.length ? ` | ${attemptErrors.join(' | ')}` : ''}` };
     };
 
     const taskIds: string[] = [];
@@ -928,12 +954,14 @@ ${reglesCommunes}`,
     console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
 
     if (taskIds.length === 0) {
+      const firstDetailedError = errors.find((e) => typeof e === 'string' && e.trim().length > 0) || null;
       return NextResponse.json({
         success: false,
         imageTaskIds: [],
         error: 'IMAGE_SUBMIT_FAILED',
-        message:
-          'Le service Nanobanana n\'a pas accepté la requête. Vérifiez NANONBANANA_API_KEY (ou utilisez GEMINI_API_KEY sans USE_NANOBANANA_IMAGES).',
+        message: firstDetailedError
+          ? `Nanobanana submit failed: ${firstDetailedError}`
+          : 'Le service Nanobanana n\'a pas accepté la requête. Vérifiez NANONBANANA_API_KEY (ou utilisez GEMINI_API_KEY sans USE_NANOBANANA_IMAGES).',
       });
     }
 
