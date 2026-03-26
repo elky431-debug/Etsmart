@@ -17,11 +17,21 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
 }
 
 /**
- * Concurrence : le slot Pro (3.1 preview) est plus lourd que 2.5 ; 2 requêtes parallèles → 429 / timeouts.
- * Pro → 1 slot à la fois ; Flash (2.5) → 2.
+ * Concurrence : Flash → 2 slots. Pro → 1 en local ; sur site déployé, 2 slots (test Netlify : moins de sérialisation pour 7 images).
+ * Désactive avec `NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY=1` sur Netlify si trop de 504 / 429.
  */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (engineMode === 'pro') return 1;
+  if (engineMode === 'pro') {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      const isLocal = h === 'localhost' || h === '127.0.0.1';
+      const forceSerial =
+        typeof process.env.NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY === 'string' &&
+        process.env.NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY.trim() === '1';
+      if (!isLocal && !forceSerial) return 2;
+    }
+    return 1;
+  }
   if (typeof window === 'undefined') return 2;
   return 2;
 }

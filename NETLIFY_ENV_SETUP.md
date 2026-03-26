@@ -34,27 +34,32 @@ Vous devez ajouter les variables suivantes dans Netlify :
    - Tu peux l’omettre si tout passe par Gemini.
 
 7. **`GEMINI_CHUNK_SINGLE_WALL_MS`** (optionnel)
-   - Sur **Netlify**, défaut interne **~23 s** (budget interne par image en mode chunked).
+   - Sur **Netlify**, défaut interne **~25 s** (budget batch interne).
    - Hors Netlify, budgets longs (flash / pro).
-   - Plage possible si tu forces la variable : `12000`–`120000`.
+   - Plage si tu forces la variable : `12000`–`120000`.
 
 8. **`GEMINI_NETLIFY_FAST_HTTP_MS`** (optionnel)
-   - Timeout **une** requête HTTP vers Gemini pour **1 image** en mode chunked sur Netlify (évite les **504** gateway ~26 s).
-   - Défaut **19000** (19 s). Plage **12000**–**24000** si tu la définis.
+   - Timeout **une** requête HTTP vers Gemini pour **1 image** en mode chunked sur Netlify.
+   - Défaut **22000** (22 s). Plage **12000**–**26000** si tu la définis (laisse de la marge pour auth + sharp + upload **dans** le même plafond gateway ~26 s).
+   - Si Nano Banana 2 dépasse souvent ce budget → **Vercel** ou modèle **2.5** sur Netlify.
 
-9. **`ALIEXPRESS_APP_KEY`** (requis pour importer les commandes AliExpress)
+9. **`NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY`** (optionnel)
+   - Sur le site déployé, le client lance **2** requêtes image en parallèle en mode **Pro** (accélère les lots type 7 images).
+   - Mets **`1`** pour revenir au comportement séquentiel si tu vois trop de **504** ou **429**.
+
+10. **`ALIEXPRESS_APP_KEY`** (requis pour importer les commandes AliExpress)
    - Clé application AliExpress Open Platform.
 
-10. **`ALIEXPRESS_APP_SECRET`** (requis pour la signature MD5 AliExpress)
+11. **`ALIEXPRESS_APP_SECRET`** (requis pour la signature MD5 AliExpress)
    - Secret application AliExpress Open Platform.
 
-11. **`ALIEXPRESS_ACCESS_TOKEN`** (requis comme fallback serveur)
+12. **`ALIEXPRESS_ACCESS_TOKEN`** (requis comme fallback serveur)
    - Token AliExpress global utilisé si l’utilisateur n’a pas encore connecté son OAuth.
 
-12. **`PARCELSAPP_API_KEY`** (requis pour l’enregistrement tracking)
+13. **`PARCELSAPP_API_KEY`** (requis pour l’enregistrement tracking)
    - Clé API Parcelsapp utilisée par `/api/orders/add` et `/api/orders/poll`.
 
-13. **`CRON_SECRET`** (requis pour sécuriser le cron)
+14. **`CRON_SECRET`** (requis pour sécuriser le cron)
    - Secret envoyé dans le header `x-cron-secret` vers `/api/orders/poll`.
 
 ## 🔧 Comment configurer sur Netlify

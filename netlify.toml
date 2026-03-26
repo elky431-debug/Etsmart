@@ -11,12 +11,10 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Génération d’images (Gemini) : 1 visuel = 1 requête API. Si 504, voir GEMINI_CHUNK_SINGLE_WALL_MS dans NETLIFY_ENV_SETUP.md
-# ou augmenter la durée max des fonctions (plan Netlify).
+# Génération d’images (Gemini) : plafond gateway ~26 s en synchrone. Voir NETLIFY_ENV_SETUP.md (GEMINI_NETLIFY_FAST_HTTP_MS).
+# Dans Netlify : Site settings → Functions → Function timeout → **26** s (max du plan si dispo).
 
 [functions]
-  # Configuration pour les fonctions Netlify (si utilisées)
-  # Le timeout est configuré dans le code à 45s pour éviter le timeout Netlify (50s)
   directory = "netlify/functions"
 
 # Configuration pour le déploiement continu

@@ -37,18 +37,22 @@ function readGeminiChunkSingleWallMs(isProEngine: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  if (isNetlifyRuntime()) return 23_000;
+  if (isNetlifyRuntime()) return 25_000;
   return isProEngine ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
-/** Timeout HTTP Gemini pour 1 image en mode chunked sur Netlify (gateway ~26 s : laisser marge à sharp + upload + JSON). */
+/**
+ * Timeout HTTP Gemini pour 1 image en mode chunked sur Netlify.
+ * Le gateway coupe souvent ~26 s **au total** (auth + sharp + Gemini + upload Supabase) : référence plus petite + 1 tentative.
+ * Monte `GEMINI_NETLIFY_FAST_HTTP_MS` jusqu’à 25000 si ton plan tolère ; au-delà → 504 ou Vercel.
+ */
 function readGeminiNetlifyFastHttpMs(): number {
   const raw = process.env.GEMINI_NETLIFY_FAST_HTTP_MS;
   if (raw != null && String(raw).trim() !== '') {
     const n = Number(raw);
-    if (Number.isFinite(n) && n >= 12_000 && n <= 24_000) return Math.floor(n);
+    if (Number.isFinite(n) && n >= 12_000 && n <= 26_000) return Math.floor(n);
   }
-  return 19_000;
+  return 22_000;
 }
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
@@ -305,15 +309,16 @@ export async function POST(request: NextRequest) {
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
             const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
+            // Netlify : image plus légère = moins de temps sharp + payload Gemini + upload (marge pour le plafond ~26 s).
             const maxSide = isNetlifyFastSingle
-              ? 768
+              ? 640
               : isFastChunkedSingle
                 ? (isProEngine ? 1024 : 896)
                 : isProEngine
                   ? 1024
                   : 768;
             const jpegQ = isNetlifyFastSingle
-              ? 76
+              ? 72
               : isFastChunkedSingle
                 ? (isProEngine ? 88 : 80)
                 : isProEngine
