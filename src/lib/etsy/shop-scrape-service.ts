@@ -1,6 +1,6 @@
 /**
  * Scraping boutique Etsy (HTML + enrichissement par listing).
- * Utilisé par /api/shop/scrape et /api/etsy/competitor-shop-analysis.
+ * Utilisé par /api/shop/scrape et /api/etsy/competitor-shop-scrape.
  */
 
 import * as cheerio from 'cheerio';
@@ -1789,6 +1789,8 @@ export type ScrapeShopOptions = {
   apifyMaxTotalWaitMs?: number;
   /** Désactive totalement l’appel Apify fallback (mode rapide). */
   disableApifyFallback?: boolean;
+  /** Si true, n’appelle pas Apify une 2e fois uniquement pour le branding (gain de temps sur Netlify). */
+  skipBrandingApifyFallback?: boolean;
 };
 
 /**
@@ -1996,7 +1998,8 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
   if (
     (!branding.bannerUrl || !branding.logoUrl) &&
     !usedApifyListings &&
-    isApifyConfigured('listing')
+    isApifyConfigured('listing') &&
+    !options.skipBrandingApifyFallback
   ) {
     try {
       const { branding: apifyOnly } = await fetchShopListingsViaApify(

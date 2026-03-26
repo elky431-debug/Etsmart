@@ -109,24 +109,67 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
         return;
       }
 
-      const controller = new AbortController();
-      /** Apify peut monter ~3 min + GPT-4o jusqu’à 120 s + marge réseau */
-      const timeoutMs = 330_000;
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      let res: Response;
+      /** Deux requêtes : scrape (Netlify ~60 s max) puis synthèse GPT (~60 s), évite le 504 gateway. */
+      const scrapeController = new AbortController();
+      const scrapeTimeoutId = setTimeout(() => scrapeController.abort(), 95_000);
+      let scrapeRes: Response;
       try {
-        res = await fetch('/api/etsy/competitor-shop-analysis', {
+        scrapeRes = await fetch('/api/etsy/competitor-shop-scrape', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ shopUrl: clean, maxListings: 18 }),
-          signal: controller.signal,
+          signal: scrapeController.signal,
         });
       } finally {
-        clearTimeout(timeoutId);
+        clearTimeout(scrapeTimeoutId);
+      }
+
+      const scrapeText = await scrapeRes.text();
+      let scrapeData = {} as ApiOk & ApiErr & { shop?: ShopPayload };
+      if (scrapeText.trim()) {
+        try {
+          scrapeData = JSON.parse(scrapeText) as ApiOk & ApiErr & { shop?: ShopPayload };
+        } catch {
+          setError(
+            scrapeRes.ok
+              ? 'Réponse serveur illisible (étape scraping). Réessaie.'
+              : `Erreur ${scrapeRes.status} — réponse non JSON (étape scraping).`
+          );
+          return;
+        }
+      }
+
+      if (!scrapeRes.ok) {
+        setError(scrapeData.message || scrapeData.error || `Erreur ${scrapeRes.status} (scraping)`);
+        if (scrapeData.shop) setShop(scrapeData.shop as ShopPayload);
+        return;
+      }
+
+      if (!scrapeData.success || !scrapeData.shop) {
+        setError('Étape scraping incomplète. Réessaie.');
+        return;
+      }
+
+      const shopPayload = scrapeData.shop as ShopPayload;
+
+      const synthController = new AbortController();
+      const synthTimeoutId = setTimeout(() => synthController.abort(), 95_000);
+      let res: Response;
+      try {
+        res = await fetch('/api/etsy/competitor-shop-synthesize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ shop: shopPayload }),
+          signal: synthController.signal,
+        });
+      } finally {
+        clearTimeout(synthTimeoutId);
       }
 
       const rawText = await res.text();
@@ -145,7 +188,7 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
       }
 
       if (!res.ok) {
-        setError(data.message || data.error || `Erreur ${res.status}`);
+        setError(data.message || data.error || `Erreur ${res.status} (analyse IA)`);
         if (data.shop) setShop(data.shop as ShopPayload);
         return;
       }
@@ -153,12 +196,12 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
         setShop(data.shop);
         setAnalysis(data.analysis);
       } else {
-        setError('Réponse incomplète du serveur. Réessaie.');
+        setError('Réponse incomplète du serveur (étape analyse). Réessaie.');
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         setError(
-          'Délai dépassé (~5 min) : scraping + analyse IA trop longs. Réessaie ou vérifie ta connexion / les logs serveur.'
+          'Délai dépassé : l’étape scraping ou l’analyse IA a pris trop de temps. Réessaie (sur la prod, chaque étape est limitée à ~1 min).'
         );
         return;
       }
@@ -208,8 +251,8 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
             </button>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-white/40">
-            Compte souvent 2 à 5 minutes : scraping Etsy (Apify) puis synthèse GPT-4o. Laisse l’onglet ouvert pendant le
-            chargement.
+            Deux étapes côté serveur : récupération des listings (Apify), puis synthèse GPT-4o. Sur l’hébergement, chaque
+            étape reste sous ~1 min pour éviter les coupures réseau (504) — en local, ça peut être plus long.
           </p>
           {error ? (
             <div className="mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
