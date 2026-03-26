@@ -6,6 +6,7 @@ export type CompetitorCardListingInput = {
   images?: string[];
   tags?: string[];
   description?: string;
+  materials?: string[];
   sales?: number;
   /** Note moyenne Etsy (0–5) si présente dans le JSON */
   listingStars?: number;
@@ -20,6 +21,60 @@ export type CompetitorCardContext = {
   peerTitlesInSample?: string[];
 };
 
+const STOP_TITLE = new Set(
+  [
+    'the',
+    'and',
+    'for',
+    'with',
+    'your',
+    'from',
+    'this',
+    'that',
+    'vous',
+    'pour',
+    'avec',
+    'dans',
+    'une',
+    'des',
+    'les',
+    'aux',
+    'sur',
+    'sans',
+    'plus',
+    'très',
+    'petit',
+    'grand',
+  ].map((w) => w.toLowerCase())
+);
+
+/** Mots-clés distincts dans le titre (proxy quand les tags ne sont pas scrapés). */
+function distinctTitleTokens(title: string): number {
+  const raw = title.toLowerCase().match(/[a-zàâäéèêëïîôùûüç0-9]{3,}/g) || [];
+  const filtered = raw.filter((w) => !STOP_TITLE.has(w));
+  return new Set(filtered).size;
+}
+
+function effectiveTagCount(tags: string[] | undefined, title: string): { n: number; fromTitleFallback: boolean } {
+  const tn = tags?.filter(Boolean).length ?? 0;
+  if (tn > 0) return { n: tn, fromTitleFallback: false };
+  const pseudo = distinctTitleTokens(title);
+  return { n: Math.min(13, Math.max(0, pseudo)), fromTitleFallback: true };
+}
+
+function effectiveDescriptionLength(
+  desc: string | undefined,
+  materials: string[] | undefined,
+  tags: string[] | undefined
+): { len: number; usedFallback: boolean } {
+  const d = (desc || '').trim().length;
+  if (d > 0) return { len: d, usedFallback: false };
+  const m = (materials || []).join(' ').trim().length;
+  const t = (tags?.filter(Boolean).length ?? 0) * 14;
+  const fallback = m + t;
+  return { len: fallback, usedFallback: fallback > 0 };
+}
+
 function scoreTitleLength(title: string): number {
   const t = title.trim();
   if (!t) return 0;
@@ -28,6 +83,27 @@ function scoreTitleLength(title: string): number {
   if (len >= 40 && len < 70) return 78;
   if (len > 140) return 68;
   return 52;
+}
+
+/** Densité / diversité des mots (varie beaucoup d’une fiche à l’autre même avec même tranche de longueur). */
+function scoreTitleWordMetrics(title: string): number {
+  const t = title.trim();
+  if (!t) return 25;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 25;
+  const norm = words.map((w) => w.toLowerCase().replace(/[^a-zàâäéèêëïîôùûüç0-9-]/gi, '')).filter(Boolean);
+  const uniq = new Set(norm).size;
+  const ratio = uniq / norm.length;
+  let s = 58;
+  if (words.length >= 6 && words.length <= 16) s += 18;
+  else if (words.length >= 4 && words.length <= 20) s += 10;
+  else if (words.length > 22) s -= 12;
+  if (ratio >= 0.82) s += 14;
+  else if (ratio >= 0.65) s += 6;
+  else if (ratio < 0.45) s -= 10;
+  const digits = (t.match(/\d/g) || []).length;
+  if (digits >= 2 && digits <= 14) s += 6;
+  return clampScore(s);
 }
 
 /** Plus les titres du même lot se ressemblent au début, plus le score baisse (vraie différenciation). */
@@ -55,34 +131,66 @@ function scoreTitleUniqueness(title: string, peers: string[] | undefined): numbe
 function combinedTitleScore(title: string, ctx?: CompetitorCardContext): number {
   const lenScore = scoreTitleLength(title);
   const uniq = scoreTitleUniqueness(title, ctx?.peerTitlesInSample);
-  return clampScore(Math.round(lenScore * 0.52 + uniq * 0.48));
+  const wordM = scoreTitleWordMetrics(title);
+  return clampScore(Math.round(lenScore * 0.34 + uniq * 0.32 + wordM * 0.34));
 }
 
-function scoreTags(tags: string[] | undefined): number {
-  const n = tags?.length ?? 0;
-  if (n >= 11) return 95;
-  if (n >= 7) return 82;
-  if (n >= 3) return 68;
-  if (n >= 1) return 58;
-  return 72;
+function scoreTagsEffective(n: number, fromFallback: boolean): number {
+  let s: number;
+  if (n >= 11) s = 95;
+  else if (n >= 7) s = 82;
+  else if (n >= 4) s = 72;
+  else if (n >= 2) s = 62;
+  else if (n >= 1) s = 52;
+  else s = 38;
+  if (fromFallback) s = clampScore(Math.round(s * 0.88));
+  return clampScore(s);
+}
+
+/** Richesse des URLs (chemins différents = fiches différentes même avec 1 vignette scrapée). */
+function imageSetRichness(urls: string[]): { n: number; uniqueRoots: number; pathScore: number } {
+  const clean = urls.map((u) => u.trim().split('?')[0].toLowerCase()).filter(Boolean);
+  const n = clean.length;
+  const uniqueRoots = new Set(clean).size;
+  let pathScore = 0;
+  for (const u of clean) {
+    try {
+      const path = new URL(u.startsWith('http') ? u : `https:${u}`).pathname;
+      const segs = path.split('/').filter(Boolean).length;
+      const digits = (path.match(/\d/g) || []).length;
+      pathScore += Math.min(18, segs * 2 + Math.min(8, digits));
+    } catch {
+      pathScore += Math.min(12, u.length / 25);
+    }
+  }
+  return { n, uniqueRoots, pathScore: Math.round(pathScore / Math.max(1, n)) };
 }
 
 function scoreImages(images: string[] | undefined): number {
-  const n = images?.filter(Boolean).length ?? 0;
-  if (n >= 8) return 100;
-  if (n >= 4) return 82;
-  if (n >= 2) return 65;
-  if (n === 1) return 48;
-  return 28;
+  const raw = images?.filter(Boolean) ?? [];
+  if (raw.length === 0) return 28;
+  const { n, uniqueRoots, pathScore } = imageSetRichness(raw);
+  let base: number;
+  if (n >= 8) base = 100;
+  else if (n >= 4) base = 82;
+  else if (n >= 2) base = 68;
+  else base = 52;
+  if (n === 1) {
+    base = 48 + Math.min(22, pathScore);
+  }
+  if (uniqueRoots > 1) base += Math.min(10, (uniqueRoots - 1) * 4);
+  return clampScore(base);
 }
 
-function scoreDescription(desc: string | undefined): number {
-  const len = (desc || '').trim().length;
-  if (len >= 400) return 95;
-  if (len >= 150) return 78;
-  if (len >= 50) return 58;
-  if (len > 0) return 42;
-  return 22;
+function scoreDescriptionEffective(len: number, usedFallback: boolean): number {
+  let s: number;
+  if (len >= 400) s = 95;
+  else if (len >= 150) s = 78;
+  else if (len >= 50) s = 58;
+  else if (len > 0) s = 44;
+  else s = 22;
+  if (usedFallback && len > 0) s = clampScore(Math.round(s * 0.9));
+  return clampScore(s);
 }
 
 function scoreSalesSignal(sales: number | undefined): number {
@@ -126,7 +234,7 @@ function scorePriceVsShop(price: number, median: number | undefined): number {
 }
 
 /**
- * Score 0–100 + note lettre : chaque fiche diffère (prix vs médiane, similarité des titres, images réelles du JSON, social Etsy).
+ * Score 0–100 + note lettre : chaque fiche est comparée avec des signaux réels (titre, médias, texte, tags ou proxies).
  */
 export function scoreCompetitorListingCard(
   l: CompetitorCardListingInput,
@@ -136,10 +244,17 @@ export function scoreCompetitorListingCard(
   grade: string;
   verbal: string;
 } {
+  const { n: effTags, fromTitleFallback: tagFb } = effectiveTagCount(l.tags, l.title);
+  const { len: effDescLen, usedFallback: descFb } = effectiveDescriptionLength(
+    l.description,
+    l.materials,
+    l.tags
+  );
+
   const t = combinedTitleScore(l.title, ctx);
-  const g = scoreTags(l.tags);
+  const g = scoreTagsEffective(effTags, tagFb);
   const i = scoreImages(l.images);
-  const d = scoreDescription(l.description);
+  const d = scoreDescriptionEffective(effDescLen, descFb);
   const p = scorePriceVsShop(l.price, ctx?.shopMedianPrice);
   const soc = scoreSocial(l);
 
@@ -163,40 +278,50 @@ export function getCompetitorListingScoreBreakdown(
   price: CompetitorAxisScore;
   social: CompetitorAxisScore;
 } {
+  const { n: effTags, fromTitleFallback: tagFb } = effectiveTagCount(l.tags, l.title);
+  const { len: effDescLen, usedFallback: descFb } = effectiveDescriptionLength(
+    l.description,
+    l.materials,
+    l.tags
+  );
+
   const lenScore = scoreTitleLength(l.title);
   const uniqScore = scoreTitleUniqueness(l.title, ctx?.peerTitlesInSample);
+  const wordM = scoreTitleWordMetrics(l.title);
   const titleScore = combinedTitleScore(l.title, ctx);
   const len = l.title.trim().length;
-  const titleDetail = `Longueur ${lenScore}/100 + différenciation vs les autres fiches ${uniqScore}/100 (moyenne pondérée ${titleScore}/100). ${len} car. dans le titre.`;
+  const titleDetail = `Longueur ${lenScore}/100 · différenciation vs les autres ${uniqScore}/100 · structure mots ${wordM}/100 → ${titleScore}/100 (${len} car.)`;
 
-  const g = scoreTags(l.tags);
-  const nTags = l.tags?.length ?? 0;
-  const tagsDetail =
-    nTags >= 11
+  const g = scoreTagsEffective(effTags, tagFb);
+  const nTagsReal = l.tags?.filter(Boolean).length ?? 0;
+  const tagsDetail = tagFb
+    ? `Tags non scrapés : estimation ${effTags} « intentions » distinctes dans le titre (à confirmer sur Etsy).`
+    : nTagsReal >= 11
       ? 'Beaucoup de tags (bon pour la couverture SEO).'
-      : nTags >= 1
-        ? `${nTags} tag(s) : vise 11–13 tags complémentaires.`
-        : 'Aucun tag dans les données : complète avec des intentions de recherche.';
+      : nTagsReal >= 1
+        ? `${nTagsReal} tag(s) dans les données : vise 11–13 complémentaires.`
+        : 'Aucun tag dans les données.';
 
   const i = scoreImages(l.images);
-  const nImg = l.images?.filter(Boolean).length ?? 0;
+  const raw = l.images?.filter(Boolean) ?? [];
+  const { n: nImg, uniqueRoots, pathScore } = raw.length ? imageSetRichness(raw) : { n: 0, uniqueRoots: 0, pathScore: 0 };
   const imagesDetail =
-    nImg >= 8
-      ? `Galerie riche : ${nImg} image(s) détectée(s) dans le JSON.`
-      : nImg >= 2
-        ? `${nImg} image(s) dans le JSON : Etsy performe souvent avec 8–10 photos.`
-        : nImg === 1
-          ? 'Une seule URL image dans les données : le scraper peut en cacher d’autres.'
-          : 'Pas d’URL image extraite du JSON.';
+    nImg === 0
+      ? 'Pas d’URL image extraite.'
+      : nImg >= 8
+        ? `Galerie riche : ${nImg} URL(s), ${uniqueRoots} distincte(s).`
+        : `${nImg} URL(s) (${uniqueRoots} distincte(s)), richesse chemin ~${pathScore}/18 — le scraper peut en manquer.`;
 
-  const d = scoreDescription(l.description);
-  const dlen = (l.description || '').trim().length;
-  const descDetail =
-    dlen >= 400
-      ? `Description longue (~${dlen} car.).`
-      : dlen >= 80
-        ? `~${dlen} car. : développe bénéfices, dimensions, livraison.`
-        : dlen > 0
+  const d = scoreDescriptionEffective(effDescLen, descFb);
+  const descDetail = descFb
+    ? effDescLen > 0
+      ? `Pas de description longue scrapée ; longueur proxy ${effDescLen} car. (matériaux + tags).`
+      : 'Description absente dans les données.'
+    : effDescLen >= 400
+      ? `Description longue (~${effDescLen} car.).`
+      : effDescLen >= 80
+        ? `~${effDescLen} car. : développe bénéfices, dimensions, livraison.`
+        : effDescLen > 0
           ? 'Description courte dans les données.'
           : 'Description absente ou non scrapée.';
 
@@ -232,4 +357,31 @@ export function getCompetitorListingScoreBreakdown(
     price: { score: p, detail: priceDetail },
     social: { score: soc, detail: socialDetail },
   };
+}
+
+/** Score boutique = moyenne des scores fiche (même pondération que l’onglet concurrent). */
+export function computeShopListingQualityAggregate(listings: CompetitorCardListingInput[]): {
+  score100: number;
+  grade: string;
+  verbal: string;
+} {
+  if (!listings.length) {
+    return { score100: 0, grade: '—', verbal: 'Aucune fiche' };
+  }
+  const prices = listings.map((l) => l.price).filter((p) => p > 0);
+  const sorted = [...prices].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length === 0 ? undefined : sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+
+  const titles = listings.map((l) => l.title || '');
+  let sum = 0;
+  for (let i = 0; i < listings.length; i++) {
+    const peerTitles = titles.filter((_, j) => j !== i).slice(0, 25);
+    const q = scoreCompetitorListingCard(listings[i], { shopMedianPrice: median, peerTitlesInSample: peerTitles });
+    sum += q.score100;
+  }
+  const score100 = clampScore(Math.round(sum / listings.length));
+  const grade = scoreToLetterGrade(score100);
+  return { score100, grade, verbal: letterGradeVerbal(grade) };
 }

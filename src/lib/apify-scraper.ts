@@ -11,6 +11,8 @@ type ApifyRunOptions = {
   timeoutSecs?: number;
   maxItems?: number;
   actorIdOverride?: string;
+  /** Budget max pour polls + attente dataset (défaut ~175 s). À augmenter pour maxItems élevés ou runs lents. */
+  maxTotalWaitMs?: number;
 };
 
 function parseActorId(raw?: string | null): string | null {
@@ -188,11 +190,13 @@ export async function runApifyActorByTarget(
   let lastError = '';
   for (const actorId of actorCandidates) {
     try {
-      /** Budget global (démarrage + polls + dataset). Doit rester < timeout fetch client. */
+      /** Budget global (démarrage + polls + dataset). */
       const wallStart = Date.now();
-      // Budget par run Apify : plus bas = moins de “Finalisation…” qui tourne longtemps.
-      // Si le dataset n'arrive pas à temps, le run échoue (puis on retente selon les retries).
-      const MAX_TOTAL_MS = 60_000;
+      // Défaut 60s (aligné prod) ; scrapes boutique/listings lourds passent maxTotalWaitMs (ex. shop-scrape-service).
+      const MAX_TOTAL_MS =
+        options.maxTotalWaitMs != null
+          ? Math.min(600_000, Math.max(60_000, options.maxTotalWaitMs))
+          : 60_000;
 
       // 1) Lance le run de façon asynchrone
       const runStartEndpoint =

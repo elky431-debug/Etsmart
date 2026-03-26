@@ -7,9 +7,6 @@ import {
   ExternalLink,
   TrendingUp,
   Tag,
-  Calendar,
-  DollarSign,
-  Lightbulb,
   AlertTriangle,
   CheckCircle2,
   BarChart3,
@@ -406,8 +403,8 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
                   <div>
                     <h3 className="text-lg font-semibold text-white">3 fiches produits</h3>
                     <p className="mt-1 text-xs text-white/45">
-                      Note qualité interne (titre, médias, texte, tags) +, quand le scraper les fournit, étoiles et avis
-                      Etsy.
+                      Scores par fiche : titre (longueur + mots + écart aux autres), prix vs médiane, images (URLs
+                      distinctes), tags ou estimation depuis le titre si absents, description ou proxy matériaux.
                     </p>
                   </div>
                 </div>
@@ -428,6 +425,7 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
                       images: l.images,
                       tags: l.tags,
                       description: l.description,
+                      materials: l.materials,
                       sales: l.sales,
                       listingStars: l.rating != null && l.rating > 0 ? l.rating : undefined,
                       listingReviews:
@@ -484,8 +482,8 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
                                 Note qualité fiche
                               </p>
                               <p className="mt-0.5 text-[10px] leading-relaxed text-white/38">
-                                Scores distincts par fiche : titre vs les 2 autres, prix vs médiane boutique, images
-                                extraites du JSON, social Etsy si présent.
+                                Le social reste identique si le scraper ne donne ni étoiles ni ventes. Les autres axes
+                                utilisent les données propres à chaque fiche (ou des proxies explicites dans le détail).
                               </p>
                               <div className="mt-2 flex flex-wrap items-end gap-2">
                                 <p className="text-3xl font-bold leading-none tracking-tight text-white">
@@ -618,17 +616,6 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
 
                   <section className="rounded-2xl border border-white/10 bg-black/35 p-6 ring-1 ring-cyan-500/10">
                     <div className="flex items-center gap-2 text-cyan-300">
-                      <DollarSign className="h-5 w-5" />
-                      <h3 className="font-semibold">Stratégie de prix</h3>
-                    </div>
-                    <p className="mt-4 text-sm leading-relaxed text-white/80">
-                      {analysis.pricingStrategy || '—'}
-                    </p>
-                    <p className="mt-3 text-xs text-white/50">{analysis.priceRangeComment || ''}</p>
-                  </section>
-
-                  <section className="rounded-2xl border border-white/10 bg-black/35 p-6 ring-1 ring-cyan-500/10">
-                    <div className="flex items-center gap-2 text-cyan-300">
                       <Tag className="h-5 w-5" />
                       <h3 className="font-semibold">Tags & SEO</h3>
                     </div>
@@ -652,22 +639,9 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
                       </ul>
                     </div>
                   </section>
-
-                  <section className="rounded-2xl border border-white/10 bg-black/35 p-6 ring-1 ring-cyan-500/10">
-                    <div className="flex items-center gap-2 text-cyan-300">
-                      <Calendar className="h-5 w-5" />
-                      <h3 className="font-semibold">Fréquence de publication</h3>
-                    </div>
-                    <p className="mt-4 text-2xl font-bold tabular-nums text-white">
-                      {analysis.publicationFrequency?.estimatedPerMonth != null
-                        ? `~${analysis.publicationFrequency.estimatedPerMonth} / mois`
-                        : 'Non estimable'}
-                    </p>
-                    <p className="mt-2 text-sm text-white/65">{analysis.publicationFrequency?.comment || ''}</p>
-                  </section>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid gap-6 lg:grid-cols-2">
                   <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
                     <div className="flex items-center gap-2 text-emerald-300">
                       <CheckCircle2 className="h-5 w-5" />
@@ -691,20 +665,6 @@ export function DashboardCompetitorShop({ onOpenListingAnalysis }: DashboardComp
                       {(analysis.weaknesses || []).map((s, i) => (
                         <li key={i} className="flex gap-2">
                           <span className="text-amber-400">•</span>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                  <section className="rounded-2xl border border-cyan-500/25 bg-cyan-500/5 p-6">
-                    <div className="flex items-center gap-2 text-cyan-300">
-                      <Lightbulb className="h-5 w-5" />
-                      <h3 className="font-semibold">Recommandations</h3>
-                    </div>
-                    <ul className="mt-4 space-y-2 text-sm text-white/80">
-                      {(analysis.recommendations || []).map((s, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-cyan-400">•</span>
                           <span>{s}</span>
                         </li>
                       ))}

@@ -337,21 +337,6 @@ function SectionScoreCard({ label, data }: { label: string; data: SectionScore }
   );
 }
 
-function OverviewScoreRow({ label, score }: { label: string; score: number }) {
-  const { bar, text } = scoreTierColors(score);
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 ring-1 ring-cyan-500/10 sm:flex-row sm:items-center sm:gap-4">
-      <span className="min-w-0 flex-1 text-sm font-medium text-white/90">{label}</span>
-      <div className="flex items-center gap-3 sm:justify-end">
-        <span className={`text-sm font-bold tabular-nums ${text}`}>{score}/100</span>
-        <div className="h-2 w-full min-w-[6rem] max-w-[8rem] flex-1 overflow-hidden rounded-full bg-white/10 sm:w-28">
-          <div className={`h-full rounded-full ${bar}`} style={{ width: `${score}%` }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SectionHeading({
   step,
   title,
@@ -763,25 +748,10 @@ export function DashboardEtsyListingAnalyzer() {
               </div>
             </section>
 
-            {/* 3 — Scores */}
+            {/* 3 — Feedback détaillé */}
             <section>
               <SectionHeading
                 step="3"
-                title="Scores par critère"
-                subtitle="Chaque critère est noté sur 100. Barres : cyan = bon · bleu clair = moyen · rouge = faible."
-              />
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <OverviewScoreRow label="Titre" score={titleBlock.score} />
-                <OverviewScoreRow label="Images" score={imagesBlock.score} />
-                <OverviewScoreRow label="Vidéo" score={videosBlock.score} />
-                <OverviewScoreRow label="Description" score={descriptionBlock.score} />
-              </div>
-            </section>
-
-            {/* 4 — Feedback détaillé */}
-            <section>
-              <SectionHeading
-                step="4"
                 title="Feedback détaillé"
                 subtitle="Conseils par bloc. Pastilles vertes = point positif."
               />
@@ -793,9 +763,9 @@ export function DashboardEtsyListingAnalyzer() {
               </div>
             </section>
 
-            {/* 5 — Boutique & variations */}
+            {/* 4 — Boutique & variations */}
             <section>
-              <SectionHeading step="5" title="Boutique & variations" />
+              <SectionHeading step="4" title="Boutique & variations" />
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className={`rounded-2xl border border-white/10 bg-white/[0.03] p-6 ${ES.ring}`}>
                   <h3 className="text-sm font-semibold text-cyan-100">Vendeur</h3>
@@ -849,10 +819,10 @@ export function DashboardEtsyListingAnalyzer() {
               </div>
             </section>
 
-            {/* 6 — Galerie */}
+            {/* 5 — Galerie */}
             {gallery.length > 1 ? (
               <section>
-                <SectionHeading step="6" title="Galerie images" subtitle={`${gallery.length} visuels détectés.`} />
+                <SectionHeading step="5" title="Galerie images" subtitle={`${gallery.length} visuels détectés.`} />
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {gallery.map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element

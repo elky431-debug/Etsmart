@@ -37,6 +37,16 @@ export type ShopDerivedStats = {
   tagTop: { tag: string; count: number; percentOfListings: number }[];
 };
 
+/** Estimation listings/mois à partir des `createdAt` de l’échantillon. */
+export type ShopPublicationFrequency = {
+  estimatedPerMonth: number | null;
+  comment: string;
+  listingDatesUsed: number;
+  sampleSize: number;
+  oldestIso?: string;
+  newestIso?: string;
+};
+
 export type ShopPayload = {
   shopName: string;
   shopUrl: string;
@@ -55,6 +65,8 @@ export type ShopPayload = {
   favoritesCount?: number | null;
   /** Agrégats (échantillon + données publiques). */
   derived?: ShopDerivedStats;
+  /** Fréquence estimée à partir des dates de création des fiches (échantillon). */
+  publicationFrequency?: ShopPublicationFrequency | null;
 };
 
 async function fetchEtsyHtmlWithFallback(url: string, language: string): Promise<string | null> {
@@ -102,6 +114,83 @@ async function fetchListingHtmlForEnrich(url: string, language: string): Promise
     }
   }
   return fetchEtsyHtmlWithFallback(url, language);
+}
+
+function mergeShopBranding(
+  target: { bannerUrl: string | null; logoUrl: string | null },
+  patch: { bannerUrl: string | null; logoUrl: string | null }
+) {
+  if (!target.bannerUrl && patch.bannerUrl) target.bannerUrl = patch.bannerUrl;
+  if (!target.logoUrl && patch.logoUrl) target.logoUrl = patch.logoUrl;
+}
+
+/**
+ * Rechargement ciblé page boutique (navigateur si dispo) pour bannière / logo souvent absents du HTML fetch seul.
+ */
+async function fetchShopPageHtmlForBranding(shopUrl: string, shopSlug: string | null): Promise<string | null> {
+  const hasZen = Boolean(process.env.ZENROWS_BROWSER_WS_URL?.trim());
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const push = (u: string) => {
+    const k = u.split('?')[0].split('#')[0].toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    urls.push(u.split('?')[0].split('#')[0]);
+  };
+  push(shopUrl);
+  if (shopSlug?.trim()) {
+    push(`https://www.etsy.com/shop/${encodeURIComponent(shopSlug.trim())}`);
+  }
+
+  if (hasZen) {
+    for (const u of urls) {
+      try {
+        const html = await scrapeEtsyPageHtmlWithZenRowsBrowser(u);
+        if (html && html.length > 2800) return html;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn('[SHOP_SCRAPE] ZenRows branding pass failed:', msg);
+      }
+    }
+  }
+
+  for (const u of urls) {
+    for (const acceptLang of ['en-US,en;q=0.9', 'fr-FR,fr;q=0.9,en;q=0.8']) {
+      try {
+        const res = await fetch(u, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml',
+            'Accept-Language': acceptLang,
+          },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const html = await res.text();
+          if (html && html.length > 1500) return html;
+        }
+      } catch {
+        /* next */
+      }
+    }
+  }
+  return null;
+}
+
+async function ensureShopBranding(
+  branding: { bannerUrl: string | null; logoUrl: string | null },
+  shopUrl: string,
+  shopSlug: string | null
+): Promise<void> {
+  if (branding.bannerUrl && branding.logoUrl) return;
+
+  const html = await fetchShopPageHtmlForBranding(shopUrl, shopSlug);
+  if (!html) return;
+
+  const $ = cheerio.load(html);
+  const patch = extractShopBranding($, html, shopSlug);
+  mergeShopBranding(branding, patch);
 }
 
 function parseCompactNumber(value: string): number {
@@ -369,6 +458,93 @@ function computeDerivedShopStats(
     reviewRatePercent,
     tagTop,
   };
+}
+
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.437;
+
+/**
+ * À partir des dates `createdAt` (ISO) des listings, estime un rythme moyen (nouvelles fiches / mois).
+ * Nécessite au moins 2 dates valides dans l’échantillon.
+ */
+export function computePublicationFrequencyFromListings(listings: { createdAt?: string }[]): ShopPublicationFrequency {
+  const sampleSize = listings.length;
+  const dates: Date[] = [];
+  for (const l of listings) {
+    const raw = l.createdAt?.trim();
+    if (!raw) continue;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) continue;
+    const y = d.getUTCFullYear();
+    if (y < 2005 || y > 2035) continue;
+    dates.push(d);
+  }
+
+  if (dates.length < 2) {
+    return {
+      estimatedPerMonth: null,
+      comment:
+        dates.length === 1
+          ? `Une seule date de création connue dans l’échantillon (${dates[0]!.toLocaleDateString('fr-FR')}). Il en faut au moins deux pour estimer un rythme.`
+          : 'Aucune date de création exploitable sur les fiches de l’échantillon (JSON-LD / Apify / meta).',
+      listingDatesUsed: dates.length,
+      sampleSize,
+    };
+  }
+
+  dates.sort((a, b) => a.getTime() - b.getTime());
+  const t0 = dates[0]!.getTime();
+  const t1 = dates[dates.length - 1]!.getTime();
+  const spanMs = Math.max(t1 - t0, 86_400_000);
+  const months = spanMs / MS_PER_MONTH;
+  const rawPerMonth = dates.length / months;
+  const estimatedPerMonth = Math.min(500, Math.round(rawPerMonth * 10) / 10);
+
+  const fmt = (x: Date) =>
+    x.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return {
+    estimatedPerMonth,
+    comment: `Calculé sur ${dates.length} fiches avec date (${fmt(dates[0]!)} → ${fmt(dates[dates.length - 1]!)}), sur ${sampleSize} listings de l’échantillon. Moyenne ≈ ${estimatedPerMonth} nouvelle(s) fiche(s) / mois sur cette période.`,
+    listingDatesUsed: dates.length,
+    sampleSize,
+    oldestIso: dates[0]!.toISOString(),
+    newestIso: dates[dates.length - 1]!.toISOString(),
+  };
+}
+
+function extractCreatedAtFromListingHtml(html: string): string | undefined {
+  const metaPub =
+    html.match(/property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i) ||
+    html.match(/content=["']([^"']+)["'][^>]*property=["']article:published_time["']/i);
+  if (metaPub?.[1]) {
+    const d = new Date(metaPub[1].trim());
+    if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2005) return d.toISOString();
+  }
+
+  const isoNearProduct = html.match(/"@type"\s*:\s*"Product"[\s\S]{0,8000}?"datePublished"\s*:\s*"([^"]+)"/i);
+  if (isoNearProduct?.[1]) {
+    const d = new Date(isoNearProduct[1].trim());
+    if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2005) return d.toISOString();
+  }
+
+  const epochPatterns: RegExp[] = [
+    /"creation_timestamp"\s*:\s*(\d{10})\b/,
+    /"creation_timestamp"\s*:\s*(\d{13})\b/,
+    /"create_date"\s*:\s*(\d{10,13})\b/,
+    /"original_create_timestamp"\s*:\s*(\d{10,13})\b/,
+    /"listingCreationTimestamp"\s*:\s*(\d{10,13})\b/,
+  ];
+  for (const re of epochPatterns) {
+    const m = html.match(re);
+    if (!m?.[1]) continue;
+    const n = parseInt(m[1], 10);
+    if (!Number.isFinite(n)) continue;
+    const ms = m[1].length >= 13 ? n : n * 1000;
+    const d = new Date(ms);
+    if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2005) return d.toISOString();
+  }
+
+  return undefined;
 }
 
 /** Parcourt le JSON-LD (y compris @graph / imbrications) pour le premier Product avec aggregateRating. */
@@ -640,6 +816,11 @@ async function enrichListing(url: string): Promise<Partial<ScrapedListing>> {
 
     const titleOut = title ? decodeListingTitleEntities(title.trim()) : '';
 
+    if (!createdAt) {
+      const fromHtml = extractCreatedAtFromListingHtml(html);
+      if (fromHtml) createdAt = fromHtml;
+    }
+
     return {
       title: titleOut || undefined,
       tags,
@@ -702,6 +883,8 @@ function extractApifyShopBrandingFromItems(items: unknown[]): {
         'image_url_760x100',
         'banner_image_url',
         'header_image_url',
+        'header_banner_url',
+        'shop_header_image_url',
         'image_url_fullxfull',
         'shop_banner_url',
       ]) {
@@ -799,6 +982,30 @@ function pickShopLogoFromEtsyCdnSlice(htmlSlice: string, excludeBanner: string |
 }
 
 /** Icône boutique : uniquement dans le bloc JSON `shop` / `user` (pas les image_url_140x140 des listings). */
+/** Bannière : uniquement dans le bloc JSON `shop` (évite `image_url_fullxfull` d’un listing plus haut dans la page). */
+function extractShopBannerFromEmbeddedShopJson(jsonStr: string): string | null {
+  const shopIdx = jsonStr.search(/"shop"\s*:\s*\{/);
+  if (shopIdx < 0) return null;
+  const chunk = jsonStr.slice(shopIdx, shopIdx + 85_000);
+  const bannerRes = [
+    /"image_url_760x100"\s*:\s*"([^"]+)"/i,
+    /"banner_image_url"\s*:\s*"([^"]+)"/i,
+    /"header_image_url"\s*:\s*"([^"]+)"/i,
+    /"shop_banner_url"\s*:\s*"([^"]+)"/i,
+    /"header_banner_url"\s*:\s*"([^"]+)"/i,
+    /"primary_fullxfull_url"\s*:\s*"([^"]+)"/i,
+    /"image_url_fullxfull"\s*:\s*"([^"]+)"/i,
+  ];
+  for (const re of bannerRes) {
+    const m = chunk.match(re);
+    if (!m?.[1] || !/etsystatic|etsyimg/i.test(m[1])) continue;
+    const u = m[1];
+    if (/il_(75x75|70x70|74x74|114x114)\b/i.test(u)) continue;
+    return u;
+  }
+  return null;
+}
+
 function extractShopIconFromEmbeddedShopJson(jsonStr: string): string | null {
   const shopIdx = jsonStr.search(/"shop"\s*:\s*\{/);
   if (shopIdx >= 0) {
@@ -900,13 +1107,16 @@ export function extractShopBranding(
     if (m?.[1]) setLogo(m[1]);
   }
 
+  const fromShopBannerJson = extractShopBannerFromEmbeddedShopJson(jsonStr);
+  if (fromShopBannerJson) setBanner(fromShopBannerJson);
+
   const patternsBanner: RegExp[] = [
     /"image_url_760x100"\s*:\s*"([^"]+)"/i,
-    /"image_url_fullxfull"\s*:\s*"([^"]+)"/i,
     /"banner_image_url"\s*:\s*"([^"]+)"/i,
     /"header_image_url"\s*:\s*"([^"]+)"/i,
     /"primary_fullxfull_url"\s*:\s*"([^"]+)"/i,
     /"shop_banner_url"\s*:\s*"([^"]+)"/i,
+    /"header_banner_url"\s*:\s*"([^"]+)"/i,
   ];
   for (const re of patternsBanner) {
     const m = jsonStr.match(re);
@@ -1049,6 +1259,7 @@ function extractApifyShopMetaFromItems(items: unknown[]): {
   activeListingCount: number | null;
   favoritesCount: number | null;
   shopAge: string;
+  location: string;
 } {
   let salesCount = 0;
   let rating = 0;
@@ -1057,6 +1268,7 @@ function extractApifyShopMetaFromItems(items: unknown[]): {
   let activeListingCount: number | null = null;
   let favoritesCount: number | null = null;
   let shopAge = '';
+  let location = '';
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
@@ -1149,6 +1361,26 @@ function extractApifyShopMetaFromItems(items: unknown[]): {
         if (m) shopAge = m[0];
       }
     }
+
+    if (!location && shopRec) {
+      const loc = firstStringFromRecord(shopRec, [
+        'location',
+        'shop_location',
+        'country',
+        'shop_country',
+        'region',
+        'shop_region',
+      ]);
+      if (loc) location = loc;
+    }
+    if (!location && seller) {
+      const loc = firstStringFromRecord(seller, ['location', 'country', 'seller_country']);
+      if (loc) location = loc;
+    }
+    if (!location) {
+      const loc = firstStringFromRecord(rec, ['shopLocation', 'shop_location', 'sellerLocation']);
+      if (loc) location = loc;
+    }
   }
 
   const avgRating = ratingSamples > 0 ? rating / ratingSamples : 0;
@@ -1160,13 +1392,15 @@ function extractApifyShopMetaFromItems(items: unknown[]): {
     activeListingCount,
     favoritesCount,
     shopAge,
+    location,
   };
 }
 
 function applyApifyShopMetaToPayload(
   meta: ReturnType<typeof extractApifyShopMetaFromItems>,
   metrics: { salesCount: number; reviewCount: number; rating: number; shopAge: string },
-  extraCounts: { activeListingCount: number | null; favoritesCount: number | null }
+  extraCounts: { activeListingCount: number | null; favoritesCount: number | null },
+  locationOut?: { value: string }
 ): void {
   if (meta.salesCount > metrics.salesCount) metrics.salesCount = meta.salesCount;
   if (meta.rating > 0) metrics.rating = meta.rating;
@@ -1177,6 +1411,9 @@ function applyApifyShopMetaToPayload(
   }
   if (meta.favoritesCount != null && extraCounts.favoritesCount == null) {
     extraCounts.favoritesCount = meta.favoritesCount;
+  }
+  if (locationOut && meta.location.trim() && !locationOut.value) {
+    locationOut.value = meta.location.trim();
   }
 }
 
@@ -1361,6 +1598,50 @@ function extractListingRatingReviewsFromApifyItem(item: unknown): { rating?: num
   return {};
 }
 
+function extractCreatedAtFromApifyItem(item: unknown): string | undefined {
+  if (!item || typeof item !== 'object') return undefined;
+  const rec = item as Record<string, unknown>;
+
+  const isoStr = firstStringFromRecord(rec, [
+    'createdAt',
+    'createDate',
+    'creationDate',
+    'listedOn',
+    'dateCreated',
+    'openingDate',
+    'date_created',
+    'listingCreationDate',
+    'created_at',
+  ]);
+  if (isoStr) {
+    const d = new Date(isoStr);
+    if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2005) return d.toISOString();
+  }
+
+  const epoch = pickNumberFromApifyRecord(rec, [
+    'creationTimestamp',
+    'create_timestamp',
+    'created_ts',
+    'creation_timestamp',
+    'listingTimestamp',
+    'timestamp_created',
+  ]);
+  if (epoch != null && epoch > 1_000_000_000) {
+    const ms = epoch > 10_000_000_000 ? epoch : epoch * 1000;
+    const d = new Date(ms);
+    if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2005) return d.toISOString();
+  }
+
+  for (const nest of ['listing', 'product', 'item', 'data', 'listingData', 'result']) {
+    const sub = rec[nest];
+    if (sub && typeof sub === 'object' && !Array.isArray(sub)) {
+      const got = extractCreatedAtFromApifyItem(sub);
+      if (got) return got;
+    }
+  }
+  return undefined;
+}
+
 function apifyItemToScrapedListing(item: unknown): ScrapedListing | null {
   const mapped = mapApifyItemToListing(item);
   if (!mapped) return null;
@@ -1410,6 +1691,7 @@ function apifyItemToScrapedListing(item: unknown): ScrapedListing | null {
 
   const hasBody = Boolean(mapped.description && mapped.description.length > 40);
   const hasTags = tagList.length > 0;
+  const createdAt = extractCreatedAtFromApifyItem(item);
 
   return {
     title: mapped.title || 'Listing Etsy',
@@ -1421,6 +1703,7 @@ function apifyItemToScrapedListing(item: unknown): ScrapedListing | null {
     images,
     tags: hasTags ? tagList : undefined,
     description: mapped.description || undefined,
+    createdAt,
     isPartialData: !hasTags && !hasBody,
   };
 }
@@ -1431,7 +1714,8 @@ function apifyItemToScrapedListing(item: unknown): ScrapedListing | null {
  */
 async function fetchShopListingsViaApify(
   shopUrl: string,
-  maxListings: number
+  maxListings: number,
+  apifyMaxTotalWaitMs?: number
 ): Promise<{
   listings: ScrapedListing[];
   shopNameHint?: string;
@@ -1456,7 +1740,15 @@ async function fetchShopListingsViaApify(
     url: shopUrl,
   };
 
-  const items = await runApifyActorByTarget('listing', input, { maxItems: n });
+  /**
+   * Runs Etsy : budget ajusté mais capé pour éviter de dépasser les limites route (sinon requête client pendante).
+   */
+  const computedMaxTotalWaitMs = Math.min(260_000, Math.max(180_000, 95_000 + n * 5_000));
+  const maxTotalWaitMs =
+    typeof apifyMaxTotalWaitMs === 'number' && Number.isFinite(apifyMaxTotalWaitMs) && apifyMaxTotalWaitMs > 0
+      ? Math.min(computedMaxTotalWaitMs, Math.max(15_000, Math.round(apifyMaxTotalWaitMs)))
+      : computedMaxTotalWaitMs;
+  const items = await runApifyActorByTarget('listing', input, { maxItems: n, maxTotalWaitMs });
   const shopMeta = extractApifyShopMetaFromItems(items);
   const branding = extractApifyShopBrandingFromItems(items);
   const out: ScrapedListing[] = [];
@@ -1488,6 +1780,15 @@ export type ScrapeShopOptions = {
    * Utile pour l’analyse concurrente (évite 10+ minutes après Apify).
    */
   maxEnrichListings?: number;
+  /**
+   * Les fiches viennent obligatoirement d’Apify (acteur listing + URL boutique). Le HTML sert au branding / totaux.
+   * Lance une erreur si Apify n’est pas configuré ou ne renvoie aucune fiche.
+   */
+  requireApifyListings?: boolean;
+  /** Override : budget max d’attente Apify (poll + dataset). */
+  apifyMaxTotalWaitMs?: number;
+  /** Désactive totalement l’appel Apify fallback (mode rapide). */
+  disableApifyFallback?: boolean;
 };
 
 /**
@@ -1516,6 +1817,7 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
     activeListingCount: null,
     favoritesCount: null,
   };
+  const locationHolder = { value: '' };
   let branding: { bannerUrl: string | null; logoUrl: string | null } = {
     bannerUrl: null,
     logoUrl: null,
@@ -1534,6 +1836,11 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
     metrics = extractShopMetrics($, pageText);
     extraCounts = extractShopExtraCounts(html, pageText);
     branding = extractShopBranding($, html, shopSlug);
+
+    const locEn = pageText.match(/Located in\s+([^\n.]+)/i)?.[1]?.trim();
+    const locFr = pageText.match(/(?:Basé à|Situé à|Localisé à)\s+([^\n.]+)/i)?.[1]?.trim();
+    if (locEn) locationHolder.value = locEn;
+    else if (locFr) locationHolder.value = locFr;
 
     const ldCap = Math.max(maxListings, 40);
     const listingsFromLd = extractListingsFromLdJson($, ldCap);
@@ -1572,14 +1879,41 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
   let targetListings = merged.slice(0, maxListings);
   let usedApifyListings = false;
 
-  if (targetListings.length === 0) {
+  if (options.requireApifyListings) {
+    if (!isApifyConfigured('listing')) {
+      throw new Error('APIFY_NOT_CONFIGURED');
+    }
     try {
-      const { listings: fromApify, shopNameHint, shopMeta, branding } = await fetchShopListingsViaApify(
+      const { listings: fromApify, shopNameHint, shopMeta, branding: apifyBrand } = await fetchShopListingsViaApify(
         shopUrl,
-        maxListings
+        maxListings,
+        options.apifyMaxTotalWaitMs
       );
       apifyShopMeta = shopMeta;
-      apifyBranding = branding;
+      apifyBranding = apifyBrand;
+      if (!fromApify.length) {
+        throw new Error('APIFY_NO_LISTINGS');
+      }
+      targetListings = fromApify;
+      usedApifyListings = true;
+      if (shopNameHint) shopName = shopNameHint;
+      if (apifyBrand) mergeShopBranding(branding, apifyBrand);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg === 'APIFY_NOT_CONFIGURED' || msg === 'APIFY_NO_LISTINGS') throw error;
+      console.warn('[SHOP_SCRAPE] Apify required run failed:', msg);
+      const hint = msg.replace(/\s+/g, ' ').trim().slice(0, 420);
+      throw new Error(`APIFY_FAILED|${hint}`);
+    }
+  } else if (targetListings.length === 0 && !options.disableApifyFallback) {
+    try {
+      const { listings: fromApify, shopNameHint, shopMeta, branding: apifyBrand } = await fetchShopListingsViaApify(
+        shopUrl,
+        maxListings,
+        options.apifyMaxTotalWaitMs
+      );
+      apifyShopMeta = shopMeta;
+      apifyBranding = apifyBrand;
       if (fromApify.length) {
         targetListings = fromApify;
         usedApifyListings = true;
@@ -1595,6 +1929,9 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
 
   if (targetListings.length === 0 && !htmlOk) {
     throw new Error('SCRAPE_FAILED');
+  }
+  if (targetListings.length === 0 && options.requireApifyListings) {
+    throw new Error('APIFY_NO_LISTINGS');
   }
 
   const detailedListings: ScrapedListing[] = [];
@@ -1632,6 +1969,8 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
             price: details.price && details.price > 0 ? details.price : l.price,
             images: details.images && details.images.length ? details.images : l.images,
             tags: details.tags && details.tags.length ? details.tags : l.tags,
+            createdAt: details.createdAt || l.createdAt,
+            updatedAt: details.updatedAt || l.updatedAt,
             isPartialData: Boolean(details.isPartialData || detailsMissing),
           } as ScrapedListing;
         })
@@ -1646,12 +1985,29 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
 
   if (usedApifyListings) {
     if (apifyShopMeta) {
-      applyApifyShopMetaToPayload(apifyShopMeta, metrics, extraCounts);
+      applyApifyShopMetaToPayload(apifyShopMeta, metrics, extraCounts, locationHolder);
     }
     fillShopMetricsFromListingsSample(detailedListings, metrics);
-    if (apifyBranding) {
-      if (!branding.bannerUrl && apifyBranding.bannerUrl) branding.bannerUrl = apifyBranding.bannerUrl;
-      if (!branding.logoUrl && apifyBranding.logoUrl) branding.logoUrl = apifyBranding.logoUrl;
+    if (apifyBranding) mergeShopBranding(branding, apifyBranding);
+  }
+
+  await ensureShopBranding(branding, shopUrl, shopSlug);
+
+  if (
+    (!branding.bannerUrl || !branding.logoUrl) &&
+    !usedApifyListings &&
+    isApifyConfigured('listing')
+  ) {
+    try {
+      const { branding: apifyOnly } = await fetchShopListingsViaApify(
+        shopUrl,
+        Math.min(maxListings, 12),
+        options.apifyMaxTotalWaitMs
+      );
+      if (apifyOnly) mergeShopBranding(branding, apifyOnly);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn('[SHOP_SCRAPE] Apify branding-only fallback failed:', msg);
     }
   }
 
@@ -1669,6 +2025,8 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
     extraCounts.favoritesCount
   );
 
+  const publicationFrequency = computePublicationFrequencyFromListings(detailedListings);
+
   return {
     shopName,
     shopUrl,
@@ -1676,12 +2034,13 @@ export async function scrapeEtsyShop(shopInput: string, options: ScrapeShopOptio
     rating: metrics.rating,
     reviewCount: metrics.reviewCount,
     shopAge: metrics.shopAge,
-    location: '',
+    location: locationHolder.value,
     bannerUrl: branding.bannerUrl,
     logoUrl: branding.logoUrl,
     activeListingCount: extraCounts.activeListingCount,
     favoritesCount: extraCounts.favoritesCount,
     derived,
+    publicationFrequency,
     listings: detailedListings,
   };
 }

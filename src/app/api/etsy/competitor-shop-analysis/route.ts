@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
     try {
       shop = await scrapeEtsyShop(shopUrlRaw, {
         maxListings,
-        maxEnrichListings: 12,
+        /** Plus de fiches enrichies = plus de chances d’avoir `createdAt` pour la fréquence. */
+        maxEnrichListings: Math.min(maxListings, 24),
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -180,6 +181,14 @@ Schéma JSON exact :
         { error: 'PARSE_ERROR', message: 'Réponse IA invalide', shop },
         { status: 502 }
       );
+    }
+
+    /** Fréquence : priorité au calcul déterministe à partir des dates `createdAt` scrapées. */
+    if (shop.publicationFrequency) {
+      analysis.publicationFrequency = {
+        estimatedPerMonth: shop.publicationFrequency.estimatedPerMonth,
+        comment: shop.publicationFrequency.comment,
+      };
     }
 
     return NextResponse.json({
