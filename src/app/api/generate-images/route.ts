@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
+import { geminiStyleHint } from '@/lib/image-style-presets';
 
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
@@ -10,6 +10,10 @@ export const maxDuration = 120;
 export const runtime = 'nodejs';
 
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 28_000;
+/** Nano Banana 2 — API Gemini (preview). */
+const GEMINI_IMAGE_MODEL_FLASH = 'gemini-3.1-flash-image-preview';
+/** Nano Banana Pro — API Gemini (preview). */
+const GEMINI_IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview';
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
 const GEMINI_FAST_SINGLE_WALL_MS = 45_000;
 /** Pro chunked : un peu plus de marge qu'un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
@@ -26,14 +30,14 @@ function isNetlifyRuntime(): boolean {
  * Budget « 1 image / requête » (génération rapide chunked).
  * Sur Netlify gratuit (~26s gateway), défaut court — voir GEMINI_CHUNK_SINGLE_WALL_MS.
  */
-function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
+function readGeminiChunkSingleWallMs(isProEngine: boolean): number {
   const raw = process.env.GEMINI_CHUNK_SINGLE_WALL_MS;
   if (raw != null && String(raw).trim() !== '') {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
   if (isNetlifyRuntime()) return 21_000;
-  return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
+  return isProEngine ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
 function geminiFetchSignal(timeoutMs: number): AbortSignal {
@@ -117,10 +121,8 @@ async function runGeminiImagePromptsInBatches(
  * 
  * Architecture:
  * 1. Compress & validate the source image
- * 2. Par défaut : Gemini (GEMINI_API_KEY) si définie — génération synchrone, renvoie imageDataUrls.
- * 3. Sinon Nanobanana : taskIds → le client poll via /api/check-image-status
- *
- * Forcer Nanobanana malgré une clé Gemini : USE_NANOBANANA_IMAGES=true
+ * 2. Gemini uniquement (GEMINI_API_KEY) — génération synchrone, imageDataUrls (upload Supabase si besoin).
+ * 3. Flash → gemini-3.1-flash-image-preview (Nano Banana 2) ; Pro → gemini-3-pro-image-preview (Nano Banana Pro).
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -162,7 +164,6 @@ export async function POST(request: NextRequest) {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
-      forceNanobanana,
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
@@ -242,32 +243,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const GEMINI_KEY = process.env.GEMINI_API_KEY;
-    // Support common env var naming variants (Netlify often differs).
-    const NANO_KEY =
-      process.env.NANONBANANA_API_KEY ||
-      process.env.NANOBANANA_API_KEY ||
-      process.env.NANO_BANANA_API_KEY ||
-      process.env.NANONBANANA_KEY ||
-      process.env.NANOBANANA_KEY;
-    // Priorité Gemini dès que GEMINI_API_KEY est définie (comportement attendu sur Etsmart).
-    // Nanobanana seulement si pas de clé Gemini, ou si USE_NANOBANANA_IMAGES=true (opt-in explicite).
-    const forceNano = process.env.USE_NANOBANANA_IMAGES === 'true' || forceNanobanana === true;
-    const useGemini = !!GEMINI_KEY && !forceNano;
-    if (!useGemini && !NANO_KEY) {
-      console.error('[IMAGE GEN] Aucune clé image utilisable (GEMINI_API_KEY ou clés Nanobanana)');
+    const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
+    if (!GEMINI_KEY) {
+      console.error('[IMAGE GEN] GEMINI_API_KEY manquante');
       return NextResponse.json(
         {
           error: 'SERVER_CONFIG_ERROR',
           message:
-            'Clé API image manquante. Définissez GEMINI_API_KEY (recommandé) ou NANONBANANA_API_KEY / NANOBANANA_API_KEY.',
+            'GEMINI_API_KEY est requise pour la génération d\'images (API Google Gemini — Nano Banana 2 / Pro).',
         },
         { status: 500 },
       );
     }
 
-    // ── GEMINI (image + texte) : moteur par défaut si GEMINI_API_KEY ──
-    if (useGemini) {
+    // ── GEMINI : Nano Banana 2 (flash) / Nano Banana Pro (pro) ──
+    {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
         : 'product from the listing';
@@ -290,10 +280,9 @@ export async function POST(request: NextRequest) {
       const isFastChunkedSingle = clientChunkedSingleFlag && numImages === 1;
       const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-      /** Routage historique : bouton Pro utilise le même modèle image rapide (stable prod). */
-      const forceProToFlash25 = engineSafe === 'pro';
-      const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro' && !forceProToFlash25;
-      const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
+      const isProEngine = engineSafe === 'pro';
+      const geminiImageEditModel =
+        engineSafe === 'pro' ? GEMINI_IMAGE_MODEL_PRO : GEMINI_IMAGE_MODEL_FLASH;
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -305,8 +294,20 @@ export async function POST(request: NextRequest) {
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
             const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
-            const maxSide = isNetlifyFastSingle ? 768 : isFastChunkedSingle ? (isProFastSingle ? 768 : 896) : 768;
-            const jpegQ = isNetlifyFastSingle ? 76 : isFastChunkedSingle ? (isProFastSingle ? 76 : 80) : 72;
+            const maxSide = isNetlifyFastSingle
+              ? 768
+              : isFastChunkedSingle
+                ? (isProEngine ? 1024 : 896)
+                : isProEngine
+                  ? 1024
+                  : 768;
+            const jpegQ = isNetlifyFastSingle
+              ? 76
+              : isFastChunkedSingle
+                ? (isProEngine ? 88 : 80)
+                : isProEngine
+                  ? 85
+                  : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -332,7 +333,7 @@ export async function POST(request: NextRequest) {
       }
 
       const realismBoost =
-        engineSafe === 'pro' && !forceProToFlash25
+        engineSafe === 'pro'
           ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
           : isFastChunkedSingle
             ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
@@ -451,9 +452,9 @@ Pas de texte marketing. Pas de watermark.`
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
-      const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProFastSingle);
+      const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProEngine);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${GEMINI_IMAGE_EDIT_MODEL}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
       );
 
       const geminiErrors: string[] = [];
@@ -533,13 +534,15 @@ Pas de texte marketing. Pas de watermark.`
         timeoutMs: number
       ): Promise<string | null> => {
         console.log('[IMAGE GEN] Prompt 4 mensurations → Gemini');
-        return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
+        return tryGeminiOnce(prompt, geminiImageEditModel, partsForAttempt, timeoutMs);
       };
 
-      /** Hors Netlify : budget complet 28s. Netlify : court pour la gateway. */
+      /** Pro (preview) souvent plus lent ; Netlify reste sous budget gateway. */
       const geminiHttpCapMs = isNetlifyHost
-        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, 18_000)
-        : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === 'pro' ? 24_000 : 18_000)
+        : engineSafe === 'pro'
+          ? 55_000
+          : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
@@ -560,7 +563,7 @@ Pas de texte marketing. Pas de watermark.`
         }
 
         for (let attempt = 0; attempt < 3; attempt++) {
-          const img = await tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, mainPart, geminiHttpCapMs);
+          const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
           if (img) return img;
           if (attempt < 2) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
         }
@@ -607,7 +610,7 @@ Pas de texte marketing. Pas de watermark.`
             imageTaskIds: [],
             imageDataUrls: [],
             error: 'IMAGE_SUBMIT_FAILED',
-            message: `Gemini ${GEMINI_IMAGE_EDIT_MODEL}: ${geminiDetail}`,
+            message: `Gemini ${geminiImageEditModel}: ${geminiDetail}`,
           });
         }
         if (!skipCreditDeduction) {
@@ -653,7 +656,7 @@ Pas de texte marketing. Pas de watermark.`
           imageTaskIds: [],
           imageDataUrls: uploadedUrls,
           provider: 'gemini',
-          model: GEMINI_IMAGE_EDIT_MODEL,
+          model: geminiImageEditModel,
           requestedEngine: engineSafe,
           ...(partial && {
             message: `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
@@ -674,321 +677,6 @@ Pas de texte marketing. Pas de watermark.`
         });
       }
     }
-
-    // ── Compress source image (NanoBanana) ────────────────────────────────
-    let imageForAPI: string;
-    try {
-      let b64 = sourceImage;
-      if (b64.startsWith('data:image/')) { const p = b64.split(','); if (p.length > 1) b64 = p[1]; }
-      if (sharp) {
-        const buf = Buffer.from(b64, 'base64');
-        let c = await sharp(buf).resize(512, 512, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 70, mozjpeg: true }).toBuffer();
-        if (c.length > 500 * 1024) c = await sharp(buf).resize(400, 400, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 60, mozjpeg: true }).toBuffer();
-        if (c.length > 500 * 1024) c = await sharp(buf).resize(300, 300, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 50, mozjpeg: true }).toBuffer();
-        imageForAPI = c.toString('base64');
-        console.log(`[IMAGE GEN] Compressed: ${(c.length / 1024).toFixed(0)}KB`);
-      } else {
-        imageForAPI = b64;
-      }
-    } catch {
-      let b64 = sourceImage;
-      if (b64.startsWith('data:image/')) { const p = b64.split(','); if (p.length > 1) b64 = p[1]; }
-      imageForAPI = b64;
-    }
-    const imageDataUrl = `data:image/jpeg;base64,${imageForAPI}`;
-
-    // ── Describe background if provided (with strict 6s timeout) ──
-    let bgDesc: string | null = null;
-    if (backgroundImage) {
-      try {
-        let bgUrl = backgroundImage;
-        if (!bgUrl.startsWith('data:image/')) bgUrl = `data:image/jpeg;base64,${bgUrl}`;
-        const openaiKey = process.env.OPENAI_API_KEY;
-        if (openaiKey) {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 6000);
-          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [{ role: 'user', content: [
-                { type: 'text', text: 'Describe this background for an AI image generator. Colors, textures, lighting. 2 sentences.' },
-                { type: 'image_url', image_url: { url: bgUrl, detail: 'low' } },
-              ]}], max_tokens: 100, temperature: 0.3,
-            }),
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          if (resp.ok) {
-            const d = await resp.json();
-            bgDesc = d.choices?.[0]?.message?.content?.trim() || null;
-            console.log(`[IMAGE GEN] Background described: ${bgDesc?.substring(0, 80)}...`);
-          }
-        }
-      } catch (e: any) {
-        console.warn(`[IMAGE GEN] Background description failed: ${e.message}`);
-      }
-    }
-
-    // Respect the engine selected in the UI (flash/pro).
-    const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
-
-    // ── Build prompt ──
-    const tagsStr = Array.isArray(tags) && tags.length ? ` Tags / mots-clés : ${tags.slice(0, 15).join(', ')}.` : '';
-    const materialsStrNano = (materials && String(materials).trim()) ? ` Matériaux : ${String(materials).trim().substring(0, 120)}.` : '';
-    const productContextText = (productTitle && String(productTitle).trim()
-      ? `Nous générons les visuels pour un produit Etsy : ${String(productTitle).trim().substring(0, 140)}.`
-      : 'Nous générons les visuels pour un produit Etsy à partir de la photo de référence.')
-      + tagsStr
-      + materialsStrNano;
-
-    const produitRef = (productTitle && String(productTitle).trim()) ? String(productTitle).trim().substring(0, 80) : 'le produit';
-    const reglesCommunes = `RÈGLE ABSOLUE: l'objet principal (${produitRef}) doit garder sa forme, ses proportions, couleurs et matières EXACTES.
-Tu ne modifies que l'arrière-plan/décor et l'angle de prise de vue (pas de changement de produit).
-Rendu réaliste photo Etsy haut de gamme (pas de style "IA"), chaleureux et naturel.
-RÈGLES VISUELLES: Pas de watermark.
-ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4.
-ANTI-COPIER: ne pas reproduire les codes de page AliExpress/marketplace (bannières, coins/badges, overlays, prix affiché, QR codes, textes incrustés). Recréer un décor photo Etsy propre.
-ANTI-SIMILARITÉ STRICT: ne pas réutiliser les mêmes éléments du décor d'une image à l'autre (rideaux/tapis/coussins/objets autour du produit). Décor et éclairage doivent être clairement différents.
-Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, fond simple (table/mur clair/studio léger).
-Cohérence entre tous les visuels (même produit, même style global, variantes d'angles/background uniquement).`;
-
-    const dimensionsStrictBlockNano = dimensionsStrictBlock; // même logique côté prompt mensurations
-
-    const IMAGE_PROMPTS = [
-      `${productContextText}
-PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
-Plan large, produit intégré dans une pièce réaliste et chaleureuse (salon, chambre ou cuisine selon le produit).
-Le produit apparaît à son échelle réelle — visible mais pas surdimensionné par rapport aux meubles et à la pièce.
-Cadrage large montrant le mobilier, les murs et le sol autour du produit.
-Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond.
-Pas de texte. Pas de watermark.
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 2 – PLAN MOYEN / ÉQUILIBRE PRODUIT-SCÈNE:
-Plan moyen: produit au centre, scène visible autour (meubles, mur, sol).
-Met en valeur design, formes et proportions globales à leur vraie taille dans l'espace.
-Éclairage chaud type lampe à droite hors-champ, mur beige doux, surface en bois devant.
-Décor sobre: 1-2 accessoires neutres (plante, bougie, livre) sans surcharger la scène.
-Pas de texte. Pas de watermark.
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
-Photo rapprochée focalisée sur la texture, les matériaux et les finitions du produit.
-Netteté maximale sur les détails de surface, léger bokeh sur le fond.
-Fond épuré (surface neutre mate ou studio clair), lumière douce directionnelle révélant les reliefs.
-Produit occupant 60-70% du cadre, sans distorsion de perspective.
-Pas de texte. Pas de watermark.
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
-Image type fiche produit sur fond clair et épuré: dimensions clairement visibles.
-${dimensionsStrictBlockNano}
-Flèches de dimension fines avec labels numériques nets. Style graphique minimaliste.
-Texte uniquement pour les mensurations (pas de texte marketing).
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 5 – AMBIANCE SOIR / ÉCLAIRAGE CHAUD:
-Photo lifestyle avec éclairage chaud de soirée (lumière tamisée, ambiance cosy).
-Produit mis en valeur avec éclairage indirect doux, ombres longues et douces, teintes dorées.
-Intérieur feutré: bougie ou lampe d'appoint visible en arrière-plan, textile doux.
-Plan moyen, produit à son échelle réelle dans la scène.
-Pas de texte. Pas de watermark.
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 6 – AUTRE PIÈCE / AUTRE AMBIANCE:
-Même produit dans une pièce ou un contexte d'intérieur complètement différent des images 1 et 2.
-Si image 1 = salon, utiliser cuisine scandinave ou bureau minimaliste ou chambre cosy.
-Palette de couleurs différente, lumière naturelle zénithale.
-Cadrage large, produit visible et à l'échelle.
-Pas de texte. Pas de watermark.
-${reglesCommunes}`,
-      `${productContextText}
-PROMPT 7 – RÉFÉRENCE D'ÉCHELLE / USAGE:
-Photo montrant la taille réelle du produit grâce à une référence d'échelle discrète.
-Un objet commun connu (tasse, livre, plante en pot) posé à côté du produit pour donner l'échelle.
-Plan moyen, produit et objet de référence nets et bien cadrés.
-Fond épuré, lumière naturelle douce, rendu naturel et haut de gamme.
-Pas de texte marketing. Pas de watermark.
-${reglesCommunes}`,
-    ];
-    const extraInstructions = (customInstructions && customInstructions.trim()) ? customInstructions.trim() : '';
-
-    // ── Images de référence (contexte) : 1 principale + jusqu'à 2 en plus (compressées si data URL) ──
-    const baseImageUrls: string[] = [imageDataUrl];
-    if (productContext && typeof productContext === 'object' && Array.isArray(productContext.referenceImages)) {
-      for (const ref of productContext.referenceImages.slice(0, 2)) {
-        if (typeof ref !== 'string' || !ref.trim()) continue;
-        const trimmed = ref.trim();
-        if (trimmed.startsWith('data:image/')) {
-          try {
-            const base64Part = trimmed.includes(',') ? trimmed.split(',')[1] : trimmed;
-            const buf = Buffer.from(base64Part, 'base64');
-            if (buf.length > 300 * 1024 && sharp) {
-              const c = await sharp(buf).resize(320, 320, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer();
-              baseImageUrls.push(`data:image/jpeg;base64,${c.toString('base64')}`);
-            } else {
-              baseImageUrls.push(trimmed);
-            }
-          } catch {
-            baseImageUrls.push(trimmed);
-          }
-        } else {
-          baseImageUrls.push(trimmed);
-        }
-      }
-    }
-    const payloadSize = baseImageUrls.reduce((s, u) => s + u.length, 0);
-    console.log(`[IMAGE GEN] Setup done in ${Date.now() - startTime}ms, submitting ${quantity} image(s), refs: ${baseImageUrls.length}, payload: ${(payloadSize / 1024).toFixed(0)}KB`);
-
-    const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
-    const imgSize = sizeMap[aspectRatio] || '1:1';
-
-    const submitOnce = async (prompt: string, engineToUse: 'flash' | 'pro'): Promise<{ taskId: string | null; error?: string }> => {
-      const url =
-        engineToUse === 'pro'
-          ? 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate-pro'
-          : 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate';
-
-      const body: any =
-        engineToUse === 'pro'
-          ? {
-              prompt,
-              imageUrls: baseImageUrls,
-              resolution: '1K',
-              aspectRatio: imgSize,
-              callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-            }
-          : {
-              type: 'IMAGETOIMAGE',
-              prompt,
-              imageUrls: baseImageUrls,
-              image_size: imgSize,
-              numImages: 1,
-              callBackUrl: 'https://etsmart.app/api/nanonbanana-callback',
-            };
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NANO_KEY}` },
-        body: JSON.stringify(body),
-      });
-      if (!resp.ok) {
-        const t = await resp.text().catch(() => '');
-        return { taskId: null, error: `HTTP ${resp.status}: ${t.substring(0, 150)}` };
-      }
-      const raw = await resp.text();
-      let data: any;
-      try { data = JSON.parse(raw); } catch { return { taskId: null, error: `Bad JSON: ${raw.substring(0, 100)}` }; }
-      if (data.code && data.code !== 200 && data.code !== 0) {
-        return { taskId: null, error: `API ${data.code}: ${data.msg || 'error'}` };
-      }
-      const taskId = data.data?.task_id || data.data?.taskId || data.data?.id || data.task_id || data.taskId || null;
-      if (!taskId) return { taskId: null, error: `No taskId in: ${raw.substring(0, 150)}` };
-      return { taskId };
-    };
-
-    const submitWithRetry = async (index: number): Promise<{ taskId: string | null; error?: string }> => {
-      const promptIndex =
-        quantity === 1 && singlePromptIndex !== null
-          ? singlePromptIndex % IMAGE_PROMPTS.length
-          : index % IMAGE_PROMPTS.length;
-      let finalPrompt = IMAGE_PROMPTS[promptIndex];
-      if (extraInstructions) finalPrompt += ` ${extraInstructions}`;
-      const styleSuffix = nanoStyleSuffixFr(typeof style === 'string' ? style : undefined);
-      if (styleSuffix) finalPrompt += ` ${styleSuffix}`;
-      // Ré-affirmer les règles à la fin (customInstructions peut autrement les contredire).
-      if (promptIndex === 3) {
-        finalPrompt += ` Pas de watermark ni logos fournisseur. Texte uniquement pour les mensurations (dimensions).`;
-      } else {
-        finalPrompt += ` Pas de watermark, pas de logos/textes AliExpress ou marketplace sur l'image — photo produit propre. Pas de texte marketing.`;
-      }
-      if (finalPrompt.length > 1800) finalPrompt = finalPrompt.substring(0, 1800);
-      const attemptErrors: string[] = [];
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const result = await submitOnce(finalPrompt, engineSafe);
-          if (result.taskId) {
-            console.log(`[IMAGE GEN] Image ${index + 1} submitted (attempt ${attempt + 1}): ${result.taskId}`);
-            return result;
-          }
-          const err = result.error || 'unknown error';
-          attemptErrors.push(`try${attempt + 1}: ${err}`);
-          console.warn(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} failed: ${err}`);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 500));
-        } catch (e: any) {
-          const err = e?.message || 'crash';
-          attemptErrors.push(`try${attempt + 1}: crash ${err}`);
-          console.error(`[IMAGE GEN] Image ${index + 1} attempt ${attempt + 1} crash: ${err}`);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 500));
-        }
-      }
-
-      // Fallback: if "pro" fails to submit, try "flash" so the user still gets images.
-      // This prevents the whole flow from failing when Nanobanana Pro is temporarily unstable.
-      if (engineSafe === 'pro') {
-        const fallback = await submitOnce(finalPrompt, 'flash');
-        if (fallback.taskId) {
-          console.warn(`[IMAGE GEN] Pro fallback to Flash succeeded for image ${index + 1}: ${fallback.taskId}`);
-          return fallback;
-        }
-        return {
-          taskId: null,
-          error: `Pro failed; flash fallback failed: ${fallback.error || 'unknown'}${attemptErrors.length ? ` | ${attemptErrors.join(' | ')}` : ''}`,
-        };
-      }
-
-      return { taskId: null, error: `All 3 attempts failed${attemptErrors.length ? ` | ${attemptErrors.join(' | ')}` : ''}` };
-    };
-
-    const taskIds: string[] = [];
-    const errors: string[] = [];
-    for (let i = 0; i < quantity; i++) {
-      const result = await submitWithRetry(i);
-      if (result.taskId) taskIds.push(result.taskId);
-      else errors.push(result.error || 'failed');
-      if (i < quantity - 1) await new Promise(r => setTimeout(r, 40));
-    }
-
-    console.log(`[IMAGE GEN] Submitted ${taskIds.length}/${quantity} in ${Date.now() - startTime}ms`);
-
-    if (taskIds.length === 0) {
-      const firstDetailedError = errors.find((e) => typeof e === 'string' && e.trim().length > 0) || null;
-      return NextResponse.json({
-        success: false,
-        imageTaskIds: [],
-        error: 'IMAGE_SUBMIT_FAILED',
-        message: firstDetailedError
-          ? `Nanobanana submit failed: ${firstDetailedError}`
-          : 'Le service Nanobanana n\'a pas accepté la requête. Vérifiez NANONBANANA_API_KEY (ou utilisez GEMINI_API_KEY sans USE_NANOBANANA_IMAGES).',
-      });
-    }
-
-    // ── Deduct credits (sauf si déjà déduits côté client, ex. génération rapide) ──
-    if (!skipCreditDeduction) {
-      try {
-        const result = await incrementAnalysisCount(user.id, 1.0);
-        if (result.success) {
-          console.log(`[IMAGE GEN] ✅ 1 credit deducted. Used: ${result.used}/${result.quota}`);
-        } else {
-          console.error(`[IMAGE GEN] ❌ Credit deduction failed: ${result.error}`);
-        }
-      } catch (e: any) {
-        console.error(`[IMAGE GEN] ❌ Credit deduction error: ${e.message}`);
-      }
-    } else {
-      console.log(`[IMAGE GEN] Skip credit deduction (quick-generate).`);
-    }
-
-    // ── Return task IDs for client-side polling ──────────────
-    return NextResponse.json({
-      success: true,
-      imageTaskIds: taskIds,
-      provider: 'nanobanana',
-      model: engineSafe === 'pro' ? 'nanobanana-generate-pro' : 'nanobanana-generate',
-      requestedEngine: engineSafe,
-    });
 
   } catch (error: any) {
     console.error(`[IMAGE GEN] Fatal error (${Date.now() - startTime}ms):`, error.message);
