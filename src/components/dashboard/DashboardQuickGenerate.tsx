@@ -916,7 +916,7 @@ export function DashboardQuickGenerate() {
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
                     >
-                      Flash
+                      Nano Banana (2.5)
                     </button>
                     <button
                       onClick={() => setEngine('pro')}
@@ -925,9 +925,9 @@ export function DashboardQuickGenerate() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
-                      title="Qualité maximale, plus lent que Flash"
+                      title="Nano Banana 2 (Gemini 3.1) — plus de crédits, meilleure qualité"
                     >
-                      Pro
+                      Nano Banana 2 (3.1)
                     </button>
                   </div>
                 </div>

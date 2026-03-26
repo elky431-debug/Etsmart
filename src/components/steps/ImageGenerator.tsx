@@ -813,7 +813,10 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   <div>
                     <p className="text-sm font-semibold text-white">Nanonbanana</p>
                     <p className="text-xs text-white/70">
-                      Image-to-Image • {engine === 'flash' ? 'Flash (rapide)' : 'Pro (qualité maximale)'}
+                      Image-to-Image •{' '}
+                      {engine === 'flash'
+                        ? 'Nano Banana — Gemini 2.5 Flash Image'
+                        : 'Nano Banana 2 — Gemini 3.1 Flash Image'}
                     </p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
@@ -828,7 +831,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                     }`}
                     type="button"
                   >
-                    Flash
+                    Nano Banana (2.5)
                   </button>
                   <button
                     onClick={() => setEngine('pro')}
@@ -838,9 +841,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         : 'bg-black border border-white/10 text-white hover:border-white/20'
                     }`}
                     type="button"
-                    title="Qualité maximale, plus lent que Flash"
+                    title="Nano Banana 2 (Gemini 3.1) — qualité supérieure"
                   >
-                    Pro
+                    Nano Banana 2 (3.1)
                   </button>
                 </div>
               </div>

@@ -919,7 +919,7 @@ export default function LabQuickPage() {
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
                     >
-                      Nano Banana 2 (Gemini 3.1 Flash Image)
+                      Nano Banana (Gemini 2.5 Flash Image)
                     </button>
                     <button
                       onClick={() => setEngine('pro')}
@@ -928,9 +928,9 @@ export default function LabQuickPage() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
-                      title="Nano Banana Pro (Gemini 3 Pro Image)"
+                      title="Nano Banana 2 (Gemini 3.1 Flash Image)"
                     >
-                      Nano Banana Pro (Gemini 3 Pro Image)
+                      Nano Banana 2 (Gemini 3.1 Flash Image)
                     </button>
                   </div>
                 </div>

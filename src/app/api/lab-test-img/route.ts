@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[LAB-TEST-IMG] Task submitted OK — taskId: ${taskId}`);
-    return NextResponse.json({ taskId, engine, model: engine === 'pro' ? 'Nano Banana Pro' : 'Nano Banana 2' });
+    return NextResponse.json({ taskId, engine, model: engine === 'pro' ? 'Nano Banana 2' : 'Nano Banana' });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[LAB-TEST-IMG] Error:', msg);

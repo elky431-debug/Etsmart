@@ -8,8 +8,8 @@ type Engine = 'flash' | 'pro';
 type Status = 'idle' | 'uploading' | 'generating' | 'polling' | 'done' | 'error';
 
 const ENGINE_LABELS: Record<Engine, string> = {
-  flash: 'Nano Banana 2 (Gemini 3.1 Flash Image)',
-  pro: 'Nano Banana Pro (Gemini 3 Pro Image)',
+  flash: 'Nano Banana (Gemini 2.5 Flash Image)',
+  pro: 'Nano Banana 2 (Gemini 3.1 Flash Image)',
 };
 
 const compressImage = (file: File): Promise<string> =>

@@ -17,8 +17,8 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
 }
 
 /**
- * Concurrence : les modèles preview Pro sont lents ; 2 requêtes parallèles → 429 / timeouts fréquents.
- * Pro → 1 slot à la fois ; Flash → 2.
+ * Concurrence : le slot Pro (3.1 preview) est plus lourd que 2.5 ; 2 requêtes parallèles → 429 / timeouts.
+ * Pro → 1 slot à la fois ; Flash (2.5) → 2.
  */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
   if (engineMode === 'pro') return 1;
@@ -198,6 +198,31 @@ export async function runChunkedImageGeneration(opts: {
         payloadHint,
         `engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`,
       );
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
+        body: JSON.stringify({
+          sessionId: '3a18fa',
+          runId: 'pre-fix',
+          hypothesisId: 'H-CLIENT',
+          location: 'gemini-chunked-image-client.ts:runSingleIndex',
+          message: 'chunked slot api response',
+          data: {
+            slot: index,
+            attempt,
+            httpStatus: res.status,
+            ok: res.ok,
+            successField: json.success === true ? true : json.success === false ? false : null,
+            err: typeof json.error === 'string' ? json.error : null,
+            msgSnippet: (parsed.message || '').slice(0, 280),
+            urlCount: parsed.imageDataUrls.length,
+            model: parsed.model,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (!res.ok) {
         if (
           res.status === 403 &&

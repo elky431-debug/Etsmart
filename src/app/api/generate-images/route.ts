@@ -11,10 +11,10 @@ export const runtime = 'nodejs';
 
 /** Timeout HTTP par appel Gemini (les preview 3.x sont plus lents que 2.5). */
 const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 45_000;
-/** Nano Banana 2 — API Gemini (preview). */
-const GEMINI_IMAGE_MODEL_FLASH = 'gemini-3.1-flash-image-preview';
-/** Nano Banana Pro — API Gemini (preview). */
-const GEMINI_IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview';
+/** Nano Banana — Gemini 2.5 Flash Image (option économique / rapide). */
+const GEMINI_IMAGE_MODEL_FLASH = 'gemini-2.5-flash-image';
+/** Nano Banana 2 — Gemini 3.1 Flash Image (preview, option qualité / crédits Pro). */
+const GEMINI_IMAGE_MODEL_PRO = 'gemini-3.1-flash-image-preview';
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
 const GEMINI_FAST_SINGLE_WALL_MS = 60_000;
 /** Pro preview : plusieurs essais possibles + génération lente. */
@@ -123,7 +123,7 @@ async function runGeminiImagePromptsInBatches(
  * Architecture:
  * 1. Compress & validate the source image
  * 2. Gemini uniquement (GEMINI_API_KEY) — génération synchrone, imageDataUrls (upload Supabase si besoin).
- * 3. Flash → gemini-3.1-flash-image-preview (Nano Banana 2) ; Pro → gemini-3-pro-image-preview (Nano Banana Pro).
+ * 3. Flash → gemini-2.5-flash-image (Nano Banana) ; Pro → gemini-3.1-flash-image-preview (Nano Banana 2).
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -251,13 +251,13 @@ export async function POST(request: NextRequest) {
         {
           error: 'SERVER_CONFIG_ERROR',
           message:
-            'GEMINI_API_KEY est requise pour la génération d\'images (API Google Gemini — Nano Banana 2 / Pro).',
+            'GEMINI_API_KEY est requise pour la génération d\'images (API Google Gemini — Nano Banana / Nano Banana 2).',
         },
         { status: 500 },
       );
     }
 
-    // ── GEMINI : Nano Banana 2 (flash) / Nano Banana Pro (pro) ──
+    // ── GEMINI : Nano Banana (flash) / Nano Banana 2 (pro) ──
     {
       const productDesc = (productTitle && String(productTitle).trim())
         ? String(productTitle).trim().substring(0, 200)
@@ -324,6 +324,25 @@ export async function POST(request: NextRequest) {
 
       const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map(toInlineImagePart))).filter((p): p is { inlineData: { mimeType: string; data: string } } => !!p);
       if (inlineImageParts.length === 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
+          body: JSON.stringify({
+            sessionId: '3a18fa',
+            runId: 'pre-fix',
+            hypothesisId: 'H-C',
+            location: 'generate-images/route.ts:inlineImageParts',
+            message: 'no valid reference inline parts',
+            data: {
+              refInputsCount: refInputs.length,
+              firstRefLen: typeof refInputs[0] === 'string' ? refInputs[0].length : 0,
+              firstRefPrefix: typeof refInputs[0] === 'string' ? refInputs[0].slice(0, 24) : '',
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         return NextResponse.json({
           success: false,
           imageTaskIds: [],
@@ -528,6 +547,28 @@ Pas de texte marketing. Pas de watermark.`
           const errMsg = `No image in response (${elapsed}ms) finish=${finishReason} block=${blockReason} candidates=${data?.candidates?.length ?? 0}`;
           console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
           geminiErrors.push(errMsg);
+          // #region agent log
+          const p0 = parts[0];
+          fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
+            body: JSON.stringify({
+              sessionId: '3a18fa',
+              runId: 'pre-fix',
+              hypothesisId: 'H-E',
+              location: 'generate-images/route.ts:tryGeminiOnce',
+              message: 'gemini response no inline image',
+              data: {
+                model,
+                finishReason: String(finishReason ?? ''),
+                blockReason: String(blockReason ?? ''),
+                partsLen: parts.length,
+                part0keys: p0 && typeof p0 === 'object' ? Object.keys(p0 as object) : [],
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
         } catch (e: any) {
           const name = e?.name || '';
           if (name === 'TimeoutError' || /abort/i.test(String(e?.message))) {
@@ -620,6 +661,29 @@ Pas de texte marketing. Pas de watermark.`
             ? geminiErrors.slice(-3).join(' | ')
             : 'Aucune erreur Gemini capturée (réponses vides ?)';
           console.error(`[IMAGE GEN] Gemini 0 images. Errors: ${geminiDetail}`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
+            body: JSON.stringify({
+              sessionId: '3a18fa',
+              runId: 'pre-fix',
+              hypothesisId: 'H-A',
+              location: 'generate-images/route.ts:zeroImages',
+              message: 'gemini produced zero urls',
+              data: {
+                model: geminiImageEditModel,
+                engine: engineSafe,
+                geminiHttpCapMs,
+                chunkSingleWallMs: isFastChunkedSingle ? chunkSingleWallMs : null,
+                wallMs,
+                errorsTail: geminiErrors.slice(-5),
+                elapsedMs: Date.now() - startTime,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
           return NextResponse.json({
             success: false,
             imageTaskIds: [],
@@ -649,6 +713,21 @@ Pas de texte marketing. Pas de watermark.`
             console.error(
               `[IMAGE GEN] Upload failed for image ${i + 1}; refusing base64 in prod (réponse JSON > limite gateway)`
             );
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0f151a95-065e-4dcd-b345-8bd842db5239', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3a18fa' },
+              body: JSON.stringify({
+                sessionId: '3a18fa',
+                runId: 'pre-fix',
+                hypothesisId: 'H-D',
+                location: 'generate-images/route.ts:supabaseUpload',
+                message: 'storage upload failed no base64 fallback',
+                data: { imageIndex: i, nodeEnv: process.env.NODE_ENV },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
             return NextResponse.json(
               {
                 success: false,
