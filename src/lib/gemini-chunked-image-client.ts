@@ -16,12 +16,13 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Concurrence : trop de POST Gemini en parallèle → 429 / réponses vides ; 2 reste plus fiable. */
+/**
+ * Concurrence : les modèles preview Pro sont lents ; 2 requêtes parallèles → 429 / timeouts fréquents.
+ * Pro → 1 slot à la fois ; Flash → 2.
+ */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
+  if (engineMode === 'pro') return 1;
   if (typeof window === 'undefined') return 2;
-  const host = window.location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
-  if (isLocal) return 2;
   return 2;
 }
 
@@ -61,6 +62,12 @@ function pickApiMessage(json: Record<string, unknown>): string | null {
     } catch {
       return null;
     }
+  }
+  const err = json.error;
+  if (typeof err === 'string' && err.trim().length > 0) return err.trim();
+  if (err != null && typeof err === 'object' && 'message' in err) {
+    const em = (err as { message?: unknown }).message;
+    if (typeof em === 'string' && em.trim().length > 0) return em.trim();
   }
   return null;
 }

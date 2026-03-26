@@ -9,15 +9,16 @@ try { sharp = require('sharp'); } catch { sharp = null; }
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
-const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 28_000;
+/** Timeout HTTP par appel Gemini (les preview 3.x sont plus lents que 2.5). */
+const GEMINI_IMAGE_FETCH_TIMEOUT_MS = 45_000;
 /** Nano Banana 2 — API Gemini (preview). */
 const GEMINI_IMAGE_MODEL_FLASH = 'gemini-3.1-flash-image-preview';
 /** Nano Banana Pro — API Gemini (preview). */
 const GEMINI_IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview';
 /** Budget max pour 1 image en mode « chunked » (1 image / requête côté client). */
-const GEMINI_FAST_SINGLE_WALL_MS = 45_000;
-/** Pro chunked : un peu plus de marge qu'un seul essai Gemini, tout en restant sous timeout gateway (~60s). */
-const GEMINI_PRO_SINGLE_WALL_MS = 45_000;
+const GEMINI_FAST_SINGLE_WALL_MS = 60_000;
+/** Pro preview : plusieurs essais possibles + génération lente. */
+const GEMINI_PRO_SINGLE_WALL_MS = 120_000;
 /** Budget pour 2+ images dans un même POST (plusieurs vagues batch internes). */
 const GEMINI_PAIR_WALL_MS = 110_000;
 const GEMINI_MULTI_BATCH_WALL_MS = 115_000;
@@ -498,11 +499,25 @@ Pas de texte marketing. Pas de watermark.`
             return null;
           }
           const data = await res.json();
+          if (data?.error && !data?.candidates) {
+            const ge = data.error;
+            const errMsg =
+              typeof ge === 'object' && ge !== null && 'message' in ge
+                ? `API error: ${String((ge as { message?: string }).message)}`
+                : `API error: ${JSON.stringify(ge).substring(0, 220)}`;
+            console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
+            geminiErrors.push(errMsg);
+            return null;
+          }
           const cand0 = data?.candidates?.[0];
           const parts = cand0?.content?.parts || [];
           for (const part of parts) {
-            const b64 = part?.inlineData?.data;
-            const mime = part?.inlineData?.mimeType || 'image/png';
+            const blob = (part as { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } })
+              ?.inlineData ?? (part as { inline_data?: { data?: string; mime_type?: string } })?.inline_data;
+            const b64 = blob?.data;
+            const mime = (blob as { mimeType?: string; mime_type?: string } | undefined)?.mimeType
+              ?? (blob as { mime_type?: string } | undefined)?.mime_type
+              ?? 'image/png';
             if (typeof b64 === 'string' && b64.length > 100) {
               console.log(`[IMAGE GEN] Gemini ${model} OK (${elapsed}ms), image ${b64.length} bytes`);
               return `data:${mime};base64,${b64}`;
@@ -510,7 +525,7 @@ Pas de texte marketing. Pas de watermark.`
           }
           const finishReason = cand0?.finishReason;
           const blockReason = data?.promptFeedback?.blockReason ?? cand0?.promptFeedback?.blockReason;
-          const errMsg = `No image in response (${elapsed}ms) finish=${finishReason} block=${blockReason}`;
+          const errMsg = `No image in response (${elapsed}ms) finish=${finishReason} block=${blockReason} candidates=${data?.candidates?.length ?? 0}`;
           console.warn(`[IMAGE GEN] Gemini ${model}`, errMsg);
           geminiErrors.push(errMsg);
         } catch (e: any) {
@@ -537,11 +552,11 @@ Pas de texte marketing. Pas de watermark.`
         return tryGeminiOnce(prompt, geminiImageEditModel, partsForAttempt, timeoutMs);
       };
 
-      /** Pro (preview) souvent plus lent ; Netlify reste sous budget gateway. */
+      /** Pro preview très lent ; hors Netlify on laisse respirer. Sur Netlify gateway ~26s on reste serré. */
       const geminiHttpCapMs = isNetlifyHost
-        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === 'pro' ? 24_000 : 18_000)
+        ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === 'pro' ? 25_000 : 20_000)
         : engineSafe === 'pro'
-          ? 55_000
+          ? 95_000
           : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
