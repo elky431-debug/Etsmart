@@ -13,7 +13,8 @@
     "dev:4099": "next dev -p 4099",
     "dev:5000": "next dev -p 5000",
     "dev:5050": "next dev -p 5050",
-    "build": "echo 'Building...' && next build",
+    "bundle:netlify-image-bg": "node scripts/bundle-netlify-image-background.mjs",
+    "build": "node scripts/bundle-netlify-image-background.mjs && echo 'Building...' && next build",
     "start": "next start",
     "lint": "eslint",
     "build:extension": "cd extension && node compile-extension.js",
@@ -44,6 +45,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.8.2",
     "@tailwindcss/postcss": "^4",
     "@types/chrome": "^0.1.36",
     "@types/geojson": "^7946.0.16",
@@ -52,6 +54,7 @@
     "@types/react-dom": "^19",
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
+    "esbuild": "^0.27.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "netlify-cli": "^23.15.0",

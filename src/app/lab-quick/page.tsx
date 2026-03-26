@@ -96,8 +96,8 @@ const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, 
 
 export default function LabQuickPage() {
   const { refreshSubscription } = useSubscription();
-  // Clé unique pour la génération rapide dans sessionStorage
-  const storageKey = 'etsmart-quick-generate-completed';
+  // Isolé du dashboard : ne pas partager sessionStorage avec la génération rapide production.
+  const storageKey = 'etsmart-lab-quick-completed';
   
   const [sourceImage, setSourceImage] = useState<File | null>(null);
   const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(null);

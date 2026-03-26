@@ -106,7 +106,8 @@ export function DashboardQuickGenerate() {
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(7);
-  const [engine, setEngine] = useState<ImageEngine>('pro');
+  /** Prod : Nano Banana (2.5) par défaut — moins de timeouts Netlify que Gemini 3.1 (option « Pro »). */
+  const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
   const engineForApi: ImageEngine = engine;
@@ -916,7 +917,7 @@ export function DashboardQuickGenerate() {
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
                     >
-                      Nano Banana (2.5)
+                      Nano Banana (Gemini 2.5 Flash Image)
                     </button>
                     <button
                       onClick={() => setEngine('pro')}
@@ -925,9 +926,9 @@ export function DashboardQuickGenerate() {
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
-                      title="Nano Banana 2 (Gemini 3.1) — plus de crédits, meilleure qualité"
+                      title="Nano Banana 2 (Gemini 3.1 Flash Image) — plus de crédits, meilleure qualité ; peut dépasser le délai Netlify si le job async n’est pas actif."
                     >
-                      Nano Banana 2 (3.1)
+                      Nano Banana 2 (Gemini 3.1)
                     </button>
                   </div>
                 </div>

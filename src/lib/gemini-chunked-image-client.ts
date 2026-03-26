@@ -130,6 +130,43 @@ export interface ChunkedGeneratedImage {
   url: string;
 }
 
+/** Netlify Background Function : attend la fin du job puis renvoie le même JSON que l’API synchrone. */
+async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + 15 * 60_000;
+  const interval = 2000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, interval));
+    const pr = await fetch(`/api/generate-images/status?jobId=${encodeURIComponent(jobId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    let pj: Record<string, unknown>;
+    try {
+      pj = (await pr.json()) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (pj.status === 'done' && pj.result && typeof pj.result === 'object') {
+      return pj.result as Record<string, unknown>;
+    }
+    if (pj.status === 'error') {
+      return {
+        success: false,
+        imageTaskIds: [],
+        imageDataUrls: [],
+        error: 'IMAGE_SUBMIT_FAILED',
+        message: typeof pj.message === 'string' ? pj.message : 'Erreur génération',
+      };
+    }
+  }
+  return {
+    success: false,
+    imageTaskIds: [],
+    imageDataUrls: [],
+    error: 'IMAGE_JOB_TIMEOUT',
+    message: 'Délai dépassé en attendant les images (job async).',
+  };
+}
+
 async function runWithConcurrency<T>(
   items: T[],
   maxConcurrency: number,
@@ -201,24 +238,45 @@ export async function runChunkedImageGeneration(opts: {
       };
       const res = await fetchGenerateImagesWithRetry(payload, token, slotHttpAttempts, retryBackoffMs);
       let json: Record<string, unknown> = {};
-      try {
-        json = (await res.json()) as Record<string, unknown>;
-      } catch {
-        json = {};
+      let httpOk = res.ok;
+      let httpStatus = res.status;
+      if (res.status === 202) {
+        try {
+          json = (await res.json()) as Record<string, unknown>;
+        } catch {
+          json = {};
+        }
+        if (json.accepted === true && typeof json.jobId === 'string') {
+          console.log(`[CHUNKED] Slot ${index} job async ${json.jobId} (poll)…`);
+          json = await pollImageGenJobUntilDone(json.jobId, token);
+          const urls = Array.isArray(json.imageDataUrls) ? json.imageDataUrls : [];
+          httpOk =
+            json.success === true ||
+            urls.some((u) => typeof u === 'string' && u.length > 12);
+          httpStatus = httpOk ? 200 : 500;
+        } else {
+          httpOk = false;
+        }
+      } else {
+        try {
+          json = (await res.json()) as Record<string, unknown>;
+        } catch {
+          json = {};
+        }
       }
       const parsed = parseGenerateImageResponse(json);
       const apiDeclined = json.success === false;
       const successStr =
         json.success === true ? 'true' : json.success === false ? 'false' : '∅';
-      const payloadHint = `status=${res.status} ok=${res.ok} success=${successStr} urls=${parsed.imageDataUrls.length} tasks=${parsed.imageTaskIds.length}`;
+      const payloadHint = `status=${httpStatus} ok=${httpOk} success=${successStr} urls=${parsed.imageDataUrls.length} tasks=${parsed.imageTaskIds.length}`;
       console.log(
         `[CHUNKED] Slot ${index} attempt=${attempt}`,
         payloadHint,
         `engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`,
       );
-      if (!res.ok) {
+      if (!httpOk) {
         if (
-          res.status === 403 &&
+          httpStatus === 403 &&
           (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
         ) {
           firstQuotaError = normalizeQuotaMessage(parsed.message);
@@ -229,9 +287,9 @@ export async function runChunkedImageGeneration(opts: {
         lastError =
           parsed.message ||
           (parsed.errorCode
-            ? `Image ${index + 1}: ${parsed.errorCode} (HTTP ${res.status})`
-            : `Image ${index + 1}: erreur API ${res.status}`);
-        console.error(`[CHUNKED] Slot ${index} HTTP ${res.status}`, parsed.errorCode, parsed.message);
+            ? `Image ${index + 1}: ${parsed.errorCode} (HTTP ${httpStatus})`
+            : `Image ${index + 1}: erreur API ${httpStatus}`);
+        console.error(`[CHUNKED] Slot ${index} HTTP ${httpStatus}`, parsed.errorCode, parsed.message);
         continue;
       }
 
