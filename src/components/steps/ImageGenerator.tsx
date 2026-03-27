@@ -87,11 +87,12 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [customInstructions, setCustomInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
-  const [engine, setEngine] = useState<ImageEngine>('pro');
+  const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
-  /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
-  const engineForApi: ImageEngine = engine;
-  const creditsToDeduct = imagesOnlyTotalCredits(quantity, engineForApi);
+  /** Comme génération rapide dashboard : API + crédits toujours flash (2.5) ; `engine` = boutons uniquement. */
+  const engineForApi: ImageEngine = 'flash';
+  const billingEngine: ImageEngine = 'flash';
+  const creditsToDeduct = imagesOnlyTotalCredits(quantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -330,7 +331,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         throw new Error('Authentification requise');
       }
 
-      // Deduct credits côté client (pricing dépend engine + quantity)
+      // Deduct credits côté client (tarif flash sur ce flux)
       const quotaCheck = await fetch('/api/deduct-credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -813,10 +814,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   <div>
                     <p className="text-sm font-semibold text-white">Nanonbanana</p>
                     <p className="text-xs text-white/70">
-                      Image-to-Image •{' '}
-                      {engine === 'flash'
-                        ? 'Nano Banana — Gemini 2.5 Flash Image'
-                        : 'Nano Banana 2 — Gemini 3.1 Flash Image'}
+                      Image-to-Image • Nano Banana — Gemini 2.5 Flash Image
                     </p>
                   </div>
                   <Sparkles size={20} className="text-[#00d4ff]" />
@@ -831,7 +829,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                     }`}
                     type="button"
                   >
-                    Nano Banana (2.5)
+                    Nano Banana (Gemini 2.5 Flash Image)
                   </button>
                   <button
                     onClick={() => setEngine('pro')}
@@ -841,9 +839,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                         : 'bg-black border border-white/10 text-white hover:border-white/20'
                     }`}
                     type="button"
-                    title="Nano Banana 2 (Gemini 3.1) — qualité supérieure"
+                    title="Profil Nano Banana 2"
                   >
-                    Nano Banana 2 (3.1)
+                    Nano Banana 2
                   </button>
                 </div>
               </div>
