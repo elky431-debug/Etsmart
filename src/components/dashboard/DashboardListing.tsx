@@ -17,7 +17,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useStore } from '@/store/useStore';
 import { motion } from 'framer-motion';
 import { ListingKeywordHintsDevPanel } from '@/components/dev/ListingKeywordHintsDevPanel';
-import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
+import { listingKeywordHintsEnabled } from '@/lib/listing-keyword-hints-dev';
 
 interface DashboardListingProps {
   analysis: ProductAnalysis;
@@ -108,7 +108,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
               buyerMirror: undefined,
               recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
               skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation
-              ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
+              ...(listingKeywordHintsEnabled() && listingKeywordHints.trim()
                 ? { listingKeywordHints: listingKeywordHints.trim() }
                 : {}),
             }),
@@ -206,7 +206,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
           buyerMirror: undefined, // buyerMirror not available in current structure
           recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
           skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation (independent from analysis)
-          ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
+          ...(listingKeywordHintsEnabled() && listingKeywordHints.trim()
             ? { listingKeywordHints: listingKeywordHints.trim() }
             : {}),
         }),
@@ -307,7 +307,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
 
   return (
     <div className="space-y-6">
-      {listingKeywordHintsDevEnabled() ? (
+      {listingKeywordHintsEnabled() ? (
         <ListingKeywordHintsDevPanel
           value={listingKeywordHints}
           onChange={setListingKeywordHints}
