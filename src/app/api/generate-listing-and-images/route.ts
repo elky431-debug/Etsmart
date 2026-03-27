@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
     const hintsAppendix = listingKeywordHintsPromptAppendix(listingKeywordHints);
     const analysisImagePrompt = listingKeywordHints
-      ? `Analyze this product image. The seller noted themes or keywords they want reflected in the listing (style, era, aesthetic, niche — e.g. Y2K, streetwear): "${listingKeywordHints.replace(/"/g, "'")}". Mention these in your analysis only where supported by what you see; do not invent. Describe product type, materials, colors, design, key features in English. 80-120 words, concise.`
+      ? `Analyze this product image. The seller noted themes or keywords they want reflected in the listing (style, aesthetic, niche — e.g. minimalist, handmade, neutral palette): "${listingKeywordHints.replace(/"/g, "'")}". Mention these in your analysis only where supported by what you see; do not invent. Describe product type, materials, colors, design, key features in English. 80-120 words, concise.`
       : 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 80-120 words, concise.';
 
     // Credits already deducted by frontend via /api/deduct-credits
