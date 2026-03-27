@@ -35,6 +35,7 @@ import {
   runChunkedImageGeneration,
   type ImageEngineMode,
 } from '@/lib/gemini-chunked-image-client';
+import { ListingKeywordHintsDevPanel } from '@/components/dev/ListingKeywordHintsDevPanel';
 import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 type ImageEngine = ImageEngineMode;
@@ -735,6 +736,15 @@ export function DashboardQuickGenerate() {
           </div>
         </div>
 
+        {listingKeywordHintsDevEnabled() ? (
+          <div className="mb-6">
+            <ListingKeywordHintsDevPanel
+              value={listingKeywordHints}
+              onChange={setListingKeywordHints}
+            />
+          </div>
+        ) : null}
+
         {/* Upload Section */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] mb-6 overflow-hidden">
           <div className="p-6 sm:p-8">
@@ -946,25 +956,6 @@ export function DashboardQuickGenerate() {
                   </p>
                   <ImageStyleCards value={style} onChange={setStyle} variant="quick" />
                 </div>
-
-                {listingKeywordHintsDevEnabled() && (
-                  <div className="mt-4 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4">
-                    <label className="mb-1 block text-sm font-semibold text-amber-100">
-                      Mots-clés & style (local uniquement)
-                    </label>
-                    <p className="mb-2 text-xs text-amber-100/75">
-                      Intégrés dans le titre, les tags et la description du listing (ex. Y2K, streetwear).
-                    </p>
-                    <textarea
-                      value={listingKeywordHints}
-                      onChange={(e) => setListingKeywordHints(e.target.value)}
-                      rows={3}
-                      maxLength={400}
-                      className="w-full resize-y rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                      placeholder="Y2K, low rise, baggy…"
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
