@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
+import {
+  listingKeywordHintsFromRequestBody,
+  listingKeywordHintsPromptAppendix,
+} from '@/lib/listing-keyword-hints-dev';
 
 /** Netlify / hébergeurs : laisser assez de marge pour 2 appels OpenAI + vision (évite 504 + chargement infini côté client). */
 export const maxDuration = 60;
@@ -26,6 +30,12 @@ export async function POST(request: NextRequest) {
     const { sourceImage, competitorTitle, competitorDescription, competitorHashtags } = body;
     if (!sourceImage) return NextResponse.json({ error: 'MISSING_IMAGE' }, { status: 400 });
 
+    const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
+    const hintsAppendix = listingKeywordHintsPromptAppendix(listingKeywordHints);
+    const analysisImagePrompt = listingKeywordHints
+      ? `Analyze this product image. The seller noted themes or keywords they want reflected in the listing (style, era, aesthetic, niche — e.g. Y2K, streetwear): "${listingKeywordHints.replace(/"/g, "'")}". Mention these in your analysis only where supported by what you see; do not invent. Describe product type, materials, colors, design, key features in English. 80-120 words, concise.`
+      : 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 80-120 words, concise.';
+
     // Credits already deducted by frontend via /api/deduct-credits
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -42,7 +52,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: [
-          { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 80-120 words, concise.' },
+          { type: 'text', text: analysisImagePrompt },
           { type: 'image_url', image_url: { url: imageForAnalysis, detail: 'low' } },
         ]}],
         max_tokens: 240,
@@ -110,7 +120,7 @@ SEO/QUALITY CONSTRAINTS:
 
 INPUTS:
 - Product visual description: ${productDesc}
-- Competitor description (optional): ${competitorDescription && String(competitorDescription).trim() ? String(competitorDescription).trim().substring(0, 2200) : 'NONE'}
+- Competitor description (optional): ${competitorDescription && String(competitorDescription).trim() ? String(competitorDescription).trim().substring(0, 2200) : 'NONE'}${hintsAppendix}
 
 Return ONLY the final description text.`,
             },
@@ -169,7 +179,7 @@ TAGS RULES (STRICT):
 INPUTS:
 - Product visual description: ${productDesc}
 - Competitor title (optional): ${competitorTitle && String(competitorTitle).trim() ? String(competitorTitle).trim().substring(0, 180) : 'NONE'}
-- Competitor hashtags (optional): ${competitorHashtags && String(competitorHashtags).trim() ? String(competitorHashtags).trim().substring(0, 350) : 'NONE'}
+- Competitor hashtags (optional): ${competitorHashtags && String(competitorHashtags).trim() ? String(competitorHashtags).trim().substring(0, 350) : 'NONE'}${hintsAppendix}
 
 Return JSON exactly:
 {"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`,

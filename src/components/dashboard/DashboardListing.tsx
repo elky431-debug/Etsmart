@@ -16,6 +16,7 @@ import type { ProductAnalysis, Niche } from '@/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useStore } from '@/store/useStore';
 import { motion } from 'framer-motion';
+import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 interface DashboardListingProps {
   analysis: ProductAnalysis;
@@ -40,6 +41,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
   const [etsyTitle, setEtsyTitle] = useState<string | null>(null);
   const [etsyTags, setEtsyTags] = useState<string[] | null>(null);
   const [etsyMaterials, setEtsyMaterials] = useState<string | null>(null);
+  const [listingKeywordHints, setListingKeywordHints] = useState('');
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [copiedDescription, setCopiedDescription] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render when credits update
@@ -105,6 +107,9 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
               buyerMirror: undefined,
               recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
               skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation
+              ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
+                ? { listingKeywordHints: listingKeywordHints.trim() }
+                : {}),
             }),
           });
 
@@ -200,6 +205,9 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
           buyerMirror: undefined, // buyerMirror not available in current structure
           recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
           skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation (independent from analysis)
+          ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
+            ? { listingKeywordHints: listingKeywordHints.trim() }
+            : {}),
         }),
       });
 
@@ -328,6 +336,34 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
               {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)}
             </p>
           </div>
+        </div>
+      )}
+
+      {listingKeywordHintsDevEnabled() && (
+        <div className="space-y-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-5">
+          <div>
+            <p className="text-sm font-semibold text-amber-100">Mots-clés & style (local uniquement)</p>
+            <p className="mt-1 text-xs text-amber-100/75">
+              Saisis les termes à intégrer dans le titre, les tags et la description, puis régénère (1 crédit).
+            </p>
+          </div>
+          <textarea
+            value={listingKeywordHints}
+            onChange={(e) => setListingKeywordHints(e.target.value)}
+            rows={3}
+            maxLength={400}
+            className="w-full resize-y rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            placeholder="Y2K, streetwear, low rise…"
+          />
+          <button
+            type="button"
+            onClick={() => generateEtsyDescription(true)}
+            disabled={isGeneratingDescription}
+            className="inline-flex items-center gap-2 rounded-lg border border-amber-400/50 bg-black/40 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-black/60 disabled:opacity-50"
+          >
+            <Sparkles size={16} />
+            Régénérer le listing avec ces mots-clés
+          </button>
         </div>
       )}
 

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
+import {
+  listingKeywordHintsFromRequestBody,
+  listingKeywordHintsPromptAppendix,
+} from '@/lib/listing-keyword-hints-dev';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +50,9 @@ export async function POST(request: NextRequest) {
       recommendedPrice,
       skipCreditDeduction = true, // ⚠️ CHANGÉ: Par défaut true car les crédits sont déjà déduits lors du parsing de l'image
     } = body;
+
+    const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
+    const hintsAppendix = listingKeywordHintsPromptAppendix(listingKeywordHints);
 
     // ⚠️ CRITICAL VALIDATION: Vérifier que productVisualDescription est présent et non vide
     if (!productVisualDescription || productVisualDescription.trim().length === 0) {
@@ -124,7 +131,7 @@ INPUTS:
 - Product visual description: ${productVisualDescription}
 - Niche: ${niche}
 - Positioning: ${positioning || 'Not specified'}
-- Recommended price: $${recommendedPrice}
+- Recommended price: $${recommendedPrice}${hintsAppendix}
 
 Return ONLY the final description text.`;
 
@@ -158,7 +165,7 @@ TAGS RULES (STRICT):
 
 INPUTS:
 - Product visual description: ${productVisualDescription}
-- Niche: ${niche || '[YOUR NICHE]'}
+- Niche: ${niche || '[YOUR NICHE]'}${hintsAppendix}
 
 MATERIALS RULES:
 - Only material names (no sentences)

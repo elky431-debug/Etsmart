@@ -35,6 +35,7 @@ import {
   runChunkedImageGeneration,
   type ImageEngineMode,
 } from '@/lib/gemini-chunked-image-client';
+import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 type ImageEngine = ImageEngineMode;
 
@@ -108,6 +109,7 @@ export default function LabQuickPage() {
   const [quantity, setQuantity] = useState(7);
   const [engine, setEngine] = useState<ImageEngine>('pro');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
+  const [listingKeywordHints, setListingKeywordHints] = useState('');
   /** Le moteur sélectionné est réellement envoyé à l’API (Flash ou Pro). */
   const engineForApi: ImageEngine = engine;
   const billingEngine: ImageEngine = engineForApi;
@@ -333,7 +335,12 @@ export default function LabQuickPage() {
       const listingResponse = await fetch('/api/generate-listing-and-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ sourceImage: imageBase64 }),
+        body: JSON.stringify({
+          sourceImage: imageBase64,
+          ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
+            ? { listingKeywordHints: listingKeywordHints.trim() }
+            : {}),
+        }),
         signal: AbortSignal.timeout(120_000),
       });
 
@@ -942,6 +949,25 @@ export default function LabQuickPage() {
                   </p>
                   <ImageStyleCards value={style} onChange={setStyle} variant="quick" />
                 </div>
+
+                {listingKeywordHintsDevEnabled() && (
+                  <div className="mt-4 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4">
+                    <label className="mb-1 block text-sm font-semibold text-amber-100">
+                      Mots-clés & style (local uniquement)
+                    </label>
+                    <p className="mb-2 text-xs text-amber-100/75">
+                      Intégrés dans le titre, les tags et la description du listing (ex. Y2K, streetwear).
+                    </p>
+                    <textarea
+                      value={listingKeywordHints}
+                      onChange={(e) => setListingKeywordHints(e.target.value)}
+                      rows={3}
+                      maxLength={400}
+                      className="w-full resize-y rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                      placeholder="Y2K, low rise, baggy…"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
