@@ -63,28 +63,28 @@ export interface PlanFeature {
 // -1 means unlimited
 export const PLAN_QUOTAS: Record<PlanId, number> = {
   FREE: 0,
-  SMART: 60,
-  PRO: 120,
-  SCALE: 200,
+  SMART: 80,
+  PRO: 250,
+  SCALE: 400,
   INFINITY: -1, // -1 means unlimited
 };
 
 // Plan prices per plan type (as per requirements)
 export const PLAN_PRICES: Record<PlanId, number> = {
   FREE: 0,
-  SMART: 19.99,
-  PRO: 29.99,
-  SCALE: 59.99,
-  INFINITY: 219.99,
+  SMART: 24.99,
+  PRO: 44.99,
+  SCALE: 69.99,
+  INFINITY: 279.99,
 };
 
 // Stripe Price IDs for each plan (PRODUCTION - All in EUR)
 export const STRIPE_PRICE_IDS: Record<PlanId, string | null> = {
   FREE: null,
-  SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
-  PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
-  SCALE: null, // Etsmart Scale - €59.99/month (Price ID to be updated)
-  INFINITY: 'price_1SyzZ0Cn17QPHnzEuRynPNzi', // Etsmart Infinity - Unlimited credits
+  SMART: 'price_1TEWJ0Cn17QPHnzEwYpxSgGX', // Etsmart Smart - EUR 24.99/month
+  PRO: 'price_1TEWTHCn17QPHnzEgEpXoK76', // Etsmart Pro - EUR 44.99/month
+  SCALE: 'price_1TEWUlCn17QPHnzEa6m5sgJY', // Etsmart Scale - EUR 69.99/month
+  INFINITY: 'price_1TFQofCn17QPHnzEJqaSmDdP', // Etsmart Infinity - EUR 279.99/month
 };
 
 // All plans have access to all features - only difference is number of analyses per month
@@ -117,9 +117,9 @@ export const PLANS: Plan[] = [
     id: 'SMART',
     name: 'Etsmart Smart',
     description: 'Parfait pour les vendeurs qui veulent tester des produits sérieusement. Toutes les fonctionnalités incluses.',
-    price: 19.99,
+    price: 24.99,
     currency: 'EUR',
-    analysesPerMonth: 60,
+    analysesPerMonth: 80,
     features: PLAN_FEATURES.SMART,
     stripePriceId: STRIPE_PRICE_IDS.SMART || undefined,
   },
@@ -127,9 +127,9 @@ export const PLANS: Plan[] = [
     id: 'PRO',
     name: 'Etsmart Pro',
     description: 'Idéal pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalités incluses.',
-    price: 29.99,
+    price: 44.99,
     currency: 'EUR',
-    analysesPerMonth: 120,
+    analysesPerMonth: 250,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
     popular: true,
@@ -138,9 +138,9 @@ export const PLANS: Plan[] = [
     id: 'SCALE',
     name: 'Etsmart Scale',
     description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
-    price: 59.99,
+    price: 69.99,
     currency: 'EUR',
-    analysesPerMonth: 200,
+    analysesPerMonth: 400,
     features: PLAN_FEATURES.SCALE,
     stripePriceId: STRIPE_PRICE_IDS.SCALE || undefined,
   },
@@ -148,7 +148,7 @@ export const PLANS: Plan[] = [
     id: 'INFINITY',
     name: 'Etsmart Infinity',
     description: 'Pour les professionnels qui ont besoin de crédits illimités. Toutes les fonctionnalités incluses.',
-    price: 219.99,
+    price: 279.99,
     currency: 'EUR',
     analysesPerMonth: -1, // -1 means unlimited
     features: PLAN_FEATURES.INFINITY,

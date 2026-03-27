@@ -44,10 +44,10 @@ export async function GET(request: NextRequest) {
     );
 
     // Trouver les prix correspondant aux plans Etsmart
-    const smartPrice = monthlyPrices.find(p => Math.abs(p.amount - 19.99) < 0.01);
-    const proPrice = monthlyPrices.find(p => Math.abs(p.amount - 29.99) < 0.01);
-    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 59.99) < 0.01); // Updated to €59.99
-    const infinityPrice = monthlyPrices.find(p => p.id === 'price_1SyzZ0Cn17QPHnzEuRynPNzi'); // Etsmart Infinity
+    const smartPrice = monthlyPrices.find(p => Math.abs(p.amount - 24.99) < 0.01);
+    const proPrice = monthlyPrices.find(p => Math.abs(p.amount - 44.99) < 0.01);
+    const scalePrice = monthlyPrices.find(p => Math.abs(p.amount - 69.99) < 0.01);
+    const infinityPrice = monthlyPrices.find(p => p.id === 'price_1TFQofCn17QPHnzEJqaSmDdP');
 
     return NextResponse.json({
       success: true,
@@ -59,15 +59,15 @@ export async function GET(request: NextRequest) {
         INFINITY: infinityPrice?.id || null,
       },
       current: {
-        SMART: 'price_1SuZeOCn17QPHnzEKg8ix1VD', // Etsmart Smart - €19.99/month
-        PRO: 'price_1SuZj2Cn17QPHnzEzSlaXWuh', // Etsmart Pro - €29.99/month
-        SCALE: null, // Etsmart Scale - €59.99/month (Price ID to be updated)
-        INFINITY: 'price_1SyzZ0Cn17QPHnzEuRynPNzi', // Etsmart Infinity - Unlimited credits
+        SMART: 'price_1TEWJ0Cn17QPHnzEwYpxSgGX',
+        PRO: 'price_1TEWTHCn17QPHnzEgEpXoK76',
+        SCALE: 'price_1TEWUlCn17QPHnzEa6m5sgJY',
+        INFINITY: 'price_1TFQofCn17QPHnzEJqaSmDdP',
       },
       prices: {
-        SMART: smartPrice?.amount || 19.99,
-        PRO: proPrice?.amount || 29.99,
-        SCALE: scalePrice?.amount || 59.99,
+        SMART: smartPrice?.amount || 24.99,
+        PRO: proPrice?.amount || 44.99,
+        SCALE: scalePrice?.amount || 69.99,
         INFINITY: infinityPrice?.amount || 0,
       },
     });

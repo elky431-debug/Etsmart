@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
     // If price ID is not configured, try to find it from Stripe API
     if (!priceId && stripe) {
       try {
-        const expectedPrice = normalizedPlanId === 'SMART' ? 19.99 :
-                             normalizedPlanId === 'PRO' ? 29.99 :
-                             normalizedPlanId === 'SCALE' ? 59.99 :
-                             normalizedPlanId === 'INFINITY' ? 219.99 : null;
+        const expectedPrice = normalizedPlanId === 'SMART' ? 24.99 :
+                             normalizedPlanId === 'PRO' ? 44.99 :
+                             normalizedPlanId === 'SCALE' ? 69.99 :
+                             normalizedPlanId === 'INFINITY' ? 279.99 : null;
         
         if (expectedPrice) {
           const prices = await stripe.prices.list({
@@ -145,12 +145,6 @@ export async function POST(request: NextRequest) {
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       payment_method_collection: 'always',
-      subscription_data: {
-        // Set billing cycle anchor to now (immediate payment)
-        // Checkout Session already defaults to charge_automatically
-        // Invoices are created automatically for subscription mode
-        billing_cycle_anchor: Math.floor(Date.now() / 1000),
-      },
     };
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
