@@ -12832,22 +12832,22 @@ var init_subscription = __esm({
     "use strict";
     PLAN_QUOTAS = {
       FREE: 0,
-      SMART: 60,
-      PRO: 120,
-      SCALE: 200,
+      SMART: 80,
+      PRO: 250,
+      SCALE: 400,
       INFINITY: -1
       // -1 means unlimited
     };
     STRIPE_PRICE_IDS = {
       FREE: null,
-      SMART: "price_1SuZeOCn17QPHnzEKg8ix1VD",
-      // Etsmart Smart - €19.99/month
-      PRO: "price_1SuZj2Cn17QPHnzEzSlaXWuh",
-      // Etsmart Pro - €29.99/month
-      SCALE: null,
-      // Etsmart Scale - €59.99/month (Price ID to be updated)
-      INFINITY: "price_1SyzZ0Cn17QPHnzEuRynPNzi"
-      // Etsmart Infinity - Unlimited credits
+      SMART: "price_1TEWJ0Cn17QPHnzEwYpxSgGX",
+      // Etsmart Smart - EUR 24.99/month
+      PRO: "price_1TEWTHCn17QPHnzEgEpXoK76",
+      // Etsmart Pro - EUR 44.99/month
+      SCALE: "price_1TEWUlCn17QPHnzEa6m5sgJY",
+      // Etsmart Scale - EUR 69.99/month
+      INFINITY: "price_1TFQofCn17QPHnzEJqaSmDdP"
+      // Etsmart Infinity - EUR 279.99/month
     };
     ALL_FEATURES = [
       { id: "analyse_simulation", name: "Analyse IA & simulation de lancement", available: true },
@@ -12874,9 +12874,9 @@ var init_subscription = __esm({
         id: "SMART",
         name: "Etsmart Smart",
         description: "Parfait pour les vendeurs qui veulent tester des produits s\xE9rieusement. Toutes les fonctionnalit\xE9s incluses.",
-        price: 19.99,
+        price: 24.99,
         currency: "EUR",
-        analysesPerMonth: 60,
+        analysesPerMonth: 80,
         features: PLAN_FEATURES.SMART,
         stripePriceId: STRIPE_PRICE_IDS.SMART || void 0
       },
@@ -12884,9 +12884,9 @@ var init_subscription = __esm({
         id: "PRO",
         name: "Etsmart Pro",
         description: "Id\xE9al pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalit\xE9s incluses.",
-        price: 29.99,
+        price: 44.99,
         currency: "EUR",
-        analysesPerMonth: 120,
+        analysesPerMonth: 250,
         features: PLAN_FEATURES.PRO,
         stripePriceId: STRIPE_PRICE_IDS.PRO || void 0,
         popular: true
@@ -12895,9 +12895,9 @@ var init_subscription = __esm({
         id: "SCALE",
         name: "Etsmart Scale",
         description: "Pour les boutiques \xE0 fort volume testant de nombreux produits strat\xE9giquement. Toutes les fonctionnalit\xE9s incluses.",
-        price: 59.99,
+        price: 69.99,
         currency: "EUR",
-        analysesPerMonth: 200,
+        analysesPerMonth: 400,
         features: PLAN_FEATURES.SCALE,
         stripePriceId: STRIPE_PRICE_IDS.SCALE || void 0
       },
@@ -12905,7 +12905,7 @@ var init_subscription = __esm({
         id: "INFINITY",
         name: "Etsmart Infinity",
         description: "Pour les professionnels qui ont besoin de cr\xE9dits illimit\xE9s. Toutes les fonctionnalit\xE9s incluses.",
-        price: 219.99,
+        price: 279.99,
         currency: "EUR",
         analysesPerMonth: -1,
         // -1 means unlimited
@@ -22257,6 +22257,38 @@ function geminiStyleHint(style) {
   return GEMINI_HINTS[key] ?? GEMINI_HINTS[DEFAULT_IMAGE_STYLE];
 }
 
+// src/lib/apparel-product-detection.ts
+var KIND_APPAREL = /^(apparel|clothing|vetement|vêtement|textile|fashion)$/i;
+var NON_APPAREL_HINT = /\b(phone\s*case|coque|charger|câble|cable|puzzle|figurine|statue|pop\s*socket|support\s*téléphone|mug|tasse|vase|lampe(?!tte)|bougie\s*(?!parfum)|sticker|autocollant|affiche|poster|cadre\s*photo|imprimante|outil|drill|bit|cheville)\b/i;
+var APPAREL_HINT = /\b(t-?shirt|tee\b|shirt\b|blouse|tank\b|tanktop|tank\s*top|racerback|halter|hoodie|sweatshirt|sweater|cardigan|pullover|polo|dress\b|skirt|pants|trousers|jeans|shorts|leggings?|joggers?|jogger|jacket|coat|blazer|vest\b|gilet|romper|jumpsuit|bodysuit|bralette|bra\b|lingerie|underwear|sock|socks|stockings?|tights|scarf|beanie|bonnet|hat\b|cap\b|glove|mitten|mitt\b|sneaker|trainer|boot|sandal|slipper|bikini|swimwear|swimsuit|activewear|athletic\s+wear|sportswear|gym\s+wear|yoga\s+pants|parka|anorak|chemise\b|jean\b|denim|maille|knitwear|survêtement|sweat\b|debardeur|débardeur|crop\s*top|crop\b|top\b|bas\b|collants?|chaussettes?|chaussures?|manteau|veste\b|jupe|robe\b|pull\b|short\b|pantalon|legging|cagoule\s*(?:ski)?|écharpe|bonnet)\b/i;
+var APPAREL_HINT_FR = /\b(vêtement|vetement|textile|prêt[\s-]à[\s-]porter|sportswear|streetwear)\b/i;
+function isLikelyApparelProduct(input) {
+  if (input.forceNotApparel === true) return false;
+  if (input.forceApparel === true) return true;
+  const kind = String(input.productKind || "").trim();
+  if (kind && KIND_APPAREL.test(kind)) return true;
+  if (input.keywordHeuristicEnabled !== true) {
+    return false;
+  }
+  const title = String(input.productTitle || "");
+  const titleLower = title.toLowerCase();
+  const tagStr = Array.isArray(input.tags) ? input.tags.join(" ").toLowerCase() : "";
+  const matStr = String(input.materials || "").toLowerCase();
+  const blob = `${titleLower} ${tagStr} ${matStr}`;
+  if (NON_APPAREL_HINT.test(titleLower) && !APPAREL_HINT.test(titleLower) && !APPAREL_HINT_FR.test(blob)) {
+    return false;
+  }
+  return APPAREL_HINT.test(blob) || APPAREL_HINT_FR.test(blob);
+}
+var ATHLETIC_OR_FORM_FITTING = /\b(yoga|pilates|gym\s*wear|workout|aerobic|activewear|sportswear|athletic\s+wear|fitness\s+wear|performance\s+wear|running\s+(top|shirt|tank)|sports?\s*bra|sport\s+bra|compression\s+(short|tight|legging)|athleisure|moisture[\s-]*wick|wicking|leggings?|leotard|unitard|swim(wea)?r|swimsuit|bikini|beach\s+wear|racerback|halter\s*neck|halter\b|cropped?\s+tank|tank\s*top|débardeur|debardeur|crop\s*top|crossfit|hiit|spin\s+class|barre\s+class|hot\s+yoga|yoga\s+top|yoga\s+shirt|sports?\s+tank|athletic\s+tank|gym\s+top|training\s+top|running\s+tank)\b/i;
+function isAthleticOrFormFittingApparel(input) {
+  const titleLower = String(input.productTitle || "").toLowerCase();
+  const tagStr = Array.isArray(input.tags) ? input.tags.join(" ").toLowerCase() : "";
+  const matStr = String(input.materials || "").toLowerCase();
+  const blob = `${titleLower} ${tagStr} ${matStr}`;
+  return ATHLETIC_OR_FORM_FITTING.test(blob);
+}
+
 // src/lib/server/generate-images-pipeline.ts
 var sharp;
 try {
@@ -22363,7 +22395,9 @@ async function runGenerateImagesPipeline(opts) {
       productContext,
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
-      promptStartIndex: promptStartIndexRaw
+      promptStartIndex: promptStartIndexRaw,
+      isApparel: isApparelRaw,
+      productKind
     } = body;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex = typeof singlePromptIndexRaw === "number" && Number.isFinite(singlePromptIndexRaw) ? Math.max(0, Math.floor(singlePromptIndexRaw)) : null;
@@ -22440,6 +22474,21 @@ async function runGenerateImagesPipeline(opts) {
       const materialsStr = materials && String(materials).trim() ? String(materials).trim().substring(0, 150) : "";
       const keywordPart = [tagsList && `Keywords: ${tagsList}`, materialsStr && `Materials: ${materialsStr}`].filter(Boolean).join(". ") || "";
       const styleHint = geminiStyleHint(typeof style === "string" ? style : void 0);
+      const apparelKeywordHeuristic = process.env.APPAREL_IMAGE_PROMPTS === "1" || process.env.APPAREL_IMAGE_PROMPTS === "true";
+      const apparelMode = isLikelyApparelProduct({
+        productTitle: productDesc,
+        tags,
+        materials,
+        forceApparel: isApparelRaw === true,
+        forceNotApparel: isApparelRaw === false,
+        productKind: typeof productKind === "string" ? productKind : null,
+        keywordHeuristicEnabled: apparelKeywordHeuristic
+      });
+      const athleticImageSafeMode = apparelMode && isAthleticOrFormFittingApparel({
+        productTitle: productDesc,
+        tags,
+        materials
+      });
       const refInputs = [];
       if (typeof sourceImage === "string" && sourceImage.trim().length > 0) {
         refInputs.push(sourceImage.startsWith("data:image/") ? sourceImage : `data:image/jpeg;base64,${sourceImage}`);
@@ -22491,17 +22540,22 @@ async function runGenerateImagesPipeline(opts) {
         };
       }
       const realismBoost = engineSafe === "pro" ? "High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale." : isFastChunkedSingle ? "Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look." : "Fast realistic render with clean natural lighting.";
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ""} ${styleHint} ${realismBoost}
+      const apparelContextNote = apparelMode ? athleticImageSafeMode ? `
+TEXTILE (ACTIVEWEAR / SPORT): M\xEAme article que les r\xE9f\xE9rences. Pr\xE9sentation e-commerce SANS personne ni peau: ghost mannequin, cintre mural, flat-lay ou forme de couture \u2014 \xE9vite les refus API image sur sport / yoga. Tissu avec relief et plis naturels. Pas de table ronde type \xAB miroir \xBB ni cadre circulaire.
+` : `
+TEXTILE: M\xEAme article que sur les r\xE9f\xE9rences. Port\xE9 = cadrage buste / taille (\xE9paules \u2192 hanches), jamais silhouette enti\xE8re sans visage (\xE9vite artefacts). Ghost mannequin, cintre mural ou mannequin buste OK. Tissu avec relief et plis naturels. Pas de table ronde type \xAB miroir \xBB ni cadre circulaire autour du produit.
+` : "";
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ""} ${styleHint} ${realismBoost}${apparelContextNote}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
-Never replace the main product with another object/person.
+Never replace the main product with another object/person.${apparelMode ? athleticImageSafeMode ? " Do not show human skin or photo-realistic models; use invisible mannequin, dress form, or hanger only." : " A neutral fit model may wear the garment only to show the same item from references (not a substitute product)." : ""}
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
 ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
 SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text \u2014 DO NOT reproduce any of them. Remove them completely.
 Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
-      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).`;
+      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).` + (apparelMode ? ` PRIORIT\xC9 TEXTILE: relief du tissu, plis cr\xE9dibles, chute naturelle \u2014 pas d'article raide ou sans volume. \xC9viter table ronde, plateau circulaire et effet miroir circulaire sur le produit.` : "");
       const STYLE_EXPECTED_GEMINI = `Style visuel attendu: tons chauds et naturels, lumi\xE8re douce, ambiance propre et rassurante, fond simple et \xE9l\xE9gant.`;
-      const IMAGE_PROMPTS_GEMINI = [
+      const IMAGE_PROMPTS_DEFAULT = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 \u2013 VUE LARGE / CONTEXTE LIFESTYLE:
@@ -22565,6 +22619,77 @@ Fond \xE9pur\xE9, lumi\xE8re naturelle douce, rendu naturel et haut de gamme.
 Pas de texte marketing. Pas de watermark.
 ${GLOBAL_PROMPT_RULES_GEMINI}`
       ];
+      const IMAGE_PROMPTS_APPAREL = [
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 \u2013 PORT\xC9 / LOOKBOOK (CADRAGE BUSTE):
+Le v\xEAtement EXACT des r\xE9f\xE9rences est port\xE9, pose calme type catalogue Etsy.
+OBLIGATOIRE: cadrage du milieu de poitrine au haut des hanches (buste / taille) OU \xE9paules+torse uniquement \u2014 le textile occupe ~70\u201385% du cadre.
+INTERDIT: plan corps entier (t\xEAte aux pieds) avec t\xEAte absente, flout\xE9e ou coup\xE9e \u2014 provoque des corps irr\xE9alistes.
+Int\xE9rieur lumineux, lumi\xE8re douce lat\xE9rale. Plis naturels.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 \u2013 GHOST MANNEQUIN 3D:
+M\xEAme article sur ghost mannequin (volume creux visible au col, textile en relief). Tomb\xE9 naturel type boutique premium. Fond studio gris clair ou blanc cass\xE9.
+Pas de rendu \xAB collage \xBB sans \xE9paisseur.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 3 \u2013 CINTRE MURAL:
+M\xEAme v\xEAtement sur cintre (bois ou m\xE9tal sobre), suspendu face \xE0 un mur plat vertical studio (pas de vue plongeante). Plis dus \xE0 la gravit\xE9. Le textile occupe ~70% du cadre.
+INTERDIT: table ronde, plateau circulaire, surface \xAB miroir \xBB, pi\xE9destal cylindrique, flat-lay pour ce prompt.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 \u2013 MENSURATIONS (OBLIGATOIRE):
+Flat-lay vu du dessus, orthogonale, sur fond rectangulaire premium: papier seamless blanc/cr\xE8me, lin clair sur table \xE0 angles droits, ou panneau studio gris \u2014 bords droits visibles au cadre.
+INTERDIT: table ronde, plateau circulaire, reflet miroir, cadre ovale/circulaire, d\xE9cor type annonce marketplace cheap.
+Le v\xEAtement garde un l\xE9ger relief, lisible de face.
+${dimensionsStrictBlock}
+Fl\xE8ches fines avec labels num\xE9riques. Style sobre et haut de gamme.
+Texte uniquement pour les mensurations (pas de texte marketing).
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 \u2013 GROS PLAN MATI\xC8RE:
+Extr\xEAme proximit\xE9 sur texture, couture ou maille \u2014 identique aux r\xE9f\xE9rences. Le tissu suit une courbe ou un pli (volume conserv\xE9). Fond neutre flout\xE9.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 \u2013 AMBIANCE SOIR (BUSTE OU MANNEQUIN):
+M\xEAme article: soit port\xE9 en cadrage buste\u2013hanches (comme prompt 1), soit sur ghost mannequin ou mannequin buste. Lumi\xE8re tamis\xE9e chaude (lampe, golden hour int\xE9rieur). Drap\xE9 et volume visibles.
+INTERDIT: silhouette humaine enti\xE8re sans t\xEAte.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 \u2013 \xC9CHELLE & VOLUME:
+Empilement pli\xE9 avec \xE9paisseur visible, OU m\xEAme v\xEAtement sur cintre \xE0 c\xF4t\xE9 d'un livre ferm\xE9 format poche pour l'\xE9chelle. Pas de mini-v\xEAtement noy\xE9 dans un d\xE9cor immense.
+Pas de texte marketing. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`
+      ];
+      const IMAGE_PROMPTS_APPAREL_EFFECTIVE = athleticImageSafeMode ? (() => {
+        const p1NoHuman = `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 \u2013 STUDIO SANS MOD\xC8LE (SPORT / ACTIVEWEAR):
+M\xEAme article EXACT que les r\xE9f\xE9rences sur **ghost mannequin** (volume 3D, int\xE9rieur de col visible) OU **cintre mural** sur fond studio neutre. Look fiche produit technique, sobre, familial \u2014 type boutique running / yoga en ligne.
+INTERDIT sur cette image: peau humaine, silhouette r\xE9aliste, mod\xE8le \xAB fitness \xBB, mise en sc\xE8ne suggestive.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`;
+        const p6NoHuman = `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 \u2013 LUMI\xC8RE CHAUDE (SANS PERSONNE):
+M\xEAme v\xEAtement sur **ghost mannequin** ou **cintre**; lumi\xE8re tamis\xE9e chaude (lampe indirecte). Arri\xE8re-plan discret. Aucun humain, aucune peau.
+Pas de texte. Pas de watermark.
+${GLOBAL_PROMPT_RULES_GEMINI}`;
+        return IMAGE_PROMPTS_APPAREL.map((p, i) => i === 0 ? p1NoHuman : i === 5 ? p6NoHuman : p);
+      })() : IMAGE_PROMPTS_APPAREL;
+      const IMAGE_PROMPTS_GEMINI = apparelMode ? IMAGE_PROMPTS_APPAREL_EFFECTIVE : IMAGE_PROMPTS_DEFAULT;
       const geminiExtra = customInstructions && String(customInstructions).trim() ? `
 
 INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent avec le produit): ${String(customInstructions).trim().substring(0, 500)}` : "";
@@ -22589,7 +22714,7 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
       }
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProEngine, netlifyBackgroundWorker);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
       );
       const geminiErrors = [];
       const tryGeminiOnce = async (prompt, model, partsForAttempt, timeoutMs) => {
@@ -22675,9 +22800,25 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
         );
         const isMensurationsPrompt = promptIndex === 3;
         const maxStandardAttempts = netlifyFastSingle ? 1 : 3;
+        const apparelMensurationsFallback = apparelMode ? `
+
+SIMPLIFY: Top-down flat-lay on plain rectangular off-white paper; straight edges; dimension arrows only; no round table, no mirror, no circle frame.` : "";
+        const apparelGenericFallback = apparelMode ? `
+
+SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene \u2014 professional Etsy product shot.` : "";
         if (isMensurationsPrompt) {
           if (netlifyFastSingle) {
-            return tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            if (img) return img;
+            if (apparelMensurationsFallback) {
+              img = await tryGeminiOnce(
+                prompt + apparelMensurationsFallback,
+                geminiImageEditModel,
+                mainPart,
+                geminiHttpCapMs
+              );
+            }
+            return img;
           }
           for (let round = 0; round < 3; round++) {
             let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
@@ -22687,12 +22828,30 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
             if (img) return img;
             if (round < 2) await new Promise((r) => setTimeout(r, 1e3 * (round + 1)));
           }
+          if (apparelMensurationsFallback) {
+            const imgFb = await tryGeminiOnce(
+              prompt + apparelMensurationsFallback,
+              geminiImageEditModel,
+              mainPart,
+              geminiHttpCapMs
+            );
+            if (imgFb) return imgFb;
+          }
           return null;
         }
         for (let attempt = 0; attempt < maxStandardAttempts; attempt++) {
           const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
           if (img) return img;
           if (attempt < maxStandardAttempts - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
+        }
+        if (apparelGenericFallback) {
+          const imgFb = await tryGeminiOnce(
+            prompt + apparelGenericFallback,
+            geminiImageEditModel,
+            mainPart,
+            geminiHttpCapMs
+          );
+          if (imgFb) return imgFb;
         }
         return null;
       };

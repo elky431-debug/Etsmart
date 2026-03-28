@@ -17,10 +17,12 @@ export async function POST(request: NextRequest) {
   
   try {
     if (!stripe) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Stripe not configured' 
-      }, { status: 500 });
+      // 200 évite le bruit console en local quand STRIPE_SECRET_KEY est absent — le client peut ignorer.
+      return NextResponse.json({
+        success: false,
+        skipped: true,
+        reason: 'Stripe not configured',
+      });
     }
 
     // Authenticate user

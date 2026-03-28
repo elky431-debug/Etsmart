@@ -129,10 +129,16 @@ export default function LabQuickPage() {
   // Éviter QuotaExceeded : ne pas sauver les images en base64 (trop lourd) dans sessionStorage
   const saveImagesToSession = useCallback((images: GeneratedImage[]) => {
     if (typeof window === 'undefined') return;
+    const maxBytes = 1.5 * 1024 * 1024; // ~1,5 Mo (sessionStorage ~5 Mo total)
     try {
+      let approx = 0;
+      for (const img of images) {
+        const u = img?.url;
+        if (typeof u === 'string') approx += u.length;
+        if (approx > maxBytes) return; // évite JSON.stringify multi‑Mo qui bloque l’UI avant isGenerating=false
+      }
       const json = JSON.stringify(images);
-      const maxBytes = 1.5 * 1024 * 1024; // ~1,5 Mo (sessionStorage ~5 Mo total)
-      if (json.length > maxBytes) return; // images en data URL = trop volumineux, on ne persiste pas
+      if (json.length > maxBytes) return;
       sessionStorage.setItem(`${storageKey}-images`, json);
     } catch {
       // QuotaExceededError ou autre : on ignore, les images restent en state
@@ -423,7 +429,8 @@ export default function LabQuickPage() {
         setError(chunkedResult.warning);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(storageKey, 'true');
-          saveImagesToSession(chunkedResult.images);
+          const toPersist = chunkedResult.images;
+          setTimeout(() => saveImagesToSession(toPersist), 0);
         }
       }
 
@@ -573,7 +580,7 @@ export default function LabQuickPage() {
           const next = [...prev, ...chunkedResult.images];
           if (typeof window !== 'undefined') {
             sessionStorage.setItem(storageKey, 'true');
-            saveImagesToSession(next);
+            setTimeout(() => saveImagesToSession(next), 0);
           }
           return next;
         });

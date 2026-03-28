@@ -330,7 +330,11 @@ export default function DashboardPage() {
           
           if (response.ok) {
             const data = await response.json();
-            console.log('[Dashboard] ✅ Force sync result:', data);
+            if (data?.skipped) {
+              console.info('[Dashboard] Force sync ignorée (Stripe non configuré, normal en local).');
+            } else {
+              console.log('[Dashboard] ✅ Force sync result:', data);
+            }
             } else {
               console.warn('[Dashboard] Sync failed, continuing anyway');
             }

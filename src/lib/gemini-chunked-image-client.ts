@@ -36,6 +36,16 @@ export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
   return 2;
 }
 
+/** POST génération image : peut être long (Gemini + upload). Évite un fetch infini qui bloque les autres slots. */
+const GENERATE_IMAGES_POST_TIMEOUT_MS = 240_000;
+
+function fetchSignalWithTimeout(ms: number): AbortSignal | undefined {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  return undefined;
+}
+
 /** Retries sur 502/503/504 / erreurs transitoires. */
 export async function fetchGenerateImagesWithRetry(
   payload: Record<string, unknown>,
@@ -50,6 +60,7 @@ export async function fetchGenerateImagesWithRetry(
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
+        signal: fetchSignalWithTimeout(GENERATE_IMAGES_POST_TIMEOUT_MS),
       });
     } catch {
       last = new Response(null, { status: 503, statusText: 'Network error' });
@@ -134,11 +145,18 @@ export interface ChunkedGeneratedImage {
 async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<Record<string, unknown>> {
   const deadline = Date.now() + 15 * 60_000;
   const interval = 2000;
+  const pollFetchTimeoutMs = 45_000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, interval));
-    const pr = await fetch(`/api/generate-images/status?jobId=${encodeURIComponent(jobId)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    let pr: Response;
+    try {
+      pr = await fetch(`/api/generate-images/status?jobId=${encodeURIComponent(jobId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: fetchSignalWithTimeout(pollFetchTimeoutMs),
+      });
+    } catch {
+      continue;
+    }
     let pj: Record<string, unknown>;
     try {
       pj = (await pr.json()) as Record<string, unknown>;
@@ -167,23 +185,25 @@ async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<R
   };
 }
 
-async function runWithConcurrency<T>(
-  items: T[],
+/**
+ * Pool d’indices 0..total-1 : chaque worker prend le prochain index après await (pas de course sur cursor partagé).
+ */
+async function runIndexPool(
+  total: number,
   maxConcurrency: number,
-  worker: (item: T) => Promise<void>
+  worker: (index: number) => Promise<void>
 ): Promise<void> {
-  if (items.length === 0) return;
-  const cap = Math.max(1, Math.min(maxConcurrency, items.length));
-  let cursor = 0;
-  const runners = Array.from({ length: cap }, async () => {
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= items.length) return;
-      await worker(items[index]);
+  if (total <= 0) return;
+  const workers = Math.max(1, Math.min(maxConcurrency, total));
+  let next = 0;
+  const runWorker = async () => {
+    while (next < total) {
+      const index = next;
+      next += 1;
+      await worker(index);
     }
-  });
-  await Promise.all(runners);
+  };
+  await Promise.all(Array.from({ length: workers }, () => runWorker()));
 }
 
 export async function runChunkedImageGeneration(opts: {
@@ -216,8 +236,19 @@ export async function runChunkedImageGeneration(opts: {
   };
 
   const runSingleIndex = async (index: number): Promise<void> => {
+    try {
+      await runSingleIndexBody(index);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Image ${index + 1}: ${msg}`);
+      console.error(`[CHUNKED] Image ${index + 1}/${imageCount} exception`, e);
+      markDone(index);
+    }
+  };
+
+  const runSingleIndexBody = async (index: number): Promise<void> => {
     let lastError = `Image ${index + 1}: aucun visuel retourné`;
-    console.log(`[CHUNKED] Slot ${index} start`);
+    console.log(`[CHUNKED] Image ${index + 1}/${imageCount} start (index ${index})`);
 
     const isProdSite =
       typeof window !== 'undefined' &&
@@ -247,7 +278,7 @@ export async function runChunkedImageGeneration(opts: {
           json = {};
         }
         if (json.accepted === true && typeof json.jobId === 'string') {
-          console.log(`[CHUNKED] Slot ${index} job async ${json.jobId} (poll)…`);
+          console.log(`[CHUNKED] Image ${index + 1}/${imageCount} job async ${json.jobId} (poll)…`);
           json = await pollImageGenJobUntilDone(json.jobId, token);
           const urls = Array.isArray(json.imageDataUrls) ? json.imageDataUrls : [];
           httpOk =
@@ -270,7 +301,7 @@ export async function runChunkedImageGeneration(opts: {
         json.success === true ? 'true' : json.success === false ? 'false' : '∅';
       const payloadHint = `status=${httpStatus} ok=${httpOk} success=${successStr} urls=${parsed.imageDataUrls.length} tasks=${parsed.imageTaskIds.length}`;
       console.log(
-        `[CHUNKED] Slot ${index} attempt=${attempt}`,
+        `[CHUNKED] Image ${index + 1}/${imageCount} attempt=${attempt}`,
         payloadHint,
         `engine=${parsed.requestedEngine ?? 'n/a'} provider=${parsed.provider ?? 'n/a'} model=${parsed.model ?? 'n/a'}`,
       );
@@ -281,7 +312,7 @@ export async function runChunkedImageGeneration(opts: {
         ) {
           firstQuotaError = normalizeQuotaMessage(parsed.message);
           markDone(index);
-          console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
+          console.log(`[CHUNKED] Image ${index + 1}/${imageCount} done — success=${!!slots[index]}`);
           return;
         }
         lastError =
@@ -289,7 +320,7 @@ export async function runChunkedImageGeneration(opts: {
           (parsed.errorCode
             ? `Image ${index + 1}: ${parsed.errorCode} (HTTP ${httpStatus})`
             : `Image ${index + 1}: erreur API ${httpStatus}`);
-        console.error(`[CHUNKED] Slot ${index} HTTP ${httpStatus}`, parsed.errorCode, parsed.message);
+        console.error(`[CHUNKED] Image ${index + 1}/${imageCount} HTTP ${httpStatus}`, parsed.errorCode, parsed.message);
         continue;
       }
 
@@ -299,7 +330,7 @@ export async function runChunkedImageGeneration(opts: {
           (parsed.errorCode
             ? `Image ${index + 1}: ${parsed.errorCode} (réponse success=false)`
             : `Image ${index + 1}: réponse API success=false sans détail`);
-        console.error(`[CHUNKED] Slot ${index} success=false`, lastError);
+        console.error(`[CHUNKED] Image ${index + 1}/${imageCount} success=false`, lastError);
         continue;
       }
 
@@ -310,7 +341,7 @@ export async function runChunkedImageGeneration(opts: {
       if (url) {
         slots[index] = { id: `img-${Date.now()}-${index}`, url };
         markDone(index);
-        console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
+        console.log(`[CHUNKED] Image ${index + 1}/${imageCount} done — success=${!!slots[index]}`);
         return;
       }
       lastError =
@@ -318,16 +349,15 @@ export async function runChunkedImageGeneration(opts: {
         (parsed.errorCode
           ? `Image ${index + 1}: ${parsed.errorCode}`
           : `Image ${index + 1}: aucun visuel retourné`);
-      console.error(`[CHUNKED] Slot ${index} pas d’URL après réponse OK`, lastError, payloadHint);
+      console.error(`[CHUNKED] Image ${index + 1}/${imageCount} pas d’URL après réponse OK`, lastError, payloadHint);
     }
 
     errors.push(lastError);
     markDone(index);
-    console.error(`[CHUNKED] Slot ${index} terminé en échec — ${lastError}`);
+    console.error(`[CHUNKED] Image ${index + 1}/${imageCount} terminé en échec — ${lastError}`);
   };
 
-  const indexes = Array.from({ length: imageCount }, (_, i) => i);
-  await runWithConcurrency(indexes, getImageChunkConcurrency(engineMode), runSingleIndex);
+  await runIndexPool(imageCount, getImageChunkConcurrency(engineMode), runSingleIndex);
 
   // Filet de sécurité: fermer les slots non marqués (ne devrait pas arriver).
   for (let i = 0; i < imageCount; i++) {

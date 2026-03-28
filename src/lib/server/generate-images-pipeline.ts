@@ -5,6 +5,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { geminiStyleHint } from '@/lib/image-style-presets';
+import { isAthleticOrFormFittingApparel, isLikelyApparelProduct } from '@/lib/apparel-product-detection';
 
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
@@ -163,6 +164,8 @@ export async function runGenerateImagesPipeline(opts: {
       clientChunkedSingle,
       singlePromptIndex: singlePromptIndexRaw,
       promptStartIndex: promptStartIndexRaw,
+      isApparel: isApparelRaw,
+      productKind,
     } = body as Record<string, any>;
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
@@ -271,6 +274,25 @@ export async function runGenerateImagesPipeline(opts: {
       const materialsStr = (materials && String(materials).trim()) ? String(materials).trim().substring(0, 150) : '';
       const keywordPart = [tagsList && `Keywords: ${tagsList}`, materialsStr && `Materials: ${materialsStr}`].filter(Boolean).join('. ') || '';
       const styleHint = geminiStyleHint(typeof style === 'string' ? style : undefined);
+      // Prod historique = prompts génériques ; l'heuristique titre/tags active les prompts textile (souvent plus de refus Gemini).
+      const apparelKeywordHeuristic =
+        process.env.APPAREL_IMAGE_PROMPTS === '1' || process.env.APPAREL_IMAGE_PROMPTS === 'true';
+      const apparelMode = isLikelyApparelProduct({
+        productTitle: productDesc,
+        tags,
+        materials,
+        forceApparel: isApparelRaw === true,
+        forceNotApparel: isApparelRaw === false,
+        productKind: typeof productKind === 'string' ? productKind : null,
+        keywordHeuristicEnabled: apparelKeywordHeuristic,
+      });
+      const athleticImageSafeMode =
+        apparelMode &&
+        isAthleticOrFormFittingApparel({
+          productTitle: productDesc,
+          tags,
+          materials,
+        });
 
       const refInputs: string[] = [];
       if (typeof sourceImage === 'string' && sourceImage.trim().length > 0) {
@@ -348,9 +370,24 @@ export async function runGenerateImagesPipeline(opts: {
           : isFastChunkedSingle
             ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
             : 'Fast realistic render with clean natural lighting.';
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}
+      const apparelContextNote = apparelMode
+        ? athleticImageSafeMode
+          ? `
+TEXTILE (ACTIVEWEAR / SPORT): Même article que les références. Présentation e-commerce SANS personne ni peau: ghost mannequin, cintre mural, flat-lay ou forme de couture — évite les refus API image sur sport / yoga. Tissu avec relief et plis naturels. Pas de table ronde type « miroir » ni cadre circulaire.
+`
+          : `
+TEXTILE: Même article que sur les références. Porté = cadrage buste / taille (épaules → hanches), jamais silhouette entière sans visage (évite artefacts). Ghost mannequin, cintre mural ou mannequin buste OK. Tissu avec relief et plis naturels. Pas de table ronde type « miroir » ni cadre circulaire autour du produit.
+`
+        : '';
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}${apparelContextNote}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
-Never replace the main product with another object/person.
+Never replace the main product with another object/person.${
+        apparelMode
+          ? athleticImageSafeMode
+            ? ' Do not show human skin or photo-realistic models; use invisible mannequin, dress form, or hanger only.'
+            : ' A neutral fit model may wear the garment only to show the same item from references (not a substitute product).'
+          : ''
+      }
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
 ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
@@ -368,12 +405,15 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
         `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
         `ANTI-COPIER STRICT: chaque prompt doit générer un arrière-plan + décor + éclairage clairement différents (pas un recadrage, pas un copier/coller, pas des éléments identiques). ` +
         `Ne réutilise pas la même disposition des rideaux/tapis/coussins/objets autour du produit d'une image à l'autre. ` +
-        `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).`;
+        `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).` +
+        (apparelMode
+          ? ` PRIORITÉ TEXTILE: relief du tissu, plis crédibles, chute naturelle — pas d'article raide ou sans volume. Éviter table ronde, plateau circulaire et effet miroir circulaire sur le produit.`
+          : '');
 
       const STYLE_EXPECTED_GEMINI =
         `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
 
-      const IMAGE_PROMPTS_GEMINI = [
+      const IMAGE_PROMPTS_DEFAULT = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
@@ -438,6 +478,82 @@ Pas de texte marketing. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
+      const IMAGE_PROMPTS_APPAREL = [
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – PORTÉ / LOOKBOOK (CADRAGE BUSTE):
+Le vêtement EXACT des références est porté, pose calme type catalogue Etsy.
+OBLIGATOIRE: cadrage du milieu de poitrine au haut des hanches (buste / taille) OU épaules+torse uniquement — le textile occupe ~70–85% du cadre.
+INTERDIT: plan corps entier (tête aux pieds) avec tête absente, floutée ou coupée — provoque des corps irréalistes.
+Intérieur lumineux, lumière douce latérale. Plis naturels.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 – GHOST MANNEQUIN 3D:
+Même article sur ghost mannequin (volume creux visible au col, textile en relief). Tombé naturel type boutique premium. Fond studio gris clair ou blanc cassé.
+Pas de rendu « collage » sans épaisseur.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 3 – CINTRE MURAL:
+Même vêtement sur cintre (bois ou métal sobre), suspendu face à un mur plat vertical studio (pas de vue plongeante). Plis dus à la gravité. Le textile occupe ~70% du cadre.
+INTERDIT: table ronde, plateau circulaire, surface « miroir », piédestal cylindrique, flat-lay pour ce prompt.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 – MENSURATIONS (OBLIGATOIRE):
+Flat-lay vu du dessus, orthogonale, sur fond rectangulaire premium: papier seamless blanc/crème, lin clair sur table à angles droits, ou panneau studio gris — bords droits visibles au cadre.
+INTERDIT: table ronde, plateau circulaire, reflet miroir, cadre ovale/circulaire, décor type annonce marketplace cheap.
+Le vêtement garde un léger relief, lisible de face.
+${dimensionsStrictBlock}
+Flèches fines avec labels numériques. Style sobre et haut de gamme.
+Texte uniquement pour les mensurations (pas de texte marketing).`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – GROS PLAN MATIÈRE:
+Extrême proximité sur texture, couture ou maille — identique aux références. Le tissu suit une courbe ou un pli (volume conservé). Fond neutre flouté.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – AMBIANCE SOIR (BUSTE OU MANNEQUIN):
+Même article: soit porté en cadrage buste–hanches (comme prompt 1), soit sur ghost mannequin ou mannequin buste. Lumière tamisée chaude (lampe, golden hour intérieur). Drapé et volume visibles.
+INTERDIT: silhouette humaine entière sans tête.
+Pas de texte. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – ÉCHELLE & VOLUME:
+Empilement plié avec épaisseur visible, OU même vêtement sur cintre à côté d'un livre fermé format poche pour l'échelle. Pas de mini-vêtement noyé dans un décor immense.
+Pas de texte marketing. Pas de watermark.`
+          + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+      ];
+
+      const IMAGE_PROMPTS_APPAREL_EFFECTIVE = athleticImageSafeMode
+        ? (() => {
+            const p1NoHuman =
+              `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – STUDIO SANS MODÈLE (SPORT / ACTIVEWEAR):
+Même article EXACT que les références sur **ghost mannequin** (volume 3D, intérieur de col visible) OU **cintre mural** sur fond studio neutre. Look fiche produit technique, sobre, familial — type boutique running / yoga en ligne.
+INTERDIT sur cette image: peau humaine, silhouette réaliste, modèle « fitness », mise en scène suggestive.
+Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            const p6NoHuman =
+              `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – LUMIÈRE CHAUDE (SANS PERSONNE):
+Même vêtement sur **ghost mannequin** ou **cintre**; lumière tamisée chaude (lampe indirecte). Arrière-plan discret. Aucun humain, aucune peau.
+Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 5 ? p6NoHuman : p));
+          })()
+        : IMAGE_PROMPTS_APPAREL;
+
+      const IMAGE_PROMPTS_GEMINI = apparelMode ? IMAGE_PROMPTS_APPAREL_EFFECTIVE : IMAGE_PROMPTS_DEFAULT;
+
       const geminiExtra =
         customInstructions && String(customInstructions).trim()
           ? `\n\nINSTRUCTIONS SUPPLÉMENTAIRES (à respecter en priorité si cohérent avec le produit): ${String(customInstructions).trim().substring(0, 500)}`
@@ -464,7 +580,7 @@ Pas de texte marketing. Pas de watermark.`
       }
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProEngine, netlifyBackgroundWorker);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
       );
 
       const geminiErrors: string[] = [];
@@ -581,9 +697,26 @@ Pas de texte marketing. Pas de watermark.`
         const isMensurationsPrompt = promptIndex === 3;
         const maxStandardAttempts = netlifyFastSingle ? 1 : 3;
 
+        const apparelMensurationsFallback = apparelMode
+          ? `\n\nSIMPLIFY: Top-down flat-lay on plain rectangular off-white paper; straight edges; dimension arrows only; no round table, no mirror, no circle frame.`
+          : '';
+        const apparelGenericFallback = apparelMode
+          ? `\n\nSIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene — professional Etsy product shot.`
+          : '';
+
         if (isMensurationsPrompt) {
           if (netlifyFastSingle) {
-            return tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            if (img) return img;
+            if (apparelMensurationsFallback) {
+              img = await tryGeminiOnce(
+                prompt + apparelMensurationsFallback,
+                geminiImageEditModel,
+                mainPart,
+                geminiHttpCapMs
+              );
+            }
+            return img;
           }
           for (let round = 0; round < 3; round++) {
             let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
@@ -593,6 +726,15 @@ Pas de texte marketing. Pas de watermark.`
             if (img) return img;
             if (round < 2) await new Promise((r) => setTimeout(r, 1000 * (round + 1)));
           }
+          if (apparelMensurationsFallback) {
+            const imgFb = await tryGeminiOnce(
+              prompt + apparelMensurationsFallback,
+              geminiImageEditModel,
+              mainPart,
+              geminiHttpCapMs
+            );
+            if (imgFb) return imgFb;
+          }
           return null;
         }
 
@@ -600,6 +742,15 @@ Pas de texte marketing. Pas de watermark.`
           const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
           if (img) return img;
           if (attempt < maxStandardAttempts - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
+        }
+        if (apparelGenericFallback) {
+          const imgFb = await tryGeminiOnce(
+            prompt + apparelGenericFallback,
+            geminiImageEditModel,
+            mainPart,
+            geminiHttpCapMs
+          );
+          if (imgFb) return imgFb;
         }
         return null;
       };

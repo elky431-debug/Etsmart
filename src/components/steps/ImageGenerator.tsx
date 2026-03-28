@@ -385,6 +385,9 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       console.log('[IMAGE GENERATION] 📊 Generating images independently', creditsToDeduct, 'crédits', backgroundBase64 ? '(with custom background)' : '');
 
       // Même stratégie que la génération rapide : 1 visuel / requête HTTP (sinon Netlify ~26s → 504 sur quantity>1).
+      const seoTags =
+        Array.isArray(analysis.verdict?.seoTags) ? analysis.verdict.seoTags.filter((t): t is string => typeof t === 'string') : [];
+
       const imageBase: Record<string, unknown> = {
         sourceImage: imageBase64,
         backgroundImage: backgroundBase64,
@@ -393,6 +396,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         engine: engineForApi,
         style,
         productTitle: analysis.product.title || undefined,
+        tags: seoTags,
+        materials: analysis.product.category || undefined,
         productContext: {
           title: analysis.product.title || '',
           referenceImages: extraReferenceImages,
