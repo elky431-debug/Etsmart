@@ -22331,6 +22331,11 @@ function geminiFetchSignal(timeoutMs) {
   setTimeout(() => c.abort(), timeoutMs);
   return c.signal;
 }
+function geminiErrorsIndicateProviderExhausted(geminiErrors) {
+  const s = geminiErrors.join("\n").toLowerCase();
+  return /\b429\b/.test(s) || /spending cap/.test(s) || /resource_exhausted/.test(s) || /resource exhausted/.test(s) || /quota exceeded/.test(s);
+}
+var GEMINI_PROVIDER_LIMIT_USER_MESSAGE = "Google Gemini refuse la g\xE9n\xE9ration : quota ou plafond de d\xE9penses atteint sur la cl\xE9 API (souvent \xAB spending cap \xBB / 429). \xC0 corriger dans Google AI Studio ou Google Cloud Console \u2014 ce n\u2019est pas un d\xE9faut des cr\xE9dits Etsmart.";
 async function uploadBase64ToSupabase(supabase, base64DataUrl, userId, index) {
   try {
     const match = base64DataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
@@ -22539,13 +22544,16 @@ async function runGenerateImagesPipeline(opts) {
           }
         };
       }
-      const realismBoost = engineSafe === "pro" ? "High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale." : isFastChunkedSingle ? "Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look." : "Fast realistic render with clean natural lighting.";
+      const realismBoost = engineSafe === "pro" ? "High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective; product scale must be believable vs furniture (no giant object syndrome)." : isFastChunkedSingle ? "Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look; keep real-world product size vs props and room." : "Fast realistic render with clean natural lighting; believable product scale in the scene.";
       const apparelContextNote = apparelMode ? athleticImageSafeMode ? `
 TEXTILE (ACTIVEWEAR / SPORT): M\xEAme article que les r\xE9f\xE9rences. Pr\xE9sentation e-commerce SANS personne ni peau: ghost mannequin, cintre mural, flat-lay ou forme de couture \u2014 \xE9vite les refus API image sur sport / yoga. Tissu avec relief et plis naturels. Pas de table ronde type \xAB miroir \xBB ni cadre circulaire.
 ` : `
 TEXTILE: M\xEAme article que sur les r\xE9f\xE9rences. Port\xE9 = cadrage buste / taille (\xE9paules \u2192 hanches), jamais silhouette enti\xE8re sans visage (\xE9vite artefacts). Ghost mannequin, cintre mural ou mannequin buste OK. Tissu avec relief et plis naturels. Pas de table ronde type \xAB miroir \xBB ni cadre circulaire autour du produit.
 ` : "";
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ""} ${styleHint} ${realismBoost}${apparelContextNote}
+      const scaleRealismHardGoods = apparelMode ? "" : `
+SCALE & PHYSICAL PLAUSIBILITY (CRITICAL): The product must look like a normal real-world item with believable size versus furniture and architecture. Anchor mentally: interior door ~2 m tall; table height ~72\u201376 cm; mug ~8\u201310 cm; laptop width ~30\u201335 cm; chair seat ~45 cm high. Forbidden: product rendered as a giant balloon-like object that towers over a desk, dwarfs a mug, or dominates the frame while furniture looks toy-sized; do not shrink the room to exaggerate the product. For pendants / ceiling lamps / hanging lights: shade and cord must match typical residential fixtures (like common home-decor listings), not an oversized orb. Prefer slightly conservative product scale over an exaggerated one. Avoid wide-angle distortion that inflates the product vs the scene.
+`;
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ""} ${styleHint} ${realismBoost}${apparelContextNote}${scaleRealismHardGoods}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.${apparelMode ? athleticImageSafeMode ? " Do not show human skin or photo-realistic models; use invisible mannequin, dress form, or hanger only." : " A neutral fit model may wear the garment only to show the same item from references (not a substitute product)." : ""}
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
@@ -22553,14 +22561,14 @@ ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cue
 ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
 SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text \u2014 DO NOT reproduce any of them. Remove them completely.
 Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
-      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).` + (apparelMode ? ` PRIORIT\xC9 TEXTILE: relief du tissu, plis cr\xE9dibles, chute naturelle \u2014 pas d'article raide ou sans volume. \xC9viter table ronde, plateau circulaire et effet miroir circulaire sur le produit.` : "");
+      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).` + (apparelMode ? ` PRIORIT\xC9 TEXTILE: relief du tissu, plis cr\xE9dibles, chute naturelle \u2014 pas d'article raide ou sans volume. \xC9viter table ronde, plateau circulaire et effet miroir circulaire sur le produit.` : ` \xC9CHELLE: le produit reste \xE0 une taille cr\xE9dible par rapport aux meubles et accessoires (jamais \xAB produit g\xE9ant \xBB dans une pi\xE8ce normale). `);
       const STYLE_EXPECTED_GEMINI = `Style visuel attendu: tons chauds et naturels, lumi\xE8re douce, ambiance propre et rassurante, fond simple et \xE9l\xE9gant.`;
       const IMAGE_PROMPTS_DEFAULT = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 \u2013 VUE LARGE / CONTEXTE LIFESTYLE:
 Plan large, produit int\xE9gr\xE9 dans une pi\xE8ce r\xE9aliste et chaleureuse (salon, chambre ou cuisine selon le produit).
-Le produit appara\xEEt \xE0 son \xE9chelle r\xE9elle \u2014 visible mais pas surdimensionn\xE9 par rapport aux meubles et \xE0 la pi\xE8ce.
+Le produit appara\xEEt \xE0 son \xE9chelle r\xE9elle \u2014 visible mais **nettement plus petit** que portes, fen\xEAtres et gros meubles; jamais une sph\xE8re ou un luminaire \xAB ballon \xBB aussi large qu\u2019un bureau ou une tasse g\xE9ante.
 Cadrage large montrant le mobilier, les murs et le sol autour du produit.
 Lumi\xE8re du matin venant de la gauche, mur blanc cass\xE9, parquet clair, tableau abstrait discret en fond.
 Pas de texte. Pas de watermark.
@@ -22569,7 +22577,7 @@ ${GLOBAL_PROMPT_RULES_GEMINI}`,
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 \u2013 PLAN MOYEN / \xC9QUILIBRE PRODUIT-SC\xC8NE:
 Plan moyen: produit au centre, sc\xE8ne visible autour (meubles, mur, sol).
-Met en valeur design, formes et proportions globales \xE0 leur vraie taille dans l'espace.
+Met en valeur design et mati\xE8res **sans agrandir** le produit: proportions identiques \xE0 un objet qu\u2019on pourrait tenir ou accrocher dans une vraie maison (pas de mode \xAB jouet g\xE9ant \xBB).
 \xC9clairage chaud type lampe \xE0 droite hors-champ, mur beige doux, surface en bois devant.
 D\xE9cor sobre: 1-2 accessoires neutres (plante, bougie, livre) sans surcharger la sc\xE8ne.
 Pas de texte. Pas de watermark.
@@ -22597,7 +22605,7 @@ PROMPT 5 \u2013 AMBIANCE SOIR / \xC9CLAIRAGE CHAUD:
 Photo lifestyle avec \xE9clairage chaud de soir\xE9e (lumi\xE8re tamis\xE9e, ambiance cosy).
 Produit mis en valeur avec \xE9clairage indirect doux, ombres longues et douces, teintes dor\xE9es.
 Int\xE9rieur feutr\xE9: bougie ou lampe d'appoint visible en arri\xE8re-plan, textile doux.
-Plan moyen, produit \xE0 son \xE9chelle r\xE9elle dans la sc\xE8ne.
+Plan moyen, produit \xE0 son \xE9chelle r\xE9elle dans la sc\xE8ne \u2014 si suspension/plafonnier, le globe ou l\u2019abat-jour reste de taille d\u2019appartement standard, pas disproportionn\xE9.
 Pas de texte. Pas de watermark.
 ${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
@@ -22606,14 +22614,14 @@ PROMPT 6 \u2013 AUTRE PI\xC8CE / AUTRE AMBIANCE:
 M\xEAme produit dans une pi\xE8ce ou un contexte d'int\xE9rieur compl\xE8tement diff\xE9rent des images 1 et 2.
 Si image 1 = salon, utiliser cuisine scandinave ou bureau minimaliste ou chambre cosy.
 Palette de couleurs diff\xE9rente, lumi\xE8re naturelle z\xE9nithale.
-Cadrage large, produit visible et \xE0 l'\xE9chelle.
+Cadrage large, produit visible et \xE0 l'\xE9chelle \u2014 coh\xE9rent avec chaises, plan de travail ou lit (pas de produit qui \xE9crase visuellement le mobilier).
 Pas de texte. Pas de watermark.
 ${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 7 \u2013 R\xC9F\xC9RENCE D'\xC9CHELLE / USAGE:
 Photo montrant la taille r\xE9elle du produit gr\xE2ce \xE0 une r\xE9f\xE9rence d'\xE9chelle discr\xE8te.
-Un objet commun connu (tasse, livre, plante en pot) pos\xE9 \xE0 c\xF4t\xE9 du produit pour donner l'\xE9chelle.
+Un objet commun connu (tasse, livre, plante en pot) pos\xE9 **\xE0 c\xF4t\xE9** ou sous le produit: la tasse ou le livre doit para\xEEtre **plus petit ou comparable**, jamais minuscule comme si le produit \xE9tait \xE9norme.
 Plan moyen, produit et objet de r\xE9f\xE9rence nets et bien cadr\xE9s.
 Fond \xE9pur\xE9, lumi\xE8re naturelle douce, rendu naturel et haut de gamme.
 Pas de texte marketing. Pas de watermark.
@@ -22870,14 +22878,15 @@ SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene
           const geminiDetail = geminiErrors.length > 0 ? geminiErrors.slice(-3).join(" | ") : "Aucune erreur Gemini captur\xE9e (r\xE9ponses vides ?)";
           console.error(`[IMAGE GEN] Gemini 0 images. Errors: ${geminiDetail}`);
           const netlifyHint = netlifyFastSingle && isNetlifyHost ? " Sur Netlify (~25 s max par requ\xEAte), r\xE9essaie ou utilise \xAB Nano Banana (2.5) \xBB si l\u2019IA est trop lente." : "";
+          const providerExhausted = geminiErrorsIndicateProviderExhausted(geminiErrors);
           return {
             status: 200,
             json: {
               success: false,
               imageTaskIds: [],
               imageDataUrls: [],
-              error: "IMAGE_SUBMIT_FAILED",
-              message: `Gemini ${geminiImageEditModel}: ${geminiDetail}${netlifyHint}`
+              error: providerExhausted ? "GEMINI_PROVIDER_LIMIT" : "IMAGE_SUBMIT_FAILED",
+              message: providerExhausted ? GEMINI_PROVIDER_LIMIT_USER_MESSAGE : `Gemini ${geminiImageEditModel}: ${geminiDetail}${netlifyHint}`
             }
           };
         }

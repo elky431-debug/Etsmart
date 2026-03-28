@@ -10,6 +10,20 @@ export type ImageEngineMode = 'flash' | 'pro';
 export const QUOTA_MESSAGE_FR =
   'Crédits insuffisants. Passe à un plan supérieur ou attends le prochain cycle.';
 
+/** Quota / plafond de dépenses du projet Google (Gemini), pas les crédits Etsmart. */
+export const GEMINI_PROVIDER_LIMIT_MESSAGE_FR =
+  'Google Gemini refuse les images : quota ou plafond de dépenses atteint sur la clé API (message type « spending cap » / 429). À corriger dans Google AI Studio ou Google Cloud (budget du projet), puis réessaie. Ce n’est pas un bug du slot 5 ni des crédits Etsmart.';
+
+function responseIndicatesGeminiProviderLimit(json: Record<string, unknown>, message: string | null | undefined): boolean {
+  if (json.error === 'GEMINI_PROVIDER_LIMIT') return true;
+  const blob = `${message ?? ''} ${typeof json.message === 'string' ? json.message : ''}`.toLowerCase();
+  return (
+    /spending cap|resource_exhausted|resource exhausted|exceeded its spending|quota exceeded|limit exceeded|\b429\b/.test(
+      blob,
+    )
+  );
+}
+
 export function normalizeQuotaMessage(msg: string | undefined | null): string {
   if (!msg) return QUOTA_MESSAGE_FR;
   if (/the quota has been exceeded|quota.*exceeded|crédits.*insuffisant/i.test(msg)) return QUOTA_MESSAGE_FR;
@@ -38,6 +52,15 @@ export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
 
 /** POST génération image : peut être long (Gemini + upload). Évite un fetch infini qui bloque les autres slots. */
 const GENERATE_IMAGES_POST_TIMEOUT_MS = 240_000;
+/** Poll statut tâche image : sans timeout, un slot peut pendre indéfiniment pendant qu’un autre slot finit (concurrence 2). */
+const CHECK_IMAGE_STATUS_FETCH_MS = 45_000;
+
+/** Job async Netlify : premier poll sans attendre 2 s ; évite impression de blocage sur la dernière image. */
+const ASYNC_JOB_POLL_INTERVAL_MS = 1400;
+const ASYNC_JOB_MAX_WAIT_MS = 10 * 60_000;
+/** Si le job reste « pending » (worker pas lancé), abandon avant 15 min. */
+const ASYNC_JOB_STALE_PENDING_MS = 90_000;
+const ASYNC_JOB_PROGRESS_LOG_MS = 18_000;
 
 function fetchSignalWithTimeout(ms: number): AbortSignal | undefined {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -122,7 +145,9 @@ export async function pollSingleTaskImage(
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, pollMs));
     try {
-      const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`);
+      const res = await fetch(`/api/check-image-status?taskId=${encodeURIComponent(taskId)}`, {
+        signal: fetchSignalWithTimeout(CHECK_IMAGE_STATUS_FETCH_MS),
+      });
       if (!res.ok) continue;
       const statusData = await res.json();
       if (statusData.status === 'ready' && statusData.url && String(statusData.url).startsWith('http')) {
@@ -142,12 +167,24 @@ export interface ChunkedGeneratedImage {
 }
 
 /** Netlify Background Function : attend la fin du job puis renvoie le même JSON que l’API synchrone. */
-async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + 15 * 60_000;
-  const interval = 2000;
+async function pollImageGenJobUntilDone(
+  jobId: string,
+  token: string,
+  logLabel: string
+): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + ASYNC_JOB_MAX_WAIT_MS;
   const pollFetchTimeoutMs = 45_000;
+  const started = Date.now();
+  let pendingSince: number | null = null;
+  let lastProgressLog = started;
+  let firstPoll = true;
+
   while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, interval));
+    if (!firstPoll) {
+      await new Promise((r) => setTimeout(r, ASYNC_JOB_POLL_INTERVAL_MS));
+    }
+    firstPoll = false;
+
     let pr: Response;
     try {
       pr = await fetch(`/api/generate-images/status?jobId=${encodeURIComponent(jobId)}`, {
@@ -157,15 +194,30 @@ async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<R
     } catch {
       continue;
     }
+
+    if (pr.status === 404) {
+      return {
+        success: false,
+        imageTaskIds: [],
+        imageDataUrls: [],
+        error: 'IMAGE_JOB_NOT_FOUND',
+        message: 'Job de génération introuvable (session expirée ou id invalide). Réessaie une génération.',
+      };
+    }
+
     let pj: Record<string, unknown>;
     try {
       pj = (await pr.json()) as Record<string, unknown>;
     } catch {
       continue;
     }
+
     if (pj.status === 'done' && pj.result && typeof pj.result === 'object') {
+      const elapsed = Math.round((Date.now() - started) / 1000);
+      console.log(`[CHUNKED] ${logLabel} job async terminé en ~${elapsed}s`);
       return pj.result as Record<string, unknown>;
     }
+
     if (pj.status === 'error') {
       return {
         success: false,
@@ -175,13 +227,41 @@ async function pollImageGenJobUntilDone(jobId: string, token: string): Promise<R
         message: typeof pj.message === 'string' ? pj.message : 'Erreur génération',
       };
     }
+
+    const st = typeof pj.status === 'string' ? pj.status : '';
+    if (st === 'pending') {
+      if (pendingSince == null) pendingSince = Date.now();
+      else if (Date.now() - pendingSince > ASYNC_JOB_STALE_PENDING_MS) {
+        return {
+          success: false,
+          imageTaskIds: [],
+          imageDataUrls: [],
+          error: 'IMAGE_JOB_STUCK',
+          message:
+            'La génération côté serveur n’a pas démarré (job resté en attente trop longtemps). Réessaie ; vérifie aussi les fonctions Netlify « generate-images-background » et la table image_gen_jobs.',
+        };
+      }
+    } else {
+      pendingSince = null;
+    }
+
+    const now = Date.now();
+    if (now - lastProgressLog >= ASYNC_JOB_PROGRESS_LOG_MS) {
+      lastProgressLog = now;
+      const sec = Math.round((now - started) / 1000);
+      console.log(
+        `[CHUNKED] ${logLabel} job async en cours — statut « ${st || '…'} » (~${sec}s). La dernière image est souvent seule en file ; compte 1–4 min selon Gemini.`,
+      );
+    }
   }
+
   return {
     success: false,
     imageTaskIds: [],
     imageDataUrls: [],
     error: 'IMAGE_JOB_TIMEOUT',
-    message: 'Délai dépassé en attendant les images (job async).',
+    message:
+      'Délai dépassé en attendant la fin du job image (Netlify). Relance la génération ; la dernière image est souvent la plus longue (une seule requête en cours à la fin).',
   };
 }
 
@@ -227,6 +307,7 @@ export async function runChunkedImageGeneration(opts: {
   const slotDone: boolean[] = Array.from({ length: imageCount }, () => false);
   const errors: string[] = [];
   let firstQuotaError: string | null = null;
+  let geminiProviderLimitWarning: string | null = null;
 
   const markDone = (index: number) => {
     if (!slotDone[index]) {
@@ -247,6 +328,11 @@ export async function runChunkedImageGeneration(opts: {
   };
 
   const runSingleIndexBody = async (index: number): Promise<void> => {
+    if (geminiProviderLimitWarning) {
+      markDone(index);
+      return;
+    }
+
     let lastError = `Image ${index + 1}: aucun visuel retourné`;
     console.log(`[CHUNKED] Image ${index + 1}/${imageCount} start (index ${index})`);
 
@@ -259,6 +345,11 @@ export async function runChunkedImageGeneration(opts: {
     const retryBackoffMs = isProdSite ? 700 : 1200;
 
     for (let attempt = 0; attempt < slotInnerTries; attempt++) {
+      if (geminiProviderLimitWarning) {
+        markDone(index);
+        return;
+      }
+
       const payload = {
         ...imageBase,
         quantity: 1,
@@ -279,7 +370,11 @@ export async function runChunkedImageGeneration(opts: {
         }
         if (json.accepted === true && typeof json.jobId === 'string') {
           console.log(`[CHUNKED] Image ${index + 1}/${imageCount} job async ${json.jobId} (poll)…`);
-          json = await pollImageGenJobUntilDone(json.jobId, token);
+          json = await pollImageGenJobUntilDone(
+            json.jobId,
+            token,
+            `Image ${index + 1}/${imageCount}`,
+          );
           const urls = Array.isArray(json.imageDataUrls) ? json.imageDataUrls : [];
           httpOk =
             json.success === true ||
@@ -307,6 +402,15 @@ export async function runChunkedImageGeneration(opts: {
       );
       if (!httpOk) {
         if (
+          responseIndicatesGeminiProviderLimit(json, parsed.message) ||
+          parsed.errorCode === 'GEMINI_PROVIDER_LIMIT'
+        ) {
+          geminiProviderLimitWarning = GEMINI_PROVIDER_LIMIT_MESSAGE_FR;
+          markDone(index);
+          console.warn(`[CHUNKED] Image ${index + 1}/${imageCount} — limite Google Gemini (arrêt des autres slots).`);
+          return;
+        }
+        if (
           httpStatus === 403 &&
           (parsed.errorCode === 'SUBSCRIPTION_REQUIRED' || parsed.errorCode === 'QUOTA_EXCEEDED')
         ) {
@@ -325,6 +429,15 @@ export async function runChunkedImageGeneration(opts: {
       }
 
       if (apiDeclined && parsed.imageDataUrls.length === 0 && parsed.imageTaskIds.length === 0) {
+        if (
+          parsed.errorCode === 'GEMINI_PROVIDER_LIMIT' ||
+          responseIndicatesGeminiProviderLimit(json, parsed.message)
+        ) {
+          geminiProviderLimitWarning = GEMINI_PROVIDER_LIMIT_MESSAGE_FR;
+          markDone(index);
+          console.warn(`[CHUNKED] Image ${index + 1}/${imageCount} — limite Google Gemini (arrêt des autres slots).`);
+          return;
+        }
         lastError =
           parsed.message ||
           (parsed.errorCode
@@ -359,6 +472,9 @@ export async function runChunkedImageGeneration(opts: {
 
   await runIndexPool(imageCount, getImageChunkConcurrency(engineMode), runSingleIndex);
 
+  const filled = slots.filter((s) => s !== null).length;
+  console.log(`[CHUNKED] Pool terminé — ${filled}/${imageCount} image(s), tous les workers ont fini.`);
+
   // Filet de sécurité: fermer les slots non marqués (ne devrait pas arriver).
   for (let i = 0; i < imageCount; i++) {
     if (!slotDone[i]) {
@@ -370,6 +486,11 @@ export async function runChunkedImageGeneration(opts: {
   if (firstQuotaError) {
     const images = slots.filter((img): img is ChunkedGeneratedImage => img !== null);
     return { images, warning: firstQuotaError };
+  }
+
+  if (geminiProviderLimitWarning) {
+    const images = slots.filter((img): img is ChunkedGeneratedImage => img !== null);
+    return { images, warning: geminiProviderLimitWarning };
   }
 
   const images = slots.filter((img): img is ChunkedGeneratedImage => img !== null);

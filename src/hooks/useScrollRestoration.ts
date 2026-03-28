@@ -16,7 +16,9 @@ export function useScrollRestoration() {
       if (document.hidden) {
         // Sauvegarder la position actuelle
         scrollPositionRef.current = window.scrollY || document.documentElement.scrollTop;
-        console.log('[SCROLL RESTORE] Saved scroll position:', scrollPositionRef.current);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[SCROLL RESTORE] Saved scroll position:', scrollPositionRef.current);
+        }
       } else {
         // Restaurer la position quand l'onglet redevient visible
         isRestoringRef.current = true;
@@ -39,7 +41,9 @@ export function useScrollRestoration() {
                   document.body.scrollTop = savedPosition;
                 }
                 
-                console.log('[SCROLL RESTORE] Restored scroll position:', savedPosition);
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[SCROLL RESTORE] Restored scroll position:', savedPosition);
+                }
               }
               // Réinitialiser le flag après un court délai
               setTimeout(() => {

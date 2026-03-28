@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, startTransition } from 'react';
 import { 
   Upload, 
   Download, 
@@ -61,13 +61,11 @@ const formatCredits = (n: number) => {
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
 /**
- * Maintenance **dashboard uniquement** (`/dashboard` → Génération rapide). Ne concerne pas `/lab-quick`.
- * Désactiver en local : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=false` dans `.env.local`.
+ * Maintenance **dashboard uniquement** (`/dashboard` → Génération rapide), opt-in.
+ * Par défaut : flux complet actif. Pour remettre l’écran maintenance : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=true`.
  */
-const dashboardQuickMaintExplicitOff =
-  process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === 'false' ||
-  process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === '0';
-const DASHBOARD_QUICK_GENERATE_MAINTENANCE = !dashboardQuickMaintExplicitOff;
+const DASHBOARD_QUICK_GENERATE_MAINTENANCE =
+  process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === 'true';
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -112,9 +110,9 @@ export function DashboardQuickGenerate() {
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   const [listingKeywordHints, setListingKeywordHints] = useState('');
-  /** Dashboard : requêtes image en mode flash (voir `engine` pour l’état des boutons uniquement). */
-  const engineForApi: ImageEngine = 'flash';
-  const billingEngine: ImageEngine = 'flash';
+  /** Même logique que /lab-quick : le moteur choisi (Flash / Pro) pilote l’API et la facturation crédits. */
+  const engineForApi: ImageEngine = engine;
+  const billingEngine: ImageEngine = engineForApi;
   const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, billingEngine);
   const quickGenerateCredits = quickGenerateTotalCredits(quantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -425,21 +423,25 @@ export function DashboardQuickGenerate() {
         onPendingDecrement: () => setPendingImagesCount((c) => Math.max(0, c - 1)),
       });
       setPendingImagesCount(0);
+      setIsGenerating(false);
+      setQuickGenPhase(null);
 
-      if (chunkedResult.images.length === 0) {
-        setGeneratedImages([]);
-        setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem(`${storageKey}-images`);
+      startTransition(() => {
+        if (chunkedResult.images.length === 0) {
+          setGeneratedImages([]);
+          setError('La génération des images a échoué. Les visuels ne sont pas encore prêts. Cliquez sur « Générer de nouvelles images » pour relancer.');
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem(`${storageKey}-images`);
+          }
+        } else {
+          setGeneratedImages(chunkedResult.images);
+          setError(chunkedResult.warning);
+          if (typeof window !== 'undefined') {
+            const toPersist = chunkedResult.images;
+            setTimeout(() => saveImagesToSession(toPersist), 0);
+          }
         }
-      } else {
-        setGeneratedImages(chunkedResult.images);
-        setError(chunkedResult.warning);
-        if (typeof window !== 'undefined') {
-          const toPersist = chunkedResult.images;
-          setTimeout(() => saveImagesToSession(toPersist), 0);
-        }
-      }
+      });
 
       setTimeout(() => {
         refreshSubscription(true);
@@ -581,19 +583,22 @@ export function DashboardQuickGenerate() {
         onPendingDecrement: () => setPendingImagesCount((c) => Math.max(0, c - 1)),
       });
       setPendingImagesCount(0);
+      setIsRegeneratingImages(false);
 
-      if (chunkedResult.images.length > 0) {
-        setGeneratedImages((prev) => {
-          const next = [...prev, ...chunkedResult.images];
-          if (typeof window !== 'undefined') {
-            setTimeout(() => saveImagesToSession(next), 0);
-          }
-          return next;
-        });
-        setError(chunkedResult.warning);
-      } else {
-        setError(chunkedResult.warning || 'La génération d\'images a échoué. Réessayez.');
-      }
+      startTransition(() => {
+        if (chunkedResult.images.length > 0) {
+          setGeneratedImages((prev) => {
+            const next = [...prev, ...chunkedResult.images];
+            if (typeof window !== 'undefined') {
+              setTimeout(() => saveImagesToSession(next), 0);
+            }
+            return next;
+          });
+          setError(chunkedResult.warning);
+        } else {
+          setError(chunkedResult.warning || 'La génération d\'images a échoué. Réessayez.');
+        }
+      });
 
       // Refresh subscription
       setTimeout(() => {
@@ -725,7 +730,7 @@ export function DashboardQuickGenerate() {
             Le service est temporairement indisponible sur cette page. Merci pour ta patience.
           </p>
           <p className="text-white/50 text-xs">
-            Pour les tests internes (lab), utilise la page dédiée :{' '}
+            Page de secours pour essais :{' '}
             <a href="/lab-quick" className="text-[#00d4ff] underline hover:text-[#00c9b7]">
               /lab-quick
             </a>
@@ -941,27 +946,38 @@ export function DashboardQuickGenerate() {
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
+                      type="button"
                       onClick={() => setEngine('flash')}
                       className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                         engine === 'flash'
                           ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
                           : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                       }`}
+                      title="Gemini 2.5 Flash Image"
                     >
-                      Nano Banana (Gemini 2.5 Flash Image)
+                      Flash
                     </button>
-                    <button
-                      onClick={() => setEngine('pro')}
-                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                        engine === 'pro'
-                          ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
-                          : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
-                      }`}
-                      title="Profil Nano Banana 2"
-                    >
-                      Nano Banana 2
-                    </button>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEngine('pro')}
+                        className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                          engine === 'pro'
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
+                        }`}
+                        title="Gemini 3.1 Flash Image (preview)"
+                      >
+                        Pro
+                      </button>
+                      <p className="text-[10px] text-[#00d4ff]/75 leading-snug px-0.5">
+                        Environ 2–3 min pour une série complète sur le site.
+                      </p>
+                    </div>
                   </div>
+                  <p className="mt-2 text-[10px] text-white/45">
+                    Flash = plus rapide · Pro = meilleure qualité (Gemini image preview).
+                  </p>
                 </div>
 
                 <div>
@@ -1045,7 +1061,7 @@ export function DashboardQuickGenerate() {
         )}
 
         {/* Results */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {isGenerating ? (
             <motion.div
               key="generating"
@@ -1067,7 +1083,10 @@ export function DashboardQuickGenerate() {
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
                 <p className="text-xs text-[#00d4ff]/80 mt-3">
-                  Jusqu’à {quantity} image{quantity > 1 ? 's' : ''} — patience, l’IA image prend souvent 1–2 min.
+                  Jusqu’à {quantity} image{quantity > 1 ? 's' : ''} —{' '}
+                  {engine === 'pro'
+                    ? 'avec Pro, prévois environ 2–3 min sur le site.'
+                    : 'avec Flash, souvent ~1–2 min.'}
                 </p>
               )}
             </motion.div>

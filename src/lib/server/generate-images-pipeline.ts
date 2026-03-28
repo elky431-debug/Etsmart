@@ -65,6 +65,21 @@ function geminiFetchSignal(timeoutMs: number): AbortSignal {
   return c.signal;
 }
 
+/** Réponses Gemini type 429 / spending cap — côté facturation Google, pas crédits app. */
+function geminiErrorsIndicateProviderExhausted(geminiErrors: string[]): boolean {
+  const s = geminiErrors.join('\n').toLowerCase();
+  return (
+    /\b429\b/.test(s) ||
+    /spending cap/.test(s) ||
+    /resource_exhausted/.test(s) ||
+    /resource exhausted/.test(s) ||
+    /quota exceeded/.test(s)
+  );
+}
+
+const GEMINI_PROVIDER_LIMIT_USER_MESSAGE =
+  'Google Gemini refuse la génération : quota ou plafond de dépenses atteint sur la clé API (souvent « spending cap » / 429). À corriger dans Google AI Studio ou Google Cloud Console — ce n’est pas un défaut des crédits Etsmart.';
+
 async function uploadBase64ToSupabase(
   supabase: any,
   base64DataUrl: string,
@@ -366,10 +381,10 @@ export async function runGenerateImagesPipeline(opts: {
 
       const realismBoost =
         engineSafe === 'pro'
-          ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale.'
+          ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective; product scale must be believable vs furniture (no giant object syndrome).'
           : isFastChunkedSingle
-            ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.'
-            : 'Fast realistic render with clean natural lighting.';
+            ? 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look; keep real-world product size vs props and room.'
+            : 'Fast realistic render with clean natural lighting; believable product scale in the scene.';
       const apparelContextNote = apparelMode
         ? athleticImageSafeMode
           ? `
@@ -379,7 +394,12 @@ TEXTILE (ACTIVEWEAR / SPORT): Même article que les références. Présentation 
 TEXTILE: Même article que sur les références. Porté = cadrage buste / taille (épaules → hanches), jamais silhouette entière sans visage (évite artefacts). Ghost mannequin, cintre mural ou mannequin buste OK. Tissu avec relief et plis naturels. Pas de table ronde type « miroir » ni cadre circulaire autour du produit.
 `
         : '';
-      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}${apparelContextNote}
+      const scaleRealismHardGoods = apparelMode
+        ? ''
+        : `
+SCALE & PHYSICAL PLAUSIBILITY (CRITICAL): The product must look like a normal real-world item with believable size versus furniture and architecture. Anchor mentally: interior door ~2 m tall; table height ~72–76 cm; mug ~8–10 cm; laptop width ~30–35 cm; chair seat ~45 cm high. Forbidden: product rendered as a giant balloon-like object that towers over a desk, dwarfs a mug, or dominates the frame while furniture looks toy-sized; do not shrink the room to exaggerate the product. For pendants / ceiling lamps / hanging lights: shade and cord must match typical residential fixtures (like common home-decor listings), not an oversized orb. Prefer slightly conservative product scale over an exaggerated one. Avoid wide-angle distortion that inflates the product vs the scene.
+`;
+      const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}${apparelContextNote}${scaleRealismHardGoods}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.${
         apparelMode
@@ -408,7 +428,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
         `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).` +
         (apparelMode
           ? ` PRIORITÉ TEXTILE: relief du tissu, plis crédibles, chute naturelle — pas d'article raide ou sans volume. Éviter table ronde, plateau circulaire et effet miroir circulaire sur le produit.`
-          : '');
+          : ` ÉCHELLE: le produit reste à une taille crédible par rapport aux meubles et accessoires (jamais « produit géant » dans une pièce normale). `);
 
       const STYLE_EXPECTED_GEMINI =
         `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
@@ -418,7 +438,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
 Plan large, produit intégré dans une pièce réaliste et chaleureuse (salon, chambre ou cuisine selon le produit).
-Le produit apparaît à son échelle réelle — visible mais pas surdimensionné par rapport aux meubles et à la pièce.
+Le produit apparaît à son échelle réelle — visible mais **nettement plus petit** que portes, fenêtres et gros meubles; jamais une sphère ou un luminaire « ballon » aussi large qu’un bureau ou une tasse géante.
 Cadrage large montrant le mobilier, les murs et le sol autour du produit.
 Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond.
 Pas de texte. Pas de watermark.`
@@ -427,7 +447,7 @@ Pas de texte. Pas de watermark.`
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 – PLAN MOYEN / ÉQUILIBRE PRODUIT-SCÈNE:
 Plan moyen: produit au centre, scène visible autour (meubles, mur, sol).
-Met en valeur design, formes et proportions globales à leur vraie taille dans l'espace.
+Met en valeur design et matières **sans agrandir** le produit: proportions identiques à un objet qu’on pourrait tenir ou accrocher dans une vraie maison (pas de mode « jouet géant »).
 Éclairage chaud type lampe à droite hors-champ, mur beige doux, surface en bois devant.
 Décor sobre: 1-2 accessoires neutres (plante, bougie, livre) sans surcharger la scène.
 Pas de texte. Pas de watermark.`
@@ -455,7 +475,7 @@ PROMPT 5 – AMBIANCE SOIR / ÉCLAIRAGE CHAUD:
 Photo lifestyle avec éclairage chaud de soirée (lumière tamisée, ambiance cosy).
 Produit mis en valeur avec éclairage indirect doux, ombres longues et douces, teintes dorées.
 Intérieur feutré: bougie ou lampe d'appoint visible en arrière-plan, textile doux.
-Plan moyen, produit à son échelle réelle dans la scène.
+Plan moyen, produit à son échelle réelle dans la scène — si suspension/plafonnier, le globe ou l’abat-jour reste de taille d’appartement standard, pas disproportionné.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
@@ -464,14 +484,14 @@ PROMPT 6 – AUTRE PIÈCE / AUTRE AMBIANCE:
 Même produit dans une pièce ou un contexte d'intérieur complètement différent des images 1 et 2.
 Si image 1 = salon, utiliser cuisine scandinave ou bureau minimaliste ou chambre cosy.
 Palette de couleurs différente, lumière naturelle zénithale.
-Cadrage large, produit visible et à l'échelle.
+Cadrage large, produit visible et à l'échelle — cohérent avec chaises, plan de travail ou lit (pas de produit qui écrase visuellement le mobilier).
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 7 – RÉFÉRENCE D'ÉCHELLE / USAGE:
 Photo montrant la taille réelle du produit grâce à une référence d'échelle discrète.
-Un objet commun connu (tasse, livre, plante en pot) posé à côté du produit pour donner l'échelle.
+Un objet commun connu (tasse, livre, plante en pot) posé **à côté** ou sous le produit: la tasse ou le livre doit paraître **plus petit ou comparable**, jamais minuscule comme si le produit était énorme.
 Plan moyen, produit et objet de référence nets et bien cadrés.
 Fond épuré, lumière naturelle douce, rendu naturel et haut de gamme.
 Pas de texte marketing. Pas de watermark.`
@@ -794,14 +814,17 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             netlifyFastSingle && isNetlifyHost
               ? ' Sur Netlify (~25 s max par requête), réessaie ou utilise « Nano Banana (2.5) » si l’IA est trop lente.'
               : '';
+          const providerExhausted = geminiErrorsIndicateProviderExhausted(geminiErrors);
           return {
             status: 200,
             json: {
               success: false,
               imageTaskIds: [],
               imageDataUrls: [],
-              error: 'IMAGE_SUBMIT_FAILED',
-              message: `Gemini ${geminiImageEditModel}: ${geminiDetail}${netlifyHint}`,
+              error: providerExhausted ? 'GEMINI_PROVIDER_LIMIT' : 'IMAGE_SUBMIT_FAILED',
+              message: providerExhausted
+                ? GEMINI_PROVIDER_LIMIT_USER_MESSAGE
+                : `Gemini ${geminiImageEditModel}: ${geminiDetail}${netlifyHint}`,
             },
           };
         }
