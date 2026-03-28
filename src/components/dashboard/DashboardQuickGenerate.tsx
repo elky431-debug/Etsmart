@@ -61,12 +61,13 @@ const formatCredits = (n: number) => {
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
 /**
- * Maintenance : uniquement si `NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE=true` (ou `1`) au build.
- * Sinon l’UI complète « Génération rapide » est affichée.
+ * Maintenance **dashboard uniquement** (`/dashboard` → Génération rapide). Ne concerne pas `/lab-quick`.
+ * Désactiver en local : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=false` dans `.env.local`.
  */
-const QUICK_GENERATE_MAINTENANCE =
-  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === 'true' ||
-  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === '1';
+const dashboardQuickMaintExplicitOff =
+  process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === 'false' ||
+  process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === '0';
+const DASHBOARD_QUICK_GENERATE_MAINTENANCE = !dashboardQuickMaintExplicitOff;
 
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
@@ -703,7 +704,7 @@ export function DashboardQuickGenerate() {
     }
   };
 
-  if (QUICK_GENERATE_MAINTENANCE) {
+  if (DASHBOARD_QUICK_GENERATE_MAINTENANCE) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-lg rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] p-8 sm:p-10 text-center shadow-xl shadow-black/40">
@@ -711,9 +712,14 @@ export function DashboardQuickGenerate() {
             <Zap className="h-7 w-7 text-amber-300" />
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Génération rapide en maintenance</h1>
-          <p className="text-white/70 text-sm sm:text-base leading-relaxed">
-            Le service est temporairement indisponible. Tout rentre dans l’ordre <span className="text-white font-medium">dès demain</span>
-            — on finalise les correctifs en soirée. Merci pour ta patience.
+          <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-4">
+            Le service est temporairement indisponible sur cette page. Merci pour ta patience.
+          </p>
+          <p className="text-white/50 text-xs">
+            Pour les tests internes (lab), utilise la page dédiée :{' '}
+            <a href="/lab-quick" className="text-[#00d4ff] underline hover:text-[#00c9b7]">
+              /lab-quick
+            </a>
           </p>
         </div>
       </div>

@@ -60,14 +60,6 @@ const formatCredits = (n: number) => {
 };
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
-/**
- * Maintenance : uniquement si `NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE=true` (ou `1`) au build.
- * Sinon l’UI complète « Génération rapide » est affichée.
- */
-const QUICK_GENERATE_MAINTENANCE =
-  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === 'true' ||
-  process.env.NEXT_PUBLIC_QUICK_GENERATE_MAINTENANCE === '1';
-
 // ⚠️ Utility: Compress image on frontend using Canvas to stay under Netlify 6MB body limit
 const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -707,23 +699,6 @@ export default function LabQuickPage() {
       setIsDownloadingAll(false);
     }
   };
-
-  if (QUICK_GENERATE_MAINTENANCE) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-lg rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] p-8 sm:p-10 text-center shadow-xl shadow-black/40">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-400/20">
-            <Zap className="h-7 w-7 text-amber-300" />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Génération rapide en maintenance</h1>
-          <p className="text-white/70 text-sm sm:text-base leading-relaxed">
-            Le service est temporairement indisponible. Tout rentre dans l’ordre <span className="text-white font-medium">dès demain</span>
-            — on finalise les correctifs en soirée. Merci pour ta patience.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black">
