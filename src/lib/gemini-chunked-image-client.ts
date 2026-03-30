@@ -68,9 +68,10 @@ export function parseGenerateImageResponse(json: Record<string, unknown>) {
 
 export async function pollSingleTaskImage(
   taskId: string,
-  quantityForDeadline = 1
+  quantityForDeadline = 1,
+  customDeadlineMs?: number
 ): Promise<string | null> {
-  const deadline = Date.now() + getImagePollDeadlineMs(quantityForDeadline);
+  const deadline = Date.now() + (customDeadlineMs ?? getImagePollDeadlineMs(quantityForDeadline));
   const pollMs = getImagePollIntervalMs(quantityForDeadline);
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, pollMs));
@@ -189,9 +190,9 @@ export async function runChunkedImageGeneration(opts: {
 
       let url = parsed.imageDataUrls[0] || null;
       if (!url && parsed.imageTaskIds.length > 0) {
-        // gemini-bg = Background Function Pro (gemini-3.1) → deadline 120s au lieu de 65s
-        const pollQty = parsed.provider === 'gemini-bg' ? 7 : 1;
-        url = await pollSingleTaskImage(parsed.imageTaskIds[0], pollQty);
+        // gemini-bg : 40s max avant retry client (gemini-3.1 répond en ~20-35s)
+        const customDeadline = parsed.provider === 'gemini-bg' ? 40_000 : undefined;
+        url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1, customDeadline);
       }
       if (url) {
         slots[index] = { id: `img-${Date.now()}-${index}`, url };
