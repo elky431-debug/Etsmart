@@ -450,100 +450,111 @@ Texte uniquement pour les mensurations (pas de texte marketing).
 
       // Règle commune vêtements — fond studio neutre, rendu commercial anti-IA
       const CLOTHING_STUDIO_RULE =
-        `PHOTOGRAPHIE COMMERCIALE PROFESSIONNELLE: rendu réaliste de studio produit, pas de style "IA" ou illustratif. ` +
-        `Fond SIMPLE et NEUTRE uniquement (blanc pur, gris très clair, ou beige crème): aucun décor, aucune pièce entière, aucun meuble en fond. ` +
-        `Éclairage de studio contrôlé (softbox diffus), ombres naturelles douces au sol — jamais d'éclairage dramatique ou artificiel. ` +
-        `Le vêtement occupe 70-80% du cadre, proprement cadré, couleurs fidèles à la référence. ` +
-        `VOLUME 3D OBLIGATOIRE: le vêtement a du drapé et des plis naturels, comme s'il était sur un mannequin invisible. INTERDIT: tissu aplati 2D.`;
+        `PHOTOGRAPHIE COMMERCIALE PROFESSIONNELLE e-commerce: rendu réaliste, pas de style "IA" ou illustratif. ` +
+        `Fond SIMPLE et NEUTRE (blanc pur, gris très clair, ou beige crème): aucun meuble visible en fond, pas de pièce entière. ` +
+        `Éclairage studio softbox diffus, ombres douces au sol. ` +
+        `OBLIGATOIRE: le vêtement doit TOUJOURS être PORTÉ — sur un mannequin sans tête ou un modèle recadré sous le menton (tête hors cadre). ` +
+        `INTERDIT: vêtement plié, posé à plat, ou suspendu dans le vide sans corps. Le tissu doit avoir le volume naturel d'un vêtement porté.`;
 
-      // Prompts spécialisés VÊTEMENTS : style catalogue commercial Etsy, fond studio, anti-IA
+      // Prompts spécialisés VÊTEMENTS : toujours porté (mannequin sans tête / modèle recadré)
       const CLOTHING_PROMPTS = [
         `${baseContext}
-PROMPT 1 – PACKSHOT STUDIO FOND BLANC:
+PROMPT 1 – MANNEQUIN SANS TÊTE, FOND BLANC, VUE DE FACE:
 ${CLOTHING_STUDIO_RULE}
-Vue de face complète sur fond blanc pur ou gris très clair, éclairage softbox diffus symétrique.
-Le vêtement est centré, présenté en ghost mannequin avec volume naturel, ombres portées douces au sol.
-Photo catalogue ultra-propre, style commercial premium Etsy.
+CADRAGE: le vêtement est porté par un mannequin sans tête (ou modèle IA, tête coupée hors cadre au niveau du cou/épaules). Vue de face, corps entier ou buste selon le vêtement.
+Fond blanc pur ou gris très clair, éclairage softbox symétrique, ombres portées très douces.
+Le vêtement épouse le corps, plis et drapé naturels. Couleurs fidèles à la référence.
+Photo catalogue ultra-propre, style premium e-commerce Etsy/Shopify.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 2 – PACKSHOT STUDIO FOND CRÈME / LÉGÈREMENT INCLINÉ:
+PROMPT 2 – MANNEQUIN SANS TÊTE, VUE 3/4, FOND CRÈME:
 ${CLOTHING_STUDIO_RULE}
-Même style studio que le prompt 1 mais fond beige crème ou gris doux, et vêtement légèrement tourné de 3/4 pour montrer la profondeur et le volume.
-Lumière naturelle de studio douce, pas de couleur artificielle sur le tissu.
-Photo catalogue nette, fidèle aux couleurs réelles, style professionnel Etsy.
+CADRAGE: même présentation portée que prompt 1 (mannequin ou modèle recadré sans tête), mais vue à 45° (3/4 face) pour montrer la profondeur, les volumes et les finitions latérales.
+Fond beige crème ou gris doux, lumière studio douce légèrement directionnelle.
+Plis naturels, silhouette complète, matière bien rendue.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 PROMPT 3 – GROS PLAN / DÉTAIL MATIÈRE ET FINITIONS:
-Photo rapprochée sur les détails du tissu: texture, coutures, boutons, fermeture éclair, broderies ou bords.
+Photo très rapprochée sur les détails du tissu: texture du tissu, coutures, boutons, fermeture éclair, col, broderies ou bords.
 Bokeh très doux sur les bords, netteté maximale sur la matière principale.
-Fond neutre épuré (blanc ou beige mat), lumière latérale douce révélant la texture et les reliefs du tissu.
+Fond neutre épuré (blanc ou beige mat), lumière latérale douce révélant la texture et les reliefs.
 Produit occupant 75-85% du cadre. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
-PROMPT 5 – CINTRE SUR MUR NEUTRE:
+PROMPT 5 – MANNEQUIN SANS TÊTE, FOND SOMBRE / AMBIANCE LIFESTYLE:
 ${CLOTHING_STUDIO_RULE}
-Le vêtement est suspendu sur un cintre en bois naturel simple, accroché à une patère ou un crochet discret sur un mur blanc lisse ou légèrement texturé.
-Lumière naturelle douce venant d'une fenêtre hors-champ (gauche ou droite), ombres très légères.
-Le vêtement tombe librement, plis naturels, forme 3D authentique — fond minimaliste, rien d'autre dans le cadre.
+CADRAGE: vêtement porté par mannequin ou modèle IA (tête hors cadre), fond studio gris charcoal ou sombre épuré — pas de pièce, pas de décor.
+Éclairage directionnel dramatique mais élégant (lumière d'un côté, ombre douce de l'autre), ambiance mode.
+Volume et drapé naturels du vêtement sur le corps. Style éditorial premium.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 6 – FLAT LAY MINIMALISTE SUR SURFACE NEUTRE:
-Le vêtement est plié ou présenté à plat de manière nette sur une surface neutre et propre: marbre blanc veiné clair, surface en bois clair, ou fond tissu lin beige.
-Vue de dessus à 90°, éclairage naturel doux et homogène, ombres très légères.
-Forme du vêtement clairement visible, tissu bien étalé et net, 1-2 accessoires très discrets au maximum (jamais sur le vêtement).
+PROMPT 6 – CINTRE SUR MUR NEUTRE (SEUL PROMPT SANS CORPS):
+Le vêtement est suspendu sur un cintre en bois naturel simple, accroché à une patère discrète sur un mur blanc lisse.
+Lumière naturelle douce (fenêtre hors-champ), plis naturels, forme 3D authentique du vêtement.
+Le vêtement tombe librement — fond minimaliste, rien d'autre dans le cadre.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 7 – VUE CATALOGUE / FOND STUDIO GRIS:
+PROMPT 7 – MANNEQUIN SANS TÊTE, VUE DOS OU DÉTAIL ARRIÈRE:
 ${CLOTHING_STUDIO_RULE}
-Vue d'ensemble complète, vêtement entier visible, fond gris clair neutre (#e8e8e8), éclairage studio homogène.
-Ghost mannequin, volume naturel, silhouette complète lisible, proportions réelles fidèles.
-Rendu propre type catalogue professionnel haut de gamme, zéro effet IA visible.
-Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+CADRAGE: vêtement porté sur mannequin sans tête (ou modèle recadré), VUE DE DOS ou légèrement de 3/4 dos.
+Fond gris clair neutre (#e8e8e8), éclairage studio homogène.
+Montre les finitions arrière, le col, la fermeture, les coutures — tout ce qu'un acheteur voudrait voir de derrière.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
+
+      // Règle commune meubles — toujours ancré dans la pièce, jamais flottant
+      const FURNITURE_ANCHOR_RULE =
+        `INTÉGRATION OBLIGATOIRE: le meuble est TOUJOURS ancré dans son environnement — posé au sol, adossé à un mur ou dans un coin de la pièce. ` +
+        `INTERDIT: meuble flottant ou isolé au milieu d'une pièce vide. ` +
+        `Plan moyen-large ou 3/4 avec le meuble en premier plan (60-70% du cadre), décor d'intérieur visible mais secondaire. ` +
+        `Angle de prise de vue à hauteur d'œil (pas vue plongeante), style photo d'architecte d'intérieur.`;
 
       // Prompts spécialisés MEUBLES : pièces TRÈS différentes avec couleurs et styles explicites
       const FURNITURE_PROMPTS = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – SALON SCANDINAVE CLAIR:
-Le meuble est dans un salon de style SCANDINAVE: murs blancs cassés, parquet pin clair, canapé gris clair bas, plante tropicale (monstera ou palmier) dans un pot en céramique blanche.
-Lumière du matin abondante venant d'une grande fenêtre à gauche, ambiance aérée et sereine.
-Cadrage large montrant l'ensemble de la pièce avec le meuble mis en valeur.
-Décoration minimaliste. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${FURNITURE_ANCHOR_RULE}
+Le meuble est placé contre un mur ou dans un coin d'un salon SCANDINAVE: murs blancs cassés, parquet pin clair, une plante tropicale (monstera) dans un pot en céramique blanche à côté.
+Lumière du matin venant d'une fenêtre visible sur le côté, ambiance aérée et sereine.
+Décoration minimaliste autour du meuble. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 – CHAMBRE ADULTE COSY COULEUR FORTE:
-Le meuble est dans une chambre adulte: MUR COULEUR VERT SAUGE foncé ou BLEU NUIT (choisir une couleur murale forte, pas blanche).
-Tête de lit en velours côtelé beige ou gris, linge blanc cassé froissé, lampe de chevet laiton doré.
-Lumière tamisée dorée en soirée, ambiance cocooning intime.
-Plan moyen-large. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${FURNITURE_ANCHOR_RULE}
+Le meuble est dans une chambre adulte, ADOSSÉ au mur: mur couleur VERT SAUGE foncé ou BLEU NUIT derrière lui.
+Une lampe de chevet en laiton doré à côté, linge blanc cassé visible, ambiance cocooning intime en soirée.
+Le meuble prend appui sur le sol, ombres de contact visibles. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
-Photo très rapprochée sur les détails de fabrication: bois, metal, tissu, coutures, charnières ou pieds du meuble.
+Photo très rapprochée sur les détails de fabrication: grain du bois, métal, tissu, coutures, charnières ou pieds du meuble.
 Bokeh doux sur les bords, mise au point maximale sur la matière principale.
-Lumière directionnelle latérale révélant les reliefs, le grain du bois ou la texture du tissu.
-Fond neutre mat derrière. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Lumière directionnelle latérale révélant les reliefs et la texture. Fond neutre derrière.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – BUREAU OU CUISINE INDUSTRIELLE:
-Le meuble est dans un BUREAU MODERNE ou une CUISINE OUVERTE au style INDUSTRIEL: briques apparentes peintes en blanc, métal noir mat, bois recyclé, ampoules Edison suspendues.
+PROMPT 5 – BUREAU OU CUISINE STYLE INDUSTRIEL:
+${FURNITURE_ANCHOR_RULE}
+Le meuble est positionné dans un angle d'un BUREAU MODERNE ou CUISINE OUVERTE au style INDUSTRIEL: briques peintes en blanc, métal noir mat, ampoules Edison suspendues en arrière-plan.
 Palette: tons charbon, ivoire et bois brun chaud. Lumière artificielle chaleureuse.
-Cadrage large, ambiance loft urbain chic. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Meuble en appui au sol contre un mur ou dans un coin. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 6 – SALLE À MANGER MÉDITERRANÉENNE:
-Le meuble est dans une salle à manger ou un espace repas de style MÉDITERRANÉEN: mur chaux blanc, carreaux de ciment colorés au sol (bleu et blanc), arche en stuc, plantes d'intérieur vertes.
-Lumière du sud abondante et chaude, ombres courtes, tons ocre et blanc.
-Cadrage large aéré. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${FURNITURE_ANCHOR_RULE}
+Le meuble est intégré dans un coin ou le long d'un mur d'une salle à manger MÉDITERRANÉENNE: mur chaux blanc, carreaux de ciment colorés au sol, arche en stuc visible en arrière-plan.
+Lumière chaude et abondante, ombres douces de contact au sol, tons ocre et blanc.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – VUE ISOMÉTRIQUE / RÉFÉRENCE D'ÉCHELLE:
-Photo technique montrant le meuble avec une référence d'échelle discrète (livre, plante en pot, tasse posés à côté).
-Angle légèrement en hauteur (45 degrés), lumière naturelle douce uniforme, fond épuré clair.
-Toutes les dimensions et proportions réelles du meuble clairement visibles dans le cadre.
-Rendu propre type catalogue premium. Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 7 – VUE LÉGÈREMENT EN HAUTEUR / RÉFÉRENCE D'ÉCHELLE:
+${FURNITURE_ANCHOR_RULE}
+Vue 3/4 légèrement en hauteur (angle ~30°) sur le meuble posé au sol, avec une plante en pot ou un livre posés à côté pour référence d'échelle.
+Fond intérieur clair et épuré (mur blanc, parquet clair), lumière naturelle douce uniforme.
+Proportions réelles du meuble visibles, ancré au sol avec ombres de contact.
+Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Prompts spécialisés BIJOUX
