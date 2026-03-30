@@ -315,7 +315,8 @@ export async function POST(request: NextRequest) {
       const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
-      const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
+      // Flash → gemini-2.5-flash-image (rapide). Pro → gemini-3.1-flash-image-preview (meilleure qualité).
+      const GEMINI_IMAGE_EDIT_MODEL = engineSafe === 'pro' ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
       // Flash: 2 essais Gemini / Pro: 3 essais Gemini (plus fiable)
       const geminiAttemptsPerImage = engineSafe === 'flash' ? 2 : 3;
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
