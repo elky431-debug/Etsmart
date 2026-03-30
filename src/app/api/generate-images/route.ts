@@ -399,66 +399,57 @@ Flèches de dimension fines avec labels numériques nets. Style graphique minima
 Texte uniquement pour les mensurations (pas de texte marketing).
 \n${GLOBAL_PROMPT_RULES_GEMINI}`;
 
-      // Règle 3D vêtements — injectée dans chaque prompt pour forcer le volume et bloquer le rendu plat
-      const CLOTHING_3D_RULE =
-        `VÊTEMENT 3D OBLIGATOIRE (RÈGLE ABSOLUE): le vêtement DOIT avoir du VOLUME, du DRAPÉ et des PLIS NATURELS en trois dimensions. ` +
-        `Technique ghost mannequin (mannequin fantôme invisible): la pièce garde sa structure 3D complète, comme si elle était portée par un corps réel. ` +
-        `INTERDICTION ABSOLUE: rendu plat ou 2D, tissu sans épaisseur, vêtement aplati comme une feuille de papier, silhouette sans profondeur ni relief.`;
+      // Règle commune vêtements — fond studio neutre, rendu commercial anti-IA
+      const CLOTHING_STUDIO_RULE =
+        `PHOTOGRAPHIE COMMERCIALE PROFESSIONNELLE: rendu réaliste de studio produit, pas de style "IA" ou illustratif. ` +
+        `Fond SIMPLE et NEUTRE uniquement (blanc pur, gris très clair, ou beige crème): aucun décor, aucune pièce entière, aucun meuble en fond. ` +
+        `Éclairage de studio contrôlé (softbox diffus), ombres naturelles douces au sol — jamais d'éclairage dramatique ou artificiel. ` +
+        `Le vêtement occupe 70-80% du cadre, proprement cadré, couleurs fidèles à la référence. ` +
+        `VOLUME 3D OBLIGATOIRE: le vêtement a du drapé et des plis naturels, comme s'il était sur un mannequin invisible. INTERDIT: tissu aplati 2D.`;
 
-      // Prompts spécialisés VÊTEMENTS : présentation 3D obligatoire, ghost mannequin, anti-plat
+      // Prompts spécialisés VÊTEMENTS : style catalogue commercial Etsy, fond studio, anti-IA
       const CLOTHING_PROMPTS = [
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – GHOST MANNEQUIN / PACKSHOT STUDIO PREMIUM:
-${CLOTHING_3D_RULE}
-Le vêtement est présenté en ghost mannequin (mannequin invisible): tissu gonflé, structure 3D complète, plis naturels et silhouette réelle clairement visible.
-Fond studio blanc cassé ou gris très clair, lumière diffuse douce de trois quarts.
-Le vêtement occupe 70-80% du cadre, centré, sans accessoires parasites.
+PROMPT 1 – PACKSHOT STUDIO FOND BLANC:
+${CLOTHING_STUDIO_RULE}
+Vue de face complète sur fond blanc pur ou gris très clair, éclairage softbox diffus symétrique.
+Le vêtement est centré, présenté en ghost mannequin avec volume naturel, ombres portées douces au sol.
+Photo catalogue ultra-propre, style commercial premium Etsy.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 2 – MANNEQUIN LIFESTYLE / DÉCOR BOUTIQUE:
-${CLOTHING_3D_RULE}
-Le vêtement est présenté sur un mannequin ou un bustier de styliste dans un décor de boutique lifestyle élégant.
-Fond: mur blanc ou béton clair avec miroir doré ou tringle de dressing en arrière-plan, éclairage naturel de vitrine.
-Volume 3D naturel du vêtement bien perceptible: plis, forme, matière tridimensionnelle.
-Plan moyen, ambiance showroom premium.
+PROMPT 2 – PACKSHOT STUDIO FOND CRÈME / LÉGÈREMENT INCLINÉ:
+${CLOTHING_STUDIO_RULE}
+Même style studio que le prompt 1 mais fond beige crème ou gris doux, et vêtement légèrement tourné de 3/4 pour montrer la profondeur et le volume.
+Lumière naturelle de studio douce, pas de couleur artificielle sur le tissu.
+Photo catalogue nette, fidèle aux couleurs réelles, style professionnel Etsy.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 3 – GROS PLAN / DÉTAIL MATIÈRE ET COUTURES:
-Photo très rapprochée sur les détails du tissu: texture, tricot, coutures, boutons, fermeture éclair ou broderies.
-Bokeh prononcé sur les bords, mise au point nette sur la matière principale.
-Fond neutre épuré (surface mate blanche ou beige), lumière latérale douce révélant les reliefs du tissu.
-Le vêtement a du relief et de la texture 3D clairement visible. Produit occupant 70-80% du cadre.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 3 – GROS PLAN / DÉTAIL MATIÈRE ET FINITIONS:
+Photo rapprochée sur les détails du tissu: texture, coutures, boutons, fermeture éclair, broderies ou bords.
+Bokeh très doux sur les bords, netteté maximale sur la matière principale.
+Fond neutre épuré (blanc ou beige mat), lumière latérale douce révélant la texture et les reliefs du tissu.
+Produit occupant 75-85% du cadre. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – CINTRE VINTAGE / DRESSING LIFESTYLE:
-${CLOTHING_3D_RULE}
-Le vêtement est suspendu sur un cintre en bois naturel ou laiton doré, accroché à une tringle de dressing ouverte.
-Le vêtement TOMBE LIBREMENT avec ses plis naturels et garde sa forme 3D authentique — absolument pas aplati.
-Fond de pièce: mur blanc avec légère texture, étagère en bois avec quelques accessoires discrets (livres, plante).
-Lumière naturelle de fenêtre venant de la droite, ambiance matinale chaleureuse.
+PROMPT 5 – CINTRE SUR MUR NEUTRE:
+${CLOTHING_STUDIO_RULE}
+Le vêtement est suspendu sur un cintre en bois naturel simple, accroché à une patère ou un crochet discret sur un mur blanc lisse ou légèrement texturé.
+Lumière naturelle douce venant d'une fenêtre hors-champ (gauche ou droite), ombres très légères.
+Le vêtement tombe librement, plis naturels, forme 3D authentique — fond minimaliste, rien d'autre dans le cadre.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – STYLE EDITORIAL / AMBIANCE SHOWROOM:
-${CLOTHING_3D_RULE}
-Photo de style éditorial: vêtement présenté dans une vitrine ou un coin boutique minimaliste.
-Fond: mur en béton ciré léger ou brique peinte en blanc, sol parquet sombre.
-Lumière douce et directionnelle, ombres longues élégantes, ambiance showroom haut de gamme.
-Plan moyen-serré, le vêtement est la star de la photo. Volume et profondeur 3D bien visibles.
+PROMPT 6 – FLAT LAY MINIMALISTE SUR SURFACE NEUTRE:
+Le vêtement est plié ou présenté à plat de manière nette sur une surface neutre et propre: marbre blanc veiné clair, surface en bois clair, ou fond tissu lin beige.
+Vue de dessus à 90°, éclairage naturel doux et homogène, ombres très légères.
+Forme du vêtement clairement visible, tissu bien étalé et net, 1-2 accessoires très discrets au maximum (jamais sur le vêtement).
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – VUE D'ENSEMBLE / CATALOGUE PREMIUM:
-${CLOTHING_3D_RULE}
-Le vêtement est présenté entièrement, forme 3D complète et silhouette réelle clairement visible dans le cadre.
-Fond épuré blanc ou gris très clair, éclairage studio homogène doux.
-Toute la pièce est visible, proportions et silhouette 3D clairement lisibles.
-Rendu propre, photo de catalogue premium haut de gamme. Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 7 – VUE CATALOGUE / FOND STUDIO GRIS:
+${CLOTHING_STUDIO_RULE}
+Vue d'ensemble complète, vêtement entier visible, fond gris clair neutre (#e8e8e8), éclairage studio homogène.
+Ghost mannequin, volume naturel, silhouette complète lisible, proportions réelles fidèles.
+Rendu propre type catalogue professionnel haut de gamme, zéro effet IA visible.
+Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Prompts spécialisés MEUBLES : pièces TRÈS différentes avec couleurs et styles explicites
@@ -915,7 +906,7 @@ Cohérence entre tous les visuels (même produit, même style global, variantes 
     const nanoTagsText = Array.isArray(tags) && tags.length ? tags.slice(0, 15).join(' ') : '';
     const isClothingProductNano = /\b(shirt|dress|jacket|pant|jeans|hoodie|sweatshirt|vest|coat|blouse|top|skirt|shorts|tshirt|t-shirt|legging|cardigan|sweater|pullover|suit|trouser|sock|boot|shoe|sneaker|hat|cap|scarf|glove|belt|bag|purse|handbag|backpack|wallet|clothing|apparel|garment|wearable|wear|vêtement|chemise|robe|manteau|pantalon|jean|sweat|pull|veste|jupe|short|chaussure|botte|chapeau|écharpe|bonnet|sac)\b/i.test(`${productTitle || ''} ${nanoTagsText}`);
     const clothingVolumePrefixNano = isClothingProductNano
-      ? `VÊTEMENT 3D OBLIGATOIRE (RÈGLE ABSOLUE): technique ghost mannequin — le vêtement doit avoir du volume naturel, des plis authentiques et une silhouette 3D réelle comme s'il était porté par un corps. INTERDICTION ABSOLUE de rendu plat, 2D, ou tissu sans volume ni profondeur. `
+      ? `PHOTOGRAPHIE COMMERCIALE VÊTEMENT: fond studio neutre (blanc pur ou gris clair), éclairage softbox diffus, ghost mannequin — volume 3D naturel du tissu, plis authentiques, silhouette réelle. INTERDIT: décor de pièce, fond lifestyle complexe, tissu aplati 2D. Style catalogue professionnel Etsy, rendu ultra-réaliste pas "IA". `
       : '';
 
     const IMAGE_PROMPTS = [
