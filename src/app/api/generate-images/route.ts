@@ -1013,6 +1013,7 @@ ${reglesCommunes}`,
 
       const body: any = {
         type: 'IMAGETOIAMGE',
+        model: 'gemini-3.1-flash-image-preview',
         prompt,
         imageUrls: nanoImageUrls,
         image_size: imgSize,
