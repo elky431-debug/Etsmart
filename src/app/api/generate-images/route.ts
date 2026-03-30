@@ -33,7 +33,7 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  if (isNetlifyRuntime()) return isProFastSingle ? 24_000 : 21_000;
+  if (isNetlifyRuntime()) return 21_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -316,10 +316,11 @@ export async function POST(request: NextRequest) {
       const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
-      // Flash → gemini-2.5-flash-image (rapide). Pro → gemini-3.1-flash-image-preview (meilleure qualité).
-      const GEMINI_IMAGE_EDIT_MODEL = engineSafe === 'pro' ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
-      // Flash: 2 essais Gemini. Pro Netlify: 1 essai (23s budget, le client retry si besoin). Pro hors-Netlify: 2 essais.
-      const geminiAttemptsPerImage = engineSafe === 'flash' ? 2 : (isNetlifyHost ? 1 : 2);
+      // gemini-3.1-flash-image-preview dépasse systématiquement le gateway Netlify (26s) → revenir à 2.5 pour les deux.
+      // La différence Pro/Flash passe par la résolution d'entrée (768px vs 640px) et les prompts.
+      const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
+      // 2 essais pour Flash et Pro (gemini-2.5 répond en ~8-15s, 2 essais tient dans les 26s Netlify).
+      const geminiAttemptsPerImage = 2;
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -688,10 +689,8 @@ Fond épuré, lumière naturelle douce. Pas de texte marketing. Pas de watermark
         return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
       };
 
-      /** Hors Netlify : budget complet 28s. Netlify Flash : 18s. Netlify Pro (3.1, plus lent) : 23s. */
-      const geminiHttpCapMs = isNetlifyHost
-        ? (engineSafe === 'pro' ? 23_000 : 18_000)
-        : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+      /** Hors Netlify : budget complet 28s. Netlify : 18s max (gemini-2.5 répond en ~8-15s). */
+      const geminiHttpCapMs = isNetlifyHost ? 18_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
