@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Hash } from 'lucide-react';
-import { listingKeywordHintsEnabled } from '@/lib/listing-keyword-hints-dev';
+import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 type Props = {
   value: string;
@@ -15,7 +15,7 @@ type Props = {
  * Panneau dev (NODE_ENV=development) : mots-clés / style pour enrichir titre, tags, description.
  */
 export function ListingKeywordHintsDevPanel({ value, onChange, children }: Props) {
-  if (!listingKeywordHintsEnabled()) return null;
+  if (!listingKeywordHintsDevEnabled()) return null;
 
   const isLocalDev = process.env.NODE_ENV === 'development';
 

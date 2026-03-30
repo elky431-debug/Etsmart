@@ -1,21 +1,14 @@
 const MAX_LEN = 400;
 
-/**
- * UI + API : mots-clés / style pour le listing (génération rapide, onglet Listing).
- * Activé par défaut en prod et en local.
- * Pour masquer complètement : `NEXT_PUBLIC_LISTING_KEYWORD_HINTS=0` (ou `false` / `off`) au build.
- */
-export function listingKeywordHintsEnabled(): boolean {
-  const v = process.env.NEXT_PUBLIC_LISTING_KEYWORD_HINTS?.trim().toLowerCase();
-  if (v === '0' || v === 'false' || v === 'off' || v === 'no') return false;
-  return true;
+export function listingKeywordHintsDevEnabled(): boolean {
+  return process.env.NODE_ENV === 'development';
 }
 
 /**
  * Extrait les hints « style / mots-clés » du body JSON.
  */
 export function listingKeywordHintsFromRequestBody(body: unknown): string {
-  if (!listingKeywordHintsEnabled() || body == null || typeof body !== 'object') return '';
+  if (!listingKeywordHintsDevEnabled() || body == null || typeof body !== 'object') return '';
   const raw = (body as { listingKeywordHints?: unknown }).listingKeywordHints;
   if (typeof raw !== 'string') return '';
   const t = raw

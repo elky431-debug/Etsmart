@@ -36,7 +36,7 @@ import {
   type ImageEngineMode,
 } from '@/lib/gemini-chunked-image-client';
 import { ListingKeywordHintsDevPanel } from '@/components/dev/ListingKeywordHintsDevPanel';
-import { listingKeywordHintsEnabled } from '@/lib/listing-keyword-hints-dev';
+import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 type ImageEngine = ImageEngineMode;
 
@@ -352,7 +352,7 @@ export default function LabQuickPage() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           sourceImage: imageBase64,
-          ...(listingKeywordHintsEnabled() && listingKeywordHints.trim()
+          ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
             ? { listingKeywordHints: listingKeywordHints.trim() }
             : {}),
         }),
@@ -747,7 +747,7 @@ export default function LabQuickPage() {
           </div>
         </div>
 
-        {listingKeywordHintsEnabled() ? (
+        {listingKeywordHintsDevEnabled() ? (
           <div className="mb-6">
             <ListingKeywordHintsDevPanel
               value={listingKeywordHints}
