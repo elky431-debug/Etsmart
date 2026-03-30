@@ -189,7 +189,9 @@ export async function runChunkedImageGeneration(opts: {
 
       let url = parsed.imageDataUrls[0] || null;
       if (!url && parsed.imageTaskIds.length > 0) {
-        url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1);
+        // gemini-bg = Background Function Pro (gemini-3.1) → deadline 120s au lieu de 65s
+        const pollQty = parsed.provider === 'gemini-bg' ? 7 : 1;
+        url = await pollSingleTaskImage(parsed.imageTaskIds[0], pollQty);
       }
       if (url) {
         slots[index] = { id: `img-${Date.now()}-${index}`, url };

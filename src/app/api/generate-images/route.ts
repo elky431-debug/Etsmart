@@ -271,6 +271,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Pro + Netlify → Background Function (gemini-3.1 sans timeout gateway 26s) ──
+    const isOnNetlify = Boolean(process.env.SITE_ID && process.env.URL);
+    if (useGemini && requestedEngine === 'pro' && clientChunkedSingleFlag && isOnNetlify) {
+      const BG_SECRET = process.env.NETLIFY_IMAGE_BG_SECRET;
+      const SITE_URL = process.env.URL;
+      if (BG_SECRET && SITE_URL) {
+        try {
+          const { data: job, error: insertErr } = await supabase
+            .from('image_gen_jobs' as any)
+            .insert({
+              user_id: user.id,
+              status: 'pending',
+              request_body: body,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single();
+
+          if (!insertErr && job) {
+            const jobId = (job as any).id as string;
+            void fetch(`${SITE_URL}/.netlify/functions/generate-images-background`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-netlify-image-bg-secret': BG_SECRET,
+              },
+              body: JSON.stringify({ jobId }),
+            }).catch((err) => console.error('[IMAGE GEN] BG trigger failed:', err));
+            console.log(`[IMAGE GEN] Pro → background job ${jobId}`);
+            return NextResponse.json({
+              success: true,
+              imageTaskIds: [jobId],
+              imageDataUrls: [],
+              provider: 'gemini-bg',
+              model: 'gemini-3.1-flash-image-preview',
+              requestedEngine: 'pro',
+            });
+          }
+          console.warn('[IMAGE GEN] Job insert failed, fallback sync:', insertErr?.message);
+        } catch (e: any) {
+          console.warn('[IMAGE GEN] BG path error, fallback sync:', e.message);
+        }
+      }
+    }
+
     // ── GEMINI (image + texte) : moteur par défaut si GEMINI_API_KEY ──
     if (useGemini) {
       const productDesc = (productTitle && String(productTitle).trim())

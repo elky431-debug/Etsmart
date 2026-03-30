@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 export const maxDuration = 15;
 export const runtime = 'nodejs';
@@ -22,6 +23,29 @@ export async function GET(request: NextRequest) {
 
     if (!taskId) {
       return NextResponse.json({ error: 'taskId required' }, { status: 400 });
+    }
+
+    // UUID → image_gen_jobs (job créé par la Background Function Pro)
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_REGEX.test(taskId)) {
+      const supabase = createSupabaseAdminClient();
+      const { data: job } = await supabase
+        .from('image_gen_jobs' as any)
+        .select('status, result_json, error_message')
+        .eq('id', taskId)
+        .maybeSingle();
+      if (!job) return NextResponse.json({ status: 'pending' });
+      const row = job as any;
+      if (row.status === 'done') {
+        const urls = Array.isArray(row.result_json?.imageDataUrls) ? row.result_json.imageDataUrls : [];
+        const url = (urls[0] as string) || null;
+        if (url) return NextResponse.json({ status: 'ready', url });
+        return NextResponse.json({ status: 'error', message: 'Image générée mais URL introuvable' });
+      }
+      if (row.status === 'error') {
+        return NextResponse.json({ status: 'error', message: row.error_message || 'Erreur génération' });
+      }
+      return NextResponse.json({ status: 'pending' });
     }
 
     const NANONBANANA_API_KEY = process.env.NANONBANANA_API_KEY;
