@@ -18,10 +18,10 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
 
 /** Concurrence par mode :
  *  - Flash : 2 en parallèle — Gemini rate-limite vite.
- *  - Pro : 4 en parallèle — plus rapide sans déclencher de 429 sur Gemini.
+ *  - Pro : 3 en parallèle — équilibre vitesse vs rate-limit gemini-3.1.
  */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (engineMode === 'pro') return 4;
+  if (engineMode === 'pro') return 3;
   return 2;
 }
 
@@ -190,8 +190,8 @@ export async function runChunkedImageGeneration(opts: {
 
       let url = parsed.imageDataUrls[0] || null;
       if (!url && parsed.imageTaskIds.length > 0) {
-        // gemini-bg : 40s max avant retry client (gemini-3.1 répond en ~20-35s)
-        const customDeadline = parsed.provider === 'gemini-bg' ? 40_000 : undefined;
+        // gemini-bg : 60s max avant retry client (gemini-3.1 répond en ~20-55s)
+        const customDeadline = parsed.provider === 'gemini-bg' ? 60_000 : undefined;
         url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1, customDeadline);
       }
       if (url) {

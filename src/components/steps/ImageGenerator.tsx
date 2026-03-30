@@ -413,6 +413,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
           imageBase,
           imageCount: quantity,
           engineMode: engineForApi,
+          retryAttemptsPerSlot: engineForApi === 'pro' ? 3 : 2,
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Erreur lors de la génération des images';
