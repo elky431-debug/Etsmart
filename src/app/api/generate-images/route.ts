@@ -417,6 +417,7 @@ export async function POST(request: NextRequest) {
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
+PRODUCT PROMINENCE (MANDATORY): The main product must be the undisputed focal point of the image. It must be centered (or very close to center), sharp, and occupy at least 65–75% of the total frame area. Background, decor and props must NEVER dominate — they are purely secondary context. If in doubt, zoom in on the product.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
 ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
 SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text — DO NOT reproduce any of them. Remove them completely.
@@ -425,6 +426,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
       const GLOBAL_PROMPT_RULES_GEMINI =
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
+        `PRODUIT CENTRÉ ET DOMINANT: le produit principal est TOUJOURS au centre du cadre, net, et occupe 65-75% de la surface totale de l'image. Le fond et le décor sont secondaires — jamais plus importants que le produit lui-même. ` +
         `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
         `Pas de watermark. ` +
         `ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. ` +
@@ -506,7 +508,7 @@ Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       const FURNITURE_ANCHOR_RULE =
         `INTÉGRATION OBLIGATOIRE: le meuble est TOUJOURS ancré dans son environnement — posé au sol, adossé à un mur ou dans un coin de la pièce. ` +
         `INTERDIT: meuble flottant ou isolé au milieu d'une pièce vide. ` +
-        `Plan moyen-large ou 3/4 avec le meuble en premier plan (60-70% du cadre), décor d'intérieur visible mais secondaire. ` +
+        `Plan moyen, meuble EN PREMIER PLAN et centré (65-70% du cadre) — le décor de la pièce est visible mais flou et secondaire derrière. ` +
         `Angle de prise de vue à hauteur d'œil (pas vue plongeante), style photo d'architecte d'intérieur.`;
 
       // Prompts spécialisés MEUBLES : pièces TRÈS différentes avec couleurs et styles explicites
@@ -605,15 +607,14 @@ Bijou net, couleurs fidèles. Pas de texte marketing. Pas de watermark.\n${GLOBA
       const GENERAL_PROMPTS = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – VUE LARGE / CONTEXTE LIFESTYLE:
-Plan large, produit intégré dans un espace de vie réaliste et chaleureux (salon, cuisine ou chambre selon le produit).
-Le produit à son échelle réelle, cadrage large montrant le contexte autour.
-Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond.
+PROMPT 1 – PRODUIT EN CONTEXTE LIFESTYLE:
+Produit centré et dominant au premier plan (70% du cadre), intégré dans un espace de vie réaliste et chaleureux (salon, cuisine ou chambre selon le produit) visible en arrière-plan flou.
+Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond — tout ça DERRIÈRE le produit, pas à côté.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 – PLAN MOYEN / DÉCOR SOIGNÉ:
-Plan moyen: produit au centre, espace visible autour, 1-2 accessoires neutres complémentaires.
+Produit centré et dominant (65-70% du cadre), 1-2 accessoires très discrets posés loin derrière ou sur les côtés — jamais devant ou au même niveau que le produit.
 Mur beige doux, surface en bois, lumière chaud type lampe indirecte.
 Décor sobre sans surcharger. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
