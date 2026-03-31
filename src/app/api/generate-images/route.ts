@@ -362,11 +362,11 @@ export async function POST(request: NextRequest) {
       const isNetlifyHost = isNetlifyRuntime();
       const engineSafe: 'flash' | 'pro' = engine === 'pro' ? 'pro' : 'flash';
       const isProFastSingle = isFastChunkedSingle && engineSafe === 'pro';
-      // gemini-3.1-flash-image-preview dépasse systématiquement le gateway Netlify (26s) → revenir à 2.5 pour les deux.
-      // La différence Pro/Flash passe par la résolution d'entrée (768px vs 640px) et les prompts.
+      // Modèle unique gemini-2.5-flash-image pour Flash et Pro — fiable, rapide, pas de timeout.
+      // Différenciation Pro/Flash : résolution d'entrée + qualité JPEG + prompts + retries.
       const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
-      // 2 essais pour Flash et Pro (gemini-2.5 répond en ~8-15s, 2 essais tient dans les 26s Netlify).
-      const geminiAttemptsPerImage = 2;
+      // Pro: 3 essais (maximise la qualité). Flash: 1 essai en netlifyFastSingle (vitesse), 2 sinon.
+      const geminiAttemptsPerImage = (engineSafe === 'pro') ? 3 : (isFastChunkedSingle && isNetlifyHost ? 1 : 2);
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
@@ -377,14 +377,9 @@ export async function POST(request: NextRequest) {
           let b64 = m[2];
           if (sharp) {
             const buf = Buffer.from(b64, 'base64');
-            const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
-            // Flash: résolution réduite pour aller plus vite. Pro: résolution maximale pour la qualité.
-            const maxSide = isNetlifyFastSingle
-              ? (engineSafe === 'pro' ? 768 : 640)
-              : isFastChunkedSingle
-                ? (engineSafe === 'pro' ? 896 : 640)
-                : 768;
-            const jpegQ = engineSafe === 'pro' ? 82 : 72;
+            // Pro: résolution maximale pour la qualité. Flash: résolution réduite pour la vitesse.
+            const maxSide = engineSafe === 'pro' ? 1024 : 768;
+            const jpegQ = engineSafe === 'pro' ? 90 : 72;
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -411,7 +406,7 @@ export async function POST(request: NextRequest) {
 
       const realismBoost =
         engineSafe === 'pro'
-          ? 'High-fidelity pro render: crisp details, natural micro-textures, realistic global illumination, physically plausible contact shadows and reflections, accurate perspective and scale. Maximum realism, avoid any AI plastic look.'
+          ? 'Ultra high-fidelity professional render: maximum sharpness on every product detail, premium studio-grade lighting with subtle rim light and soft fill, natural micro-textures (wood grain, fabric weave, metal brushing), physically accurate reflections and refractions, cinematic depth of field with creamy bokeh, color-accurate materials faithful to the reference image, zero AI artifacts, zero plastic look — final result must be indistinguishable from a professional $500 product photography session.'
           : 'Photorealistic Etsy listing quality: sharp product focus, natural soft light, accurate colors and materials, subtle realistic shadows, avoid plastic/AI look.';
       const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
@@ -779,10 +774,11 @@ Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de wat
           return null;
         }
 
+        const retryBackoffMs = engineSafe === 'pro' ? 1500 : 900;
         for (let attempt = 0; attempt < geminiAttemptsPerImage; attempt++) {
           const img = await tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, mainPart, geminiHttpCapMs);
           if (img) return img;
-          if (attempt < geminiAttemptsPerImage - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
+          if (attempt < geminiAttemptsPerImage - 1) await new Promise((r) => setTimeout(r, retryBackoffMs + attempt * 500));
         }
         return null;
       };

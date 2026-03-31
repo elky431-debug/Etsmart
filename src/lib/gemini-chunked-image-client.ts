@@ -17,11 +17,10 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
 }
 
 /** Concurrence par mode :
- *  - Flash : 2 en parallèle — Gemini rate-limite vite.
- *  - Pro : 3 en parallèle — équilibre vitesse vs rate-limit gemini-3.1.
+ *  - Flash : 2 en parallèle.
+ *  - Pro : 2 en parallèle — moins de slots simultanés = plus de bande passante API par image.
  */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
-  if (engineMode === 'pro') return 3;
   return 2;
 }
 
