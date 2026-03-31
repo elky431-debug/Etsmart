@@ -2263,7 +2263,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'subscription' && user && (
-            <DashboardSubscription user={user} />
+            <ErrorBoundary>
+              <DashboardSubscription user={user} />
+            </ErrorBoundary>
           )}
 
           {activeSection === 'profile' && user && (

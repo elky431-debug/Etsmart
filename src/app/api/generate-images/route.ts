@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
-PRODUCT PROMINENCE (MANDATORY): The main product must be the undisputed focal point of the image. It must be centered (or very close to center), sharp, and occupy at least 65–75% of the total frame area. Background, decor and props must NEVER dominate — they are purely secondary context. If in doubt, zoom in on the product.
+PRODUCT PROMINENCE (MANDATORY): The main product must be the undisputed focal point. It must be centered, sharp, and occupy at least 65–75% of the total frame area. Camera stays CLOSE to the product — no wide room shots where the product appears small. Background must be blurred or simple. If the product looks small in the frame, zoom in more.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
 ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
 SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text — DO NOT reproduce any of them. Remove them completely.
@@ -604,44 +604,59 @@ Bijou net, couleurs fidèles. Pas de texte marketing. Pas de watermark.\n${GLOBA
       ];
 
       // Prompts généraux pour HOME DECOR et autres catégories
+      // RÈGLE ABSOLUE : plan rapproché avec le produit qui remplit le cadre — JAMAIS de plan large lifestyle
+      const CLOSE_UP_RULE =
+        `CADRAGE OBLIGATOIRE: plan rapproché ou plan moyen SERRÉ — appareil photo très proche du produit. ` +
+        `Le produit occupe 70-80% de la surface du cadre, centré et parfaitement net. ` +
+        `INTERDIT: plan large avec une pièce entière visible. L'arrière-plan doit être FLOU (bokeh, f/2.8). ` +
+        `Le produit est en tout premier plan — il N'EST PAS posé dans un coin de pièce au loin.`;
+
       const GENERAL_PROMPTS = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – PRODUIT EN CONTEXTE LIFESTYLE:
-Produit centré et dominant au premier plan (70% du cadre), intégré dans un espace de vie réaliste et chaleureux (salon, cuisine ou chambre selon le produit) visible en arrière-plan flou.
-Lumière du matin venant de la gauche, mur blanc cassé, parquet clair, tableau abstrait discret en fond — tout ça DERRIÈRE le produit, pas à côté.
+PROMPT 1 – PACKSHOT SURFACE NEUTRE:
+${CLOSE_UP_RULE}
+Produit posé sur une surface propre (plateau en marbre blanc, planche en bois naturel, ou tissu lin beige).
+Appareil très près, produit centré et net, occupant 75% du cadre. Arrière-plan flou crème ou blanc.
+Lumière naturelle douce venant de la gauche, ombres portées douces.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 2 – PLAN MOYEN / DÉCOR SOIGNÉ:
-Produit centré et dominant (65-70% du cadre), 1-2 accessoires très discrets posés loin derrière ou sur les côtés — jamais devant ou au même niveau que le produit.
-Mur beige doux, surface en bois, lumière chaud type lampe indirecte.
-Décor sobre sans surcharger. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 2 – SURFACE SOMBRE / CONTRASTE:
+${CLOSE_UP_RULE}
+Produit posé sur une surface sombre (ardoise noire, bois foncé, velours gris anthracite).
+Plan rapproché, produit centré à 70-75% du cadre, arrière-plan flou épuré.
+Lumière directionnelle latérale douce révélant les textures et volumes du produit.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
-Photo rapprochée sur texture, matériaux et finitions. Bokeh doux sur les bords.
-Fond neutre épuré, lumière directionnelle douce révélant les reliefs.
-Produit 60-70% du cadre. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 3 – GROS PLAN DÉTAIL / TEXTURE:
+Photo TRÈS rapprochée sur les détails, textures et finitions du produit.
+Produit occupe 80-85% du cadre, netteté maximale sur la matière principale. Bokeh très doux sur les bords.
+Fond neutre épuré (blanc ou beige), lumière latérale douce révélant les reliefs.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – AMBIANCE SOIR / LUMIÈRE TAMISÉE:
-Éclairage chaud de soirée, lumière indirecte dorée, ombres douces et longues.
-Bougie ou lampe d'appoint visible en arrière-plan, intérieur feutré.
-Plan moyen, produit à son échelle. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 5 – LIFESTYLE PROCHE / AMBIANCE COSY:
+${CLOSE_UP_RULE}
+Produit posé sur une table basse ou tablette, avec 1 seul accessoire complémentaire (petite bougie, tasse, feuille d'eucalyptus) DERRIÈRE lui ou à l'extrême bord du cadre — jamais devant.
+Lumière chaude de soirée (bokeh d'une lampe en fond), ambiance feutrée. Produit net, fond flou.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – AUTRE PIÈCE / PALETTE DIFFÉRENTE:
-Même produit dans une PIÈCE COMPLÈTEMENT DIFFÉRENTE des images 1 et 2 avec une PALETTE DE COULEURS DIFFÉRENTE.
-Si image 1 était blanc/beige: utiliser chambre avec mur coloré (vert, bleu, terracotta) ou cuisine industrielle.
-Lumière naturelle zénithale, cadrage large. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 6 – FOND COLORÉ / MISE EN VALEUR:
+${CLOSE_UP_RULE}
+Produit centré sur un fond uni coloré mais doux (vert sauge, bleu nuit, terracotta, rose poudré — couleur qui complimente le produit).
+Éclairage studio homogène doux, ombres portées très légères. Produit parfaitement net, 75% du cadre.
+Style publicité produit haut de gamme. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – RÉFÉRENCE D'ÉCHELLE / USAGE:
-Photo montrant la taille réelle du produit avec un objet connu à côté (tasse, livre, plante en pot).
-Plan moyen, produit et objet de référence nets et bien cadrés.
-Fond épuré, lumière naturelle douce. Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 7 – RÉFÉRENCE TAILLE / USAGE:
+${CLOSE_UP_RULE}
+Produit posé à côté d'UN seul objet de référence connu (tasse standard, livre de poche) pour montrer l'échelle réelle.
+Plan moyen serré, produit et objet de référence nets, tous deux centrés dans le cadre.
+Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Sélection des prompts selon la catégorie détectée
