@@ -175,98 +175,78 @@ export async function POST(request: NextRequest) {
 
     const hasReferenceImage = Boolean(referenceImageData);
     const themeContext = `${shopName} ${listingTitle} ${description}`.toLowerCase();
-    const isLampNiche = /(lamp|lampe|lighting|luminaire|light)/i.test(themeContext);
-    const isWoodCraft = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(themeContext);
-    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(themeContext);
-    const isBookNiche =
-      /(book|nook|library|story|storynook|reading|literature|miniature diorama|diorama|shelf|bibliothèque)/i.test(
-        themeContext
-      );
 
-    let paletteInstruction =
-      'Use a tasteful neutral palette that matches the product. Prefer soft cream, warm gray, and subtle accent tones.';
-    if (isLampNiche) {
+    // Niche detection — ordre important : les niches spécifiques avant les génériques
+    const isAnimeGaming = /(anime|manga|gaming|gamer|glow|neon|dragon|naruto|pokemon|zelda|fantasy|sci.?fi|cyber|pixel|figurine|figure|diorama|led|rgb|night.?light|veilleuse|fantasy lamp|resin lamp)/i.test(themeContext);
+    const isBookNiche   = /(book|nook|library|story|storynook|reading|literature|miniature diorama|shelf|bibliothèque)/i.test(themeContext);
+    const isWoodCraft   = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(themeContext);
+    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(themeContext);
+    // Lamp niche seulement si PAS anime/gaming (lampAnime → anime prime sur lamp)
+    const isLampNiche   = !isAnimeGaming && /(lamp|lampe|lighting|luminaire|light)/i.test(themeContext);
+
+    let paletteInstruction: string;
+    let backgroundInstruction: string;
+
+    if (isAnimeGaming) {
       paletteInstruction =
-        'Use a warm beige palette: light beige, cream, sand, warm taupe, and soft golden highlights. Avoid dominant blue tones.';
-    } else if (isWoodCraft) {
-      paletteInstruction =
-        'Use warm natural tones: beige, linen, tan, walnut brown, and off-white. Keep colors earthy and premium.';
-    } else if (isPastelNiche) {
-      paletteInstruction =
-        'Use soft pastel neutrals: cream, light beige, dusty rose, and muted warm gray. Keep it delicate and clean.';
+        'Use a DARK, RICH palette: deep black or very dark navy background, with vivid accent colors that match the products — glowing oranges, electric blues, neon purples, fiery reds, or vibrant teals. High contrast, dramatic, cinematic. Think movie poster or gaming setup aesthetics. NO beige, NO cream, NO plain white.';
+      backgroundInstruction =
+        'Background: DARK and ATMOSPHERIC — deep shadows, dramatic cinematic lighting, volumetric light rays or glowing haze emanating from the products. The scene should feel like a darkened room lit only by the glowing lamps/items. Think: dark wooden shelf, moody night scene, subtle smoke or particles in the air, deep bokeh. The products must GLOW and POP against the dark background. NOT a bright studio, NOT beige, NOT plain.';
     } else if (isBookNiche) {
       paletteInstruction =
-        'Use warm literary tones: deep cream, antique paper, warm wood browns, soft golden highlights, muted burgundy or forest green accents. Cozy and inviting.';
-    }
-
-    let backgroundInstruction =
-      'Background: choose a setting that visually echoes the product niche — warm and inviting, not sterile or plain.';
-    if (isBookNiche) {
+        'Use warm literary tones: deep cream, antique paper, warm wood browns, soft golden highlights, muted burgundy or forest green accents.';
       backgroundInstruction =
-        'Background: create a THEMATIC setting — cozy library, warm wooden shelves, old books in soft bokeh, soft golden lamp light, magical and inviting atmosphere. NO sterile studio, NO plain white countertop, NO generic bright room. The scene should feel like a reading nook or secret library.';
-    } else if (isLampNiche) {
-      backgroundInstruction =
-        'Background: warm ambient setting that complements the lighting products — soft shadows, gentle glow, not a cold or sterile studio.';
+        'Background: cozy library, warm wooden shelves, old books in soft bokeh, soft golden lamp light, magical and inviting atmosphere. NOT sterile studio, NOT plain countertop.';
     } else if (isWoodCraft) {
+      paletteInstruction =
+        'Use warm natural tones: beige, linen, tan, walnut brown, off-white. Earthy and premium.';
       backgroundInstruction =
-        'Background: natural, artisan setting — warm wood surfaces, workshop or cozy interior, no sterile white studio.';
+        'Background: natural artisan setting — warm wood surfaces, workshop or cozy interior, no sterile white studio.';
     } else if (isPastelNiche) {
+      paletteInstruction =
+        'Use soft pastel neutrals: cream, light beige, dusty rose, muted warm gray. Delicate and clean.';
       backgroundInstruction =
-        'Background: soft, delicate setting — light fabrics, gentle pastel tones in the scene, dreamy and clean.';
+        'Background: soft delicate setting — light fabrics, gentle pastel tones, dreamy and clean.';
+    } else if (isLampNiche) {
+      paletteInstruction =
+        'Use a warm beige palette: light beige, cream, sand, warm taupe, soft golden highlights.';
+      backgroundInstruction =
+        'Background: warm ambient living room setting — soft shadows, gentle lamp glow, cozy interior. Not a cold sterile studio.';
+    } else {
+      paletteInstruction =
+        'Use a tasteful palette that matches the product niche. Prefer rich, atmospheric tones over plain neutrals.';
+      backgroundInstruction =
+        'Background: immersive lifestyle setting that visually echoes the product — warm, atmospheric, with real depth. Not sterile or plain.';
     }
 
-    const prompt = `Create one Etsy shop banner in a clean, simple, premium style.
-CRITICAL — EXACT 4:1 BANNER (same proportions as 1200 pixels wide × 300 pixels tall):
-- The output image MUST be a single ultra-wide 4:1 rectangle. No square canvas, no tall portrait, no extra margins outside the design.
-- Full-bleed panoramic hero: background and scene fill the ENTIRE width and height edge to edge.
-- NO "postcard" on gray: no huge empty pillars left/right. NO collage or screenshot look.
+    // On demande à Gemini UN FOND SANS TEXTE — le shop name sera composité par Sharp en typo parfaite
+    const prompt = `Generate a professional Etsy shop banner BACKGROUND IMAGE only — NO TEXT, NO WORDS, NO LETTERS anywhere in the image.
 
-SHOP NAME — GEOMETRIC CENTER (NON-NEGOTIABLE):
-- Render the exact text "${shopName}" as the main title.
-- Place it at the TRUE CENTER of the frame: horizontally centered (equal space left and right) AND vertically centered (equal space above and below the text block). NOT low, NOT sitting on the bottom third, NOT corner-aligned.
-- The name must be large, crisp, and readable; high contrast against the background; with comfortable padding from all four edges so it is never clipped after export.
+━━━ FORMAT ━━━
+• Ultra-wide 4:1 panoramic rectangle (same proportions as 1200×300).
+• Full-bleed edge-to-edge. No borders, no margins, no letterboxing.
+• Single cohesive scene — NOT a collage, NOT a grid, NOT multiple panels.
 
-COMPOSITION — PRODUCTS AROUND THE TITLE:
-- Products / decor support the title but must not push the shop name off-center. If you show products, balance them symmetrically or softly around the centered title so the optical focus stays on "${shopName}".
-- 1–3 hero items max; scale them for a SHORT banner height (~300px class); avoid cramming or extreme side crops.
+━━━ VISUAL CONTENT ━━━
+• ${backgroundInstruction}
+• ${paletteInstruction}
+• Show the product(s) matching: "${listingTitle}"
+${hasReferenceImage ? '• A reference product image is provided — echo its style, colors and subject matter. Show similar products naturally integrated into the scene.' : '• No reference provided — generate contextually appropriate products for this niche.'}
+• Composition: products arranged across the full width of the banner — LEFT side, CENTER zone, and RIGHT side all feel balanced and filled.
+• The CENTER ZONE (roughly the middle 35% of the width) should be slightly less visually busy — a soft background area where overlaid text will be readable. Think of it as a "clearing" in the composition: still part of the scene, but not crowded with objects.
+• Lighting: cinematic and atmospheric — directional soft light, shallow depth of field (bokeh), warm or cool tones depending on niche. NOT flat white studio.
+• Depth layers: foreground soft elements, midground hero products, atmospheric background. Editorial lifestyle feel.
 
-MANDATORY — SHOP NAME MUST BE VISIBLE:
-- You MUST display the shop name "${shopName}" as readable text on the banner.
-- Use elegant, clear typography (serif or sans-serif). The shop name is the main title of the banner.
-- Do not omit the shop name. The banner is for the Etsy shop "${shopName}" and the name must appear on it.
-
-Main objective:
-- The banner must clearly represent the shop and its products.
-- Keep composition simple and focused, not overloaded.
-
-Design direction:
-- ${paletteInstruction}
-- ${backgroundInstruction}
-- Product-focused visual: show relevant products matching "${listingTitle}".
-- Products should be visible and aesthetically arranged (not tiny, not chaotic, not harshly cropped).
-- Add soft lighting and depth, but keep it minimal and clean.
-
-Context:
-- Shop name (MUST appear as text on banner): ${shopName}
-- Product focus: ${listingTitle}
-- Description summary: ${description.slice(0, 240)}
-${hasReferenceImage ? '- A product reference image is provided by the user; echo similar product style and palette, and frame subjects so they read well in a wide short banner (avoid extreme side cropping).' : ''}
-
-Strict rules:
-- The shop name "${shopName}" MUST be written as visible text on the image. No exceptions.
-- no watermark
-- no random symbols or abstract circles unrelated to the brand
-- no collage/grid/screenshot look
-- avoid clutter
-- one coherent hero banner ready for Etsy
-
-IMAGE QUALITY HINT (user preference "${modelPreference}"):
+━━━ ABSOLUTE RULES ━━━
+• ZERO TEXT in the image. No letters, no numbers, no words anywhere. The shop name will be added as a separate typographic layer.
+• No watermarks, no UI chrome, no lorem ipsum.
+• No white backgrounds or plain colored backgrounds — always a real atmospheric setting.
 ${
       modelPreference === 'pro'
-        ? 'Premium render: refined lighting, crisp typography, rich but not cluttered composition.'
+        ? '• QUALITY: maximum render — rich textures, cinematic lighting, fine details, magazine editorial level.'
         : modelPreference === 'flash'
-          ? 'Clean efficient render: readable shop name, clear focal hierarchy, avoid excessive micro-detail.'
-          : 'Balanced Etsy-ready quality.'
+          ? '• QUALITY: efficient render — clear products, strong atmospheric mood, clean composition.'
+          : '• QUALITY: balanced — appealing atmosphere, clear product focus, cohesive colors.'
     }`;
 
     let refJpeg: Buffer | undefined;
@@ -309,15 +289,88 @@ ${
       );
     }
 
-    const meta = await sharp(raw).metadata();
-    const w = meta.width ?? 0;
-    const h = meta.height ?? 0;
-    const ratio = w > 0 && h > 0 ? w / h : 4;
-    const isNearFourToOne = Math.abs(ratio - 4) < 0.35;
+    // ── 1. Recadrer le fond en 1200×300 ──────────────────────────────────────
+    const bgBuffer = await sharp(raw)
+      .resize(1200, 300, { fit: 'cover', position: 'centre' })
+      .toBuffer();
 
-    const bannerBuffer = isNearFourToOne
-      ? await sharp(raw).resize(1200, 300, { fit: 'fill' }).png({ quality: 92 }).toBuffer()
-      : await sharp(raw).resize(1200, 300, { fit: 'cover', position: 'centre' }).png({ quality: 92 }).toBuffer();
+    // ── 2. Composite SVG : overlay gradient + shop name en typo propre ───────
+    const nameLen   = shopName.length;
+    const fontSize  = nameLen <= 7 ? 92 : nameLen <= 11 ? 76 : nameLen <= 16 ? 62 : nameLen <= 22 ? 50 : 40;
+    const tracking  = nameLen <= 7 ? 12 : nameLen <= 11 ? 8 : nameLen <= 16 ? 5 : 2;
+
+    // Couleurs selon niche : dark pour anime/gaming, light pour pastel
+    const darkTheme = isAnimeGaming || isBookNiche;
+    const lightTheme = isPastelNiche;
+    const textColor    = lightTheme ? '#1a1a1a' : '#ffffff';
+    const shadowSpread = darkTheme ? 8 : 5;
+    const shadowOpacity = darkTheme ? '0.95' : '0.75';
+    // Backdrop semi-transparent centré derrière le texte
+    const backdropH    = fontSize + 40;
+    const backdropY    = Math.round((300 - backdropH) / 2);
+    const backdropFill = lightTheme ? 'rgba(255,255,255,0.45)' : darkTheme ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.40)';
+    // Pour anime/gaming : on ajoute un subtle glow coloré autour du texte
+    const glowColor = isAnimeGaming ? 'rgba(120,200,255,0.5)' : 'none';
+
+    const safeName = shopName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const textY = 150 + Math.round(fontSize * 0.36);
+
+    const svgOverlay = `<svg width="1200" height="300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Vignette bords -->
+    <linearGradient id="vig-h" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="rgba(0,0,0,0.35)"/>
+      <stop offset="18%"  stop-color="rgba(0,0,0,0.0)"/>
+      <stop offset="82%"  stop-color="rgba(0,0,0,0.0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.35)"/>
+    </linearGradient>
+    <linearGradient id="vig-v" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(0,0,0,0.22)"/>
+      <stop offset="30%"  stop-color="rgba(0,0,0,0.0)"/>
+      <stop offset="70%"  stop-color="rgba(0,0,0,0.0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.25)"/>
+    </linearGradient>
+    <!-- Shadow pour le texte -->
+    <filter id="tshadow" x="-20%" y="-40%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="${shadowSpread}" flood-color="rgba(0,0,0,${shadowOpacity})"/>
+    </filter>
+    ${isAnimeGaming ? `<filter id="glow" x="-30%" y="-60%" width="160%" height="220%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="${glowColor}"/>
+    </filter>` : ''}
+  </defs>
+
+  <!-- Vignettes horizontale + verticale -->
+  <rect width="1200" height="300" fill="url(#vig-h)"/>
+  <rect width="1200" height="300" fill="url(#vig-v)"/>
+
+  <!-- Backdrop derrière le texte -->
+  <rect x="0" y="${backdropY}" width="1200" height="${backdropH}"
+        fill="${backdropFill}"/>
+
+  ${isAnimeGaming ? `<!-- Glow lumineux pour anime/gaming -->
+  <text x="600" y="${textY}" text-anchor="middle" dominant-baseline="middle"
+    font-family="Georgia, serif" font-size="${fontSize}" font-weight="700"
+    fill="rgba(180,230,255,0.4)" letter-spacing="${tracking}"
+    filter="url(#glow)">${safeName}</text>` : ''}
+
+  <!-- Texte principal -->
+  <text
+    x="600" y="${textY}"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="Georgia, 'Palatino Linotype', serif"
+    font-size="${fontSize}"
+    font-weight="700"
+    fill="${textColor}"
+    letter-spacing="${tracking}"
+    filter="url(#tshadow)"
+  >${safeName}</text>
+</svg>`;
+
+    const bannerBuffer = await sharp(bgBuffer)
+      .composite([{ input: Buffer.from(svgOverlay), blend: 'over' }])
+      .png({ quality: 95 })
+      .toBuffer();
 
     const deductResult = await incrementAnalysisCount(user.id, BANNER_CREDITS);
     if (!deductResult.success) {

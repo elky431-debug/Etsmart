@@ -514,23 +514,13 @@ Rules:
       firstPersonScore(biography) < 2
         ? rewriteBiographyToFirstPerson(biography)
         : Promise.resolve(biography);
-    const portraitPromise = generateFounderPortraitDataUrl({
-      client: openai,
-      shopTone,
-      city,
-      country,
-      visualStyle: vision.visualStyle,
-      nicheSummary: vision.nicheSummary,
-      productTypes: vision.productTypes,
-      characterRole,
-      personaSummary: characterSummary,
-    });
 
-    const [biographyFinal, aiPortrait] = await Promise.all([rewritePromise, portraitPromise]);
-    biography = biographyFinal;
+    biography = await rewritePromise;
 
-    const imageDataUrl = aiPortrait?.dataUrl || buildInlineAvatarDataUrl(characterName, characterRole);
-    const imageSource: 'openai-portrait' | 'inline-svg' = aiPortrait ? 'openai-portrait' : 'inline-svg';
+    // Portrait génération omise du flux principal pour rester sous le timeout Netlify (26s).
+    // On utilise toujours l'avatar SVG inline ; le portrait peut être généré séparément si besoin.
+    const imageDataUrl = buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageSource: 'openai-portrait' | 'inline-svg' = 'inline-svg';
 
     const deduct = await incrementAnalysisCount(user.id, SHOP_STORY_CREDITS);
     if (!deduct.success) {
@@ -562,7 +552,6 @@ Rules:
       meta: {
         sourceMode: 'vision',
         imageSource,
-        portraitModel: aiPortrait?.model,
         nicheContext,
         resolvedShopName,
       },
