@@ -708,8 +708,8 @@ Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de wat
         return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
       };
 
-      /** Hors Netlify : budget complet 28s. Netlify : 22s max (donne plus de marge à Gemini). */
-      const geminiHttpCapMs = isNetlifyHost ? 22_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+      /** Hors Netlify : budget complet 28s. Netlify : 18s max (startup 3s + Gemini 18s + Supabase 2s = 23s < 26s gateway). */
+      const geminiHttpCapMs = isNetlifyHost ? 18_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
