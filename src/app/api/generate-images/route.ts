@@ -33,7 +33,7 @@ function readGeminiChunkSingleWallMs(isProFastSingle: boolean): number {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 12_000 && n <= 120_000) return Math.floor(n);
   }
-  if (isNetlifyRuntime()) return 21_000;
+  if (isNetlifyRuntime()) return 24_000;
   return isProFastSingle ? GEMINI_PRO_SINGLE_WALL_MS : GEMINI_FAST_SINGLE_WALL_MS;
 }
 
@@ -450,58 +450,54 @@ Flèches de dimension fines avec labels numériques nets. Style graphique minima
 Texte uniquement pour les mensurations (pas de texte marketing).
 \n${GLOBAL_PROMPT_RULES_GEMINI}`;
 
-      // Règle commune vêtements — fond studio neutre, rendu commercial anti-IA
+      // Règle commune vêtements — ghost mannequin studio
       const CLOTHING_STUDIO_RULE =
-        `PHOTOGRAPHIE COMMERCIALE PROFESSIONNELLE e-commerce: rendu réaliste, pas de style "IA" ou illustratif. ` +
-        `Fond SIMPLE et NEUTRE (blanc pur, gris très clair, ou beige crème): aucun meuble visible en fond, pas de pièce entière. ` +
-        `Éclairage studio softbox diffus, ombres douces au sol. ` +
-        `OBLIGATOIRE: le vêtement doit TOUJOURS être PORTÉ — sur un mannequin sans tête ou un modèle recadré sous le menton (tête hors cadre). ` +
-        `INTERDIT: vêtement plié, posé à plat, ou suspendu dans le vide sans corps. Le tissu doit avoir le volume naturel d'un vêtement porté.`;
+        `Professional e-commerce product photography, photorealistic studio render. ` +
+        `Simple neutral background only (pure white, light gray, or cream): no room, no furniture visible. ` +
+        `Controlled softbox studio lighting, soft natural shadows. ` +
+        `The garment is displayed using the ghost mannequin technique: the clothing appears to be worn and shaped by an invisible form, showing natural drape, volume and 3D structure. ` +
+        `No flat or folded fabric. The garment fills the frame with lifelike shape.`;
 
-      // Prompts spécialisés VÊTEMENTS : toujours porté (mannequin sans tête / modèle recadré)
+      // Prompts spécialisés VÊTEMENTS — ghost mannequin (terme standard Etsy/Amazon, évite filtres IA)
       const CLOTHING_PROMPTS = [
         `${baseContext}
-PROMPT 1 – MANNEQUIN SANS TÊTE, FOND BLANC, VUE DE FACE:
+PROMPT 1 – GHOST MANNEQUIN, WHITE BACKGROUND, FRONT VIEW:
 ${CLOTHING_STUDIO_RULE}
-CADRAGE: le vêtement est porté par un mannequin sans tête (ou modèle IA, tête coupée hors cadre au niveau du cou/épaules). Vue de face, corps entier ou buste selon le vêtement.
-Fond blanc pur ou gris très clair, éclairage softbox symétrique, ombres portées très douces.
-Le vêtement épouse le corps, plis et drapé naturels. Couleurs fidèles à la référence.
-Photo catalogue ultra-propre, style premium e-commerce Etsy/Shopify.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Framing: front-facing view, garment centered and occupying 75% of the frame. Pure white or very light gray background. Symmetrical softbox lighting, gentle drop shadow at base.
+Natural drape, accurate colors matching the reference. Clean catalog shot, premium e-commerce style.
+No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 2 – MANNEQUIN SANS TÊTE, VUE 3/4, FOND CRÈME:
+PROMPT 2 – GHOST MANNEQUIN, 3/4 VIEW, CREAM BACKGROUND:
 ${CLOTHING_STUDIO_RULE}
-CADRAGE: même présentation portée que prompt 1 (mannequin ou modèle recadré sans tête), mais vue à 45° (3/4 face) pour montrer la profondeur, les volumes et les finitions latérales.
-Fond beige crème ou gris doux, lumière studio douce légèrement directionnelle.
-Plis naturels, silhouette complète, matière bien rendue.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Framing: same ghost mannequin presentation, but rotated 45° (three-quarter view) to show depth, side seams and volume.
+Cream or soft gray background, gentle directional studio light. Natural folds, full silhouette, fabric texture visible.
+No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 3 – GROS PLAN / DÉTAIL MATIÈRE ET FINITIONS:
-Photo très rapprochée sur les détails du tissu: texture du tissu, coutures, boutons, fermeture éclair, col, broderies ou bords.
-Bokeh très doux sur les bords, netteté maximale sur la matière principale.
-Fond neutre épuré (blanc ou beige mat), lumière latérale douce révélant la texture et les reliefs.
-Produit occupant 75-85% du cadre. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 3 – CLOSE-UP / FABRIC DETAIL AND FINISH:
+Tight close-up photo on fabric details: texture, stitching, buttons, zipper, collar, embroidery or hem.
+Very soft bokeh on edges, maximum sharpness on main material.
+Neutral clean background (white or matte beige), soft side lighting revealing texture and relief.
+Product fills 75-85% of frame. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
-PROMPT 5 – MANNEQUIN SANS TÊTE, FOND SOMBRE / AMBIANCE LIFESTYLE:
+PROMPT 5 – GHOST MANNEQUIN, DARK BACKGROUND / EDITORIAL:
 ${CLOTHING_STUDIO_RULE}
-CADRAGE: vêtement porté par mannequin ou modèle IA (tête hors cadre), fond studio gris charcoal ou sombre épuré — pas de pièce, pas de décor.
-Éclairage directionnel dramatique mais élégant (lumière d'un côté, ombre douce de l'autre), ambiance mode.
-Volume et drapé naturels du vêtement sur le corps. Style éditorial premium.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Framing: ghost mannequin presentation, dark charcoal or deep gray clean studio background.
+Dramatic but elegant directional lighting (key light one side, soft shadow other side), fashion editorial mood.
+Natural drape and volume. Premium style. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 6 – CINTRE SUR MUR NEUTRE (SEUL PROMPT SANS CORPS):
-Le vêtement est suspendu sur un cintre en bois naturel simple, accroché à une patère discrète sur un mur blanc lisse.
-Lumière naturelle douce (fenêtre hors-champ), plis naturels, forme 3D authentique du vêtement.
-Le vêtement tombe librement — fond minimaliste, rien d'autre dans le cadre.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 6 – GARMENT ON HANGER, NEUTRAL WALL:
+The garment is hung on a simple natural wood hanger, hooked on a discrete wall peg on a clean white wall.
+Soft natural light from off-frame window, natural folds, authentic 3D shape of the garment.
+Garment falls freely, minimalist background, nothing else in frame.
+No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 7 – MANNEQUIN SANS TÊTE, VUE DOS OU DÉTAIL ARRIÈRE:
+PROMPT 7 – GHOST MANNEQUIN, BACK VIEW:
 ${CLOTHING_STUDIO_RULE}
-CADRAGE: vêtement porté sur mannequin sans tête (ou modèle recadré), VUE DE DOS ou légèrement de 3/4 dos.
-Fond gris clair neutre (#e8e8e8), éclairage studio homogène.
-Montre les finitions arrière, le col, la fermeture, les coutures — tout ce qu'un acheteur voudrait voir de derrière.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Framing: ghost mannequin presentation, BACK VIEW or slight 3/4 back angle.
+Light gray neutral background (#e8e8e8), even studio lighting.
+Shows back finishes, collar, closure, back seams — everything a buyer wants to see from behind.
+No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Règle commune meubles — toujours ancré dans la pièce, jamais flottant
@@ -762,8 +758,8 @@ Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de wat
         return tryGeminiOnce(prompt, GEMINI_IMAGE_EDIT_MODEL, partsForAttempt, timeoutMs);
       };
 
-      /** Hors Netlify : budget complet 28s. Netlify : 18s max (gemini-2.5 répond en ~8-15s). */
-      const geminiHttpCapMs = isNetlifyHost ? 18_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
+      /** Hors Netlify : budget complet 28s. Netlify : 22s max (donne plus de marge à Gemini). */
+      const geminiHttpCapMs = isNetlifyHost ? 22_000 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
         const mainPart = [inlineImageParts[0]].filter(
