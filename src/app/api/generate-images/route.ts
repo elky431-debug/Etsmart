@@ -365,8 +365,9 @@ export async function POST(request: NextRequest) {
       // Modèle unique gemini-2.5-flash-image pour Flash et Pro — fiable, rapide, pas de timeout.
       // Différenciation Pro/Flash : résolution d'entrée + qualité JPEG + prompts + retries.
       const GEMINI_IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
-      // Pro: 3 essais (maximise la qualité). Flash: 1 essai en netlifyFastSingle (vitesse), 2 sinon.
-      const geminiAttemptsPerImage = (engineSafe === 'pro') ? 3 : (isFastChunkedSingle && isNetlifyHost ? 1 : 2);
+      // Sur Netlify: 1 seul essai serveur (wall clock 24s, 1 essai Gemini = ~22s max, pas de place pour 2+).
+      // Hors Netlify (Vercel 120s): Pro = 3 essais, Flash = 2 essais.
+      const geminiAttemptsPerImage = isNetlifyHost ? 1 : (engineSafe === 'pro' ? 3 : 2);
       const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
