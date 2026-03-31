@@ -27,305 +27,118 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   });
   const [loading, setLoading] = useState(true);
 
+  // Chargement initial : 1 seul appel à check-stripe-subscription (source de vérité)
   const loadSubscription = async () => {
-    if (!authUser?.id) {
-      setLoading(false);
-      return;
-    }
-
+    if (!authUser?.id) { setLoading(false); return; }
     try {
       setLoading(true);
-      
-      // Force sync with Stripe first to ensure we have latest data
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.access_token) {
-          const syncResponse = await fetch('/api/sync-subscription', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          if (syncResponse.ok) {
-            console.log('[Dashboard] Subscription synced from Stripe');
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const res = await fetch('/api/check-stripe-subscription', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const stripeData = await res.json();
+          if (stripeData.hasSubscription) {
+            applyStripeData(stripeData);
+            return;
           }
         }
-      } catch (syncError) {
-        console.error('Error syncing subscription:', syncError);
       }
-      
-      // Force direct Stripe check first to get latest data (bypasses cache)
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.access_token) {
-          const stripeCheck = await fetch(`/api/check-stripe-subscription?t=${Date.now()}`, {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Cache-Control': 'no-cache',
-            },
-          });
-          
-          if (stripeCheck.ok) {
-            const stripeData = await stripeCheck.json();
-            if (stripeData.hasSubscription) {
-              // Use Stripe data directly - it's the source of truth
-              const usedValue = parseFloat(String(stripeData.used)) || 0;
-              // ⚠️ CRITICAL: Always use quota from API (respects manual overrides)
-              const quotaValue = (stripeData.quota !== undefined && stripeData.quota !== null) ? stripeData.quota : 100;
-              const remainingValue = parseFloat(String(stripeData.remaining)) || (quotaValue - usedValue);
-              const percentage = quotaValue > 0 ? (usedValue / quotaValue) * 100 : 0;
-              
-              console.log('[Dashboard] 📊 Quota from API:', { 
-                apiQuota: stripeData.quota, 
-                finalQuota: quotaValue,
-                used: usedValue 
-              });
-              
-              setUsageStats({
-                used: usedValue,
-                limit: quotaValue,
-                remaining: remainingValue,
-                percentage: percentage,
-                resetDate: stripeData.periodEnd ? new Date(stripeData.periodEnd) : null,
-              });
-              
-              // Also update subscription
-              const sub = await getUserSubscription(authUser.id);
-              if (sub) {
-                setSubscription({
-                  ...sub,
-                  analyses_used_current_month: usedValue,
-                });
-              } else {
-                setSubscription(sub);
-              }
-              
-              return; // Exit early, we have the data
-            }
-          }
-        }
-      } catch (stripeErr) {
-        console.error('[Dashboard] Error checking Stripe directly:', stripeErr);
-      }
-      
-      // Fallback to normal load
+      // Fallback Supabase si pas de sub Stripe
       const sub = await getUserSubscription(authUser.id);
       setSubscription(sub);
-      
       const stats = await getUsageStats(authUser.id);
       setUsageStats(stats);
     } catch (error) {
-      console.error('Error loading subscription:', error);
+      console.error('[Subscription] load error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Force check Stripe on every load
-    const checkStripe = async () => {
-      if (!authUser?.id) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        const { supabase } = await import('@/lib/supabase');
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.access_token) {
-          // Check Stripe directly
-          const stripeCheck = await fetch('/api/check-stripe-subscription', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          });
-          
-          if (stripeCheck.ok) {
-            const stripeData = await stripeCheck.json();
-            console.log('[Dashboard] Stripe check result:', stripeData);
-            
-            if (stripeData.hasSubscription) {
-              // USE STRIPE DATA DIRECTLY - don't rely on database
-              const planId = (stripeData.plan || 'SCALE').toUpperCase() as PlanId;
-              const plan = PLANS.find(p => p.id === planId);
-              
-              if (plan) {
-                setSubscription({
-                  id: stripeData.subscriptionId || `sub_${authUser.id}`,
-                  user_id: authUser.id,
-                  plan_id: planId,
-                  plan_name: plan.name,
-                  price: plan.price,
-                  currency: 'USD',
-                  status: stripeData.status || 'active',
-                  analyses_used_current_month: stripeData.used || 0,
-                  current_period_start: stripeData.periodStart || new Date().toISOString(),
-                  current_period_end: stripeData.periodEnd || new Date().toISOString(),
-                  month_reset_date: stripeData.periodEnd || new Date().toISOString(),
-                  cancel_at_period_end: stripeData.cancelAtPeriodEnd || false,
-                  stripe_subscription_id: stripeData.subscriptionId,
-                  stripe_customer_id: stripeData.customerId,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                } as Subscription);
-                
-                // Ensure we parse as float to support decimal values (0.5, 0.25, etc.)
-                const usedValue = parseFloat(String(stripeData.used)) || 0;
-                // ⚠️ CRITICAL: Always use quota from API (respects manual overrides), fallback to plan only if quota is truly missing
-                const quotaValue = (stripeData.quota !== undefined && stripeData.quota !== null) ? stripeData.quota : plan.analysesPerMonth;
-                const remainingValue = parseFloat(String(stripeData.remaining)) || (quotaValue - usedValue);
-                
-                console.log('[Dashboard] 📊 Quota values:', { 
-                  apiQuota: stripeData.quota, 
-                  planQuota: plan.analysesPerMonth, 
-                  finalQuota: quotaValue,
-                  used: usedValue 
-                });
-                
-                setUsageStats({
-                  used: usedValue,
-                  limit: quotaValue,
-                  remaining: remainingValue,
-                  percentage: quotaValue ? (usedValue / quotaValue) * 100 : 0,
-                  resetDate: stripeData.periodEnd ? new Date(stripeData.periodEnd) : null,
-                });
-                
-                setLoading(false);
-                console.log('[Dashboard] ✅ Using Stripe data directly - subscription active!');
-                return;
-              }
-            }
-          }
-        }
-        
-        // Fallback to normal load
-        await loadSubscription();
-      } catch (error) {
-        console.error('Error checking Stripe:', error);
-        await loadSubscription();
-      }
-    };
-    
-    checkStripe();
-  }, [authUser]);
+  const applyStripeData = (stripeData: any) => {
+    const planId = (stripeData.plan || 'SCALE').toUpperCase() as PlanId;
+    const plan = PLANS.find(p => p.id === planId);
+    const usedValue = parseFloat(String(stripeData.used)) || 0;
+    const quotaValue = (stripeData.quota != null) ? stripeData.quota : (plan?.analysesPerMonth ?? 100);
+    const remainingValue = parseFloat(String(stripeData.remaining)) || Math.max(0, quotaValue - usedValue);
+    setUsageStats({
+      used: usedValue,
+      limit: quotaValue,
+      remaining: remainingValue,
+      percentage: quotaValue > 0 ? (usedValue / quotaValue) * 100 : 0,
+      resetDate: stripeData.periodEnd ? new Date(stripeData.periodEnd) : null,
+    });
+    if (plan) {
+      setSubscription({
+        id: stripeData.subscriptionId || `sub_${authUser?.id}`,
+        user_id: authUser?.id || '',
+        plan_id: planId,
+        plan_name: plan.name,
+        price: plan.price,
+        currency: 'USD',
+        status: stripeData.status || 'active',
+        analyses_used_current_month: usedValue,
+        current_period_start: stripeData.periodStart || new Date().toISOString(),
+        current_period_end: stripeData.periodEnd || new Date().toISOString(),
+        month_reset_date: stripeData.periodEnd || new Date().toISOString(),
+        cancel_at_period_end: stripeData.cancelAtPeriodEnd || false,
+        stripe_subscription_id: stripeData.subscriptionId,
+        stripe_customer_id: stripeData.customerId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Subscription);
+    }
+  };
 
-  // Refresh subscription when returning from payment (check URL params)
+  // Chargement initial
+  useEffect(() => { loadSubscription(); }, [authUser]);
+
+  // Retour depuis paiement Stripe (?success=true)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const success = params.get('success');
-      
-      if (success === 'true') {
-        // Wait a bit for webhook to process, then refresh
-        setTimeout(() => {
-          loadSubscription();
-        }, 2000);
-        
-        // Clean up URL
-        const newUrl = window.location.pathname + (params.get('section') ? `?section=${params.get('section')}` : '');
-        window.history.replaceState({}, '', newUrl);
-      }
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      setTimeout(() => loadSubscription(), 2000);
+      const newUrl = window.location.pathname + (params.get('section') ? `?section=${params.get('section')}` : '');
+      window.history.replaceState({}, '', newUrl);
     }
   }, []);
 
-  // Refresh subscription when window regains focus (after returning from Stripe)
+  // Événements crédits : mise à jour locale directe, 0 appel API
   useEffect(() => {
     if (!authUser?.id) return;
-    
-    const handleFocus = () => {
-      loadSubscription();
+
+    const handleCreditsUpdated = (event: any) => {
+      const quota = event.detail?.quota;
+      if (!quota) return;
+      const usedValue = parseFloat(String(quota.used)) || 0;
+      const quotaValue = quota.quota || usageStats.limit || 100;
+      const remainingValue = parseFloat(String(quota.remaining)) || Math.max(0, quotaValue - usedValue);
+      setUsageStats(prev => ({
+        used: usedValue,
+        limit: quotaValue,
+        remaining: remainingValue,
+        percentage: quotaValue > 0 ? (usedValue / quotaValue) * 100 : 0,
+        resetDate: prev.resetDate,
+      }));
+      setSubscription(prev => prev ? { ...prev, analyses_used_current_month: usedValue } : prev);
     };
-    
-    // Listen for custom event to refresh subscription (triggered after analysis/listing/image generation)
-    const handleRefreshEvent = () => {
-      console.log('[Dashboard] 🔄 Refresh event received, reloading subscription IMMEDIATELY');
-      // Force immediate reload - NO DELAY
-      loadSubscription();
-    };
-    
-    // Listen for credits-updated event (more specific)
-    const handleCreditsUpdated = async (event: any) => {
-      console.log('[Dashboard] 💰 Credits updated event received:', event.detail);
-      console.log('[Dashboard] 📊 Current usageStats before update:', usageStats);
-      
-      // If event contains quota data, update immediately without fetching
-      if (event.detail?.quota) {
-        console.log('[Dashboard] ⚡ IMMEDIATE UPDATE from event:', event.detail.quota);
-        const usedValue = parseFloat(String(event.detail.quota.used)) || 0;
-        const quotaValue = event.detail.quota.quota || usageStats.limit || 100;
-        const remainingValue = parseFloat(String(event.detail.quota.remaining)) || (quotaValue - usedValue);
-        const percentage = quotaValue > 0 ? (usedValue / quotaValue) * 100 : 0;
-        
-        console.log('[Dashboard] 📈 Updating usageStats with:', {
-          used: usedValue,
-          limit: quotaValue,
-          remaining: remainingValue,
-          percentage: percentage,
-        });
-        
-        setUsageStats(prev => {
-          const newStats = {
-            used: usedValue,
-            limit: quotaValue,
-            remaining: remainingValue,
-            percentage: percentage,
-            resetDate: prev.resetDate,
-          };
-          console.log('[Dashboard] ✅ New usageStats set:', newStats);
-          return newStats;
-        });
-        
-        // Also update subscription object if it exists
-        if (subscription) {
-          setSubscription({
-            ...subscription,
-            analyses_used_current_month: usedValue,
-          });
-        }
-      }
-      
-      // Force multiple reloads to ensure update is visible (even if immediate update worked)
-      console.log('[Dashboard] 🔄 Forcing loadSubscription() calls...');
-      loadSubscription();
-      setTimeout(() => {
-        console.log('[Dashboard] 🔄 loadSubscription() call 1 (100ms)');
-        loadSubscription();
-      }, 100);
-      setTimeout(() => {
-        console.log('[Dashboard] 🔄 loadSubscription() call 2 (300ms)');
-        loadSubscription();
-      }, 300);
-      setTimeout(() => {
-        console.log('[Dashboard] 🔄 loadSubscription() call 3 (600ms)');
-        loadSubscription();
-      }, 600);
-      setTimeout(() => {
-        console.log('[Dashboard] 🔄 loadSubscription() call 4 (1000ms)');
-        loadSubscription();
-      }, 1000);
-      setTimeout(() => {
-        console.log('[Dashboard] 🔄 loadSubscription() call 5 (2000ms)');
-        loadSubscription();
-      }, 2000);
-    };
-    
-    window.addEventListener('subscription-refresh', handleRefreshEvent);
+
+    // subscription-refresh : rechargement complet (ex: retour onglet)
+    const handleRefresh = () => loadSubscription();
+
     window.addEventListener('credits-updated', handleCreditsUpdated as EventListener);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('subscription-refresh', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
     return () => {
-      window.removeEventListener('subscription-refresh', handleRefreshEvent);
       window.removeEventListener('credits-updated', handleCreditsUpdated as EventListener);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('subscription-refresh', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
     };
-  }, [authUser]);
+  }, [authUser, usageStats.limit]);
 
   // Get current plan info - normalize plan_id to uppercase
   const normalizedPlanId = subscription?.plan_id 
@@ -388,8 +201,8 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
   // Attendre que le chargement soit terminé
   if (!loading && !subscriptionLoading) {
     // Vérifier directement le statut de l'abonnement
-    const subscriptionStatus = subscription?.subscription_status || subscription?.status;
-    const periodEnd = subscription?.current_period_end || subscription?.periodEnd;
+    const subscriptionStatus = subscription?.status;
+    const periodEnd = subscription?.current_period_end;
     const isSubscriptionActive = subscriptionStatus === 'active' || (periodEnd && new Date(periodEnd) > new Date());
     
     // Si pas d'abonnement OU abonnement non actif, afficher le paywall
