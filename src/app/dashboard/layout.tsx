@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -15,14 +15,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isShopAnalyzePage = pathname?.includes('/shop/analyze');
   const isTestPage = pathname?.includes('/test-extension');
   const shouldBypassProtection = isCompetitorsPage || isShopAnalyzePage || isTestPage;
-  
+
   // ⚠️ CRITICAL: Toujours appeler les hooks (règle React), mais ignorer leurs résultats si on bypass
   const { user, loading: authLoading } = useAuth();
   const subscriptionProtection = useSubscriptionProtection();
   const { subscription, loading: subLoading, hasActiveSubscription } = useSubscription();
-  
+
   // Si on bypass, forcer les valeurs pour éviter toute vérification
-  const effectiveProtection = shouldBypassProtection 
+  const effectiveProtection = shouldBypassProtection
     ? { isActive: true, isLoading: false, plan: null, cancelAtPeriodEnd: false, currentPeriodEnd: null }
     : subscriptionProtection;
   const effectiveSubscription = shouldBypassProtection
@@ -34,11 +34,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   // Once the subscription was confirmed active (or free) in this session, remember it
   const [wasActiveOnce, setWasActiveOnce] = useState(false);
+  // Reset session state when user changes (account switch)
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const uid = user?.id;
+    if (uid !== prevUserIdRef.current) {
+      prevUserIdRef.current = uid;
+      setWasActiveOnce(false);
+      setInitialCheckDone(false);
+    }
+  }, [user?.id]);
 
-  // FREE plan users get access to the dashboard with limited features
+  // FREE plan users: no active subscription regardless of plan value in DB
   const isFreeUser = !effectiveSubscription.loading &&
     !effectiveProtection.isLoading &&
-    effectiveSubscription.subscription?.plan === 'FREE' &&
     !effectiveSubscription.hasActiveSubscription;
 
   const isLoading = shouldBypassProtection ? false : (authLoading || effectiveProtection.isLoading || effectiveSubscription.loading);
