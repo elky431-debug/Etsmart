@@ -136,20 +136,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`[IMAGE GEN] User ${user.id} - request received`);
 
-    // ── Quota check ──────────────────────────────────────────
-    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
-    const quotaInfo = await getUserQuotaInfo(user.id);
-    // FREE plan: image generation is not included in the free tier
-    if (quotaInfo.plan === 'FREE' || quotaInfo.status === 'free') {
-      return NextResponse.json({ error: 'PLAN_UPGRADE_REQUIRED', message: 'La génération d\'images nécessite un abonnement payant.' }, { status: 403 });
-    }
-    if (quotaInfo.status !== 'active') {
-      return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required.' }, { status: 403 });
-    }
-
     // ── Parse body ───────────────────────────────────────────
     let body: any;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 }); }
+
+    // ── Quota check ──────────────────────────────────────────
+    const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
+    const quotaInfo = await getUserQuotaInfo(user.id);
+    const skipCreditDeductionEarly = body?.skipCreditDeduction === true;
+    // FREE plan: allowed via quick-generate (credits pre-deducted), blocked otherwise
+    if ((quotaInfo.plan === 'FREE' || quotaInfo.status === 'free') && !skipCreditDeductionEarly) {
+      return NextResponse.json({ error: 'PLAN_UPGRADE_REQUIRED', message: "La génération d'images nécessite un abonnement payant." }, { status: 403 });
+    }
+    if (quotaInfo.status !== 'active' && !(quotaInfo.plan === 'FREE' && skipCreditDeductionEarly)) {
+      return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required.' }, { status: 403 });
+    }
 
     const {
       sourceImage,
