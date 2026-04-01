@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       const styleHint = geminiStyleHint(typeof style === 'string' ? style : undefined);
 
       // Détection automatique de la catégorie produit pour des prompts adaptés
-      type ProductCategory = 'clothing' | 'furniture' | 'jewelry' | 'home_decor' | 'general';
+      type ProductCategory = 'clothing' | 'furniture' | 'jewelry' | 'lighting' | 'home_decor' | 'general';
       function detectProductCategory(): ProductCategory {
         const text = `${productTitle || ''} ${tagsList} ${materialsStr}`.toLowerCase();
         if (/\b(shirt|dress|jacket|pant|jeans|hoodie|sweatshirt|vest|coat|blouse|top|skirt|shorts|tshirt|t-shirt|legging|cardigan|sweater|pullover|suit|trouser|sock|boot|shoe|sneaker|hat|cap|scarf|glove|belt|bag|purse|handbag|backpack|wallet|clothing|apparel|garment|wearable|wear|vêtement|chemise|robe|manteau|pantalon|jean|sweat|pull|veste|jupe|short|chaussure|botte|chapeau|écharpe|bonnet|sac)\b/.test(text)) {
@@ -296,10 +296,13 @@ export async function POST(request: NextRequest) {
         if (/\b(chair|table|sofa|couch|desk|shelf|shelves|cabinet|dresser|nightstand|bench|wardrobe|armoire|bookcase|ottoman|stool|rack|storage|furniture|drawer|credenza|sideboard|console|sectional|loveseat|chaise|fauteuil|canapé|bureau|étagère|armoire|commode|meuble|tiroir|placard|buffet|table)\b/.test(text)) {
           return 'furniture';
         }
-        if (/\b(ring|bracelet|necklace|earring|pendant|jewelry|jewel|chain|bangle|choker|brooch|anklet|cuff|bague|collier|bracelet|boucle|pendentif|bijou|chaîne)\b/.test(text)) {
+        if (/\b(ring|bracelet|necklace|earring|pendant jewelry|jewelry|jewel|chain|bangle|choker|brooch|anklet|cuff|bague|collier|boucle|pendentif|bijou|chaîne)\b/.test(text)) {
           return 'jewelry';
         }
-        if (/\b(candle|vase|pillow|cushion|rug|blanket|throw|curtain|lamp|lantern|frame|mirror|clock|planter|pot|basket|tray|bowl|mug|cup|plate|towel|mat|decoration|decor|bougie|coussin|tapis|couverture|rideau|lampe|cadre|miroir|horloge|plateau|bol|tasse|assiette|décoration)\b/.test(text)) {
+        if (/\b(lamp|lampe|pendant lamp|hanging lamp|ceiling lamp|chandelier|sconce|lantern|luminaire|suspension|plafonnier|applique|lustre|ampoule|lighting|light fixture|pendant light|floor lamp|table lamp|wall lamp|led lamp)\b/.test(text)) {
+          return 'lighting';
+        }
+        if (/\b(candle|vase|pillow|cushion|rug|blanket|throw|curtain|frame|mirror|clock|planter|pot|basket|tray|bowl|mug|cup|plate|towel|mat|decoration|decor|bougie|coussin|tapis|couverture|rideau|cadre|miroir|horloge|plateau|bol|tasse|assiette|décoration)\b/.test(text)) {
           return 'home_decor';
         }
         return 'general';
@@ -610,10 +613,70 @@ Plan moyen serré, produit et objet de référence nets, tous deux centrés dans
 Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
+      // Prompts spécialisés LUMINAIRES (lampes suspendues, plafonniers, appliques)
+      const LIGHTING_ANCHOR_RULE =
+        `RÈGLE LUMINAIRE: la lampe est TOUJOURS suspendue ou fixée correctement — jamais posée à plat sur une surface, jamais dans une boîte, jamais entourée de fleurs ou de props décoratifs au premier plan. ` +
+        `INTERDIT ABSOLU: flat lay, pétales de fleurs autour de la lampe, composition "bijoux". ` +
+        `La lampe doit être vue comme dans la réalité: suspendue au plafond ou sur son support.`;
+
+      const LIGHTING_PROMPTS = [
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – PACKSHOT FOND NOIR STUDIO:
+${LIGHTING_ANCHOR_RULE}
+La lampe est suspendue sur fond NOIR profond (studio photo haut de gamme).
+Éclairage directionnel fin révélant chaque détail: texture de l'abat-jour, finition du métal, cordon ou câble tressé.
+La lampe occupe 65-70% du cadre, suspension visible en haut du cadre.
+Rendu premium, contraste fort, zéro accessoire autour. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 – LIFESTYLE SALLE À MANGER:
+${LIGHTING_ANCHOR_RULE}
+La lampe est suspendue AU-DESSUS d'une table à manger en bois naturel bien dressée: assiettes, verres, serviettes en lin, quelques bougies basses.
+Pièce style SCANDINAVE ou CONTEMPORAIN: murs blancs cassés, parquet clair ou carrelage en pierre.
+Lumière chaude et feutrée emanant de la lampe elle-même, ambiance dîner intime.
+Plan moyen: on voit la lampe suspendue ET le dessus de la table dessous. Décor flou en arrière-plan.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 3 – LIFESTYLE SALON MODERNE:
+${LIGHTING_ANCHOR_RULE}
+La lampe est suspendue dans un SALON CONTEMPORAIN, au-dessus d'un canapé ou d'un espace lounge.
+Intérieur: mur en béton ciré ou mur blanc avec des étagères flottantes, plante verte en pot, canapé gris ou beige visible en bas du cadre.
+Lumière douce de fin de journée, ambiance cocooning chaleureuse.
+Plan moyen-large montrant la lampe dans son environnement naturel — pièce visible mais la lampe reste le sujet principal.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        DIMENSIONS_PROMPT,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – GROS PLAN TEXTURE ET DÉTAIL:
+La lampe est suspendue sur fond neutre (blanc cassé ou gris perle).
+Photo TRÈS rapprochée sur les détails de fabrication: texture de l'abat-jour (béton, tissu, métal, céramique, bois), finition du corps, cordon ou câble, douille ou ampoule visible.
+Bokeh très doux sur les bords, netteté maximale sur la matière principale.
+Lumière latérale douce révélant reliefs et textures. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – LIFESTYLE CUISINE OUVERTE OU LOFT:
+${LIGHTING_ANCHOR_RULE}
+La lampe est suspendue dans une CUISINE OUVERTE ou un LOFT INDUSTRIEL: plan de travail en marbre ou béton, tabourets hauts en métal, mur de briques peintes en blanc ou étagères en métal noir.
+Lumière chaude artificielle, ambiance urbaine et raffinée.
+Plan moyen: la lampe suspendue est bien visible, le décor cuisine en arrière-plan est net mais secondaire.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – PACKSHOT FOND BLANC ÉPURÉ:
+${LIGHTING_ANCHOR_RULE}
+La lampe est suspendue sur fond BLANC PUR ou gris très clair (style catalogue produit).
+Éclairage studio homogène, softbox doux des deux côtés, ombres portées très légères.
+La lampe occupe 65-70% du cadre, suspension visible, couleurs fidèles à la référence.
+Style fiche produit e-commerce propre et précis. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+      ];
+
       // Sélection des prompts selon la catégorie détectée
       const IMAGE_PROMPTS_GEMINI = productCategory === 'clothing' ? CLOTHING_PROMPTS
         : productCategory === 'furniture' ? FURNITURE_PROMPTS
         : productCategory === 'jewelry' ? JEWELRY_PROMPTS
+        : productCategory === 'lighting' ? LIGHTING_PROMPTS
         : GENERAL_PROMPTS;
 
       console.log(`[IMAGE GEN] Catégorie détectée: ${productCategory}`);
