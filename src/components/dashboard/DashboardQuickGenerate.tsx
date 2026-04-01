@@ -1107,8 +1107,8 @@ export function DashboardQuickGenerate() {
               </p>
               <p className="text-sm text-white/70 mt-2 max-w-md text-center">
                 {quickGenPhase === 'images'
-                  ? 'Les visuels sont générés un par un sur le site pour rester stable avec Gemini (plus long, moins d'échecs).'
-                  : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels.'}
+                  ? "Les visuels sont générés un par un sur le site pour rester stable avec Gemini (plus long, moins d'échecs)."
+                  : "Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels."}
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
                 <p className="text-xs text-[#00d4ff]/80 mt-3">
