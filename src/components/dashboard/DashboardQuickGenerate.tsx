@@ -502,7 +502,7 @@ export function DashboardQuickGenerate() {
         try {
           imageBase64 = await compressImageToBase64(sourceImage, 480, 480, 0.52);
         } catch (e) {
-          setError('Impossible de lire l'image. Réimporte une photo.');
+          setError("Impossible de lire l'image. Réimporte une photo.");
           setIsRegeneratingImages(false);
           return;
         }
