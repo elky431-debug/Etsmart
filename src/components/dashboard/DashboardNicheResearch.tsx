@@ -103,17 +103,17 @@ const NICHES: NicheEntry[] = [
 ];
 
 const CATEGORIES = ['Toutes', ...Array.from(new Set(NICHES.map(n => n.category)))];
-const CACHE_KEY = 'niche_research_cache_v2';
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_KEY = 'niche_research_cache_v3';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h (DataForSEO data stable)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface NicheResult {
   keyword: string;
-  competitionCount: number | null;
+  competitionCount: number | null;   // Etsy listing count via Google site:
   competitionScore: number;
+  searchVolume: number | null;       // Monthly Google searches
   demandScore: number;
   opportunityScore: number;
-  bestsellerCount: number;
   error?: boolean;
   cachedAt: number;
 }
@@ -134,6 +134,13 @@ function formatCount(n: number | null) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
   return String(n);
+}
+
+function formatVolume(n: number | null) {
+  if (n === null) return null;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M/mo`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K/mo`;
+  return `${n}/mo`;
 }
 
 function loadCache(): Record<string, NicheResult> {
@@ -432,7 +439,7 @@ export default function DashboardNicheResearch() {
             <button className="text-left flex items-center" onClick={() => handleSort('opportunityScore')}>
               Opportunité <SortIcon col="opportunityScore" />
             </button>
-            <span className="text-right">Listings</span>
+            <span className="text-right">Listings Etsy</span>
           </div>
 
           {/* Rows */}
@@ -468,34 +475,44 @@ export default function DashboardNicheResearch() {
                       </div>
                     </div>
 
-                    {/* Demand */}
+                    {/* Demand — score bar + search volume */}
                     <div>
                       {isLoading || !r ? (
                         <div className="h-3 w-24 bg-white/10 rounded-full animate-pulse" />
                       ) : r.error ? (
                         <span className="text-xs text-white/20">—</span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden max-w-[80px]">
-                            <div className={`h-full rounded-full ${demColor!.bar}`} style={{ width: `${r.demandScore}%` }} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden max-w-[80px]">
+                              <div className={`h-full rounded-full ${demColor!.bar}`} style={{ width: `${r.demandScore}%` }} />
+                            </div>
+                            <span className={`text-xs font-semibold w-7 text-right ${demColor!.text}`}>{r.demandScore}</span>
                           </div>
-                          <span className={`text-xs font-semibold w-7 text-right ${demColor!.text}`}>{r.demandScore}</span>
+                          {r.searchVolume !== null && (
+                            <span className="text-[10px] text-white/30 mt-0.5 block">{formatVolume(r.searchVolume)}</span>
+                          )}
                         </div>
                       )}
                     </div>
 
-                    {/* Competition */}
+                    {/* Competition — score bar + listing count */}
                     <div>
                       {isLoading || !r ? (
                         <div className="h-3 w-24 bg-white/10 rounded-full animate-pulse" />
                       ) : r.error ? (
                         <span className="text-xs text-white/20">—</span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden max-w-[80px]">
-                            <div className={`h-full rounded-full ${compColor!.bar}`} style={{ width: `${r.competitionScore}%` }} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden max-w-[80px]">
+                              <div className={`h-full rounded-full ${compColor!.bar}`} style={{ width: `${r.competitionScore}%` }} />
+                            </div>
+                            <span className={`text-xs font-semibold w-7 text-right ${compColor!.text}`}>{r.competitionScore}</span>
                           </div>
-                          <span className={`text-xs font-semibold w-7 text-right ${compColor!.text}`}>{r.competitionScore}</span>
+                          {r.competitionCount !== null && (
+                            <span className="text-[10px] text-white/30 mt-0.5 block">{formatCount(r.competitionCount)} listings</span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -513,7 +530,7 @@ export default function DashboardNicheResearch() {
                       )}
                     </div>
 
-                    {/* Listings count */}
+                    {/* Recherches / mois */}
                     <div className="text-right">
                       {isLoading || !r ? (
                         <div className="h-4 w-12 bg-white/10 rounded animate-pulse ml-auto" />
@@ -539,7 +556,7 @@ export default function DashboardNicheResearch() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" />Score élevé = favorable</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" />Score moyen = prudence</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />Score faible = défavorable</span>
-          <span>Concurrence : moins c'est mieux · Demande : plus c'est mieux · Données Etsy live</span>
+          <span>Demande = volume recherche Google mensuel · Concurrence = listings Etsy indexés · Sources : DataForSEO</span>
         </div>
       </div>
     </div>
