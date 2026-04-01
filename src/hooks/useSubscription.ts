@@ -369,8 +369,8 @@ export function useSubscription() {
     : 0;
   const requiresUpgrade = subscription?.requiresUpgrade;
 
-  // FREE plan: logged in but no paid subscription
-  const isFreeUser = !loading && subscription?.plan === 'FREE' && !hasActiveSubscription;
+  // FREE plan: logged in but no paid subscription (subscription null OR plan FREE)
+  const isFreeUser = !loading && !hasActiveSubscription;
 
   // Expose refresh function for manual sync
   const refreshSubscription = useCallback((forceSync = true) => {
