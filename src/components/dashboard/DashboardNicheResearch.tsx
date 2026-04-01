@@ -16,17 +16,27 @@ interface NicheEntry {
 }
 
 const NICHES: NicheEntry[] = [
-  // Bijoux & Accessoires
+  // ── 10 premières : 1 par catégorie (visible en plan gratuit) ──────────────
+  { keyword: 'printable wall art digital download', label: 'Art mural imprimable', category: 'Digital' },
+  { keyword: 'macrame wall hanging boho', label: 'Macramé mural bohème', category: 'Décoration' },
+  { keyword: 'custom pet portrait painting', label: 'Portrait animal de compagnie', category: 'Art & Prints' },
+  { keyword: 'personalized baby blanket name', label: 'Couverture bébé personnalisée', category: 'Bébé & Enfants' },
+  { keyword: 'soy candle scented luxury', label: 'Bougie soja luxe', category: 'Bougies & Bain' },
+  { keyword: 'personalized canvas tote bag', label: 'Tote bag toile personnalisé', category: 'Mode' },
+  { keyword: 'gaming desk mat xxl custom', label: 'Tapis bureau gaming XXL', category: 'Gaming & Anime' },
+  { keyword: 'aesthetic washi tape set', label: 'Set washi tape esthétique', category: 'Papeterie' },
   { keyword: 'minimalist gold necklace', label: 'Collier minimaliste doré', category: 'Bijoux' },
+  { keyword: 'personalized wedding favor tag', label: 'Tag cadeau invité mariage', category: 'Mariage' },
+  // ── Suite ──────────────────────────────────────────────────────────────────
+  // Bijoux & Accessoires
   { keyword: 'personalized name necklace', label: 'Collier prénom personnalisé', category: 'Bijoux' },
   { keyword: 'birthstone ring silver', label: 'Bague pierre de naissance', category: 'Bijoux' },
   { keyword: 'celestial moon jewelry', label: 'Bijoux lune céleste', category: 'Bijoux' },
   { keyword: 'dainty layering bracelet', label: 'Bracelet superposable délicat', category: 'Bijoux' },
   { keyword: 'crystal gemstone jewelry handmade', label: 'Bijoux cristaux fait main', category: 'Bijoux' },
   { keyword: 'custom initial charm bracelet', label: 'Bracelet initiale personnalisé', category: 'Bijoux' },
-  { keyword: 'pearl earrings handmade', label: 'Boucles d\'oreilles perles', category: 'Bijoux' },
+  { keyword: 'pearl earrings handmade', label: "Boucles d'oreilles perles", category: 'Bijoux' },
   // Décoration Maison
-  { keyword: 'macrame wall hanging boho', label: 'Macramé mural bohème', category: 'Décoration' },
   { keyword: 'custom neon sign led', label: 'Enseigne néon LED custom', category: 'Décoration' },
   { keyword: 'suspension lamp handmade wood', label: 'Lampe suspension bois', category: 'Décoration' },
   { keyword: 'ceramic planter pot handmade', label: 'Pot céramique artisanal', category: 'Décoration' },
