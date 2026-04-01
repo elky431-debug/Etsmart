@@ -65,7 +65,7 @@ export const PLAN_QUOTAS: Record<PlanId, number> = {
   FREE: 5.0, // free tier lifetime quota — never resets
   SMART: 80,
   PRO: 250,
-  SCALE: 400,
+  SCALE: 350,
   INFINITY: -1, // -1 means unlimited
 };
 
@@ -132,7 +132,6 @@ export const PLANS: Plan[] = [
     analysesPerMonth: 250,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
-    popular: true,
   },
   {
     id: 'SCALE',
@@ -140,9 +139,10 @@ export const PLANS: Plan[] = [
     description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
     price: 69.99,
     currency: 'EUR',
-    analysesPerMonth: 400,
+    analysesPerMonth: 350,
     features: PLAN_FEATURES.SCALE,
     stripePriceId: STRIPE_PRICE_IDS.SCALE || undefined,
+    popular: true,
   },
   {
     id: 'INFINITY',

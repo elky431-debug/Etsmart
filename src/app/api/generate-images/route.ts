@@ -493,11 +493,11 @@ Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – BUREAU OU CUISINE STYLE INDUSTRIEL:
+PROMPT 5 – SALON CONTEMPORAIN CHALEUREUX:
 ${FURNITURE_ANCHOR_RULE}
-Le meuble est positionné dans un angle d'un BUREAU MODERNE ou CUISINE OUVERTE au style INDUSTRIEL: briques peintes en blanc, métal noir mat, ampoules Edison suspendues en arrière-plan.
-Palette: tons charbon, ivoire et bois brun chaud. Lumière artificielle chaleureuse.
-Meuble en appui au sol contre un mur ou dans un coin. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Le meuble est placé dans un angle d'un SALON CONTEMPORAIN: murs en teinte taupe ou gris clair, parquet chêne moyen, grande fenêtre laissant entrer une lumière naturelle dorée de fin d'après-midi.
+Décoration sobre: une plante en pot, quelques livres empilés à côté. Palette tons naturels, chauds et doux.
+Meuble en appui au sol, ombres de contact visibles. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 6 – SALLE À MANGER MÉDITERRANÉENNE:

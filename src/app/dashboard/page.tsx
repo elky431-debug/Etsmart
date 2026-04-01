@@ -2030,6 +2030,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
             <UpgradeGate
               title={LOCKED_FOR_FREE_INFO[activeSection]!.title}
               description={LOCKED_FOR_FREE_INFO[activeSection]!.description}
+              onNavigateToSubscription={() => setActiveSection('subscription')}
             />
           ) : (
             <>

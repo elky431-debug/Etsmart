@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 interface UpgradeGateProps {
   title?: string;
   description?: string;
-  /** Wrap children with a blurred overlay instead of replacing them entirely */
   overlay?: boolean;
   children?: React.ReactNode;
-  /** Hide the upgrade button (e.g. for coming-soon features available to paid users) */
   hideButton?: boolean;
+  onNavigateToSubscription?: () => void;
 }
 
 export function UpgradeGate({
@@ -19,8 +18,17 @@ export function UpgradeGate({
   overlay = false,
   children,
   hideButton = false,
+  onNavigateToSubscription,
 }: UpgradeGateProps) {
   const router = useRouter();
+
+  const handleUpgrade = () => {
+    if (onNavigateToSubscription) {
+      onNavigateToSubscription();
+    } else {
+      router.push('/dashboard?section=subscription');
+    }
+  };
 
   const gate = (
     <div className="flex flex-col items-center justify-center gap-5 py-16 px-8 text-center">
@@ -33,7 +41,7 @@ export function UpgradeGate({
       </div>
       {!hideButton && (
         <button
-          onClick={() => router.push('/dashboard?section=subscription')}
+          onClick={handleUpgrade}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           <Zap size={15} />
@@ -57,7 +65,7 @@ export function UpgradeGate({
           <p className="text-white/50 text-xs">{description}</p>
         </div>
         <button
-          onClick={() => router.push('/dashboard?section=subscription')}
+          onClick={handleUpgrade}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-semibold text-xs hover:opacity-90 transition-opacity"
         >
           <Zap size={13} />
