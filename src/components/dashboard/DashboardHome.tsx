@@ -68,9 +68,9 @@ type CaPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'all';
 const CA_PERIODS: { id: CaPeriod; label: string; hint: string }[] = [
   { id: 'today', label: "Aujourd'hui", hint: 'Montants encaissés sur la journée en cours.' },
   { id: 'yesterday', label: 'Hier', hint: 'Journée calendaire précédente.' },
-  { id: 'week', label: 'Cette semaine', hint: 'Du lundi à aujourd'hui (semaine locale).' },
+  { id: 'week', label: 'Cette semaine', hint: "Du lundi à aujourd'hui (semaine locale)." },
   { id: 'month', label: 'Ce mois-ci', hint: 'Du 1er au dernier jour du mois en cours.' },
-  { id: 'all', label: 'Depuis l'ouverture', hint: 'Total cumulé sur toutes les commandes enregistrées.' },
+  { id: 'all', label: "Depuis l'ouverture", hint: 'Total cumulé sur toutes les commandes enregistrées.' },
 ];
 
 function parseList<T>(raw: string | null): T[] {
@@ -441,7 +441,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
     if (list.length === 0) {
       list.push({
         id: 'all-good',
-        title: 'Rien d'urgent',
+        title: "Rien d'urgent",
         description: 'Ton gestionnaire est propre. Tu peux lancer de nouvelles actions de croissance.',
         cta: 'Aller au gestionnaire',
         target: 'store-manager',
