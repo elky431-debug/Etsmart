@@ -802,12 +802,12 @@ export function DashboardQuickGenerate() {
                       <img
                         src={sourceImagePreview}
                         alt="Source"
-                        className="w-full h-48 object-cover rounded-lg mb-3"
+                        className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
                       />
                       {extraSourcePreviews.length > 0 && (
                         <div className="flex gap-2 mb-3">
                           {extraSourcePreviews.slice(0, 2).map((preview, idx) => (
-                            <img key={idx} src={preview} alt={`Ref ${idx + 2}`} className="w-16 h-16 object-cover rounded-md border border-white/10" />
+                            <img key={idx} src={preview} alt={`Ref ${idx + 2}`} className="w-16 h-16 object-contain rounded-md border border-white/10 bg-white/5" />
                           ))}
                         </div>
                       )}
