@@ -57,10 +57,15 @@ type Transaction = {
   tracking: string;
 };
 
-const STORAGE_KEY_SHOPS = 'etsmart_store_manager_shops';
-const STORAGE_KEY_PRODUCTS = 'etsmart_store_manager_products';
-const STORAGE_KEY_TRANSACTIONS = 'etsmart_store_manager_transactions';
-const STORAGE_KEY_SELECTED_SHOP = 'etsmart_store_manager_selected_shop_id';
+function storageKeys(uid: string) {
+  const suffix = uid ? `_${uid}` : '';
+  return {
+    shops:        `etsmart_store_manager_shops${suffix}`,
+    products:     `etsmart_store_manager_products${suffix}`,
+    transactions: `etsmart_store_manager_transactions${suffix}`,
+    selectedShop: `etsmart_store_manager_selected_shop_id${suffix}`,
+  };
+}
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -238,9 +243,10 @@ function ProductThumb({
   );
 }
 
-export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boolean }) {
+export function DashboardStoreManager({ isFreeUser = false, userId }: { isFreeUser?: boolean; userId?: string }) {
+  const keys = storageKeys(userId || '');
   const [shops, setShops] = useState<{ id: string; name: string; color?: string }[]>(() => {
-    const stored = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    const stored = loadFromStorage<{ id: string; name: string; color?: string }[]>(keys.shops, INITIAL_SHOPS);
     // Migration: si l'ancienne boutique mock unique existe encore, on la retire pour forcer la création
     if (stored.length === 1 && stored[0].id === '1' && stored[0].name === 'MarbleMuseStore') {
       return [];
@@ -248,17 +254,17 @@ export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boo
     return stored;
   });
   const [products, setProducts] = useState<Product[]>(() => {
-    const stored = loadFromStorage<Product[]>(STORAGE_KEY_PRODUCTS, INITIAL_PRODUCTS);
+    const stored = loadFromStorage<Product[]>(keys.products, INITIAL_PRODUCTS);
     // Migration: si les anciens produits mock avec prix à 0 existent encore, on les supprime au premier chargement
     if (stored.length && stored.every((p) => p.supplierPrice === 0 && p.shippingCost === 0 && p.sellingPrice === 0)) {
       return [];
     }
-    const shopList = loadFromStorage<{ id: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    const shopList = loadFromStorage<{ id: string }[]>(keys.shops, INITIAL_SHOPS);
     return migrateProductsShopIds(stored as unknown as Product[], shopList);
   });
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const raw = loadFromStorage<Transaction[]>(STORAGE_KEY_TRANSACTIONS, []);
-    const shopList = loadFromStorage<{ id: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
+    const raw = loadFromStorage<Transaction[]>(keys.transactions, []);
+    const shopList = loadFromStorage<{ id: string }[]>(keys.shops, INITIAL_SHOPS);
     const firstId = shopList[0]?.id ?? '';
     return raw.map((t) => ({
       ...t,
@@ -266,10 +272,9 @@ export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boo
     }));
   });
   const [selectedShopId, setSelectedShopId] = useState<string | null>(() => {
-    const storedShops = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
-    const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_SELECTED_SHOP) : null;
+    const storedShops = loadFromStorage<{ id: string; name: string; color?: string }[]>(keys.shops, INITIAL_SHOPS);
+    const savedId = typeof window !== 'undefined' ? localStorage.getItem(keys.selectedShop) : null;
     if (savedId && storedShops.some((s) => s.id === savedId)) return savedId;
-    // Ne pas sélectionner automatiquement une boutique : l'utilisateur doit choisir/créer
     return null;
   });
 
@@ -277,10 +282,10 @@ export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boo
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(STORAGE_KEY_SHOPS, JSON.stringify(shops));
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-      localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
-      if (selectedShopId) localStorage.setItem(STORAGE_KEY_SELECTED_SHOP, selectedShopId);
+      localStorage.setItem(keys.shops, JSON.stringify(shops));
+      localStorage.setItem(keys.products, JSON.stringify(products));
+      localStorage.setItem(keys.transactions, JSON.stringify(transactions));
+      if (selectedShopId) localStorage.setItem(keys.selectedShop, selectedShopId);
     } catch (e) {
       console.warn('[StoreManager] Erreur sauvegarde localStorage', e);
     }
@@ -296,7 +301,7 @@ export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boo
     const run = async () => {
       let list: Product[] = [];
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+        const raw = localStorage.getItem(keys.products);
         if (!raw) return;
         list = JSON.parse(raw) as Product[];
       } catch {

@@ -2379,7 +2379,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'store-manager' && (
-            <DashboardStoreManager isFreeUser={isFreeUser} />
+            <DashboardStoreManager isFreeUser={isFreeUser} userId={user?.id} />
           )}
 
           {activeSection === 'shop-story' && (
