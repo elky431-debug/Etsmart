@@ -12,15 +12,15 @@ import {
 } from '@/lib/etsy-logo-brief-prompt';
 import { geminiGenerateImageBuffer, GEMINI_IMAGE_MODEL } from '@/lib/gemini-image-generate';
 
-/** Vercel Pro : jusqu’à 300 s — évite les « Inactivity Timeout » du proxy pendant vision + image. */
-export const maxDuration = 300;
+// Netlify gateway = 26s — brief (gpt-4o-mini ~6s) + Gemini (~16s) = ~22s total, stays under.
+export const maxDuration = 60;
 export const runtime = 'nodejs';
 
 const LOGO_CREDITS = 1;
 
 function parseBriefJson(raw: string): LogoDesignBrief | null {
   let t = raw.trim();
-  const fence = /^```(?:json)?\s*([\s\S]*?)```$/m.exec(t);
+  const fence = /^`\`\`(?:json)?\s*([\s\S]*?)`\`\`$/m.exec(t);
   if (fence) t = fence[1].trim();
   try {
     return JSON.parse(t) as LogoDesignBrief;
@@ -29,69 +29,65 @@ function parseBriefJson(raw: string): LogoDesignBrief | null {
   }
 }
 
+function escapeXml(s: string): string {
+  return s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c] ?? c));
+}
+
+async function compositeShopName(logoBuf: Buffer, shopName: string): Promise<Buffer> {
+  const name = escapeXml(shopName.slice(0, 40));
+  const nameLen = name.length;
+  const fontSize = nameLen <= 8 ? 72 : nameLen <= 13 ? 58 : nameLen <= 18 ? 46 : nameLen <= 24 ? 38 : 30;
+  const barH = Math.round(fontSize * 2.2);
+  const textY = 1024 - Math.round(barH * 0.3);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.72"/>
+    </linearGradient>
+    <filter id="ts"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#000" flood-opacity="0.8"/></filter>
+  </defs>
+  <rect x="0" y="${1024 - barH}" width="1024" height="${barH}" fill="url(#bar)"/>
+  <text x="512" y="${textY}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" letter-spacing="2" filter="url(#ts)">${name}</text>
+</svg>`;
+
+  return sharp(logoBuf)
+    .composite([{ input: Buffer.from(svg), blend: 'over' }])
+    .png({ quality: 92 })
+    .toBuffer();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Authentification requise' }, { status: 401 });
 
     const supabase = createSupabaseAdminClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: 'Authentification invalide' }, { status: 401 });
 
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_KEY) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY_MISSING', message: 'OPENAI_API_KEY manquante côté serveur.' },
-        { status: 500 }
-      );
-    }
+    if (!OPENAI_KEY) return NextResponse.json({ error: 'OPENAI_API_KEY_MISSING' }, { status: 500 });
     const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
-    if (!GEMINI_KEY) {
-      return NextResponse.json(
-        { error: 'SERVER_CONFIG_ERROR', message: 'GEMINI_API_KEY manquante côté serveur (génération logo).' },
-        { status: 500 }
-      );
-    }
-    const openai = new OpenAI({ apiKey: OPENAI_KEY, timeout: 240_000 });
+    if (!GEMINI_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY manquante.' }, { status: 500 });
+    const openai = new OpenAI({ apiKey: OPENAI_KEY, timeout: 20_000 });
 
     const quotaInfo = await getUserQuotaInfo(user.id);
     if (quotaInfo.status !== 'active') {
-      return NextResponse.json(
-        {
-          error: 'SUBSCRIPTION_REQUIRED',
-          message: 'An active subscription is required to generate a logo.',
-          subscriptionStatus: quotaInfo.status,
-        },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED', message: 'Abonnement actif requis.' }, { status: 403 });
     }
-    if (quotaInfo.remaining < LOGO_CREDITS) {
-      return NextResponse.json(
-        {
-          error: 'QUOTA_EXCEEDED',
-          message: `Génération de logo : ${LOGO_CREDITS} crédit requis. Il te reste ${quotaInfo.remaining} crédit(s).`,
-          used: quotaInfo.used,
-          quota: quotaInfo.quota,
-          remaining: quotaInfo.remaining,
-        },
-        { status: 403 }
-      );
+    if (quotaInfo.quota !== -1 && quotaInfo.remaining < LOGO_CREDITS) {
+      return NextResponse.json({ error: 'QUOTA_EXCEEDED', message: `${LOGO_CREDITS} crédit requis. Il te reste ${quotaInfo.remaining}.` }, { status: 403 });
     }
 
-    let body: { shopImage?: string; productImage?: string } | null = null;
-    try {
-      body = await request.json();
-    } catch {
-      body = null;
-    }
+    let body: { shopImage?: string; productImage?: string; shopName?: string; withName?: boolean } | null = null;
+    try { body = await request.json(); } catch { body = null; }
     if (!body) return NextResponse.json({ error: 'Format de requête invalide' }, { status: 400 });
-    const shopImage = body.shopImage;
-    const productImage = body.productImage;
+
+    const { shopImage, productImage, shopName = '', withName = false } = body;
     if (!shopImage || !productImage) {
-      return NextResponse.json({ error: 'Deux images sont requises: boutique + produit.' }, { status: 400 });
+      return NextResponse.json({ error: 'Deux images requises : boutique + produit.' }, { status: 400 });
     }
 
     const toImageDataUrl = async (input: string): Promise<string | null> => {
@@ -100,28 +96,23 @@ export async function POST(request: NextRequest) {
         const dataUrl = raw.startsWith('data:image/') ? raw : `data:image/jpeg;base64,${raw}`;
         const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
         if (!m) return null;
-        let b64 = m[2];
-        const buf = Buffer.from(b64, 'base64');
-        const c = await sharp(buf)
-          .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 82, mozjpeg: true })
-          .toBuffer();
-        b64 = c.toString('base64');
-        return `data:image/jpeg;base64,${b64}`;
-      } catch {
-        return null;
-      }
+        const buf = Buffer.from(m[2], 'base64');
+        const c = await sharp(buf).resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+        return `data:image/jpeg;base64,${c.toString('base64')}`;
+      } catch { return null; }
     };
 
-    const shopImageDataUrl = await toImageDataUrl(shopImage);
-    const productImageDataUrl = await toImageDataUrl(productImage);
+    const [shopImageDataUrl, productImageDataUrl] = await Promise.all([
+      toImageDataUrl(shopImage),
+      toImageDataUrl(productImage),
+    ]);
     if (!shopImageDataUrl || !productImageDataUrl) {
       return NextResponse.json({ error: 'Images invalides. Utilise JPG/PNG/WebP.' }, { status: 400 });
     }
 
-    // Étape 1 — Brief JSON (vision) : gpt-4o + detail auto = brief aligné sur la vraie DA (qualité logo).
+    // Step 1 — Brief via gpt-4o-mini (~5-7s, faster than gpt-4o)
     const briefCompletion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       temperature: 0.35,
       response_format: { type: 'json_object' },
       messages: [
@@ -141,71 +132,53 @@ export async function POST(request: NextRequest) {
     const brief = parseBriefJson(briefRaw);
     if (!brief || !String(brief.final_image_prompt || '').trim()) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'BRIEF_FAILED',
-          message: 'Impossible d’extraire un brief logo (JSON invalide). Réessaie avec d’autres captures.',
-        },
+        { success: false, error: 'BRIEF_FAILED', message: "Impossible d'extraire un brief logo. Réessaie avec d'autres images." },
         { status: 422 }
       );
     }
 
     const imagePrompt = buildImageGenerationPromptFromBrief(brief);
 
-    // Étape 2 — Image : Gemini (même modèle que les visuels listing / bannière).
-    let imageBuf: Buffer | null = null;
-    for (let attempt = 0; attempt < 3 && !imageBuf; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 600));
-      imageBuf = await geminiGenerateImageBuffer({
-        apiKey: GEMINI_KEY,
-        prompt: imagePrompt,
-        model: GEMINI_IMAGE_MODEL,
-        timeoutMs: 120_000,
-      });
-    }
+    // Step 2 — Gemini image (18s cap to stay under Netlify 26s gateway)
+    const imageBuf = await geminiGenerateImageBuffer({
+      apiKey: GEMINI_KEY,
+      prompt: imagePrompt,
+      model: GEMINI_IMAGE_MODEL,
+      timeoutMs: 18_000,
+    });
 
     if (!imageBuf) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'IMAGE_GENERATION_FAILED',
-          message:
-            'La génération du logo (Gemini) a échoué. Vérifie GEMINI_API_KEY et les quotas, puis réessaie.',
-        },
+        { success: false, error: 'IMAGE_GENERATION_FAILED', message: 'La génération du logo a échoué. Réessaie dans un instant.' },
         { status: 502 }
       );
     }
-    const imageModelUsed = GEMINI_IMAGE_MODEL;
 
     const canvasBg = briefBackgroundRgb(brief);
-
     let finalPng: Buffer;
     try {
       finalPng = await sharp(imageBuf)
-        .resize(1024, 1024, {
-          fit: 'contain',
-          position: 'center',
-          background: canvasBg,
-        })
+        .resize(1024, 1024, { fit: 'contain', position: 'center', background: canvasBg })
         .flatten({ background: canvasBg })
         .png({ quality: 92 })
         .toBuffer();
     } catch {
-      return NextResponse.json(
-        { success: false, error: 'POST_PROCESS_FAILED', message: 'Impossible de finaliser le fichier image.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: 'POST_PROCESS_FAILED' }, { status: 500 });
+    }
+
+    // Step 3 — Optionally composite shop name via Sharp SVG overlay
+    if (withName && shopName.trim().length >= 1) {
+      try { finalPng = await compositeShopName(finalPng, shopName.trim()); }
+      catch (e) { console.warn('[generate-logo] name composite failed:', e); }
     }
 
     const deductResult = await incrementAnalysisCount(user.id, LOGO_CREDITS);
-    if (!deductResult.success) {
-      console.warn('[generate-logo] Credit deduction failed after success:', deductResult.error);
-    }
+    if (!deductResult.success) console.warn('[generate-logo] Credit deduction failed:', deductResult.error);
 
     return NextResponse.json({
       success: true,
       imageDataUrl: `data:image/png;base64,${finalPng.toString('base64')}`,
-      meta: { imageModel: imageModelUsed },
+      meta: { imageModel: GEMINI_IMAGE_MODEL, withName: withName && shopName.trim().length >= 1 },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';

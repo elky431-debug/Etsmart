@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Image as ImageIcon, Upload, Download, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -10,14 +10,6 @@ type DashboardLogoGeneratorProps = {
   initialProductImageDataUrl?: string | null;
 };
 
-/** Maintenance : `true` par défaut (localhost + prod). Réactiver l’outil : `NEXT_PUBLIC_LOGO_MAINTENANCE=false` sur Netlify + rebuild. */
-function useLogoTabMaintenance(): boolean {
-  return useMemo(
-    () => process.env.NEXT_PUBLIC_LOGO_MAINTENANCE !== 'false',
-    []
-  );
-}
-
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -26,18 +18,16 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file);
   });
 
-/** Réponse proxy HTML (timeout) au lieu de JSON — évite d’afficher du HTML brut. */
 function formatLogoApiError(rawText: string, data: unknown): string {
   const t = (rawText || '').trim();
   const lower = t.toLowerCase();
   if (
     lower.includes('<html') ||
     lower.includes('inactivity timeout') ||
-    lower.includes('<title>') ||
     lower.includes('504 gateway') ||
     lower.includes('gateway time-out')
   ) {
-    return 'La génération a dépassé le délai du serveur (timeout). Réessaie dans un instant. Si ça se répète : utilise des images un peu plus légères, ou vérifie que ton déploiement autorise des fonctions longues (ex. Vercel Pro, 300 s).';
+    return 'La génération a dépassé le délai du serveur. Réessaie dans un instant.';
   }
   if (data && typeof data === 'object' && data !== null) {
     const o = data as { message?: string; error?: string };
@@ -60,7 +50,8 @@ export function DashboardLogoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [dragShop, setDragShop] = useState(false);
   const [dragProduct, setDragProduct] = useState(false);
-  const logoMaintenance = useLogoTabMaintenance();
+  const [shopName, setShopName] = useState('');
+  const [withName, setWithName] = useState(false);
 
   const shopInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -69,30 +60,23 @@ export function DashboardLogoGenerator({
 
   const handlePick = async (file: File, type: 'shop' | 'product') => {
     if (!file.type.startsWith('image/')) return;
-    if (file.size > 12 * 1024 * 1024) {
-      setError('Image trop lourde (max 12MB).');
-      return;
-    }
+    if (file.size > 12 * 1024 * 1024) { setError('Image trop lourde (max 12 MB).'); return; }
     const url = await readFileAsDataUrl(file);
-    if (type === 'shop') {
-      setShopImageDataUrl(url);
-    } else {
-      setProductImageDataUrl(url);
-    }
+    if (type === 'shop') setShopImageDataUrl(url);
+    else setProductImageDataUrl(url);
     setError(null);
   };
 
-  useEffect(() => {
-    if (initialShopImageDataUrl) setShopImageDataUrl(initialShopImageDataUrl);
-  }, [initialShopImageDataUrl]);
-
-  useEffect(() => {
-    if (initialProductImageDataUrl) setProductImageDataUrl(initialProductImageDataUrl);
-  }, [initialProductImageDataUrl]);
+  useEffect(() => { if (initialShopImageDataUrl) setShopImageDataUrl(initialShopImageDataUrl); }, [initialShopImageDataUrl]);
+  useEffect(() => { if (initialProductImageDataUrl) setProductImageDataUrl(initialProductImageDataUrl); }, [initialProductImageDataUrl]);
 
   const generateLogo = async () => {
     if (!shopImageDataUrl || !productImageDataUrl) {
-      setError('Ajoute les 2 images : boutique + produit.');
+      setError('Ajoute les 2 images : bannière + produit.');
+      return;
+    }
+    if (withName && !shopName.trim()) {
+      setError('Saisis le nom de la boutique pour l\'option "avec nom".');
       return;
     }
     setIsGenerating(true);
@@ -105,32 +89,23 @@ export function DashboardLogoGenerator({
 
       const res = await fetch('/api/generate-logo', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           shopImage: shopImageDataUrl,
           productImage: productImageDataUrl,
+          shopName: shopName.trim(),
+          withName,
         }),
       });
       let data: unknown = null;
       let rawText = '';
-      try {
-        rawText = await res.text();
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-      if (!res.ok) {
-        throw new Error(formatLogoApiError(rawText, data));
-      }
+      try { rawText = await res.text(); data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
+      if (!res.ok) throw new Error(formatLogoApiError(rawText, data));
       const ok = data as { imageDataUrl?: string } | null;
       if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(rawText, data));
       setLogoUrl(ok.imageDataUrl);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Erreur lors de la generation du logo';
-      setError(message);
+      setError(e instanceof Error ? e.message : 'Erreur lors de la génération du logo');
     } finally {
       setIsGenerating(false);
     }
@@ -140,80 +115,19 @@ export function DashboardLogoGenerator({
     if (!logoUrl) return;
     const a = document.createElement('a');
     a.href = logoUrl;
-    a.download = 'etsmart-logo-square.png';
+    a.download = `logo-${shopName.trim().replace(/\s+/g, '-').toLowerCase() || 'boutique'}.png`;
     a.click();
   };
 
-  const onShopDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    shopDragRef.current += 1;
-    setDragShop(true);
-  }, []);
-  const onShopDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    shopDragRef.current -= 1;
-    if (shopDragRef.current <= 0) {
-      shopDragRef.current = 0;
-      setDragShop(false);
-    }
-  }, []);
-  const onShopDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-  const onShopDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    shopDragRef.current = 0;
-    setDragShop(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handlePick(file, 'shop');
-  }, []);
+  const onShopDragEnter = useCallback((e: React.DragEvent) => { e.preventDefault(); shopDragRef.current += 1; setDragShop(true); }, []);
+  const onShopDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); shopDragRef.current -= 1; if (shopDragRef.current <= 0) { shopDragRef.current = 0; setDragShop(false); } }, []);
+  const onShopDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
+  const onShopDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); shopDragRef.current = 0; setDragShop(false); const file = e.dataTransfer.files?.[0]; if (file) handlePick(file, 'shop'); }, []);
 
-  const onProductDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    productDragRef.current += 1;
-    setDragProduct(true);
-  }, []);
-  const onProductDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    productDragRef.current -= 1;
-    if (productDragRef.current <= 0) {
-      productDragRef.current = 0;
-      setDragProduct(false);
-    }
-  }, []);
-  const onProductDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-  const onProductDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    productDragRef.current = 0;
-    setDragProduct(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handlePick(file, 'product');
-  }, []);
-
-  if (logoMaintenance) {
-    return (
-      <div className={embedded ? 'bg-transparent px-0' : 'min-h-screen bg-black p-4 sm:p-6 md:p-8'}>
-        <div className={embedded ? '' : 'max-w-3xl mx-auto'}>
-          <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-[#00d4ff] via-[#00c9b7] to-[#00d4ff]" />
-            <div className="p-8 sm:p-10 text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00d4ff]/20 to-[#00c9b7]/20 border border-[#00d4ff]/20 mb-5">
-                <ImageIcon className="w-7 h-7 text-[#00d4ff]" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">Création de logo</h1>
-              <p className="text-white/70 text-base">
-                Cet onglet sera bientôt disponible.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const onProductDragEnter = useCallback((e: React.DragEvent) => { e.preventDefault(); productDragRef.current += 1; setDragProduct(true); }, []);
+  const onProductDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); productDragRef.current -= 1; if (productDragRef.current <= 0) { productDragRef.current = 0; setDragProduct(false); } }, []);
+  const onProductDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
+  const onProductDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); productDragRef.current = 0; setDragProduct(false); const file = e.dataTransfer.files?.[0]; if (file) handlePick(file, 'product'); }, []);
 
   return (
     <div className={embedded ? 'bg-transparent px-0' : 'min-h-screen bg-black p-4 sm:p-6 md:p-8'}>
@@ -223,72 +137,88 @@ export function DashboardLogoGenerator({
             <ImageIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Creation de logo</h1>
-            <p className="text-white/70 text-sm mt-1">
-              Bannière + produit → emblème <strong className="text-white/90">illustration d’artisan / fantasy</strong> (pas une icône d’app générique), médaillon riche, sans texte, ton DA repris sur tes visuels.
+            <h1 className="text-3xl font-bold text-white">Création de logo</h1>
+            <p className="text-white/60 text-sm mt-1">
+              Logo emblème artisan généré à partir de ta bannière et tes produits.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Colonne gauche : inputs */}
-          <div className="space-y-6">
+          {/* Left column — inputs */}
+          <div className="space-y-5">
+            {/* Shop banner */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-sm font-semibold text-white mb-3">1) Image de la boutique (banniere)</p>
+              <p className="text-sm font-semibold text-white mb-3">1) Bannière de la boutique</p>
               <div
                 onClick={() => shopInputRef.current?.click()}
-                onDragEnter={onShopDragEnter}
-                onDragLeave={onShopDragLeave}
-                onDragOver={onShopDragOver}
-                onDrop={onShopDrop}
+                onDragEnter={onShopDragEnter} onDragLeave={onShopDragLeave} onDragOver={onShopDragOver} onDrop={onShopDrop}
                 className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragShop ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
               >
-                <input
-                  ref={shopInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'shop')}
-                />
+                <input ref={shopInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'shop')} />
                 {shopImageDataUrl ? (
-                  <img src={shopImageDataUrl} alt="Shop" className="w-full h-44 object-cover rounded-lg" />
+                  <img src={shopImageDataUrl} alt="Bannière" className="w-full h-44 object-cover rounded-lg" />
                 ) : (
-                  <div className="h-44 flex flex-col items-center justify-center text-white/60">
+                  <div className="h-44 flex flex-col items-center justify-center text-white/50">
                     <Upload className="w-6 h-6 mb-2" />
-                    <p className="text-sm">Clique pour ajouter la banniere</p>
+                    <p className="text-sm">Clique ou glisse la bannière</p>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Product image */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-sm font-semibold text-white mb-3">2) Image du produit de la boutique</p>
+              <p className="text-sm font-semibold text-white mb-3">2) Photo d&apos;un produit</p>
               <div
                 onClick={() => productInputRef.current?.click()}
-                onDragEnter={onProductDragEnter}
-                onDragLeave={onProductDragLeave}
-                onDragOver={onProductDragOver}
-                onDrop={onProductDrop}
+                onDragEnter={onProductDragEnter} onDragLeave={onProductDragLeave} onDragOver={onProductDragOver} onDrop={onProductDrop}
                 className={`cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${dragProduct ? 'border-[#00d4ff] bg-[#00d4ff]/10' : 'border-white/20 hover:border-[#00d4ff]/50'}`}
               >
-                <input
-                  ref={productInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'product')}
-                />
+                <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePick(e.target.files[0], 'product')} />
                 {productImageDataUrl ? (
-                  <img src={productImageDataUrl} alt="Product" className="w-full h-44 object-cover rounded-lg" />
+                  <img src={productImageDataUrl} alt="Produit" className="w-full h-44 object-cover rounded-lg" />
                 ) : (
-                  <div className="h-44 flex flex-col items-center justify-center text-white/60">
+                  <div className="h-44 flex flex-col items-center justify-center text-white/50">
                     <Upload className="w-6 h-6 mb-2" />
-                    <p className="text-sm">Clique pour ajouter un produit</p>
+                    <p className="text-sm">Clique ou glisse un produit</p>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* With/without name toggle */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-3">
+              <p className="text-sm font-semibold text-white">3) Nom de la boutique sur le logo</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setWithName(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition ${!withName ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-[#00d4ff]' : 'border-white/15 text-white/60 hover:border-white/30'}`}
+                >
+                  Sans nom
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWithName(true)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition ${withName ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-[#00d4ff]' : 'border-white/15 text-white/60 hover:border-white/30'}`}
+                >
+                  Avec nom
+                </button>
+              </div>
+              {withName && (
+                <input
+                  type="text"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  placeholder="Nom de ta boutique"
+                  maxLength={40}
+                  className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#00d4ff]/50"
+                />
+              )}
+            </div>
+
+            {/* Generate button */}
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={generateLogo}
@@ -297,10 +227,10 @@ export function DashboardLogoGenerator({
               >
                 {isGenerating ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Generation...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Génération…
                   </span>
                 ) : (
-                  'Generer le logo'
+                  'Générer le logo (1 crédit)'
                 )}
               </button>
               {logoUrl && (
@@ -309,7 +239,7 @@ export function DashboardLogoGenerator({
                   className="px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/10 inline-flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  Telecharger
+                  Télécharger
                 </button>
               )}
             </div>
@@ -321,19 +251,25 @@ export function DashboardLogoGenerator({
             )}
           </div>
 
-          {/* Colonne droite : preview */}
+          {/* Right column — preview */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <p className="text-sm font-semibold text-white mb-3">Aperçu du logo</p>
-            <div className="rounded-xl border border-white/10 bg-black/40 p-4 min-h-[360px] flex items-center justify-center">
+            <div className="rounded-xl border border-white/10 bg-black/40 p-4 min-h-[380px] flex items-center justify-center">
               {logoUrl ? (
                 <div className="w-full flex items-center justify-center">
-                  <div className="w-80 max-w-full aspect-square rounded-xl bg-white p-4">
-                    <img src={logoUrl} alt="Generated logo" className="w-full h-full object-contain" />
+                  <div className="w-80 max-w-full aspect-square rounded-xl overflow-hidden shadow-2xl">
+                    <img src={logoUrl} alt="Logo généré" className="w-full h-full object-contain" />
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-white/50 text-sm">
-                  {isGenerating ? 'Génération en cours…' : 'Ton logo apparaîtra ici.'}
+                <div className="text-center text-white/40 text-sm">
+                  {isGenerating ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#00d4ff]" /> Génération en cours…
+                    </span>
+                  ) : (
+                    'Ton logo apparaîtra ici.'
+                  )}
                 </div>
               )}
             </div>
@@ -343,4 +279,3 @@ export function DashboardLogoGenerator({
     </div>
   );
 }
-
