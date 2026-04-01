@@ -140,6 +140,10 @@ const LOCKED_FOR_FREE_INFO: Partial<Record<DashboardSection, { title: string; de
   tracking: { title: 'Suivi de colis', description: 'Suivez vos livraisons et commandes Etsy en temps réel.' },
   images: { title: 'Génération d\'images', description: 'Créez des visuels produits professionnels par IA en quelques secondes.' },
   'analyse-simulation': { title: 'Analyse & Simulation', description: 'Analysez vos produits en profondeur et simulez vos revenus Etsy.' },
+  'shop-name': { title: 'Nom de boutique IA', description: 'Générez un nom de boutique accrocheur et optimisé SEO avec l\'IA.' },
+  banner: { title: 'Bannière de boutique', description: 'Créez une bannière professionnelle pour votre boutique Etsy.' },
+  logo: { title: 'Logo de boutique', description: 'Générez un logo unique et professionnel pour votre boutique.' },
+  'shop-story': { title: 'Histoire de boutique', description: 'Rédigez une histoire de boutique convaincante avec l\'aide de l\'IA.' },
 };
 
 /** Info shown for coming-soon sections (locked for everyone). */
@@ -2379,7 +2383,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'store-manager' && (
-            <DashboardStoreManager isFreeUser={isFreeUser} userId={user?.id} />
+            <DashboardStoreManager key={user?.id} isFreeUser={isFreeUser} userId={user?.id} />
           )}
 
           {activeSection === 'shop-story' && (
