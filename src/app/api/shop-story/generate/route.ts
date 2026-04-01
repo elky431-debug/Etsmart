@@ -91,67 +91,27 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch an AI-generated portrait from generated.photos.
- * Always young (young_adult), gender-filtered, photorealistic, no real person.
- * Free tier: 10,000 calls/month. API key required (free at generated.photos).
- * Falls back to randomuser.me if key not set.
+ * Fetch a free AI-generated portrait from thispersondoesnotexist.com.
+ * No API key, completely free, always high-quality photorealistic face.
+ * Cache-busted with a random seed so each call returns a different face.
  */
-async function fetchGeneratedPortrait(gender: Gender): Promise<string | null> {
-  const key = process.env.GENERATED_PHOTOS_API_KEY;
-
-  // Primary: generated.photos (AI faces, always attractive young adults)
-  if (key) {
-    try {
-      const genderParam = gender === 'female' ? 'female' : 'male';
-      const res = await fetch(
-        `https://api.generated.photos/api/v1/faces?per_page=10&gender[]=${genderParam}&age[]=young_adult&order_by=random`,
-        { headers: { Authorization: `API-Key ${key}` }, signal: AbortSignal.timeout(8_000) }
-      );
-      if (res.ok) {
-        const data = await res.json() as { faces?: Array<{ urls: { [key: string]: string } }> };
-        const faces = data.faces || [];
-        if (faces.length > 0) {
-          const pick = faces[Math.floor(Math.random() * faces.length)];
-          // Use medium resolution (512px)
-          const imgUrl = pick.urls['512'] || pick.urls['256'] || Object.values(pick.urls)[0];
-          if (imgUrl) {
-            const imgRes = await fetch(imgUrl, { signal: AbortSignal.timeout(10_000) });
-            if (imgRes.ok) {
-              const buf = Buffer.from(await imgRes.arrayBuffer());
-              const png = await sharp(buf)
-                .resize(1024, 1024, { fit: 'cover', position: 'attention' })
-                .png({ quality: 90 })
-                .toBuffer();
-              return `data:image/png;base64,${png.toString('base64')}`;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[shop-story] generated.photos portrait failed:', e);
-    }
-  }
-
-  // Fallback: randomuser.me
+async function fetchGeneratedPortrait(_gender: Gender): Promise<string | null> {
   try {
-    const res = await fetch(
-      `https://randomuser.me/api/?gender=${gender}&nat=us,gb,au,ca&results=1&inc=picture&noinfo`,
-      { signal: AbortSignal.timeout(8_000) }
-    );
+    // Each request returns a different AI-generated face (cache-busted)
+    const seed = Math.random().toString(36).slice(2);
+    const res = await fetch(`https://thispersondoesnotexist.com/?${seed}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) return null;
-    const data = await res.json() as { results?: Array<{ picture: { large: string } }> };
-    const picUrl = data.results?.[0]?.picture?.large;
-    if (!picUrl) return null;
-    const imgRes = await fetch(picUrl, { signal: AbortSignal.timeout(10_000) });
-    if (!imgRes.ok) return null;
-    const buf = Buffer.from(await imgRes.arrayBuffer());
+    const buf = Buffer.from(await res.arrayBuffer());
     const png = await sharp(buf)
       .resize(1024, 1024, { fit: 'cover', position: 'attention' })
       .png({ quality: 90 })
       .toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch (e) {
-    console.warn('[shop-story] randomuser.me portrait fallback failed:', e);
+    console.warn('[shop-story] thispersondoesnotexist portrait failed:', e);
     return null;
   }
 }
