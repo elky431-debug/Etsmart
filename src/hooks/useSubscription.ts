@@ -91,7 +91,7 @@ export function useSubscription() {
         const stripeData = await stripeCheck.json();
         console.log('[useSubscription] Stripe direct check:', stripeData);
         
-        if (stripeData.hasSubscription) {
+        if (stripeData.hasSubscription && stripeData.plan !== 'FREE') {
           // Stripe : période / customer. Les chiffres utilisés/quota/restants doivent matcher
           // getUserQuotaInfo (DB + bonus manuels), comme /api/deduct-credits — pas seulement check-stripe.
           const periodEnd = stripeData.periodEnd ? new Date(stripeData.periodEnd) : null;

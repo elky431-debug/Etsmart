@@ -63,9 +63,10 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .single();
       const status = dbUser?.subscription_status;
+      const dbPlan = dbUser?.subscription_plan;
       const periodEnd = dbUser?.current_period_end ? new Date(dbUser.current_period_end) : null;
       const isPeriodValid = periodEnd && periodEnd > new Date();
-      if (status === 'active' && isPeriodValid) {
+      if (status === 'active' && isPeriodValid && dbPlan && dbPlan !== 'FREE') {
         const quota = dbUser?.analysis_quota ?? 100;
         const used = parseFloat(String(dbUser?.analysis_used_this_month ?? 0)) || 0;
         return NextResponse.json({
