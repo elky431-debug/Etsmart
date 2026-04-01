@@ -2041,6 +2041,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'dashboard-home' && (
             <DashboardHome
+              key={user?.id}
+              userId={user?.id}
               onNavigate={(section) => {
                 setActiveSection(section as DashboardSection);
                 setSelectedAnalysis(null);

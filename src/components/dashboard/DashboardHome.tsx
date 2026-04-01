@@ -30,6 +30,7 @@ type DashboardActionTarget =
 
 interface DashboardHomeProps {
   onNavigate: (section: DashboardActionTarget) => void;
+  userId?: string;
 }
 
 type StoreShop = { id: string; name: string };
@@ -43,13 +44,17 @@ type StoreTransaction = {
 type TodoItem = { id: string; text: string; done: boolean };
 type GoalItem = { id: string; title: string; current: number; target: number };
 
-const STORE_KEY_SHOPS = 'etsmart_store_manager_shops';
-const STORE_KEY_TRANSACTIONS = 'etsmart_store_manager_transactions';
-const TODO_KEY = 'etsmart_dashboard_todos_v1';
-const GOALS_KEY = 'etsmart_dashboard_goals_v1';
-const CA_PERIOD_KEY = 'etsmart_dashboard_ca_period_v1';
-/** Filtre CA sur le dashboard uniquement : `global` ou id boutique (une seule à la fois). */
-const CA_SHOP_FILTER_KEY = 'etsmart_dashboard_ca_shop_filter_v1';
+function homeKeys(uid: string | undefined) {
+  const s = uid ? `_${uid}` : '';
+  return {
+    shops:       `etsmart_store_manager_shops${s}`,
+    transactions:`etsmart_store_manager_transactions${s}`,
+    todos:       `etsmart_dashboard_todos_v1${s}`,
+    goals:       `etsmart_dashboard_goals_v1${s}`,
+    caPeriod:    `etsmart_dashboard_ca_period_v1${s}`,
+    caShopFilter:`etsmart_dashboard_ca_shop_filter_v1${s}`,
+  };
+}
 
 /** Dégradé texte Etsmart (identique au mot « Dashboard ») */
 const ET_TEXT_GRADIENT =
@@ -156,82 +161,83 @@ function formatTrendPct(current: number, previous: number): {
   return { label: '—', positive: null };
 }
 
-export function DashboardHome({ onNavigate }: DashboardHomeProps) {
+export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
+  const keys = useMemo(() => homeKeys(userId), [userId]);
   const [shops, setShops] = useState<StoreShop[]>([]);
   const [transactions, setTransactions] = useState<StoreTransaction[]>([]);
   /** null = Global (toutes les boutiques). Sinon id d’une seule boutique. */
   const [caFilterShopId, setCaFilterShopId] = useState<string | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [todoInput, setTodoInput] = useState('');
+  const [todoInput, setTodoInput] = useState(‘’);
   const [goals, setGoals] = useState<GoalItem[]>([]);
-  const [goalTitle, setGoalTitle] = useState('');
-  const [goalTarget, setGoalTarget] = useState('10');
-  const [caPeriod, setCaPeriod] = useState<CaPeriod>('today');
+  const [goalTitle, setGoalTitle] = useState(‘’);
+  const [goalTarget, setGoalTarget] = useState(‘10’);
+  const [caPeriod, setCaPeriod] = useState<CaPeriod>(‘today’);
 
   const reloadFromStorage = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    const shopList = parseList<StoreShop>(localStorage.getItem(STORE_KEY_SHOPS));
+    if (typeof window === ‘undefined’) return;
+    const shopList = parseList<StoreShop>(localStorage.getItem(keys.shops));
     setShops(shopList);
-    setTransactions(parseList<StoreTransaction>(localStorage.getItem(STORE_KEY_TRANSACTIONS)));
-    const savedFilter = localStorage.getItem(CA_SHOP_FILTER_KEY);
-    if (savedFilter && savedFilter !== 'global' && savedFilter.trim() !== '') {
+    setTransactions(parseList<StoreTransaction>(localStorage.getItem(keys.transactions)));
+    const savedFilter = localStorage.getItem(keys.caShopFilter);
+    if (savedFilter && savedFilter !== ‘global’ && savedFilter.trim() !== ‘’) {
       const stillExists = shopList.some((s) => s.id === savedFilter);
       setCaFilterShopId(stillExists ? savedFilter : null);
     } else {
       setCaFilterShopId(null);
     }
-    setTodos(parseList<TodoItem>(localStorage.getItem(TODO_KEY)));
-    setGoals(parseList<GoalItem>(localStorage.getItem(GOALS_KEY)));
-    const savedPeriod = localStorage.getItem(CA_PERIOD_KEY);
+    setTodos(parseList<TodoItem>(localStorage.getItem(keys.todos)));
+    setGoals(parseList<GoalItem>(localStorage.getItem(keys.goals)));
+    const savedPeriod = localStorage.getItem(keys.caPeriod);
     if (savedPeriod && CA_PERIODS.some((p) => p.id === savedPeriod)) {
       setCaPeriod(savedPeriod as CaPeriod);
     }
-  }, []);
+  }, [keys]);
 
   useEffect(() => {
     reloadFromStorage();
     const onFocus = () => reloadFromStorage();
     const onVis = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') reloadFromStorage();
+      if (typeof document !== ‘undefined’ && document.visibilityState === ‘visible’) reloadFromStorage();
     };
     const onStorage = (e: StorageEvent) => {
       if (
-        e.key === STORE_KEY_TRANSACTIONS ||
-        e.key === STORE_KEY_SHOPS ||
-        e.key === CA_SHOP_FILTER_KEY
+        e.key === keys.transactions ||
+        e.key === keys.shops ||
+        e.key === keys.caShopFilter
       ) {
         reloadFromStorage();
       }
     };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVis);
-    window.addEventListener('storage', onStorage);
+    window.addEventListener(‘focus’, onFocus);
+    document.addEventListener(‘visibilitychange’, onVis);
+    window.addEventListener(‘storage’, onStorage);
     return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVis);
-      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(‘focus’, onFocus);
+      document.removeEventListener(‘visibilitychange’, onVis);
+      window.removeEventListener(‘storage’, onStorage);
     };
-  }, [reloadFromStorage]);
+  }, [reloadFromStorage, keys]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(TODO_KEY, JSON.stringify(todos));
-  }, [todos]);
+    if (typeof window === ‘undefined’) return;
+    localStorage.setItem(keys.todos, JSON.stringify(todos));
+  }, [todos, keys.todos]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
-  }, [goals]);
+    if (typeof window === ‘undefined’) return;
+    localStorage.setItem(keys.goals, JSON.stringify(goals));
+  }, [goals, keys.goals]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(CA_PERIOD_KEY, caPeriod);
-  }, [caPeriod]);
+    if (typeof window === ‘undefined’) return;
+    localStorage.setItem(keys.caPeriod, caPeriod);
+  }, [caPeriod, keys.caPeriod]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(CA_SHOP_FILTER_KEY, caFilterShopId === null ? 'global' : caFilterShopId);
-  }, [caFilterShopId]);
+    if (typeof window === ‘undefined’) return;
+    localStorage.setItem(keys.caShopFilter, caFilterShopId === null ? ‘global’ : caFilterShopId);
+  }, [caFilterShopId, keys.caShopFilter]);
 
   /** CA filtré : par défaut global ; une boutique si choisie dans le sélecteur. */
   const scopedTransactions = useMemo(() => {
