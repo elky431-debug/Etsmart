@@ -70,6 +70,38 @@ export function DashboardLogoGenerator({
   useEffect(() => { if (initialShopImageDataUrl) setShopImageDataUrl(initialShopImageDataUrl); }, [initialShopImageDataUrl]);
   useEffect(() => { if (initialProductImageDataUrl) setProductImageDataUrl(initialProductImageDataUrl); }, [initialProductImageDataUrl]);
 
+  const compositeNameOnCanvas = (imageDataUrl: string, name: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(imageDataUrl); return; }
+      const img = new window.Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, 1024, 1024);
+        const len = name.length;
+        const fontSize = len <= 8 ? 72 : len <= 13 ? 58 : len <= 18 ? 46 : len <= 24 ? 38 : 30;
+        const barH = Math.round(fontSize * 2.4);
+        const grad = ctx.createLinearGradient(0, 1024 - barH, 0, 1024);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.7)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 1024 - barH, 1024, barH);
+        ctx.font = `bold ${fontSize}px Georgia, serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillText(name, 513, 1024 - 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(name, 512, 1024 - 20);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(imageDataUrl);
+      img.src = imageDataUrl;
+    });
+  };
+
   const generateLogo = async () => {
     if (!shopImageDataUrl || !productImageDataUrl) {
       setError('Ajoute les 2 images : bannière + produit.');
@@ -87,7 +119,7 @@ export function DashboardLogoGenerator({
       const token = session?.access_token;
       if (!token) throw new Error('Authentification requise');
 
-      // Step 1 — Brief (~6-8s)
+      // Step 1 — Brief via Netlify (~6-8s, well under 26s)
       const briefRes = await fetch('/api/generate-logo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -100,26 +132,26 @@ export function DashboardLogoGenerator({
       const brief = briefData as { imagePrompt?: string; bgR?: number; bgG?: number; bgB?: number } | null;
       if (!brief?.imagePrompt) throw new Error(formatLogoApiError(briefRaw, briefData));
 
-      // Step 2 — Image generation (~18-20s)
-      const imgRes = await fetch('/api/generate-logo-image', {
+      // Step 2 — Image via Supabase Edge Function (150s timeout, no Netlify 26s limit)
+      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const edgeRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-logo-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          imagePrompt: brief.imagePrompt,
-          bgR: brief.bgR,
-          bgG: brief.bgG,
-          bgB: brief.bgB,
-          shopName: shopName.trim(),
-          withName,
-        }),
+        body: JSON.stringify({ imagePrompt: brief.imagePrompt, bgR: brief.bgR, bgG: brief.bgG, bgB: brief.bgB }),
       });
       let imgRaw = '';
       let imgData: unknown = null;
-      try { imgRaw = await imgRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
-      if (!imgRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
+      try { imgRaw = await edgeRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
+      if (!edgeRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
       const ok = imgData as { imageDataUrl?: string } | null;
       if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(imgRaw, imgData));
-      setLogoUrl(ok.imageDataUrl);
+
+      // Step 3 — Composite shop name client-side via Canvas (instant, no server needed)
+      let finalUrl = ok.imageDataUrl;
+      if (withName && shopName.trim()) {
+        finalUrl = await compositeNameOnCanvas(finalUrl, shopName.trim());
+      }
+      setLogoUrl(finalUrl);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur lors de la génération du logo');
     } finally {
