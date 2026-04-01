@@ -88,6 +88,7 @@ import { DashboardEtsyListingAnalyzer } from '@/components/dashboard/DashboardEt
 import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompetitorShop';
 import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompare';
 import { DashboardComingSoonPanel } from '@/components/dashboard/DashboardComingSoonPanel';
+import DashboardNicheResearch from '@/components/dashboard/DashboardNicheResearch';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -2321,7 +2322,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'niche-finder' && (
-            <NicheFinderSection />
+            <DashboardNicheResearch />
           )}
 
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
