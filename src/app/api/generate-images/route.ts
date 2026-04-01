@@ -416,46 +416,48 @@ Texte uniquement pour les mensurations (pas de texte marketing).
         `The garment is displayed using the ghost mannequin technique: the clothing appears to be worn and shaped by an invisible form, showing natural drape, volume and 3D structure. ` +
         `No flat or folded fabric. The garment fills the frame with lifelike shape.`;
 
-      // Prompts spécialisés VÊTEMENTS — ghost mannequin (terme standard Etsy/Amazon, évite filtres IA)
+      // Prompts spécialisés VÊTEMENTS — flat lay + porté croppé (évite l'effet "flottant" du ghost mannequin)
       const CLOTHING_PROMPTS = [
         `${baseContext}
-PROMPT 1 – GHOST MANNEQUIN, WHITE BACKGROUND, FRONT VIEW:
-${CLOTHING_STUDIO_RULE}
-Framing: front-facing view, garment centered and occupying 75% of the frame. Pure white or very light gray background. Symmetrical softbox lighting, gentle drop shadow at base.
-Natural drape, accurate colors matching the reference. Clean catalog shot, premium e-commerce style.
+PROMPT 1 – FLAT LAY FOND BLANC ÉPURÉ:
+Professional e-commerce flat lay photo. The garment is laid FLAT on a pure white or very light gray surface, perfectly smooth and wrinkle-free, as if freshly pressed.
+The garment is centered and fills 75-80% of the frame. Overhead shot (90° top-down view), perfectly symmetrical.
+Softbox studio lighting from above, no harsh shadows. Colors accurate to reference.
+INTERDIT: no mannequin, no floating effect, no person. Just the flat garment on a clean surface.
 No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 2 – GHOST MANNEQUIN, 3/4 VIEW, CREAM BACKGROUND:
-${CLOTHING_STUDIO_RULE}
-Framing: same ghost mannequin presentation, but rotated 45° (three-quarter view) to show depth, side seams and volume.
-Cream or soft gray background, gentle directional studio light. Natural folds, full silhouette, fabric texture visible.
+PROMPT 2 – PORTÉ CROPPÉ / VUE LIFESTYLE:
+The garment is worn by a model but CROPPED: only the body part wearing the garment is visible (waist to mid-thigh for bottoms, torso for tops). No face, no head in frame.
+Natural standing pose, soft natural daylight from a window, clean white or cream wall behind.
+The garment fits naturally on the body, showing drape, fit and volume realistically.
+INTERDIT: ghost mannequin, floating garment, full body shot with face.
 No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 3 – CLOSE-UP / FABRIC DETAIL AND FINISH:
-Tight close-up photo on fabric details: texture, stitching, buttons, zipper, collar, embroidery or hem.
+PROMPT 3 – GROS PLAN TEXTURE ET FINITIONS:
+Tight close-up photo on fabric details: texture, stitching, waistband, buttons, zipper, hem or embroidery.
 Very soft bokeh on edges, maximum sharpness on main material.
 Neutral clean background (white or matte beige), soft side lighting revealing texture and relief.
-Product fills 75-85% of frame. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Product fills 80-85% of frame. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
-PROMPT 5 – GHOST MANNEQUIN, DARK BACKGROUND / EDITORIAL:
-${CLOTHING_STUDIO_RULE}
-Framing: ghost mannequin presentation, dark charcoal or deep gray clean studio background.
-Dramatic but elegant directional lighting (key light one side, soft shadow other side), fashion editorial mood.
-Natural drape and volume. Premium style. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 5 – FLAT LAY FOND SOMBRE / ÉDITORIAL:
+Professional flat lay photo. The garment is laid perfectly flat on a dark surface (slate black, deep charcoal fabric, dark wood).
+Overhead shot (90° top-down), dramatic directional lighting from one side revealing texture and relief.
+Garment centered, 75% of frame, colors accurate. Editorial fashion mood.
+INTERDIT: no mannequin, no floating effect, no person.
+No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 6 – GARMENT ON HANGER, NEUTRAL WALL:
-The garment is hung on a simple natural wood hanger, hooked on a discrete wall peg on a clean white wall.
+PROMPT 6 – SUR CINTRE, MUR NEUTRE:
+The garment is hung on a simple natural wood hanger, hooked on a discrete wall peg on a clean white or light gray wall.
 Soft natural light from off-frame window, natural folds, authentic 3D shape of the garment.
 Garment falls freely, minimalist background, nothing else in frame.
 No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 7 – GHOST MANNEQUIN, BACK VIEW:
-${CLOTHING_STUDIO_RULE}
-Framing: ghost mannequin presentation, BACK VIEW or slight 3/4 back angle.
-Light gray neutral background (#e8e8e8), even studio lighting.
-Shows back finishes, collar, closure, back seams — everything a buyer wants to see from behind.
-No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+PROMPT 7 – FLAT LAY VUE DOS / FINITIONS ARRIÈRE:
+Professional flat lay photo, BACK SIDE of the garment facing up.
+Laid flat on a pure white or very light gray surface, overhead 90° shot.
+Shows back finishes, seams, closure, label, back hem — everything a buyer wants to see from behind.
+Even softbox lighting, accurate colors. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Règle commune meubles — toujours ancré dans la pièce, jamais flottant
