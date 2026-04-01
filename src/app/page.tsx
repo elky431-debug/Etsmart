@@ -537,9 +537,11 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             {PLANS.filter(p => p.id !== 'FREE').map((plan, index) => {
-              const creditLine = plan.analysesPerMonth === -1 
+              const creditLine = plan.analysesPerMonth === -1
                 ? 'Crédits illimités'
-                : `${plan.analysesPerMonth} crédits / mois`;
+                : plan.bonusCredits
+                  ? `${plan.analysesPerMonth - plan.bonusCredits} crédits + ${plan.bonusCredits} offerts`
+                  : `${plan.analysesPerMonth} crédits / mois`;
               const displayPrice = plan.price === 0 ? 'Sur devis' : `€${plan.price.toFixed(2)}`;
               const displayPeriod = plan.price === 0 ? '' : '/mois';
               const isPopular = plan.id === 'SCALE';

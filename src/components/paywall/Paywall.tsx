@@ -326,23 +326,38 @@ export function Paywall({
                         hidden sm:block py-2 px-3 mb-4 rounded-lg
                         ${isPopular ? 'bg-gradient-to-br from-[#00d4ff]/10 to-[#00c9b7]/10' : 'bg-white/5'}
                       `}>
-                        <div className="flex items-center justify-center gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
                           <Zap className={`w-3.5 h-3.5 ${isPopular ? 'text-[#00d4ff]' : 'text-white/70'}`} />
-                          <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-white'}`}>
-                            {plan.analysesPerMonth === -1 ? '∞' : plan.analysesPerMonth}
-                          </span>
-                          <span className="text-white/60 text-xs">
-                            {plan.analysesPerMonth === -1 ? 'crédits illimités' : 'crédits/mois'}
-                          </span>
+                          {plan.analysesPerMonth === -1 ? (
+                            <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-white'}`}>Illimité</span>
+                          ) : plan.bonusCredits ? (
+                            <>
+                              <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-white'}`}>{plan.analysesPerMonth - plan.bonusCredits}</span>
+                              <span className="text-white/60 text-xs">crédits</span>
+                              <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-1.5 py-0.5">+{plan.bonusCredits} offerts</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className={`text-base font-bold ${isPopular ? 'text-[#00c9b7]' : 'text-white'}`}>{plan.analysesPerMonth}</span>
+                              <span className="text-white/60 text-xs">crédits/mois</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
                       {/* Crédits - Inline on mobile */}
-                      <div className="flex sm:hidden items-center gap-1 text-white/70 text-xs">
+                      <div className="flex sm:hidden items-center gap-1 text-white/70 text-xs flex-wrap">
                         <Zap className="w-3 h-3" />
-                        <span className="font-medium">
-                          {plan.analysesPerMonth === -1 ? 'Crédits illimités' : `${plan.analysesPerMonth} crédits/mois`}
-                        </span>
+                        {plan.analysesPerMonth === -1 ? (
+                          <span className="font-medium">Crédits illimités</span>
+                        ) : plan.bonusCredits ? (
+                          <>
+                            <span className="font-medium">{plan.analysesPerMonth - plan.bonusCredits} crédits</span>
+                            <span className="font-semibold text-emerald-400">+{plan.bonusCredits} offerts</span>
+                          </>
+                        ) : (
+                          <span className="font-medium">{plan.analysesPerMonth} crédits/mois</span>
+                        )}
                       </div>
                     </div>
 
