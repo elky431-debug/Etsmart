@@ -32,9 +32,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // ⚠️ CRITICAL: Use STATE (not ref) to track if the initial check is complete
   // This ensures a re-render happens when the check completes
   const [initialCheckDone, setInitialCheckDone] = useState(false);
-  // Once the subscription was confirmed active in this session, remember it
-  // This prevents the dashboard from unmounting/remounting on credit refresh
+  // Once the subscription was confirmed active (or free) in this session, remember it
   const [wasActiveOnce, setWasActiveOnce] = useState(false);
+
+  // FREE plan users get access to the dashboard with limited features
+  const isFreeUser = !effectiveSubscription.loading &&
+    !effectiveProtection.isLoading &&
+    effectiveSubscription.subscription?.plan === 'FREE' &&
+    !effectiveSubscription.hasActiveSubscription;
 
   const isLoading = shouldBypassProtection ? false : (authLoading || effectiveProtection.isLoading || effectiveSubscription.loading);
 
@@ -44,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const now = new Date();
   const isPeriodValid = periodEnd ? periodEnd > now : false;
   const isSubscriptionActive = subscriptionStatus === 'active' || (effectiveSubscription.subscription && isPeriodValid);
-  const isReallyActive = shouldBypassProtection ? true : ((isSubscriptionActive && effectiveSubscription.hasActiveSubscription) || effectiveProtection.isActive);
+  const isReallyActive = shouldBypassProtection ? true : ((isSubscriptionActive && effectiveSubscription.hasActiveSubscription) || effectiveProtection.isActive || isFreeUser);
 
   // Mark the initial check as done (uses state → triggers re-render)
   useEffect(() => {

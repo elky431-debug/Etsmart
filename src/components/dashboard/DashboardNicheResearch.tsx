@@ -160,7 +160,7 @@ function saveCache(data: Record<string, NicheResult>) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function DashboardNicheResearch() {
+export default function DashboardNicheResearch({ isFreeUser = false }: { isFreeUser?: boolean }) {
   const [token, setToken] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, NicheResult>>({});
   const [loadingSet, setLoadingSet] = useState<Set<string>>(new Set());
@@ -445,7 +445,7 @@ export default function DashboardNicheResearch() {
           {/* Rows */}
           <div className="divide-y divide-white/5">
             <AnimatePresence mode="popLayout">
-              {displayed.map((niche) => {
+              {(isFreeUser ? displayed.slice(0, 10) : displayed).map((niche) => {
                 const r = results[niche.keyword];
                 const isLoading = loadingSet.has(niche.keyword);
                 const demColor = r ? scoreColor(r.demandScore) : null;
@@ -549,6 +549,34 @@ export default function DashboardNicheResearch() {
               </div>
             )}
           </div>
+
+          {/* Free tier lock — blur preview + CTA */}
+          {isFreeUser && displayed.length > 0 && (
+            <div className="relative">
+              {/* Blurred preview of rows 10-13 */}
+              <div className="divide-y divide-white/5 blur-sm select-none pointer-events-none opacity-50">
+                {displayed.slice(10, 14).map((niche) => (
+                  <div key={niche.keyword} className="grid grid-cols-[2fr_1fr_1fr_1fr_80px] gap-2 px-4 py-3.5 items-center">
+                    <div><span className="text-white text-sm font-medium">{niche.label}</span></div>
+                    <div><div className="h-1.5 w-20 bg-white/20 rounded-full" /></div>
+                    <div><div className="h-1.5 w-20 bg-white/20 rounded-full" /></div>
+                    <div><div className="h-6 w-10 bg-white/20 rounded-lg" /></div>
+                    <div><span className="text-xs text-white/40">—</span></div>
+                  </div>
+                ))}
+              </div>
+              {/* Lock overlay */}
+              <div className="border-t border-white/10 px-5 py-4 flex items-center justify-between gap-4 bg-gradient-to-r from-violet-500/5 to-purple-600/5">
+                <div className="flex items-center gap-2 text-white/50 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-400 flex-shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <span>+{Math.max(0, displayed.length - 10)} niches supplémentaires avec un abonnement payant</span>
+                </div>
+                <a href="/dashboard?section=subscription" className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity">
+                  Débloquer
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Legend */}

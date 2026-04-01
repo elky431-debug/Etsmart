@@ -139,6 +139,10 @@ export async function POST(request: NextRequest) {
     // ── Quota check ──────────────────────────────────────────
     const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
     const quotaInfo = await getUserQuotaInfo(user.id);
+    // FREE plan: image generation is not included in the free tier
+    if (quotaInfo.plan === 'FREE' || quotaInfo.status === 'free') {
+      return NextResponse.json({ error: 'PLAN_UPGRADE_REQUIRED', message: 'La génération d\'images nécessite un abonnement payant.' }, { status: 403 });
+    }
     if (quotaInfo.status !== 'active') {
       return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required.' }, { status: 403 });
     }

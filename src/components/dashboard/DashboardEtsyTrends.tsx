@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, BarChart3, Zap, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, BarChart3, Zap, ChevronLeft, ChevronRight, Calendar, Clock, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // ─── Data — extracted from Etsy trending searches ────────────────────────────
 
@@ -275,8 +276,27 @@ function daysUntil(isoDate: string): number {
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
+// ─── Free tier lock banner ────────────────────────────────────────────────────
+function FreeLockBanner({ label }: { label: string }) {
+  const router = useRouter();
+  return (
+    <div className="border-t border-white/10 px-5 py-4 flex items-center justify-between gap-4 bg-gradient-to-r from-violet-500/5 to-purple-600/5">
+      <div className="flex items-center gap-2 text-white/50 text-sm">
+        <Lock size={13} className="text-violet-400 flex-shrink-0" />
+        <span>{label} avec un abonnement payant</span>
+      </div>
+      <button
+        onClick={() => router.push('/dashboard?section=subscription')}
+        className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+      >
+        Débloquer
+      </button>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function DashboardEtsyTrends() {
+export default function DashboardEtsyTrends({ isFreeUser = false }: { isFreeUser?: boolean }) {
   const [trendPage, setTrendPage] = useState(1);
   const [breakPage, setBreakPage] = useState(1);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
@@ -354,23 +374,46 @@ export default function DashboardEtsyTrends() {
               <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Évolution</span>
             </div>
 
-            <div className="divide-y divide-white/5">
-              {trendSlice.map((item) => (
-                <div key={item.rank} className="grid grid-cols-[48px_1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
-                  <span className="text-white/40 text-sm font-mono">{item.rank}.</span>
-                  <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
-                  <div className="flex justify-end">
-                    <ChangeBadge change={item.change} />
-                  </div>
+            {/* Free: show first 10 + blurred lock overlay on rest */}
+            {isFreeUser ? (
+              <div className="relative">
+                <div className="divide-y divide-white/5">
+                  {TRENDING.slice(0, 10).map((item) => (
+                    <div key={item.rank} className="grid grid-cols-[48px_1fr_80px] px-5 py-3 items-center">
+                      <span className="text-white/40 text-sm font-mono">{item.rank}.</span>
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end"><ChangeBadge change={item.change} /></div>
+                    </div>
+                  ))}
+                  {/* Blurred rows preview */}
+                  {TRENDING.slice(10, 14).map((item) => (
+                    <div key={item.rank} className="grid grid-cols-[48px_1fr_80px] px-5 py-3 items-center blur-sm select-none pointer-events-none opacity-60">
+                      <span className="text-white/40 text-sm font-mono">{item.rank}.</span>
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end"><ChangeBadge change={item.change} /></div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            <Pagination
-              page={trendPage} total={trendTotal}
-              onPrev={() => setTrendPage(p => Math.max(1, p - 1))}
-              onNext={() => setTrendPage(p => Math.min(trendTotal, p + 1))}
-            />
+                <FreeLockBanner label={`+${TRENDING.length - 10} recherches supplémentaires`} />
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-white/5">
+                  {trendSlice.map((item) => (
+                    <div key={item.rank} className="grid grid-cols-[48px_1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
+                      <span className="text-white/40 text-sm font-mono">{item.rank}.</span>
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end"><ChangeBadge change={item.change} /></div>
+                    </div>
+                  ))}
+                </div>
+                <Pagination
+                  page={trendPage} total={trendTotal}
+                  onPrev={() => setTrendPage(p => Math.max(1, p - 1))}
+                  onNext={() => setTrendPage(p => Math.min(trendTotal, p + 1))}
+                />
+              </>
+            )}
           </motion.div>
 
           {/* ── Recherches Émergentes ── */}
@@ -391,25 +434,47 @@ export default function DashboardEtsyTrends() {
               <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Évolution</span>
             </div>
 
-            <div className="divide-y divide-white/5">
-              {breakSlice.map((item) => (
-                <div key={item.phrase} className="grid grid-cols-[1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
-                  <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
-                  <div className="flex justify-end">
-                    <span className="flex items-center gap-1 text-emerald-400 font-medium text-sm">
-                      <TrendingUp size={13} />
-                      <span>new</span>
-                    </span>
-                  </div>
+            {isFreeUser ? (
+              <div className="relative">
+                <div className="divide-y divide-white/5">
+                  {BREAKTHROUGH.slice(0, 10).map((item) => (
+                    <div key={item.phrase} className="grid grid-cols-[1fr_80px] px-5 py-3 items-center">
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end">
+                        <span className="flex items-center gap-1 text-emerald-400 font-medium text-sm"><TrendingUp size={13} /><span>new</span></span>
+                      </div>
+                    </div>
+                  ))}
+                  {BREAKTHROUGH.slice(10, 14).map((item) => (
+                    <div key={item.phrase} className="grid grid-cols-[1fr_80px] px-5 py-3 items-center blur-sm select-none pointer-events-none opacity-60">
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end">
+                        <span className="flex items-center gap-1 text-emerald-400 font-medium text-sm"><TrendingUp size={13} /><span>new</span></span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            <Pagination
-              page={breakPage} total={breakTotal}
-              onPrev={() => setBreakPage(p => Math.max(1, p - 1))}
-              onNext={() => setBreakPage(p => Math.min(breakTotal, p + 1))}
-            />
+                <FreeLockBanner label={`+${BREAKTHROUGH.length - 10} recherches supplémentaires`} />
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-white/5">
+                  {breakSlice.map((item) => (
+                    <div key={item.phrase} className="grid grid-cols-[1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
+                      <span className="text-white text-sm font-medium capitalize">{item.phrase}</span>
+                      <div className="flex justify-end">
+                        <span className="flex items-center gap-1 text-emerald-400 font-medium text-sm"><TrendingUp size={13} /><span>new</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Pagination
+                  page={breakPage} total={breakTotal}
+                  onPrev={() => setBreakPage(p => Math.max(1, p - 1))}
+                  onNext={() => setBreakPage(p => Math.min(breakTotal, p + 1))}
+                />
+              </>
+            )}
           </motion.div>
 
         </div>

@@ -90,6 +90,7 @@ import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompar
 import { DashboardComingSoonPanel } from '@/components/dashboard/DashboardComingSoonPanel';
 import DashboardNicheResearch from '@/components/dashboard/DashboardNicheResearch';
 import DashboardEtsyTrends from '@/components/dashboard/DashboardEtsyTrends';
+import { UpgradeGate } from '@/components/paywall/UpgradeGate';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -228,7 +229,7 @@ export default function DashboardPage() {
 
   // 🔒 Protection is handled by dashboard/layout.tsx
   // Only use useSubscription for data (quota display, credit checks, etc.)
-  const { subscription, loading: subscriptionLoading, hasActiveSubscription, refreshSubscription } = useSubscription();
+  const { subscription, loading: subscriptionLoading, hasActiveSubscription, isFreeUser, refreshSubscription } = useSubscription();
   
   // Cache pour éviter les rechargements inutiles
   const lastLoadTimeRef = useRef<number>(0);
@@ -2304,18 +2305,26 @@ The final image should look like a high-quality Etsy listing photo and naturally
             </div>
           )}
 
-          {activeSection === 'shop-name' && <DashboardShopNameIdeas />}
+          {activeSection === 'shop-name' && (
+            isFreeUser
+              ? <UpgradeGate title="Nom de boutique — Premium" description="La génération de noms de boutique est réservée aux abonnés payants." />
+              : <DashboardShopNameIdeas />
+          )}
 
           {activeSection === 'banner' && (
-            <DashboardBanner />
+            isFreeUser
+              ? <UpgradeGate title="Bannière — Premium" description="La création de bannière est réservée aux abonnés payants." />
+              : <DashboardBanner />
           )}
 
           {activeSection === 'logo' && (
-            <DashboardLogoGenerator />
+            isFreeUser
+              ? <UpgradeGate title="Logo — Premium" description="La création de logo est réservée aux abonnés payants." />
+              : <DashboardLogoGenerator />
           )}
 
           {activeSection === 'etsy-trends' && (
-            <DashboardEtsyTrends />
+            <DashboardEtsyTrends isFreeUser={isFreeUser} />
           )}
 
           {activeSection === 'top-etsy-sellers' && (
@@ -2323,7 +2332,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'niche-finder' && (
-            <DashboardNicheResearch />
+            <DashboardNicheResearch isFreeUser={isFreeUser} />
           )}
 
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
@@ -2365,7 +2374,9 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'shop-story' && (
-            <DashboardShopStory />
+            isFreeUser
+              ? <UpgradeGate title="Histoire de boutique — Premium" description="La rédaction de l'histoire de boutique est réservée aux abonnés payants." />
+              : <DashboardShopStory />
           )}
 
           {activeSection === 'settings' && user && (

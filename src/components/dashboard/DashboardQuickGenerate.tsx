@@ -96,7 +96,7 @@ const compressImageToBase64 = (file: File, maxWidth: number, maxHeight: number, 
 };
 
 export function DashboardQuickGenerate() {
-  const { refreshSubscription } = useSubscription();
+  const { refreshSubscription, isFreeUser } = useSubscription();
   // Clé unique pour la génération rapide dans sessionStorage
   const storageKey = 'etsmart-quick-generate-completed';
   
@@ -113,8 +113,10 @@ export function DashboardQuickGenerate() {
   /** Même logique que /lab-quick : le moteur choisi (Flash / Pro) pilote l’API et la facturation crédits. */
   const engineForApi: ImageEngine = engine;
   const billingEngine: ImageEngine = engineForApi;
-  const imagesOnlyCredits = imagesOnlyTotalCredits(quantity, billingEngine);
-  const quickGenerateCredits = quickGenerateTotalCredits(quantity, billingEngine);
+  // FREE users: 0 images, listing text only — fixed 1.25cr cost
+  const effectiveQuantity = isFreeUser ? 0 : quantity;
+  const imagesOnlyCredits = imagesOnlyTotalCredits(effectiveQuantity, billingEngine);
+  const quickGenerateCredits = isFreeUser ? 1.25 : quickGenerateTotalCredits(effectiveQuantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
@@ -384,6 +386,20 @@ export function DashboardQuickGenerate() {
 
       if (!listing) {
         setError('Impossible de générer le listing. Réessayez dans quelques instants.');
+        return;
+      }
+
+      // FREE users: listing text only, skip image generation
+      if (isFreeUser) {
+        setListingData(listing);
+        setHasGenerated(true);
+        setIsGenerating(false);
+        setQuickGenPhase(null);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, 'true');
+          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
+        }
+        refreshSubscription(true);
         return;
       }
 

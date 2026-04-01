@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Check quota first
     const quotaInfo = await getUserQuotaInfo(user.id);
 
-    if (quotaInfo.status !== 'active') {
+    if (quotaInfo.status !== 'active' && quotaInfo.status !== 'free') {
       return NextResponse.json({
         error: 'SUBSCRIPTION_REQUIRED',
         message: 'An active subscription is required.',

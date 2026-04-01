@@ -369,6 +369,9 @@ export function useSubscription() {
     : 0;
   const requiresUpgrade = subscription?.requiresUpgrade;
 
+  // FREE plan: logged in but no paid subscription
+  const isFreeUser = !loading && subscription?.plan === 'FREE' && !hasActiveSubscription;
+
   // Expose refresh function for manual sync
   const refreshSubscription = useCallback((forceSync = true) => {
     return fetchSubscription(forceSync);
@@ -383,6 +386,7 @@ export function useSubscription() {
     canAnalyze,
     quotaPercentage,
     requiresUpgrade,
+    isFreeUser,
     refreshSubscription,
   };
 }

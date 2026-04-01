@@ -68,16 +68,31 @@ export async function incrementAnalysisCount(userId: string, amount: number = 0.
       periodEnd,
     });
     
-    // Check if subscription is active
+    // Check if subscription is active — FREE plan gets a special lifetime quota
     if (subscriptionStatus !== 'active') {
-      console.log(`[incrementAnalysisCount] Subscription not active: ${subscriptionStatus}`);
-      return {
-        success: false,
-        used: analysisUsed,
-        quota: analysisQuota || 0,
-        remaining: 0,
-        error: `Subscription is not active (status: ${subscriptionStatus})`,
-      };
+      if (subscriptionPlan !== 'FREE') {
+        console.log(`[incrementAnalysisCount] Subscription not active: ${subscriptionStatus}`);
+        return {
+          success: false,
+          used: analysisUsed,
+          quota: analysisQuota || 0,
+          remaining: 0,
+          error: `Subscription is not active (status: ${subscriptionStatus})`,
+        };
+      }
+      // FREE plan: allow up to PLAN_QUOTAS['FREE'] credits lifetime
+      const freeQuota = PLAN_QUOTAS['FREE']; // 2.5
+      if (analysisUsed >= freeQuota) {
+        console.log(`[incrementAnalysisCount] FREE quota exhausted: ${analysisUsed}/${freeQuota}`);
+        return {
+          success: false,
+          used: analysisUsed,
+          quota: freeQuota,
+          remaining: 0,
+          error: 'Free quota exceeded. Upgrade to continue.',
+        };
+      }
+      console.log(`[incrementAnalysisCount] FREE plan allowed: ${analysisUsed}/${freeQuota}`);
     }
     
     // Check if period has expired (reset needed)
@@ -529,13 +544,18 @@ export async function getUserQuotaInfo(userId: string): Promise<{
       }
     }
     
-    // No active subscription found
+    // No active subscription found — return FREE tier info with actual usage
+    const freePlan: PlanId = (subscriptionPlan as PlanId) || 'FREE';
+    const freeQuota = PLAN_QUOTAS['FREE']; // 2.5
+    const rawFreeUsed = user?.analysis_used_this_month;
+    const freeUsed = typeof rawFreeUsed === 'number' ? rawFreeUsed : parseFloat(String(rawFreeUsed ?? 0));
+    const freeUsedNum = isNaN(freeUsed) ? 0 : freeUsed;
     return {
-      plan: 'FREE',
-      status: 'inactive',
-      used: 0,
-      quota: 0,
-      remaining: 0,
+      plan: freePlan,
+      status: 'free',
+      used: freeUsedNum,
+      quota: freeQuota,
+      remaining: Math.max(0, freeQuota - freeUsedNum),
       periodStart: null,
       periodEnd: null,
     };
@@ -543,10 +563,10 @@ export async function getUserQuotaInfo(userId: string): Promise<{
     console.error('Error getting user quota info:', error);
     return {
       plan: 'FREE',
-      status: 'inactive',
+      status: 'free',
       used: 0,
-      quota: 0,
-      remaining: 0,
+      quota: PLAN_QUOTAS['FREE'],
+      remaining: PLAN_QUOTAS['FREE'],
       periodStart: null,
       periodEnd: null,
     };

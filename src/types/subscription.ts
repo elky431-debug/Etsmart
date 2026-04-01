@@ -62,7 +62,7 @@ export interface PlanFeature {
 // Plan quotas per plan type (as per requirements)
 // -1 means unlimited
 export const PLAN_QUOTAS: Record<PlanId, number> = {
-  FREE: 0,
+  FREE: 2.5, // 1 quick-gen text (1.25cr) + 1 listing text (1.25cr) — lifetime, never resets
   SMART: 80,
   PRO: 250,
   SCALE: 400,
