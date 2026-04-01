@@ -103,28 +103,19 @@ async function fetchPexelsPortrait(params: {
   const key = process.env.PEXELS_API_KEY;
   if (!key) return null;
 
-  const { gender, shopTone, productTypes, nicheSummary } = params;
-  const niche = (nicheSummary + ' ' + productTypes.join(' ')).toLowerCase();
+  const { gender, shopTone } = params;
 
-  // Build a targeted search query
-  let styleHint = '';
-  if (/fantasy|dark|gothic|mystical|magical|enchant|dragon|anime|gaming/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful woman dark fantasy aesthetic' : 'man dark fantasy aesthetic';
-  } else if (/wood|craft|workshop|carv|handmade|artisan/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful woman artisan workshop' : 'man craftsman workshop';
-  } else if (/jewel|luxury|gold|silver|premium|elegant/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful elegant woman jewelry' : 'elegant man luxury';
-  } else if (/candle|wax|home decor|lamp|light/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful woman cozy home candles' : 'man cozy home studio';
-  } else if (/flower|floral|botanical|pastel|vintage/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful woman flowers pastel studio' : 'man botanical studio';
-  } else if (/print|poster|art|digital|illustration/i.test(niche)) {
-    styleHint = gender === 'female' ? 'beautiful woman artist studio' : 'man artist studio';
-  } else if (shopTone === 'luxury_professional') {
-    styleHint = gender === 'female' ? 'beautiful professional woman business portrait' : 'professional man business portrait';
-  } else {
-    styleHint = gender === 'female' ? 'beautiful woman entrepreneur portrait' : 'man entrepreneur portrait';
-  }
+  // Always use real selfie/portrait photos — never artwork or illustrations
+  // "person portrait selfie" anchors results to real human photos
+  const base = gender === 'female'
+    ? (shopTone === 'luxury_professional'
+        ? 'beautiful woman selfie portrait professional smiling'
+        : 'beautiful young woman selfie portrait smiling')
+    : (shopTone === 'luxury_professional'
+        ? 'man portrait professional smiling'
+        : 'young man selfie portrait smiling');
+
+  const styleHint = base;
 
   try {
     const query = encodeURIComponent(styleHint);
