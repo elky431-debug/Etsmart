@@ -388,20 +388,6 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // FREE users: listing text only, skip image generation
-      if (isFreeUser) {
-        setListingData(listing);
-        setHasGenerated(true);
-        setIsGenerating(false);
-        setQuickGenPhase(null);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, 'true');
-          sessionStorage.setItem(`${storageKey}-listing`, JSON.stringify(listing));
-        }
-        refreshSubscription(true);
-        return;
-      }
-
       // 2) Images : requêtes chunked (1 image / requête) pour éviter les timeouts en lot.
       const imagePayload = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
       const imageBase = {
