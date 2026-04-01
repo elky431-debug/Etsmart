@@ -111,7 +111,7 @@ interface NicheResult {
   keyword: string;
   competitionCount: number | null;   // Etsy listing count via Google site:
   competitionScore: number;
-  searchVolume: number | null;       // Monthly Google searches
+  trendsScore: number | null;        // Google Trends interest 0-100
   demandScore: number;
   opportunityScore: number;
   error?: boolean;
@@ -489,8 +489,8 @@ export default function DashboardNicheResearch() {
                             </div>
                             <span className={`text-xs font-semibold w-7 text-right ${demColor!.text}`}>{r.demandScore}</span>
                           </div>
-                          {r.searchVolume !== null && (
-                            <span className="text-[10px] text-white/30 mt-0.5 block">{formatVolume(r.searchVolume)}</span>
+                          {r.trendsScore !== null && (
+                            <span className="text-[10px] text-white/30 mt-0.5 block">Trends: {r.trendsScore}/100</span>
                           )}
                         </div>
                       )}
@@ -556,7 +556,7 @@ export default function DashboardNicheResearch() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" />Score élevé = favorable</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" />Score moyen = prudence</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />Score faible = défavorable</span>
-          <span>Demande = volume recherche Google mensuel · Concurrence = listings Etsy indexés · Sources : DataForSEO</span>
+          <span>Demande = Google Trends (intérêt 0-100) · Concurrence = listings Etsy indexés par Google · Sources : Google CSE + Trends</span>
         </div>
       </div>
     </div>
