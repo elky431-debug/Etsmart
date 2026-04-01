@@ -63,7 +63,7 @@ const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédit
 
 /**
  * Maintenance **dashboard uniquement** (`/dashboard` → Génération rapide), opt-in.
- * Par défaut : flux complet actif. Pour remettre l’écran maintenance : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=true`.
+ * Par défaut : flux complet actif. Pour remettre l'écran maintenance : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=true`.
  */
 const DASHBOARD_QUICK_GENERATE_MAINTENANCE =
   process.env.NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE === 'true';
@@ -111,7 +111,7 @@ export function DashboardQuickGenerate() {
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   const [listingKeywordHints, setListingKeywordHints] = useState('');
-  /** Même logique que /lab-quick : le moteur choisi (Flash / Pro) pilote l’API et la facturation crédits. */
+  /** Même logique que /lab-quick : le moteur choisi (Flash / Pro) pilote l'API et la facturation crédits. */
   const engineForApi: ImageEngine = engine;
   const billingEngine: ImageEngine = engineForApi;
   // FREE users: 0 images, listing text only — fixed 1.25cr cost
@@ -134,7 +134,7 @@ export function DashboardQuickGenerate() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
   const [pendingImagesCount, setPendingImagesCount] = useState(0);
-  /** listing | images — pour l’overlay de chargement */
+  /** listing | images — pour l'overlay de chargement */
   const [quickGenPhase, setQuickGenPhase] = useState<'listing' | 'images' | null>(null);
 
   // Éviter QuotaExceeded : ne pas sauver les images en base64 (trop lourd) dans sessionStorage
@@ -502,7 +502,7 @@ export function DashboardQuickGenerate() {
         try {
           imageBase64 = await compressImageToBase64(sourceImage, 480, 480, 0.52);
         } catch (e) {
-          setError('Impossible de lire l’image. Réimporte une photo.');
+          setError('Impossible de lire l'image. Réimporte une photo.');
           setIsRegeneratingImages(false);
           return;
         }
@@ -768,7 +768,7 @@ export function DashboardQuickGenerate() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Génération rapide</h1>
             <p className="text-white/60 text-sm sm:text-base max-w-xl">
-              Générez le listing et les images en une seule fois à partir d’un seul screenshot produit.
+              Générez le listing et les images en une seule fois à partir d'un seul screenshot produit.
             </p>
           </div>
         </div>
@@ -935,10 +935,10 @@ export function DashboardQuickGenerate() {
 
                 {/* Image controls — locked for free users */}
                 <div className="relative">
-                  <div className={isFreeUser ? ‘opacity-30 pointer-events-none select-none’ : ‘’}>
+                  <div className={isFreeUser ? 'opacity-30 pointer-events-none select-none' : ''}>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-3">
-                    Quantité d’images
+                    Quantité d'images
                   </label>
                   <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
                     {[1, 2, 5, 7].map((qty) => (
@@ -947,8 +947,8 @@ export function DashboardQuickGenerate() {
                         onClick={() => setQuantity(qty)}
                         className={`min-w-0 flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                           quantity === qty
-                            ? ‘bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25’
-                            : ‘bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white’
+                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
+                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
                         }`}
                       >
                         {qty}
@@ -956,7 +956,7 @@ export function DashboardQuickGenerate() {
                     ))}
                   </div>
                   <p className="mt-2 text-[10px] text-white/45">
-                    Plusieurs images : sur le site (prod), une image à la fois pour éviter les blocages Gemini ; en local, jusqu’à 2–3 en parallèle. Environ 25–60 s par image selon le moteur.
+                    Plusieurs images : sur le site (prod), une image à la fois pour éviter les blocages Gemini ; en local, jusqu'à 2–3 en parallèle. Environ 25–60 s par image selon le moteur.
                   </p>
                 </div>
 
@@ -1107,12 +1107,12 @@ export function DashboardQuickGenerate() {
               </p>
               <p className="text-sm text-white/70 mt-2 max-w-md text-center">
                 {quickGenPhase === 'images'
-                  ? 'Les visuels sont générés un par un sur le site pour rester stable avec Gemini (plus long, moins d’échecs).'
+                  ? 'Les visuels sont générés un par un sur le site pour rester stable avec Gemini (plus long, moins d'échecs).'
                   : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels.'}
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
                 <p className="text-xs text-[#00d4ff]/80 mt-3">
-                  Jusqu’à {quantity} image{quantity > 1 ? 's' : ''} —{' '}
+                  Jusqu'à {quantity} image{quantity > 1 ? 's' : ''} —{' '}
                   {engine === 'pro'
                     ? 'avec Pro, prévois environ 2–3 min sur le site.'
                     : 'avec Flash, souvent ~1–2 min.'}
@@ -1268,7 +1268,7 @@ export function DashboardQuickGenerate() {
                   <p className="text-sm text-white/70 mb-4">Le listing est prêt. Génère les images pour compléter.</p>
                   {!sourceImagePreview ? (
                     <>
-                      <p className="text-sm text-amber-400/90 mb-4">L’image produit n’est plus disponible (page rechargée). Importe à nouveau une photo du produit ci-dessus pour débloquer le bouton.</p>
+                      <p className="text-sm text-amber-400/90 mb-4">L'image produit n'est plus disponible (page rechargée). Importe à nouveau une photo du produit ci-dessus pour débloquer le bouton.</p>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -1320,7 +1320,7 @@ export function DashboardQuickGenerate() {
                   {pendingImagesCount > 0 && (
                     <p className="text-sm text-[#00d4ff] mb-4 flex items-center gap-2">
                       <Loader2 size={14} className="animate-spin" />
-                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} en cours de génération… (jusqu’à ~90 s)
+                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} en cours de génération… (jusqu'à ~90 s)
                     </p>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
