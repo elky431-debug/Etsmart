@@ -182,12 +182,13 @@ export async function POST(request: NextRequest) {
     const themeContext = `${shopName} ${listingTitle} ${description}`.toLowerCase();
 
     // Niche detection — ordre important : les niches spécifiques avant les génériques
-    const isAnimeGaming = /(anime|manga|gaming|gamer|glow|neon|dragon|naruto|pokemon|zelda|fantasy|sci.?fi|cyber|pixel|figurine|figure|diorama|led|rgb|night.?light|veilleuse|fantasy lamp|resin lamp)/i.test(themeContext);
-    const isBookNiche   = /(book|nook|library|story|storynook|reading|literature|miniature diorama|shelf|bibliothèque)/i.test(themeContext);
-    const isWoodCraft   = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(themeContext);
-    const isPastelNiche = /(baby|wedding|floral|soft|minimal)/i.test(themeContext);
-    // Lamp niche seulement si PAS anime/gaming (lampAnime → anime prime sur lamp)
-    const isLampNiche   = !isAnimeGaming && /(lamp|lampe|lighting|luminaire|light)/i.test(themeContext);
+    const isAnimeGaming  = /(anime|manga|gaming|gamer|glow|neon|dragon|naruto|pokemon|zelda|fantasy|sci.?fi|cyber|pixel|figurine|figure|diorama|led|rgb|night.?light|veilleuse|fantasy lamp|resin lamp)/i.test(themeContext);
+    const isBookNiche    = /(book|nook|library|story|storynook|reading|literature|miniature diorama|bibliothèque)/i.test(themeContext);
+    const isWoodCraft    = /(wood|bois|oak|walnut|cedar|handmade decor)/i.test(themeContext);
+    const isPastelNiche  = /(baby|wedding|floral|soft|minimal)/i.test(themeContext);
+    const isDecorFurni   = /(shelf|shelves|corner shelf|bookshelf|étagère|cabinet|dresser|furniture|meuble|table|desk|bureau|nightstand|chevet|sideboard|console|bench|stool|tabouret|rack|organizer|storage|chair|fauteuil|sofa|canape|décoration|decor|decoration|home decor|wall decor|interior)/i.test(themeContext);
+    // Lamp niche seulement si PAS anime/gaming
+    const isLampNiche    = !isAnimeGaming && /(lamp|lampe|lighting|luminaire|light)/i.test(themeContext);
 
     let paletteInstruction: string;
     let backgroundInstruction: string;
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
       paletteInstruction =
         'Use a DARK, RICH palette: deep black or very dark navy background, with vivid accent colors that match the products — glowing oranges, electric blues, neon purples, fiery reds, or vibrant teals. High contrast, dramatic, cinematic. Think movie poster or gaming setup aesthetics. NO beige, NO cream, NO plain white.';
       backgroundInstruction =
-        'Background: DARK and ATMOSPHERIC — deep shadows, dramatic cinematic lighting, volumetric light rays or glowing haze emanating from the products. The scene should feel like a darkened room lit only by the glowing lamps/items. Think: dark wooden shelf, moody night scene, subtle smoke or particles in the air, deep bokeh. The products must GLOW and POP against the dark background. NOT a bright studio, NOT beige, NOT plain.';
+        'Background: DARK and ATMOSPHERIC — deep shadows, dramatic cinematic lighting, volumetric light rays or glowing haze emanating from the products. The scene should feel like a darkened room lit only by the glowing items. Think: dark wooden shelf, moody night scene, subtle smoke or particles in the air, deep bokeh. The products must GLOW and POP against the dark background. NOT a bright studio, NOT beige, NOT plain.';
     } else if (isBookNiche) {
       paletteInstruction =
         'Use warm literary tones: deep cream, antique paper, warm wood browns, soft golden highlights, muted burgundy or forest green accents.';
@@ -217,11 +218,16 @@ export async function POST(request: NextRequest) {
         'Use a warm beige palette: light beige, cream, sand, warm taupe, soft golden highlights. The lamps must emit visible warm golden light that fills the scene.';
       backgroundInstruction =
         'Background: warm cozy interior — the SUSPENSION LAMPS are the clear HERO of the image, hanging prominently and lit up, emitting beautiful warm golden light. Multiple lamps filling the scene from left to right. Soft shadows, bokeh background, high-end interior photography feel. The lamps must be large, close-up, and visually dominant — NOT tiny or in the distance.';
+    } else if (isDecorFurni) {
+      paletteInstruction =
+        'Use a refined interior palette: warm off-white, soft linen, warm taupe, muted sage or dusty warm tones. Clean, editorial, premium Scandinavian or contemporary feel.';
+      backgroundInstruction =
+        'Background: high-end interior photography — the EXACT PRODUCT shown in the reference is the ABSOLUTE HERO, photographed up close and large so its shape, design and details are crystal-clear. Think: interior design magazine spread, product placed prominently in a real styled room. The product must occupy at least 60-70% of the image height and be fully visible, sharp, and undeniably the subject. Soft bokeh in the background, beautiful natural light from the side. NOT a tiny object lost in a wide room shot — close-up, prominent, impressive.';
     } else {
       paletteInstruction =
-        'Use a tasteful palette that matches the product niche. Prefer rich, atmospheric tones over plain neutrals.';
+        'Use a tasteful palette that perfectly matches the product niche. Prefer rich, atmospheric tones over plain neutrals.';
       backgroundInstruction =
-        'Background: immersive lifestyle setting that visually echoes the product — warm, atmospheric, with real depth. Not sterile or plain.';
+        'Background: immersive lifestyle setting — the PRODUCT is the clear visual hero, close-up and large, surrounded by a fitting atmospheric setting. Warm, editorial, with real depth. Not sterile or plain.';
     }
 
     // On demande à Gemini UN FOND SANS TEXTE — le shop name sera composité par Sharp en typo parfaite
@@ -232,20 +238,29 @@ export async function POST(request: NextRequest) {
 • Full-bleed edge-to-edge. No borders, no margins, no letterboxing.
 • Single cohesive scene — NOT a collage, NOT a grid, NOT multiple panels.
 
-━━━ VISUAL CONTENT ━━━
+━━━ THE PRODUCT IS KING ━━━
+${hasReferenceImage
+  ? `• A reference product image IS PROVIDED. This is the EXACT product to feature. You MUST reproduce its precise shape, structure, colors, material and design faithfully. The product in the banner MUST be instantly recognizable as the same item from the reference image. Do NOT substitute it with a generic version.`
+  : `• No reference image provided — create the most visually striking, accurate version of: "${listingTitle}".`
+}
+• The product must be LARGE, DOMINANT, and CLOSE-UP — occupying significant visual real estate across the banner width. It is NOT a background prop, NOT a tiny accent, NOT lost inside a wide room. It is THE SUBJECT.
+• Show 1 to 3 instances of the product naturally arranged from left to right across the banner — all clearly visible and well-lit.
+
+━━━ SCENE & ATMOSPHERE ━━━
 • ${backgroundInstruction}
 • ${paletteInstruction}
-• The PRODUCTS matching "${listingTitle}" are the MAIN SUBJECT — they must be LARGE, PROMINENT, and clearly visible. Not background props, not tiny accents — the products fill the scene.
-${hasReferenceImage ? '• A reference product image is provided — reproduce its exact style, shape, colors and subject. The products shown MUST closely match the reference.' : '• No reference provided — generate the most visually appealing version of this product type.'}
-• Composition: products arranged across the full width of the banner — LEFT side, CENTER zone, and RIGHT side all feel balanced and filled with the actual products.
-• The CENTER ZONE (roughly the middle 35% of the width) should be slightly less visually busy — a soft background area where overlaid text will be readable. Think of it as a "clearing" in the composition: still part of the scene, but not crowded with objects.
-• Lighting: cinematic and atmospheric — directional soft light, shallow depth of field (bokeh), warm or cool tones depending on niche. NOT flat white studio.
-• Depth layers: foreground soft elements, midground hero products, atmospheric background. Editorial lifestyle feel.
+• Lighting: cinematic and directional — soft natural or studio-quality light that highlights the product's form, texture and details. Shallow depth of field (bokeh background). NOT flat, NOT overexposed.
+• Depth: slight foreground element, hero product in midground fully in focus, soft atmospheric bokeh behind. Editorial lifestyle photography feel.
+
+━━━ COMPOSITION ━━━
+• The product fills the frame generously — it should feel close, tangible, impressive.
+• Left third, center, and right third all have product presence so the panoramic banner reads well.
+• The very center of the image (middle 20% width) can be slightly less busy to allow for text overlay readability, but the product must still be present and visible there — do NOT create an empty gap.
 
 ━━━ ABSOLUTE RULES ━━━
-• ZERO TEXT in the image. No letters, no numbers, no words anywhere. The shop name will be added as a separate typographic layer.
-• No watermarks, no UI chrome, no lorem ipsum.
-• No white backgrounds or plain colored backgrounds — always a real atmospheric setting.
+• ZERO TEXT, ZERO LETTERS, ZERO NUMBERS anywhere in the image.
+• No watermarks, no UI chrome, no lorem ipsum, no price tags.
+• No plain white or plain solid-color backgrounds — always a real atmospheric setting.
 ${
       modelPreference === 'pro'
         ? '• QUALITY: maximum render — rich textures, cinematic lighting, fine details, magazine editorial level.'
