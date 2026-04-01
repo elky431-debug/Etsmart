@@ -87,22 +87,38 @@ export function DashboardLogoGenerator({
       const token = session?.access_token;
       if (!token) throw new Error('Authentification requise');
 
-      const res = await fetch('/api/generate-logo', {
+      // Step 1 — Brief (~6-8s)
+      const briefRes = await fetch('/api/generate-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ shopImage: shopImageDataUrl, productImage: productImageDataUrl }),
+      });
+      let briefRaw = '';
+      let briefData: unknown = null;
+      try { briefRaw = await briefRes.text(); briefData = briefRaw ? JSON.parse(briefRaw) : null; } catch { briefData = null; }
+      if (!briefRes.ok) throw new Error(formatLogoApiError(briefRaw, briefData));
+      const brief = briefData as { imagePrompt?: string; bgR?: number; bgG?: number; bgB?: number } | null;
+      if (!brief?.imagePrompt) throw new Error(formatLogoApiError(briefRaw, briefData));
+
+      // Step 2 — Image generation (~18-20s)
+      const imgRes = await fetch('/api/generate-logo-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          shopImage: shopImageDataUrl,
-          productImage: productImageDataUrl,
+          imagePrompt: brief.imagePrompt,
+          bgR: brief.bgR,
+          bgG: brief.bgG,
+          bgB: brief.bgB,
           shopName: shopName.trim(),
           withName,
         }),
       });
-      let data: unknown = null;
-      let rawText = '';
-      try { rawText = await res.text(); data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
-      if (!res.ok) throw new Error(formatLogoApiError(rawText, data));
-      const ok = data as { imageDataUrl?: string } | null;
-      if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(rawText, data));
+      let imgRaw = '';
+      let imgData: unknown = null;
+      try { imgRaw = await imgRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
+      if (!imgRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
+      const ok = imgData as { imageDataUrl?: string } | null;
+      if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(imgRaw, imgData));
       setLogoUrl(ok.imageDataUrl);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur lors de la génération du logo');
