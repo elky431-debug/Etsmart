@@ -19,8 +19,8 @@ async function compositeShopName(logoBuf: Buffer, shopName: string): Promise<Buf
   const textY = 1024 - Math.round(barH * 0.28);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
   <rect x="0" y="${1024 - barH}" width="1024" height="${barH}" fill="#000000" fill-opacity="0.60"/>
-  <text x="513" y="${textY + 2}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#000000" fill-opacity="0.6" letter-spacing="2">${name}</text>
-  <text x="512" y="${textY}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" letter-spacing="2">${name}</text>
+  <text x="513" y="${textY + 2}" text-anchor="middle" font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700" fill="#000000" fill-opacity="0.6" letter-spacing="2">${name}</text>
+  <text x="512" y="${textY}" text-anchor="middle" font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" letter-spacing="2">${name}</text>
 </svg>`;
   return sharp(logoBuf).composite([{ input: Buffer.from(svg), blend: 'over' }]).png({ quality: 92 }).toBuffer();
 }

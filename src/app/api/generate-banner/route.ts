@@ -349,7 +349,7 @@ ${
 
   ${isAnimeGaming ? `<!-- Glow lumineux pour anime/gaming -->
   <text x="600" y="${textY}" text-anchor="middle" dominant-baseline="middle"
-    font-family="Georgia, serif" font-size="${fontSize}" font-weight="700"
+    font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
     fill="rgba(180,230,255,0.4)" letter-spacing="${tracking}"
     filter="url(#glow)">${safeName}</text>` : ''}
 
@@ -358,7 +358,7 @@ ${
     x="600" y="${textY}"
     text-anchor="middle"
     dominant-baseline="middle"
-    font-family="Georgia, 'Palatino Linotype', serif"
+    font-family="Arial, Liberation Sans, sans-serif"
     font-size="${fontSize}"
     font-weight="700"
     fill="${textColor}"
