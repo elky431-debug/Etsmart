@@ -534,10 +534,19 @@ export function DashboardShopStory() {
               <User className="w-4 h-4 text-[#00d4ff]" />
               Personnage
             </h2>
-            <div className="rounded-lg overflow-hidden border border-white/10 bg-black/40 h-48 flex items-center justify-center mb-3">
+            <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/40 h-48 flex items-center justify-center mb-3 group">
               {characterImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={characterImage} alt={characterName || 'Portrait personnage'} className="w-full h-full object-cover" />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={characterImage} alt={characterName || 'Portrait personnage'} className="w-full h-full object-cover" />
+                  <a
+                    href={characterImage}
+                    download={`portrait-${(characterName || 'personnage').replace(/\s+/g, '-').toLowerCase()}.png`}
+                    className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 hover:bg-[#00d4ff]/80 text-white text-[11px] px-2 py-1 rounded-md flex items-center gap-1"
+                  >
+                    ↓ Télécharger
+                  </a>
+                </>
               ) : (
                 <p className="text-white/40 text-xs px-3 text-center">Le portrait généré apparaîtra ici.</p>
               )}
