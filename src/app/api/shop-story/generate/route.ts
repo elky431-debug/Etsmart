@@ -88,6 +88,73 @@ function buildInlineAvatarDataUrl(name: string, role: string): string {
 }
 
 type ShopTone = 'luxury_professional' | 'chill_small';
+type Gender = 'female' | 'male';
+
+/**
+ * Fetch a realistic portrait from Pexels matching the character profile.
+ * Female founders: search for attractive/beautiful women (better Etsy engagement).
+ */
+async function fetchPexelsPortrait(params: {
+  gender: Gender;
+  shopTone: ShopTone;
+  productTypes: string[];
+  nicheSummary: string;
+}): Promise<string | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+
+  const { gender, shopTone, productTypes, nicheSummary } = params;
+  const niche = (nicheSummary + ' ' + productTypes.join(' ')).toLowerCase();
+
+  // Build a targeted search query
+  let styleHint = '';
+  if (/fantasy|dark|gothic|mystical|magical|enchant|dragon|anime|gaming/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful woman dark fantasy aesthetic' : 'man dark fantasy aesthetic';
+  } else if (/wood|craft|workshop|carv|handmade|artisan/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful woman artisan workshop' : 'man craftsman workshop';
+  } else if (/jewel|luxury|gold|silver|premium|elegant/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful elegant woman jewelry' : 'elegant man luxury';
+  } else if (/candle|wax|home decor|lamp|light/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful woman cozy home candles' : 'man cozy home studio';
+  } else if (/flower|floral|botanical|pastel|vintage/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful woman flowers pastel studio' : 'man botanical studio';
+  } else if (/print|poster|art|digital|illustration/i.test(niche)) {
+    styleHint = gender === 'female' ? 'beautiful woman artist studio' : 'man artist studio';
+  } else if (shopTone === 'luxury_professional') {
+    styleHint = gender === 'female' ? 'beautiful professional woman business portrait' : 'professional man business portrait';
+  } else {
+    styleHint = gender === 'female' ? 'beautiful woman entrepreneur portrait' : 'man entrepreneur portrait';
+  }
+
+  try {
+    const query = encodeURIComponent(styleHint);
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${query}&per_page=15&orientation=square`,
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(8_000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { photos?: Array<{ src: { large: string; medium: string } }> };
+    const photos = data.photos || [];
+    if (photos.length === 0) return null;
+
+    // Pick a random photo from the top results for variety
+    const pick = photos[Math.floor(Math.random() * Math.min(photos.length, 8))];
+    const imgUrl = pick.src.large || pick.src.medium;
+
+    const imgRes = await fetch(imgUrl, { signal: AbortSignal.timeout(10_000) });
+    if (!imgRes.ok) return null;
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+
+    const png = await sharp(buf)
+      .resize(1024, 1024, { fit: 'cover', position: 'attention' })
+      .png({ quality: 90 })
+      .toBuffer();
+    return `data:image/png;base64,${png.toString('base64')}`;
+  } catch (e) {
+    console.warn('[shop-story] Pexels portrait fetch failed:', e);
+    return null;
+  }
+}
 
 async function bufferFromOpenAiImageData(data: {
   b64_json?: string | null;
@@ -396,6 +463,7 @@ Output ONLY valid JSON with ALL of these keys:
   "shopStory": "120-220 words in English — why they started the shop, passion, mission; premium human tone",
   "character": {
     "name": "Realistic FirstName LastName plausible for ${country}",
+    "gender": "female" or "male",
     "role": "short role/title",
     "personaSummary": "one sentence",
     "biography": "90-170 words in English, FIRST PERSON (I, my, me)",
@@ -434,6 +502,7 @@ Rules:
       shopStory?: string;
       character?: {
         name?: string;
+        gender?: string;
         role?: string;
         personaSummary?: string;
         biography?: string;
@@ -509,18 +578,27 @@ Rules:
     const characterName = String(parsed.character?.name || 'Etsy Creator');
     const characterRole = String(parsed.character?.role || 'Artisan / Creator');
     const characterSummary = String(parsed.character?.personaSummary || '');
+    const characterGender: Gender =
+      String(parsed.character?.gender || '').toLowerCase() === 'male' ? 'male' : 'female';
 
     const rewritePromise =
       firstPersonScore(biography) < 2
         ? rewriteBiographyToFirstPerson(biography)
         : Promise.resolve(biography);
 
-    biography = await rewritePromise;
+    // Fetch Pexels portrait in parallel with biography rewrite (fast API call, ~2-4s)
+    const pexelsPromise = fetchPexelsPortrait({
+      gender: characterGender,
+      shopTone,
+      productTypes,
+      nicheSummary: String(vision.nicheSummary || ''),
+    });
 
-    // Portrait génération omise du flux principal pour rester sous le timeout Netlify (26s).
-    // On utilise toujours l'avatar SVG inline ; le portrait peut être généré séparément si besoin.
-    const imageDataUrl = buildInlineAvatarDataUrl(characterName, characterRole);
-    const imageSource: 'openai-portrait' | 'inline-svg' = 'inline-svg';
+    const [biographyFinal, pexelsPortrait] = await Promise.all([rewritePromise, pexelsPromise]);
+    biography = biographyFinal;
+
+    const imageDataUrl = pexelsPortrait || buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageSource: 'pexels-portrait' | 'inline-svg' = pexelsPortrait ? 'pexels-portrait' : 'inline-svg';
 
     const deduct = await incrementAnalysisCount(user.id, SHOP_STORY_CREDITS);
     if (!deduct.success) {
