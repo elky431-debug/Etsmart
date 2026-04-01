@@ -232,14 +232,30 @@ export default function DashboardNicheResearch() {
   }, [token]);
 
   // Load all niches once token is available
+  // Stagger batches in groups of 3 to avoid ZenRows rate limits
+  const launchBatches = useCallback((keywords: string[], forceRefresh = false) => {
+    const BATCH = 6;
+    const PARALLEL = 3; // how many batches to send simultaneously
+    const batches: string[][] = [];
+    for (let i = 0; i < keywords.length; i += BATCH) batches.push(keywords.slice(i, i + BATCH));
+
+    let wave = 0;
+    function sendWave() {
+      const slice = batches.slice(wave * PARALLEL, (wave + 1) * PARALLEL);
+      if (!slice.length) return;
+      slice.forEach(b => fetchBatch(b, forceRefresh));
+      wave++;
+      if (wave * PARALLEL < batches.length) {
+        setTimeout(sendWave, 3000); // stagger next wave by 3s
+      }
+    }
+    sendWave();
+  }, [fetchBatch]);
+
   useEffect(() => {
     if (!token) return;
     abortRef.current = new AbortController();
-    const keywords = NICHES.map(n => n.keyword);
-    const BATCH = 8;
-    const batches: string[][] = [];
-    for (let i = 0; i < keywords.length; i += BATCH) batches.push(keywords.slice(i, i + BATCH));
-    batches.forEach(batch => fetchBatch(batch));
+    launchBatches(NICHES.map(n => n.keyword));
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -248,11 +264,7 @@ export default function DashboardNicheResearch() {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     setResults({});
-    const keywords = allNiches.map(n => n.keyword);
-    const BATCH = 8;
-    const batches: string[][] = [];
-    for (let i = 0; i < keywords.length; i += BATCH) batches.push(keywords.slice(i, i + BATCH));
-    batches.forEach(batch => fetchBatch(batch, true));
+    launchBatches(allNiches.map(n => n.keyword), true);
   };
 
   const handleAddCustom = () => {
