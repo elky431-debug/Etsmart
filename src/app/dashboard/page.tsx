@@ -89,6 +89,7 @@ import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompeti
 import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompare';
 import { DashboardComingSoonPanel } from '@/components/dashboard/DashboardComingSoonPanel';
 import DashboardNicheResearch from '@/components/dashboard/DashboardNicheResearch';
+import DashboardEtsyTrends from '@/components/dashboard/DashboardEtsyTrends';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
   | 'dashboard-home'
@@ -2314,7 +2315,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'etsy-trends' && (
-            <EtsyTrendsSection />
+            <DashboardEtsyTrends />
           )}
 
           {activeSection === 'top-etsy-sellers' && (
