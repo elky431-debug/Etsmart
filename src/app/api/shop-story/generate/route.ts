@@ -91,31 +91,67 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch a realistic portrait from randomuser.me — free, no API key, always young/clean portraits.
- * Gender-filtered, returns a different person each call.
+ * Fetch an AI-generated portrait from generated.photos.
+ * Always young (young_adult), gender-filtered, photorealistic, no real person.
+ * Free tier: 10,000 calls/month. API key required (free at generated.photos).
+ * Falls back to randomuser.me if key not set.
  */
-async function fetchRandomUserPortrait(gender: Gender): Promise<string | null> {
+async function fetchGeneratedPortrait(gender: Gender): Promise<string | null> {
+  const key = process.env.GENERATED_PHOTOS_API_KEY;
+
+  // Primary: generated.photos (AI faces, always attractive young adults)
+  if (key) {
+    try {
+      const genderParam = gender === 'female' ? 'female' : 'male';
+      const res = await fetch(
+        `https://api.generated.photos/api/v1/faces?per_page=10&gender[]=${genderParam}&age[]=young_adult&order_by=random`,
+        { headers: { Authorization: `API-Key ${key}` }, signal: AbortSignal.timeout(8_000) }
+      );
+      if (res.ok) {
+        const data = await res.json() as { faces?: Array<{ urls: { [key: string]: string } }> };
+        const faces = data.faces || [];
+        if (faces.length > 0) {
+          const pick = faces[Math.floor(Math.random() * faces.length)];
+          // Use medium resolution (512px)
+          const imgUrl = pick.urls['512'] || pick.urls['256'] || Object.values(pick.urls)[0];
+          if (imgUrl) {
+            const imgRes = await fetch(imgUrl, { signal: AbortSignal.timeout(10_000) });
+            if (imgRes.ok) {
+              const buf = Buffer.from(await imgRes.arrayBuffer());
+              const png = await sharp(buf)
+                .resize(1024, 1024, { fit: 'cover', position: 'attention' })
+                .png({ quality: 90 })
+                .toBuffer();
+              return `data:image/png;base64,${png.toString('base64')}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[shop-story] generated.photos portrait failed:', e);
+    }
+  }
+
+  // Fallback: randomuser.me
   try {
     const res = await fetch(
-      `https://randomuser.me/api/?gender=${gender}&results=1&inc=picture&noinfo`,
+      `https://randomuser.me/api/?gender=${gender}&nat=us,gb,au,ca&results=1&inc=picture&noinfo`,
       { signal: AbortSignal.timeout(8_000) }
     );
     if (!res.ok) return null;
     const data = await res.json() as { results?: Array<{ picture: { large: string } }> };
     const picUrl = data.results?.[0]?.picture?.large;
     if (!picUrl) return null;
-
     const imgRes = await fetch(picUrl, { signal: AbortSignal.timeout(10_000) });
     if (!imgRes.ok) return null;
     const buf = Buffer.from(await imgRes.arrayBuffer());
-
     const png = await sharp(buf)
       .resize(1024, 1024, { fit: 'cover', position: 'attention' })
       .png({ quality: 90 })
       .toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch (e) {
-    console.warn('[shop-story] randomuser.me portrait fetch failed:', e);
+    console.warn('[shop-story] randomuser.me portrait fallback failed:', e);
     return null;
   }
 }
@@ -550,14 +586,14 @@ Rules:
         ? rewriteBiographyToFirstPerson(biography)
         : Promise.resolve(biography);
 
-    // Fetch randomuser.me portrait in parallel with biography rewrite (free, no API key, ~1-2s)
-    const portraitPromise = fetchRandomUserPortrait(characterGender);
+    // Fetch AI portrait in parallel with biography rewrite
+    const portraitPromise = fetchGeneratedPortrait(characterGender);
 
-    const [biographyFinal, randomPortrait] = await Promise.all([rewritePromise, portraitPromise]);
+    const [biographyFinal, generatedPortrait] = await Promise.all([rewritePromise, portraitPromise]);
     biography = biographyFinal;
 
-    const imageDataUrl = randomPortrait || buildInlineAvatarDataUrl(characterName, characterRole);
-    const imageSource: 'randomuser-portrait' | 'inline-svg' = randomPortrait ? 'randomuser-portrait' : 'inline-svg';
+    const imageDataUrl = generatedPortrait || buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageSource: 'generated-portrait' | 'inline-svg' = generatedPortrait ? 'generated-portrait' : 'inline-svg';
 
     const deduct = await incrementAnalysisCount(user.id, SHOP_STORY_CREDITS);
     if (!deduct.success) {
