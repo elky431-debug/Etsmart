@@ -109,11 +109,11 @@ async function fetchPexelsPortrait(params: {
   // "person portrait selfie" anchors results to real human photos
   const base = gender === 'female'
     ? (shopTone === 'luxury_professional'
-        ? 'beautiful woman selfie portrait professional smiling'
-        : 'beautiful young woman selfie portrait smiling')
+        ? 'attractive young woman 25 years old professional portrait smiling'
+        : 'attractive young woman 25 years old selfie smiling')
     : (shopTone === 'luxury_professional'
-        ? 'man portrait professional smiling'
-        : 'young man selfie portrait smiling');
+        ? 'young man 25 professional portrait smiling'
+        : 'young man 25 selfie portrait smiling');
 
   const styleHint = base;
 
