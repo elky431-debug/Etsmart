@@ -158,22 +158,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOut();
       setUser(null);
-      // Nettoyer le localStorage
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        // Only clear Supabase auth keys — preserve user app data (store manager, etc.)
+        Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.startsWith('supabase.')).forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
       }
-      router.push('/');
-      // Forcer le rechargement pour s'assurer que tout est nettoyé
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
-      // Même en cas d'erreur, nettoyer et rediriger
       setUser(null);
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.startsWith('supabase.')).forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
         window.location.href = '/';
       }

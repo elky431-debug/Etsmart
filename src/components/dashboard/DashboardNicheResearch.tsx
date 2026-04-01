@@ -160,7 +160,7 @@ function saveCache(data: Record<string, NicheResult>) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export default function DashboardNicheResearch({ isFreeUser = false }: { isFreeUser?: boolean }) {
+export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }: { isFreeUser?: boolean; onUpgrade?: () => void }) {
   const [token, setToken] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, NicheResult>>({});
   const [loadingSet, setLoadingSet] = useState<Set<string>>(new Set());
@@ -571,9 +571,9 @@ export default function DashboardNicheResearch({ isFreeUser = false }: { isFreeU
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-400 flex-shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   <span>+{Math.max(0, displayed.length - 10)} niches supplémentaires avec un abonnement payant</span>
                 </div>
-                <a href="/dashboard?section=subscription" className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity">
+                <button onClick={onUpgrade} className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity">
                   Débloquer
-                </a>
+                </button>
               </div>
             </div>
           )}

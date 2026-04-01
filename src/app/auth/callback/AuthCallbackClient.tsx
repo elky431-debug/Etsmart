@@ -28,24 +28,31 @@ export default function AuthCallbackClient() {
       }
 
       try {
+        // Supabase may have auto-exchanged the code via detectSessionInUrl.
+        // Check for an existing session first to avoid a double-exchange PKCE error.
+        const { data: existingSession } = await supabase.auth.getSession();
+        if (existingSession?.session?.user) {
+          console.log('[OAuth Callback] Session already established, redirecting to dashboard');
+          router.push('/dashboard');
+          return;
+        }
+
         // Échanger le code contre une session (PKCE géré automatiquement par le client)
         const { error: exchangeError, data } = await supabase.auth.exchangeCodeForSession(code);
-        
+
         if (exchangeError) {
           console.error('[OAuth Callback] Erreur lors de l\'échange du code:', exchangeError);
           router.push(`/login?error=oauth_error&message=${encodeURIComponent(exchangeError.message)}`);
           return;
         }
-        
+
         if (!data?.user) {
           console.error('[OAuth Callback] Pas d\'utilisateur après l\'échange');
           router.push('/login?error=oauth_error&message=no_user');
           return;
         }
 
-        // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
-        // Toujours rediriger vers le dashboard d'actions
-        console.log('[OAuth Callback] Redirection vers Dashboard (NO REDIRECT TO /pricing)');
+        console.log('[OAuth Callback] Redirection vers Dashboard');
         router.push('/dashboard');
       } catch (err: any) {
         console.error('[OAuth Callback] Erreur inattendue:', err);

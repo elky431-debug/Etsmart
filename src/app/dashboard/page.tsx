@@ -713,20 +713,16 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      // Nettoyer le localStorage
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        // Only clear Supabase auth keys — preserve user app data (store manager, etc.)
+        Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.startsWith('supabase.')).forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
+        window.location.href = '/';
       }
-      // Rediriger vers la page d'accueil
-      router.push('/');
-      // Forcer le rechargement pour s'assurer que tout est nettoyé
-      window.location.href = '/';
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
-      // Même en cas d'erreur, rediriger vers la page d'accueil
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.startsWith('supabase.')).forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
         window.location.href = '/';
       }
@@ -2010,6 +2006,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
         {/* Content — Coach remplit la hauteur et gère son scroll interne (évite chevauchement header / messages) */}
         <div
+          ref={(el) => { if (el) el.scrollTop = 0; }}
+          key={activeSection}
           className={
             activeSection === 'coach'
               ? 'flex min-h-0 flex-1 flex-col overflow-hidden bg-black'
@@ -2324,7 +2322,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'etsy-trends' && (
-            <DashboardEtsyTrends isFreeUser={isFreeUser} />
+            <DashboardEtsyTrends isFreeUser={isFreeUser} onUpgrade={() => { setActiveSection('subscription'); setSelectedAnalysis(null); }} />
           )}
 
           {activeSection === 'top-etsy-sellers' && (
@@ -2332,7 +2330,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'niche-finder' && (
-            <DashboardNicheResearch isFreeUser={isFreeUser} />
+            <DashboardNicheResearch isFreeUser={isFreeUser} onUpgrade={() => { setActiveSection('subscription'); setSelectedAnalysis(null); }} />
           )}
 
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}

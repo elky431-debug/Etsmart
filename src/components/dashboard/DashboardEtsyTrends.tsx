@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, BarChart3, Zap, ChevronLeft, ChevronRight, Calendar, Clock, Lock } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 // ─── Data — extracted from Etsy trending searches ────────────────────────────
 
@@ -277,8 +276,7 @@ function daysUntil(isoDate: string): number {
 }
 
 // ─── Free tier lock banner ────────────────────────────────────────────────────
-function FreeLockBanner({ label }: { label: string }) {
-  const router = useRouter();
+function FreeLockBanner({ label, onUpgrade }: { label: string; onUpgrade?: () => void }) {
   return (
     <div className="border-t border-white/10 px-5 py-4 flex items-center justify-between gap-4 bg-gradient-to-r from-violet-500/5 to-purple-600/5">
       <div className="flex items-center gap-2 text-white/50 text-sm">
@@ -286,7 +284,7 @@ function FreeLockBanner({ label }: { label: string }) {
         <span>{label} avec un abonnement payant</span>
       </div>
       <button
-        onClick={() => router.push('/dashboard?section=subscription')}
+        onClick={onUpgrade}
         className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
       >
         Débloquer
@@ -296,7 +294,7 @@ function FreeLockBanner({ label }: { label: string }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function DashboardEtsyTrends({ isFreeUser = false }: { isFreeUser?: boolean }) {
+export default function DashboardEtsyTrends({ isFreeUser = false, onUpgrade }: { isFreeUser?: boolean; onUpgrade?: () => void }) {
   const [trendPage, setTrendPage] = useState(1);
   const [breakPage, setBreakPage] = useState(1);
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
@@ -394,7 +392,7 @@ export default function DashboardEtsyTrends({ isFreeUser = false }: { isFreeUser
                     </div>
                   ))}
                 </div>
-                <FreeLockBanner label={`+${TRENDING.length - 10} recherches supplémentaires`} />
+                <FreeLockBanner label={`+${TRENDING.length - 10} recherches supplémentaires`} onUpgrade={onUpgrade} />
               </div>
             ) : (
               <>
@@ -454,7 +452,7 @@ export default function DashboardEtsyTrends({ isFreeUser = false }: { isFreeUser
                     </div>
                   ))}
                 </div>
-                <FreeLockBanner label={`+${BREAKTHROUGH.length - 10} recherches supplémentaires`} />
+                <FreeLockBanner label={`+${BREAKTHROUGH.length - 10} recherches supplémentaires`} onUpgrade={onUpgrade} />
               </div>
             ) : (
               <>
