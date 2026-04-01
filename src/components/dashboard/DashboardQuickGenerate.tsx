@@ -16,7 +16,6 @@ import {
   Package,
   Zap,
   RotateCcw,
-  Lock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -933,9 +932,6 @@ export function DashboardQuickGenerate() {
                   </div>
                 </div>
 
-                {/* Image controls — locked for free users */}
-                <div className="relative">
-                  <div className={isFreeUser ? 'opacity-30 pointer-events-none select-none' : ''}>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-3">
                     Quantité d'images
@@ -1007,15 +1003,6 @@ export function DashboardQuickGenerate() {
                   </p>
                   <ImageStyleCards value={style} onChange={setStyle} variant="quick" />
                 </div>
-                  </div>{/* end blurred wrapper */}
-                  {isFreeUser && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-black/60 backdrop-blur-[2px] z-10">
-                      <Lock size={18} className="text-[#00d4ff]" />
-                      <p className="text-sm font-semibold text-white">Images — Plan payant requis</p>
-                      <p className="text-xs text-white/50 text-center px-6">Votre génération gratuite inclut uniquement le texte du listing</p>
-                    </div>
-                  )}
-                </div>{/* end relative wrapper */}
               </div>
             </div>
 
