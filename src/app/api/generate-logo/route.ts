@@ -37,19 +37,14 @@ async function compositeShopName(logoBuf: Buffer, shopName: string): Promise<Buf
   const name = escapeXml(shopName.slice(0, 40));
   const nameLen = name.length;
   const fontSize = nameLen <= 8 ? 72 : nameLen <= 13 ? 58 : nameLen <= 18 ? 46 : nameLen <= 24 ? 38 : 30;
-  const barH = Math.round(fontSize * 2.2);
-  const textY = 1024 - Math.round(barH * 0.3);
+  const barH = Math.round(fontSize * 2.4);
+  const textY = 1024 - Math.round(barH * 0.28);
 
+  // No feDropShadow — not supported by Sharp's librsvg. Text shadow via stacked text elements instead.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
-  <defs>
-    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.72"/>
-    </linearGradient>
-    <filter id="ts"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#000" flood-opacity="0.8"/></filter>
-  </defs>
-  <rect x="0" y="${1024 - barH}" width="1024" height="${barH}" fill="url(#bar)"/>
-  <text x="512" y="${textY}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" letter-spacing="2" filter="url(#ts)">${name}</text>
+  <rect x="0" y="${1024 - barH}" width="1024" height="${barH}" fill="#000000" fill-opacity="0.60"/>
+  <text x="513" y="${textY + 2}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#000000" fill-opacity="0.6" letter-spacing="2">${name}</text>
+  <text x="512" y="${textY}" text-anchor="middle" font-family="Georgia, serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" letter-spacing="2">${name}</text>
 </svg>`;
 
   return sharp(logoBuf)
