@@ -285,11 +285,12 @@ export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }
 
   useEffect(() => {
     if (!token) return;
+    if (isFreeUser) return; // free users see static preview data, no API call needed
     abortRef.current = new AbortController();
     launchBatches(NICHES.map(n => n.keyword));
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, isFreeUser]);
 
   const handleRefresh = () => {
     abortRef.current?.abort();
@@ -470,7 +471,9 @@ export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }
           <div className="divide-y divide-white/5">
             <AnimatePresence mode="popLayout">
               {(isFreeUser ? displayed.slice(0, 10) : displayed).map((niche) => {
-                const r = results[niche.keyword] ?? (isFreeUser ? STATIC_PREVIEW[niche.keyword] as NicheResult | undefined : undefined);
+                const r = isFreeUser
+                  ? STATIC_PREVIEW[niche.keyword] as NicheResult | undefined
+                  : results[niche.keyword];
                 const isLoading = !isFreeUser && loadingSet.has(niche.keyword);
                 const demColor = r ? scoreColor(r.demandScore) : null;
                 const compColor = r ? scoreColor(r.competitionScore, true) : null;
