@@ -203,14 +203,6 @@ export default function DashboardEtsyTrends() {
   const trendSlice = TRENDING.slice((trendPage - 1) * PER_PAGE, trendPage * PER_PAGE);
   const breakSlice = BREAKTHROUGH.slice((breakPage - 1) * PER_PAGE, breakPage * PER_PAGE);
 
-  // Generate week date labels (last 6 weeks)
-  const today = new Date();
-  const weekDates = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (5 - i) * 7);
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  });
-
   return (
     <div className="p-4 md:p-8 bg-black min-h-screen pb-12">
       <div className="max-w-7xl mx-auto">
@@ -227,15 +219,6 @@ export default function DashboardEtsyTrends() {
             </div>
           </div>
 
-          {/* Date chips */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-white/30 text-xs">swipe to see more</span>
-            {weekDates.map((d) => (
-              <span key={d} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/60">
-                {d}
-              </span>
-            ))}
-          </div>
         </motion.div>
 
         {/* Two-column layout */}
@@ -250,7 +233,7 @@ export default function DashboardEtsyTrends() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <TrendingUp size={16} className="text-emerald-400" />
-                Trending Monthly Searches
+                Recherches Tendances du Mois
               </h2>
               <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{TRENDING.length} phrases</span>
             </div>
@@ -291,7 +274,7 @@ export default function DashboardEtsyTrends() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Zap size={16} className="text-amber-400" />
-                Breakthrough Searches
+                Recherches Émergentes
               </h2>
               <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{BREAKTHROUGH.length} phrases</span>
             </div>
