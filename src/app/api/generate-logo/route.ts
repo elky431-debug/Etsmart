@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!OPENAI_KEY) return NextResponse.json({ error: 'OPENAI_API_KEY_MISSING' }, { status: 500 });
     const GEMINI_KEY = process.env.GEMINI_API_KEY?.trim();
     if (!GEMINI_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY manquante.' }, { status: 500 });
-    const openai = new OpenAI({ apiKey: OPENAI_KEY, timeout: 20_000 });
+    const openai = new OpenAI({ apiKey: OPENAI_KEY, timeout: 10_000 });
 
     const quotaInfo = await getUserQuotaInfo(user.id);
     if (quotaInfo.status !== 'active') {
@@ -105,25 +105,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Images invalides. Utilise JPG/PNG/WebP.' }, { status: 400 });
     }
 
-    // Step 1 — Brief via gpt-4o-mini (~5-7s, faster than gpt-4o)
-    const briefCompletion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.35,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: LOGO_BRIEF_SYSTEM },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: LOGO_BRIEF_USER },
-            { type: 'image_url', image_url: { url: shopImageDataUrl, detail: 'auto' } },
-            { type: 'image_url', image_url: { url: productImageDataUrl, detail: 'auto' } },
-          ],
-        },
-      ],
-    });
-
-    const briefRaw = briefCompletion.choices[0]?.message?.content ?? '{}';
+    // Step 1 — Brief via gpt-4o-mini (~5-8s)
+    let briefRaw = '{}';
+    try {
+      const briefCompletion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.35,
+        max_tokens: 1200,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: LOGO_BRIEF_SYSTEM },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: LOGO_BRIEF_USER },
+              { type: 'image_url', image_url: { url: shopImageDataUrl, detail: 'low' } },
+              { type: 'image_url', image_url: { url: productImageDataUrl, detail: 'low' } },
+            ],
+          },
+        ],
+      });
+      briefRaw = briefCompletion.choices[0]?.message?.content ?? '{}';
+    } catch (e) {
+      console.error('[generate-logo] brief step failed:', e);
+      return NextResponse.json({ success: false, error: 'BRIEF_FAILED', message: "Analyse des images échouée. Réessaie." }, { status: 422 });
+    }
     const brief = parseBriefJson(briefRaw);
     if (!brief || !String(brief.final_image_prompt || '').trim()) {
       return NextResponse.json(
@@ -134,12 +140,12 @@ export async function POST(request: NextRequest) {
 
     const imagePrompt = buildImageGenerationPromptFromBrief(brief);
 
-    // Step 2 — Gemini image (18s cap to stay under Netlify 26s gateway)
+    // Step 2 — Gemini image (12s cap: brief took ~8s, 12s left before Netlify 26s gateway)
     const imageBuf = await geminiGenerateImageBuffer({
       apiKey: GEMINI_KEY,
       prompt: imagePrompt,
       model: GEMINI_IMAGE_MODEL,
-      timeoutMs: 18_000,
+      timeoutMs: 12_000,
     });
 
     if (!imageBuf) {
