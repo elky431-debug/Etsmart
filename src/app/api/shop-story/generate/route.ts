@@ -91,33 +91,31 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch a portrait from randomuser.me with strict gender + nationality filtering.
- * Nationalities US/AU/CA/NZ/GB tend to produce clean studio-quality profile photos.
- * Requests 5 results and picks one randomly for variety.
+ * Fetch a 1024x1024 AI-generated portrait from thispersondoesnotexist.com.
+ * Always photorealistic, high quality. No API key required.
+ * Gender not filterable — ~50/50 chance. User can regenerate if needed.
  */
-async function fetchGeneratedPortrait(gender: Gender): Promise<string | null> {
+async function fetchGeneratedPortrait(_gender: Gender): Promise<string | null> {
   try {
-    const res = await fetch(
-      `https://randomuser.me/api/?gender=${gender}&nat=us,au,ca,nz&results=5&inc=picture&noinfo`,
-      { signal: AbortSignal.timeout(8_000) }
-    );
+    const seed = Math.random().toString(36).slice(2);
+    const res = await fetch(`https://thispersondoesnotexist.com/?cb=${seed}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*',
+        'Referer': 'https://thispersondoesnotexist.com/',
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
     if (!res.ok) return null;
-    const data = await res.json() as { results?: Array<{ picture: { large: string } }> };
-    const results = data.results || [];
-    if (results.length === 0) return null;
-    const pick = results[Math.floor(Math.random() * results.length)];
-    const picUrl = pick.picture?.large;
-    if (!picUrl) return null;
-    const imgRes = await fetch(picUrl, { signal: AbortSignal.timeout(10_000) });
-    if (!imgRes.ok) return null;
-    const buf = Buffer.from(await imgRes.arrayBuffer());
+    const buf = Buffer.from(await res.arrayBuffer());
+    // Already 1024x1024 JPEG — just convert to PNG, no upscaling
     const png = await sharp(buf)
-      .resize(1024, 1024, { fit: 'cover', position: 'attention' })
-      .png({ quality: 90 })
+      .resize(1024, 1024, { fit: 'cover', withoutEnlargement: true })
+      .png({ quality: 92 })
       .toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch (e) {
-    console.warn('[shop-story] randomuser.me portrait failed:', e);
+    console.warn('[shop-story] thispersondoesnotexist portrait failed:', e);
     return null;
   }
 }
