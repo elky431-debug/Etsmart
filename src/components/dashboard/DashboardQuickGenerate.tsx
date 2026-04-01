@@ -113,10 +113,9 @@ export function DashboardQuickGenerate() {
   /** Même logique que /lab-quick : le moteur choisi (Flash / Pro) pilote l'API et la facturation crédits. */
   const engineForApi: ImageEngine = engine;
   const billingEngine: ImageEngine = engineForApi;
-  // FREE users: 0 images, listing text only — fixed 1.25cr cost
-  const effectiveQuantity = isFreeUser ? 0 : quantity;
+  const effectiveQuantity = quantity;
   const imagesOnlyCredits = imagesOnlyTotalCredits(effectiveQuantity, billingEngine);
-  const quickGenerateCredits = isFreeUser ? 1.25 : quickGenerateTotalCredits(effectiveQuantity, billingEngine);
+  const quickGenerateCredits = quickGenerateTotalCredits(effectiveQuantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [listingData, setListingData] = useState<ListingData | null>(null);
