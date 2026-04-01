@@ -91,48 +91,21 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch a realistic portrait from Pexels matching the character profile.
- * Female founders: search for attractive/beautiful women (better Etsy engagement).
+ * Fetch a realistic portrait from randomuser.me — free, no API key, always young/clean portraits.
+ * Gender-filtered, returns a different person each call.
  */
-async function fetchPexelsPortrait(params: {
-  gender: Gender;
-  shopTone: ShopTone;
-  productTypes: string[];
-  nicheSummary: string;
-}): Promise<string | null> {
-  const key = process.env.PEXELS_API_KEY;
-  if (!key) return null;
-
-  const { gender, shopTone } = params;
-
-  // Always use real selfie/portrait photos — never artwork or illustrations
-  // "person portrait selfie" anchors results to real human photos
-  const base = gender === 'female'
-    ? (shopTone === 'luxury_professional'
-        ? 'pretty girl portrait smiling professional'
-        : 'pretty girl selfie smiling')
-    : (shopTone === 'luxury_professional'
-        ? 'young man portrait professional smiling'
-        : 'young man selfie smiling');
-
-  const styleHint = base;
-
+async function fetchRandomUserPortrait(gender: Gender): Promise<string | null> {
   try {
-    const query = encodeURIComponent(styleHint);
     const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${query}&per_page=15&orientation=square`,
-      { headers: { Authorization: key }, signal: AbortSignal.timeout(8_000) }
+      `https://randomuser.me/api/?gender=${gender}&results=1&inc=picture&noinfo`,
+      { signal: AbortSignal.timeout(8_000) }
     );
     if (!res.ok) return null;
-    const data = await res.json() as { photos?: Array<{ src: { large: string; medium: string } }> };
-    const photos = data.photos || [];
-    if (photos.length === 0) return null;
+    const data = await res.json() as { results?: Array<{ picture: { large: string } }> };
+    const picUrl = data.results?.[0]?.picture?.large;
+    if (!picUrl) return null;
 
-    // Pick a random photo from the top results for variety
-    const pick = photos[Math.floor(Math.random() * Math.min(photos.length, 8))];
-    const imgUrl = pick.src.large || pick.src.medium;
-
-    const imgRes = await fetch(imgUrl, { signal: AbortSignal.timeout(10_000) });
+    const imgRes = await fetch(picUrl, { signal: AbortSignal.timeout(10_000) });
     if (!imgRes.ok) return null;
     const buf = Buffer.from(await imgRes.arrayBuffer());
 
@@ -142,7 +115,7 @@ async function fetchPexelsPortrait(params: {
       .toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch (e) {
-    console.warn('[shop-story] Pexels portrait fetch failed:', e);
+    console.warn('[shop-story] randomuser.me portrait fetch failed:', e);
     return null;
   }
 }
@@ -577,19 +550,14 @@ Rules:
         ? rewriteBiographyToFirstPerson(biography)
         : Promise.resolve(biography);
 
-    // Fetch Pexels portrait in parallel with biography rewrite (fast API call, ~2-4s)
-    const pexelsPromise = fetchPexelsPortrait({
-      gender: characterGender,
-      shopTone,
-      productTypes,
-      nicheSummary: String(vision.nicheSummary || ''),
-    });
+    // Fetch randomuser.me portrait in parallel with biography rewrite (free, no API key, ~1-2s)
+    const portraitPromise = fetchRandomUserPortrait(characterGender);
 
-    const [biographyFinal, pexelsPortrait] = await Promise.all([rewritePromise, pexelsPromise]);
+    const [biographyFinal, randomPortrait] = await Promise.all([rewritePromise, portraitPromise]);
     biography = biographyFinal;
 
-    const imageDataUrl = pexelsPortrait || buildInlineAvatarDataUrl(characterName, characterRole);
-    const imageSource: 'pexels-portrait' | 'inline-svg' = pexelsPortrait ? 'pexels-portrait' : 'inline-svg';
+    const imageDataUrl = randomPortrait || buildInlineAvatarDataUrl(characterName, characterRole);
+    const imageSource: 'randomuser-portrait' | 'inline-svg' = randomPortrait ? 'randomuser-portrait' : 'inline-svg';
 
     const deduct = await incrementAnalysisCount(user.id, SHOP_STORY_CREDITS);
     if (!deduct.success) {
