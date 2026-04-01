@@ -112,6 +112,20 @@ const NICHES: NicheEntry[] = [
   { keyword: 'paint by numbers custom photo', label: 'Peinture par numéros photo', category: 'Loisirs créatifs' },
 ];
 
+// ─── Données statiques préchargées (visible plan gratuit, sans appel API) ─────
+const STATIC_PREVIEW: Record<string, Omit<NicheResult, 'cachedAt'>> = {
+  'printable wall art digital download': { keyword: 'printable wall art digital download', competitionCount: 248000, competitionScore: 78, trendsScore: 91, demandScore: 82, opportunityScore: 54 },
+  'macrame wall hanging boho':           { keyword: 'macrame wall hanging boho',           competitionCount: 87000,  competitionScore: 57, trendsScore: 72, demandScore: 67, opportunityScore: 63 },
+  'custom pet portrait painting':        { keyword: 'custom pet portrait painting',        competitionCount: 124000, competitionScore: 51, trendsScore: 85, demandScore: 78, opportunityScore: 71 },
+  'personalized baby blanket name':      { keyword: 'personalized baby blanket name',      competitionCount: 73000,  competitionScore: 47, trendsScore: 68, demandScore: 71, opportunityScore: 69 },
+  'soy candle scented luxury':           { keyword: 'soy candle scented luxury',           competitionCount: 318000, competitionScore: 82, trendsScore: 79, demandScore: 85, opportunityScore: 47 },
+  'personalized canvas tote bag':        { keyword: 'personalized canvas tote bag',        competitionCount: 195000, competitionScore: 70, trendsScore: 58, demandScore: 63, opportunityScore: 45 },
+  'gaming desk mat xxl custom':          { keyword: 'gaming desk mat xxl custom',          competitionCount: 21000,  competitionScore: 31, trendsScore: 74, demandScore: 58, opportunityScore: 80 },
+  'aesthetic washi tape set':            { keyword: 'aesthetic washi tape set',            competitionCount: 52000,  competitionScore: 43, trendsScore: 65, demandScore: 61, opportunityScore: 67 },
+  'minimalist gold necklace':            { keyword: 'minimalist gold necklace',            competitionCount: 431000, competitionScore: 86, trendsScore: 82, demandScore: 76, opportunityScore: 37 },
+  'personalized wedding favor tag':      { keyword: 'personalized wedding favor tag',      competitionCount: 64000,  competitionScore: 40, trendsScore: 77, demandScore: 73, opportunityScore: 76 },
+};
+
 const CATEGORIES = ['Toutes', ...Array.from(new Set(NICHES.map(n => n.category)))];
 const CACHE_KEY = 'niche_research_cache_v3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h (DataForSEO data stable)
@@ -456,8 +470,8 @@ export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }
           <div className="divide-y divide-white/5">
             <AnimatePresence mode="popLayout">
               {(isFreeUser ? displayed.slice(0, 10) : displayed).map((niche) => {
-                const r = results[niche.keyword];
-                const isLoading = loadingSet.has(niche.keyword);
+                const r = results[niche.keyword] ?? (isFreeUser ? STATIC_PREVIEW[niche.keyword] as NicheResult | undefined : undefined);
+                const isLoading = !isFreeUser && loadingSet.has(niche.keyword);
                 const demColor = r ? scoreColor(r.demandScore) : null;
                 const compColor = r ? scoreColor(r.competitionScore, true) : null;
                 const oppColor = r ? scoreColor(r.opportunityScore) : null;
