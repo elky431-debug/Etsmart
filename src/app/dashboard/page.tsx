@@ -1600,10 +1600,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Branding',
       items: [
-        { id: 'shop-name', label: 'Nom de boutique', icon: Type },
-        { id: 'banner', label: 'Bannière', icon: ImageIcon },
-        { id: 'logo', label: 'Logo', icon: ImageIcon },
-        { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText },
+        { id: 'shop-name', label: 'Nom de boutique', icon: Type, lockedForFree: true },
+        { id: 'banner', label: 'Bannière', icon: ImageIcon, lockedForFree: true },
+        { id: 'logo', label: 'Logo', icon: ImageIcon, lockedForFree: true },
+        { id: 'shop-story', label: 'Histoire & Biographie', icon: BookText, lockedForFree: true },
       ],
     },
   ];
@@ -1695,7 +1695,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         >
                           <div className="relative flex-shrink-0">
                             <Icon size={20} />
-                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-[#00d4ff]" />}
                           </div>
                           <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             {item.label}
@@ -1742,7 +1742,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                   >
                     <div className="relative flex-shrink-0">
                       <Icon size={20} />
-                      {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                      {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-[#00d4ff]" />}
                     </div>
                     <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
                       {item.label}
@@ -1882,7 +1882,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         >
                           <div className="relative flex-shrink-0">
                             <Icon size={20} />
-                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-[#00d4ff]" />}
                           </div>
                           <span>{item.label}</span>
                         </button>
@@ -1926,7 +1926,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     >
                       <div className="relative flex-shrink-0">
                         <Icon size={20} />
-                        {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                        {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-[#00d4ff]" />}
                       </div>
                       <span>{item.label}</span>
                     </button>
@@ -2276,7 +2276,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
           {activeSection === 'subscription' && user && (
             <ErrorBoundary>
-              <DashboardSubscription user={user} />
+              <DashboardSubscription user={user} isFreeUser={isFreeUser} />
             </ErrorBoundary>
           )}
 

@@ -2,9 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect, startTransition } from 'react';
 import { 
-  Upload, 
-  Download, 
-  Maximize2, 
+  Upload,
+  Download,
+  Maximize2,
   Loader2,
   Image as ImageIcon,
   X,
@@ -15,7 +15,8 @@ import {
   Hash,
   Package,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Lock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -932,9 +933,12 @@ export function DashboardQuickGenerate() {
                   </div>
                 </div>
 
+                {/* Image controls — locked for free users */}
+                <div className="relative">
+                  <div className={isFreeUser ? ‘opacity-30 pointer-events-none select-none’ : ‘’}>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-3">
-                    Quantité d'images
+                    Quantité d’images
                   </label>
                   <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
                     {[1, 2, 5, 7].map((qty) => (
@@ -943,8 +947,8 @@ export function DashboardQuickGenerate() {
                         onClick={() => setQuantity(qty)}
                         className={`min-w-0 flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
                           quantity === qty
-                            ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25'
-                            : 'bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white'
+                            ? ‘bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg shadow-[#00d4ff]/25’
+                            : ‘bg-white/5 border border-white/10 text-white/80 hover:border-white/20 hover:text-white’
                         }`}
                       >
                         {qty}
@@ -1003,6 +1007,15 @@ export function DashboardQuickGenerate() {
                   </p>
                   <ImageStyleCards value={style} onChange={setStyle} variant="quick" />
                 </div>
+                  </div>{/* end blurred wrapper */}
+                  {isFreeUser && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-black/60 backdrop-blur-[2px] z-10">
+                      <Lock size={18} className="text-[#00d4ff]" />
+                      <p className="text-sm font-semibold text-white">Images — Plan payant requis</p>
+                      <p className="text-xs text-white/50 text-center px-6">Votre génération gratuite inclut uniquement le texte du listing</p>
+                    </div>
+                  )}
+                </div>{/* end relative wrapper */}
               </div>
             </div>
 

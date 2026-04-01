@@ -858,8 +858,8 @@ export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boo
               </button>
             ))}
             {isFreeUser && shops.length >= 1 ? (
-              <div className="mt-1 px-4 py-2.5 rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 flex items-center gap-3">
-                <Lock size={15} className="text-violet-400 flex-shrink-0" />
+              <div className="mt-1 px-4 py-2.5 rounded-xl border border-dashed border-[#00d4ff]/25 bg-[#00d4ff]/5 flex items-center gap-3">
+                <Lock size={15} className="text-[#00d4ff] flex-shrink-0" />
                 <span className="text-xs text-white/40">1 boutique max en gratuit</span>
               </div>
             ) : (

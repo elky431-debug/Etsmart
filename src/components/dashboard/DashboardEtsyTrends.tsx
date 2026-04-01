@@ -201,7 +201,7 @@ const EVENTS: EventItem[] = [
 ];
 
 const CATEGORY_STYLES: Record<EventItem['category'], { bg: string; text: string; label: string }> = {
-  holiday:     { bg: 'bg-violet-500/15', text: 'text-violet-300',  label: 'Fête'       },
+  holiday:     { bg: 'bg-[#00d4ff]/10', text: 'text-[#00d4ff]',   label: 'Fête'       },
   shopping:    { bg: 'bg-amber-500/15',  text: 'text-amber-300',   label: 'Shopping'   },
   seasonal:    { bg: 'bg-emerald-500/15',text: 'text-emerald-300', label: 'Saison'     },
   awareness:   { bg: 'bg-sky-500/15',    text: 'text-sky-300',     label: 'Sensib.'    },
@@ -278,14 +278,14 @@ function daysUntil(isoDate: string): number {
 // ─── Free tier lock banner ────────────────────────────────────────────────────
 function FreeLockBanner({ label, onUpgrade }: { label: string; onUpgrade?: () => void }) {
   return (
-    <div className="border-t border-white/10 px-5 py-4 flex items-center justify-between gap-4 bg-gradient-to-r from-violet-500/5 to-purple-600/5">
+    <div className="border-t border-white/10 px-5 py-4 flex items-center justify-between gap-4 bg-[#00d4ff]/3">
       <div className="flex items-center gap-2 text-white/50 text-sm">
-        <Lock size={13} className="text-violet-400 flex-shrink-0" />
+        <Lock size={13} className="text-[#00d4ff] flex-shrink-0" />
         <span>{label} avec un abonnement payant</span>
       </div>
       <button
         onClick={onUpgrade}
-        className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+        className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
       >
         Débloquer
       </button>
@@ -481,88 +481,68 @@ export default function DashboardEtsyTrends({ isFreeUser = false, onUpgrade }: {
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         >
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar size={18} className="text-amber-400" />
-              Événements à Venir
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <Calendar size={16} className="text-[#00d4ff]" />
+              Événements à venir
             </h2>
             {nextEvent && (
-              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
-                <Clock size={12} className="text-amber-400" />
-                <span className="text-amber-300 text-xs font-medium">
-                  {nextEvent.emoji} {nextEvent.name} dans {nextEvent.days === 0 ? "aujourd'hui" : `${nextEvent.days}j`}
-                </span>
-              </div>
+              <span className="text-xs text-white/40 hidden sm:block">
+                Prochain : <span className="text-[#00d4ff] font-medium">{nextEvent.emoji} {nextEvent.name}</span>{' '}
+                {nextEvent.days === 0 ? "— aujourd'hui" : `dans ${nextEvent.days}j`}
+              </span>
             )}
           </div>
 
-          {/* Month filter pills */}
-          <div className="flex gap-2 flex-wrap mb-4">
+          {/* Month filter */}
+          <div className="flex gap-1.5 flex-wrap mb-3">
             <button
               onClick={() => setActiveMonth(null)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 activeMonth === null
-                  ? 'bg-violet-500/30 text-violet-200 border border-violet-500/40'
-                  : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+                  ? 'bg-[#00d4ff]/15 text-[#00d4ff] border border-[#00d4ff]/30'
+                  : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/8'
               }`}
-            >
-              Tous
-            </button>
+            >Tous</button>
             {months.map(([label]) => (
               <button
                 key={label}
                 onClick={() => setActiveMonth(label === activeMonth ? null : label)}
-                className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
                   activeMonth === label
-                    ? 'bg-violet-500/30 text-violet-200 border border-violet-500/40'
-                    : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+                    ? 'bg-[#00d4ff]/15 text-[#00d4ff] border border-[#00d4ff]/30'
+                    : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/8'
                 }`}
-              >
-                {label}
-              </button>
+              >{label}</button>
             ))}
           </div>
 
-          {/* Events grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {/* Events list — compact rows */}
+          <div className="rounded-xl border border-white/10 overflow-hidden">
             {filteredEvents.map((event) => {
-              const style = CATEGORY_STYLES[event.category];
+              const s = CATEGORY_STYLES[event.category];
               const isPast = event.days < 0;
               const isSoon = event.days >= 0 && event.days <= 14;
               return (
                 <div
                   key={event.date + event.name}
-                  className={`relative rounded-xl border p-4 transition-all ${
-                    isPast
-                      ? 'border-white/5 bg-white/2 opacity-40'
-                      : isSoon
-                      ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8'
-                      : 'border-white/10 bg-white/3 hover:bg-white/5'
+                  className={`flex items-center gap-3 px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors ${
+                    isPast ? 'opacity-30' : 'hover:bg-white/3'
                   }`}
                 >
-                  {isSoon && !isPast && (
-                    <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  )}
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl leading-none mt-0.5">{event.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm leading-tight truncate">{event.name}</p>
-                      <p className="text-white/40 text-xs mt-1">
-                        {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
-                          {style.label}
-                        </span>
-                        <span className={`text-xs font-mono font-bold ${
-                          isPast ? 'text-white/20' : isSoon ? 'text-amber-400' : 'text-white/50'
-                        }`}>
-                          {isPast ? 'passé' : event.days === 0 ? "auj." : `J-${event.days}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <span className="text-base flex-shrink-0 w-6 text-center">{event.emoji}</span>
+                  <span className="flex-1 text-sm text-white font-medium">{event.name}</span>
+                  <span className="text-xs text-white/40 hidden sm:block w-20 text-right flex-shrink-0">
+                    {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className={`text-xs font-bold w-10 text-right flex-shrink-0 ${
+                    isPast ? 'text-white/20' : isSoon ? 'text-[#00d4ff]' : 'text-white/50'
+                  }`}>
+                    {isPast ? '—' : event.days === 0 ? 'Auj.' : `J-${event.days}`}
+                  </span>
+                  <span className={`hidden md:block text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${s.bg} ${s.text}`}>
+                    {s.label}
+                  </span>
                 </div>
               );
             })}

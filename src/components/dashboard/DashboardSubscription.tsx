@@ -12,9 +12,10 @@ import { Paywall } from '@/components/paywall/Paywall';
 
 interface DashboardSubscriptionProps {
   user: any;
+  isFreeUser?: boolean;
 }
 
-export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
+export function DashboardSubscription({ user, isFreeUser }: DashboardSubscriptionProps) {
   const { user: authUser } = useAuth();
   const { hasActiveSubscription, loading: subscriptionLoading } = useSubscription();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -178,6 +179,19 @@ export function DashboardSubscription({ user }: DashboardSubscriptionProps) {
         return 'from-slate-400 to-slate-600';
     }
   };
+
+  // Free users: skip async fetch, show paywall immediately
+  if (isFreeUser) {
+    return (
+      <div className="min-h-screen w-full relative overflow-hidden bg-black">
+        <Paywall
+          hasActiveSubscription={false}
+          title="Débloquer l'analyse de produits"
+          message="Choisissez votre plan et commencez à analyser des produits avec l'IA"
+        />
+      </div>
+    );
+  }
 
   // Loading state
   if (loading) {
