@@ -91,27 +91,33 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch a free AI-generated portrait from thispersondoesnotexist.com.
- * No API key, completely free, always high-quality photorealistic face.
- * Cache-busted with a random seed so each call returns a different face.
+ * Fetch a portrait from randomuser.me with strict gender + nationality filtering.
+ * Nationalities US/AU/CA/NZ/GB tend to produce clean studio-quality profile photos.
+ * Requests 5 results and picks one randomly for variety.
  */
-async function fetchGeneratedPortrait(_gender: Gender): Promise<string | null> {
+async function fetchGeneratedPortrait(gender: Gender): Promise<string | null> {
   try {
-    // Each request returns a different AI-generated face (cache-busted)
-    const seed = Math.random().toString(36).slice(2);
-    const res = await fetch(`https://thispersondoesnotexist.com/?${seed}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await fetch(
+      `https://randomuser.me/api/?gender=${gender}&nat=us,au,ca,nz&results=5&inc=picture&noinfo`,
+      { signal: AbortSignal.timeout(8_000) }
+    );
     if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
+    const data = await res.json() as { results?: Array<{ picture: { large: string } }> };
+    const results = data.results || [];
+    if (results.length === 0) return null;
+    const pick = results[Math.floor(Math.random() * results.length)];
+    const picUrl = pick.picture?.large;
+    if (!picUrl) return null;
+    const imgRes = await fetch(picUrl, { signal: AbortSignal.timeout(10_000) });
+    if (!imgRes.ok) return null;
+    const buf = Buffer.from(await imgRes.arrayBuffer());
     const png = await sharp(buf)
       .resize(1024, 1024, { fit: 'cover', position: 'attention' })
       .png({ quality: 90 })
       .toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch (e) {
-    console.warn('[shop-story] thispersondoesnotexist portrait failed:', e);
+    console.warn('[shop-story] randomuser.me portrait failed:', e);
     return null;
   }
 }
