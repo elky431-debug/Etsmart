@@ -46,10 +46,11 @@ export interface Plan {
   price: number;
   currency: string;
   analysesPerMonth: number;
+  bonusCredits?: number;
   features: PlanFeature[];
   limitations?: string[];
   popular?: boolean;
-  stripePriceId?: string; // Stripe Price ID for payment integration
+  stripePriceId?: string;
 }
 
 export interface PlanFeature {
@@ -65,7 +66,7 @@ export const PLAN_QUOTAS: Record<PlanId, number> = {
   FREE: 5.0, // free tier lifetime quota — never resets
   SMART: 80,
   PRO: 250,
-  SCALE: 350,
+  SCALE: 400,
   INFINITY: -1, // -1 means unlimited
 };
 
@@ -119,7 +120,8 @@ export const PLANS: Plan[] = [
     description: 'Parfait pour les vendeurs qui veulent tester des produits sérieusement. Toutes les fonctionnalités incluses.',
     price: 24.99,
     currency: 'EUR',
-    analysesPerMonth: 80,
+    analysesPerMonth: 80,   // 50 base + 30 bonus
+    bonusCredits: 30,
     features: PLAN_FEATURES.SMART,
     stripePriceId: STRIPE_PRICE_IDS.SMART || undefined,
   },
@@ -129,7 +131,8 @@ export const PLANS: Plan[] = [
     description: 'Idéal pour les vendeurs actifs qui analysent plusieurs produits par mois. Toutes les fonctionnalités incluses.',
     price: 44.99,
     currency: 'EUR',
-    analysesPerMonth: 250,
+    analysesPerMonth: 250,  // 200 base + 50 bonus
+    bonusCredits: 50,
     features: PLAN_FEATURES.PRO,
     stripePriceId: STRIPE_PRICE_IDS.PRO || undefined,
   },
@@ -139,7 +142,8 @@ export const PLANS: Plan[] = [
     description: 'Pour les boutiques à fort volume testant de nombreux produits stratégiquement. Toutes les fonctionnalités incluses.',
     price: 69.99,
     currency: 'EUR',
-    analysesPerMonth: 350,
+    analysesPerMonth: 400,  // 350 base + 50 bonus
+    bonusCredits: 50,
     features: PLAN_FEATURES.SCALE,
     stripePriceId: STRIPE_PRICE_IDS.SCALE || undefined,
     popular: true,
@@ -150,7 +154,7 @@ export const PLANS: Plan[] = [
     description: 'Pour les professionnels qui ont besoin de crédits illimités. Toutes les fonctionnalités incluses.',
     price: 279.99,
     currency: 'EUR',
-    analysesPerMonth: -1, // -1 means unlimited
+    analysesPerMonth: -1,
     features: PLAN_FEATURES.INFINITY,
     stripePriceId: STRIPE_PRICE_IDS.INFINITY || undefined,
   },

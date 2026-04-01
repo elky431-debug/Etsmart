@@ -348,11 +348,11 @@ export function DashboardSubscription({ user, isFreeUser }: DashboardSubscriptio
                     <div className="bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-lg px-4 py-3 mb-5 border border-[#00d4ff]/20">
                       {plan.analysesPerMonth === -1 ? (
                         <span className="text-2xl font-bold text-[#00d4ff]">Illimité</span>
-                      ) : plan.id === 'SCALE' ? (
+                      ) : plan.bonusCredits ? (
                         <>
-                          <span className="text-2xl font-bold text-[#00d4ff]">{plan.analysesPerMonth - 50}</span>
+                          <span className="text-2xl font-bold text-[#00d4ff]">{plan.analysesPerMonth - plan.bonusCredits}</span>
                           <span className="text-[#00c9b7] text-sm ml-1">crédits</span>
-                          <span className="ml-2 text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-0.5">+ 50 offerts</span>
+                          <span className="ml-2 text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-0.5">+ {plan.bonusCredits} offerts</span>
                         </>
                       ) : (
                         <>
@@ -641,11 +641,11 @@ export function DashboardSubscription({ user, isFreeUser }: DashboardSubscriptio
                     <div className="bg-gradient-to-r from-[#00d4ff]/10 to-[#00c9b7]/10 rounded-lg px-4 py-3 mb-5 border border-[#00d4ff]/20">
                       {plan.analysesPerMonth === -1 ? (
                         <span className="text-xl font-bold text-[#00d4ff]">Illimité</span>
-                      ) : plan.id === 'SCALE' ? (
+                      ) : plan.bonusCredits ? (
                         <>
-                          <span className="text-xl font-bold text-[#00d4ff]">{plan.analysesPerMonth - 50}</span>
+                          <span className="text-xl font-bold text-[#00d4ff]">{plan.analysesPerMonth - plan.bonusCredits}</span>
                           <span className="text-[#00c9b7] text-sm ml-1">crédits</span>
-                          <span className="ml-2 text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-0.5">+ 50 offerts</span>
+                          <span className="ml-2 text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-0.5">+ {plan.bonusCredits} offerts</span>
                         </>
                       ) : (
                         <>
