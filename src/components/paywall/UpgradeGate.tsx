@@ -9,6 +9,8 @@ interface UpgradeGateProps {
   /** Wrap children with a blurred overlay instead of replacing them entirely */
   overlay?: boolean;
   children?: React.ReactNode;
+  /** Hide the upgrade button (e.g. for coming-soon features available to paid users) */
+  hideButton?: boolean;
 }
 
 export function UpgradeGate({
@@ -16,6 +18,7 @@ export function UpgradeGate({
   description = 'Cette fonctionnalité est réservée aux abonnés payants.',
   overlay = false,
   children,
+  hideButton = false,
 }: UpgradeGateProps) {
   const router = useRouter();
 
@@ -28,13 +31,15 @@ export function UpgradeGate({
         <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
         <p className="text-white/50 text-sm max-w-xs">{description}</p>
       </div>
-      <button
-        onClick={() => router.push('/dashboard?section=subscription')}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity"
-      >
-        <Zap size={15} />
-        Passer à un plan payant
-      </button>
+      {!hideButton && (
+        <button
+          onClick={() => router.push('/dashboard?section=subscription')}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+        >
+          <Zap size={15} />
+          Passer à un plan payant
+        </button>
+      )}
     </div>
   );
 

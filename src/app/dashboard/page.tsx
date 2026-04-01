@@ -51,6 +51,7 @@ import {
   Bot,
   Coins,
   Search,
+  Lock,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 // Protection is handled by dashboard/layout.tsx
@@ -87,7 +88,6 @@ import { OpportunityMapComingSoon } from '@/components/dashboard/opportunity-map
 import { DashboardEtsyListingAnalyzer } from '@/components/dashboard/DashboardEtsyListingAnalyzer';
 import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompetitorShop';
 import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompare';
-import { DashboardComingSoonPanel } from '@/components/dashboard/DashboardComingSoonPanel';
 import DashboardNicheResearch from '@/components/dashboard/DashboardNicheResearch';
 import DashboardEtsyTrends from '@/components/dashboard/DashboardEtsyTrends';
 import { UpgradeGate } from '@/components/paywall/UpgradeGate';
@@ -128,20 +128,34 @@ interface MenuItem {
   label: string;
   icon: any;
   href?: string;
-  /** Affiche « Arrive bientôt » sous le libellé dans le menu. */
+  /** Locked for FREE users only — paid users see the actual content. */
+  lockedForFree?: boolean;
+  /** Not yet available for anyone — shows a coming-soon lock gate. */
   comingSoon?: boolean;
 }
 
-/** Sections « Analyse » : contenu remplacé par un panneau « Arrive bientôt ». */
-const ANALYSIS_COMING_SOON_TITLE: Partial<Record<DashboardSection, string>> = {
-  'etsy-keyword-analyze': 'Analyse de keyword',
-  'apify-test': 'Analyseur Listing Etsy',
-  'competitor-shop': 'Boutique concurrente',
-  'shop-compare': 'Comparaison de boutiques',
+/** Info shown in the lock gate for FREE-gated sections. */
+const LOCKED_FOR_FREE_INFO: Partial<Record<DashboardSection, { title: string; description: string }>> = {
+  coach: { title: 'Coach IA', description: 'Votre assistant IA dédié pour optimiser votre boutique Etsy au quotidien.' },
+  tracking: { title: 'Suivi de colis', description: 'Suivez vos livraisons et commandes Etsy en temps réel.' },
+  images: { title: 'Génération d\'images', description: 'Créez des visuels produits professionnels par IA en quelques secondes.' },
+  'analyse-simulation': { title: 'Analyse & Simulation', description: 'Analysez vos produits en profondeur et simulez vos revenus Etsy.' },
 };
 
-function isAnalysisComingSoonSection(section: DashboardSection): boolean {
-  return Object.prototype.hasOwnProperty.call(ANALYSIS_COMING_SOON_TITLE, section);
+/** Info shown for coming-soon sections (locked for everyone). */
+const COMING_SOON_INFO: Partial<Record<DashboardSection, { title: string; description: string }>> = {
+  'etsy-keyword-analyze': { title: 'Analyse de keywords', description: 'Analyse approfondie des mots-clés Etsy pour booster votre visibilité SEO.' },
+  'apify-test': { title: 'Analyseur Listing Etsy', description: 'Auditez automatiquement vos listings Etsy pour les optimiser.' },
+  'competitor-shop': { title: 'Boutique concurrente', description: 'Espionnez les meilleures boutiques de votre niche.' },
+  'shop-compare': { title: 'Comparaison de boutiques', description: 'Comparez votre boutique face aux leaders de votre catégorie.' },
+};
+
+function isLockedForFreeSection(section: DashboardSection): boolean {
+  return Object.prototype.hasOwnProperty.call(LOCKED_FOR_FREE_INFO, section);
+}
+
+function isComingSoonSection(section: DashboardSection): boolean {
+  return Object.prototype.hasOwnProperty.call(COMING_SOON_INFO, section);
 }
 
 interface MenuCategory {
@@ -1545,7 +1559,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
   // Items affichés tout en haut du menu latéral
   const topMenuItems: MenuItem[] = [
     { id: 'dashboard-home', label: 'Dashboard', icon: BarChart3 },
-    { id: 'coach', label: 'Coach', icon: Bot },
+    { id: 'coach', label: 'Coach', icon: Bot, lockedForFree: true },
   ];
 
   const menuCategories: MenuCategory[] = [
@@ -1553,14 +1567,14 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Gestion de boutique',
       items: [
         { id: 'store-manager', label: 'Gestionnaire de boutique', icon: Store },
-        { id: 'tracking', label: 'Suivi colis', icon: Truck },
+        { id: 'tracking', label: 'Suivi colis', icon: Truck, lockedForFree: true },
       ],
     },
     {
       label: 'Création de listings',
       items: [
         { id: 'quick-generate', label: 'Génération rapide', icon: Zap },
-        { id: 'images', label: 'Image', icon: Sparkles },
+        { id: 'images', label: 'Image', icon: Sparkles, lockedForFree: true },
         { id: 'listing', label: 'Listing', icon: FileText },
         { id: 'video-generator', label: 'Vidéo', icon: Play },
       ],
@@ -1568,13 +1582,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Analyse',
       items: [
-        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator },
-        {
-          id: 'etsy-keyword-analyze',
-          label: 'Analyse de keyword',
-          icon: Search,
-          comingSoon: true,
-        },
+        { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator, lockedForFree: true },
+        { id: 'etsy-keyword-analyze', label: 'Analyse de keyword', icon: Search, comingSoon: true },
         { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3, comingSoon: true },
         { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2, comingSoon: true },
         { id: 'shop-compare', label: 'Comparaison de boutiques', icon: GitCompare, comingSoon: true },
@@ -1668,6 +1677,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     {topMenuItems.map((item) => {
                       const Icon = item.icon;
                       const isActive = activeSection === item.id;
+                      const isLocked = item.comingSoon || (isFreeUser && item.lockedForFree);
                       return (
                         <button
                           key={item.id}
@@ -1683,7 +1693,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             }
                           `}
                         >
-                          <Icon size={20} className="flex-shrink-0" />
+                          <div className="relative flex-shrink-0">
+                            <Icon size={20} />
+                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                          </div>
                           <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             {item.label}
                           </span>
@@ -1706,7 +1719,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       {category.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
-                
+                const isLocked = item.comingSoon || (isFreeUser && item.lockedForFree);
+
                 return (
                   <button
                     key={item.id}
@@ -1726,12 +1740,12 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       }
                     `}
                   >
-                    <Icon size={20} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75 flex flex-col items-start gap-0.5">
-                      <span>{item.label}</span>
-                      {item.comingSoon ? (
-                        <span className="text-[10px] font-medium text-amber-400/90">Arrive bientôt</span>
-                      ) : null}
+                    <div className="relative flex-shrink-0">
+                      <Icon size={20} />
+                      {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                    </div>
+                    <span className="whitespace-nowrap opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 delay-75">
+                      {item.label}
                     </span>
                     {isActive && (
                       <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1848,6 +1862,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
                     {topMenuItems.map((item) => {
                       const Icon = item.icon;
                       const isActive = activeSection === item.id && !selectedAnalysis;
+                      const isLocked = item.comingSoon || (isFreeUser && item.lockedForFree);
 
                       return (
                         <button
@@ -1856,13 +1871,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             setActiveSection(item.id);
                             setSelectedAnalysis(null);
                             setIsMenuOpen(false);
-                            if (typeof window !== 'undefined') {
-                              try {
-                                localStorage.setItem('etsmart-last-dashboard-section', item.id);
-                              } catch (e) {
-                                console.warn('⚠️ Error saving last dashboard section:', e);
-                              }
-                            }
                           }}
                           className={`
                             flex w-full cursor-pointer appearance-none items-center gap-3 rounded-lg border-0 px-4 py-3 text-left font-medium text-sm transition-all
@@ -1872,7 +1880,10 @@ The final image should look like a high-quality Etsy listing photo and naturally
                             }
                           `}
                         >
-                          <Icon size={20} className="flex-shrink-0" />
+                          <div className="relative flex-shrink-0">
+                            <Icon size={20} />
+                            {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                          </div>
                           <span>{item.label}</span>
                         </button>
                       );
@@ -1890,7 +1901,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
                       {category.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.id && !selectedAnalysis;
-                  
+                  const isLocked = item.comingSoon || (isFreeUser && item.lockedForFree);
+
                   return (
                     <button
                       key={item.id}
@@ -1901,14 +1913,6 @@ The final image should look like a high-quality Etsy listing photo and naturally
                           return;
                         }
                         setActiveSection(item.id);
-                          // Sauvegarder la section dans localStorage
-                          if (typeof window !== 'undefined') {
-                            try {
-                              localStorage.setItem('etsmart-last-dashboard-section', item.id);
-                            } catch (e) {
-                              console.warn('⚠️ Error saving last dashboard section:', e);
-                            }
-                          }
                         setSelectedAnalysis(null);
                         setIsMenuOpen(false);
                       }}
@@ -1920,13 +1924,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
                         }
                       `}
                     >
-                            <Icon size={20} className="flex-shrink-0" />
-                      <span className="flex flex-col items-start gap-0.5 text-left">
-                        <span>{item.label}</span>
-                        {item.comingSoon ? (
-                          <span className="text-[10px] font-medium text-amber-400/90">Arrive bientôt</span>
-                        ) : null}
-                      </span>
+                      <div className="relative flex-shrink-0">
+                        <Icon size={20} />
+                        {isLocked && <Lock size={8} className="absolute -top-1 -right-1.5 text-violet-400" />}
+                      </div>
+                      <span>{item.label}</span>
                     </button>
                   );
                 })}
@@ -2014,8 +2016,17 @@ The final image should look like a high-quality Etsy listing photo and naturally
               : 'flex-1 overflow-auto bg-black'
           }
         >
-          {isAnalysisComingSoonSection(activeSection) ? (
-            <DashboardComingSoonPanel title={ANALYSIS_COMING_SOON_TITLE[activeSection]!} />
+          {isComingSoonSection(activeSection) ? (
+            <UpgradeGate
+              title={COMING_SOON_INFO[activeSection]!.title}
+              description={COMING_SOON_INFO[activeSection]!.description + ' — Bientôt disponible.'}
+              hideButton={!isFreeUser}
+            />
+          ) : isFreeUser && isLockedForFreeSection(activeSection) ? (
+            <UpgradeGate
+              title={LOCKED_FOR_FREE_INFO[activeSection]!.title}
+              description={LOCKED_FOR_FREE_INFO[activeSection]!.description}
+            />
           ) : (
             <>
           {activeSection === 'coach' && (
@@ -2368,7 +2379,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'store-manager' && (
-            <DashboardStoreManager />
+            <DashboardStoreManager isFreeUser={isFreeUser} />
           )}
 
           {activeSection === 'shop-story' && (

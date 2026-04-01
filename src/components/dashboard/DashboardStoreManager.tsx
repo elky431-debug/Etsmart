@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
   Clock,
   Link2,
+  Lock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -237,7 +238,7 @@ function ProductThumb({
   );
 }
 
-export function DashboardStoreManager() {
+export function DashboardStoreManager({ isFreeUser = false }: { isFreeUser?: boolean }) {
   const [shops, setShops] = useState<{ id: string; name: string; color?: string }[]>(() => {
     const stored = loadFromStorage<{ id: string; name: string; color?: string }[]>(STORAGE_KEY_SHOPS, INITIAL_SHOPS);
     // Migration: si l'ancienne boutique mock unique existe encore, on la retire pour forcer la création
@@ -856,14 +857,21 @@ export function DashboardStoreManager() {
                 <span className="truncate text-sm">{s.name}</span>
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setCreateShopModalOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors mt-1 border border-dashed border-white/10 hover:border-[#00d4ff]/30"
-            >
-              <Plus size={18} />
-              <span className="text-sm">Nouvelle boutique</span>
-            </button>
+            {isFreeUser && shops.length >= 1 ? (
+              <div className="mt-1 px-4 py-2.5 rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 flex items-center gap-3">
+                <Lock size={15} className="text-violet-400 flex-shrink-0" />
+                <span className="text-xs text-white/40">1 boutique max en gratuit</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCreateShopModalOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors mt-1 border border-dashed border-white/10 hover:border-[#00d4ff]/30"
+              >
+                <Plus size={18} />
+                <span className="text-sm">Nouvelle boutique</span>
+              </button>
+            )}
           </div>
         </nav>
       </aside>
