@@ -214,9 +214,9 @@ export async function POST(request: NextRequest) {
         'Background: soft delicate setting — light fabrics, gentle pastel tones, dreamy and clean.';
     } else if (isLampNiche) {
       paletteInstruction =
-        'Use a warm beige palette: light beige, cream, sand, warm taupe, soft golden highlights.';
+        'Use a warm beige palette: light beige, cream, sand, warm taupe, soft golden highlights. The lamps must emit visible warm golden light that fills the scene.';
       backgroundInstruction =
-        'Background: warm ambient living room setting — soft shadows, gentle lamp glow, cozy interior. Not a cold sterile studio.';
+        'Background: warm cozy interior — the SUSPENSION LAMPS are the clear HERO of the image, hanging prominently and lit up, emitting beautiful warm golden light. Multiple lamps filling the scene from left to right. Soft shadows, bokeh background, high-end interior photography feel. The lamps must be large, close-up, and visually dominant — NOT tiny or in the distance.';
     } else {
       paletteInstruction =
         'Use a tasteful palette that matches the product niche. Prefer rich, atmospheric tones over plain neutrals.';
@@ -235,9 +235,9 @@ export async function POST(request: NextRequest) {
 ━━━ VISUAL CONTENT ━━━
 • ${backgroundInstruction}
 • ${paletteInstruction}
-• Show the product(s) matching: "${listingTitle}"
-${hasReferenceImage ? '• A reference product image is provided — echo its style, colors and subject matter. Show similar products naturally integrated into the scene.' : '• No reference provided — generate contextually appropriate products for this niche.'}
-• Composition: products arranged across the full width of the banner — LEFT side, CENTER zone, and RIGHT side all feel balanced and filled.
+• The PRODUCTS matching "${listingTitle}" are the MAIN SUBJECT — they must be LARGE, PROMINENT, and clearly visible. Not background props, not tiny accents — the products fill the scene.
+${hasReferenceImage ? '• A reference product image is provided — reproduce its exact style, shape, colors and subject. The products shown MUST closely match the reference.' : '• No reference provided — generate the most visually appealing version of this product type.'}
+• Composition: products arranged across the full width of the banner — LEFT side, CENTER zone, and RIGHT side all feel balanced and filled with the actual products.
 • The CENTER ZONE (roughly the middle 35% of the width) should be slightly less visually busy — a soft background area where overlaid text will be readable. Think of it as a "clearing" in the composition: still part of the scene, but not crowded with objects.
 • Lighting: cinematic and atmospheric — directional soft light, shallow depth of field (bokeh), warm or cool tones depending on niche. NOT flat white studio.
 • Depth layers: foreground soft elements, midground hero products, atmospheric background. Editorial lifestyle feel.
@@ -307,18 +307,13 @@ ${
     // Couleurs selon niche : dark pour anime/gaming, light pour pastel
     const darkTheme = isAnimeGaming || isBookNiche;
     const lightTheme = isPastelNiche;
-    const textColor    = lightTheme ? '#1a1a1a' : '#ffffff';
-    const shadowSpread = darkTheme ? 8 : 5;
-    const shadowOpacity = darkTheme ? '0.95' : '0.75';
-    // Backdrop semi-transparent centré derrière le texte
-    const backdropH    = fontSize + 40;
-    const backdropY    = Math.round((300 - backdropH) / 2);
-    const backdropFill = lightTheme ? 'rgba(255,255,255,0.45)' : darkTheme ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.40)';
-    // Pour anime/gaming : on ajoute un subtle glow coloré autour du texte
-    const glowColor = isAnimeGaming ? 'rgba(120,200,255,0.5)' : 'none';
+    const textColor = lightTheme ? '#1a1a1a' : '#ffffff';
 
     const safeName = shopName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const textY = 150 + Math.round(fontSize * 0.36);
+
+    // Shadow color: dark for light text, light for dark text
+    const shadowRgb = lightTheme ? '255,255,255' : '0,0,0';
 
     const svgOverlay = `<svg width="1200" height="300" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -339,12 +334,16 @@ ${
   <rect width="1200" height="300" fill="url(#vig-h)"/>
   <rect width="1200" height="300" fill="url(#vig-v)"/>
 
-  <rect x="0" y="${backdropY}" width="1200" height="${backdropH}" fill="${backdropFill}"/>
-
-  <!-- Shadow via texte dupliqué décalé (feDropShadow non supporté par librsvg) -->
-  <text x="603" y="${textY + 3}" text-anchor="middle" dominant-baseline="middle"
+  <!-- Multi-layer shadow (feDropShadow not supported by librsvg) -->
+  <text x="606" y="${textY + 6}" text-anchor="middle" dominant-baseline="middle"
     font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
-    fill="rgba(0,0,0,0.7)" letter-spacing="${tracking}">${safeName}</text>
+    fill="rgba(${shadowRgb},0.35)" letter-spacing="${tracking}">${safeName}</text>
+  <text x="604" y="${textY + 4}" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
+    fill="rgba(${shadowRgb},0.50)" letter-spacing="${tracking}">${safeName}</text>
+  <text x="602" y="${textY + 2}" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
+    fill="rgba(${shadowRgb},0.65)" letter-spacing="${tracking}">${safeName}</text>
 
   <!-- Texte principal -->
   <text x="600" y="${textY}" text-anchor="middle" dominant-baseline="middle"
