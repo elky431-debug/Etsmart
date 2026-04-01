@@ -68,9 +68,9 @@ type CaPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'all';
 const CA_PERIODS: { id: CaPeriod; label: string; hint: string }[] = [
   { id: 'today', label: "Aujourd'hui", hint: 'Montants encaissés sur la journée en cours.' },
   { id: 'yesterday', label: 'Hier', hint: 'Journée calendaire précédente.' },
-  { id: 'week', label: 'Cette semaine', hint: 'Du lundi à aujourd’hui (semaine locale).' },
+  { id: 'week', label: 'Cette semaine', hint: 'Du lundi à aujourd'hui (semaine locale).' },
   { id: 'month', label: 'Ce mois-ci', hint: 'Du 1er au dernier jour du mois en cours.' },
-  { id: 'all', label: 'Depuis l’ouverture', hint: 'Total cumulé sur toutes les commandes enregistrées.' },
+  { id: 'all', label: 'Depuis l'ouverture', hint: 'Total cumulé sur toutes les commandes enregistrées.' },
 ];
 
 function parseList<T>(raw: string | null): T[] {
@@ -165,22 +165,22 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
   const keys = useMemo(() => homeKeys(userId), [userId]);
   const [shops, setShops] = useState<StoreShop[]>([]);
   const [transactions, setTransactions] = useState<StoreTransaction[]>([]);
-  /** null = Global (toutes les boutiques). Sinon id d’une seule boutique. */
+  /** null = Global (toutes les boutiques). Sinon id d'une seule boutique. */
   const [caFilterShopId, setCaFilterShopId] = useState<string | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [todoInput, setTodoInput] = useState(‘’);
+  const [todoInput, setTodoInput] = useState('');
   const [goals, setGoals] = useState<GoalItem[]>([]);
-  const [goalTitle, setGoalTitle] = useState(‘’);
-  const [goalTarget, setGoalTarget] = useState(‘10’);
-  const [caPeriod, setCaPeriod] = useState<CaPeriod>(‘today’);
+  const [goalTitle, setGoalTitle] = useState('');
+  const [goalTarget, setGoalTarget] = useState('10');
+  const [caPeriod, setCaPeriod] = useState<CaPeriod>('today');
 
   const reloadFromStorage = useCallback(() => {
-    if (typeof window === ‘undefined’) return;
+    if (typeof window === 'undefined') return;
     const shopList = parseList<StoreShop>(localStorage.getItem(keys.shops));
     setShops(shopList);
     setTransactions(parseList<StoreTransaction>(localStorage.getItem(keys.transactions)));
     const savedFilter = localStorage.getItem(keys.caShopFilter);
-    if (savedFilter && savedFilter !== ‘global’ && savedFilter.trim() !== ‘’) {
+    if (savedFilter && savedFilter !== 'global' && savedFilter.trim() !== '') {
       const stillExists = shopList.some((s) => s.id === savedFilter);
       setCaFilterShopId(stillExists ? savedFilter : null);
     } else {
@@ -198,7 +198,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
     reloadFromStorage();
     const onFocus = () => reloadFromStorage();
     const onVis = () => {
-      if (typeof document !== ‘undefined’ && document.visibilityState === ‘visible’) reloadFromStorage();
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') reloadFromStorage();
     };
     const onStorage = (e: StorageEvent) => {
       if (
@@ -209,34 +209,34 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
         reloadFromStorage();
       }
     };
-    window.addEventListener(‘focus’, onFocus);
-    document.addEventListener(‘visibilitychange’, onVis);
-    window.addEventListener(‘storage’, onStorage);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('storage', onStorage);
     return () => {
-      window.removeEventListener(‘focus’, onFocus);
-      document.removeEventListener(‘visibilitychange’, onVis);
-      window.removeEventListener(‘storage’, onStorage);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('storage', onStorage);
     };
   }, [reloadFromStorage, keys]);
 
   useEffect(() => {
-    if (typeof window === ‘undefined’) return;
+    if (typeof window === 'undefined') return;
     localStorage.setItem(keys.todos, JSON.stringify(todos));
   }, [todos, keys.todos]);
 
   useEffect(() => {
-    if (typeof window === ‘undefined’) return;
+    if (typeof window === 'undefined') return;
     localStorage.setItem(keys.goals, JSON.stringify(goals));
   }, [goals, keys.goals]);
 
   useEffect(() => {
-    if (typeof window === ‘undefined’) return;
+    if (typeof window === 'undefined') return;
     localStorage.setItem(keys.caPeriod, caPeriod);
   }, [caPeriod, keys.caPeriod]);
 
   useEffect(() => {
-    if (typeof window === ‘undefined’) return;
-    localStorage.setItem(keys.caShopFilter, caFilterShopId === null ? ‘global’ : caFilterShopId);
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(keys.caShopFilter, caFilterShopId === null ? 'global' : caFilterShopId);
   }, [caFilterShopId, keys.caShopFilter]);
 
   /** CA filtré : par défaut global ; une boutique si choisie dans le sélecteur. */
@@ -441,7 +441,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
     if (list.length === 0) {
       list.push({
         id: 'all-good',
-        title: 'Rien d’urgent',
+        title: 'Rien d'urgent',
         description: 'Ton gestionnaire est propre. Tu peux lancer de nouvelles actions de croissance.',
         cta: 'Aller au gestionnaire',
         target: 'store-manager',
@@ -481,13 +481,13 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
       <div className="mx-auto max-w-7xl space-y-12 px-4 py-8 md:px-8 md:py-10 lg:px-10">
         <header className="flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">Vue d’ensemble</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">Vue d'ensemble</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-[2rem]">
               <span className={ET_TEXT_GRADIENT}>Dashboard</span>{' '}
-              <span className="text-white">d’actions</span>
+              <span className="text-white">d'actions</span>
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50">
-              Chiffre d’affaires et actions prioritaires — le reste en un coup d’œil.
+              Chiffre d'affaires et actions prioritaires — le reste en un coup d'œil.
             </p>
           </div>
           <button
@@ -500,7 +500,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
           </button>
         </header>
 
-        {/* Zone principale : action d’abord sur mobile, CA à gauche sur grand écran */}
+        {/* Zone principale : action d'abord sur mobile, CA à gauche sur grand écran */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
           <div
             className={`order-1 rounded-2xl border border-white/10 bg-black p-6 md:p-7 lg:order-2 lg:col-span-4 ${
@@ -564,7 +564,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
             <div className="flex flex-col gap-6 border-b border-white/10 pb-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  Chiffre d’affaires
+                  Chiffre d'affaires
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
@@ -704,7 +704,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
               </div>
               <h2 className="text-base font-semibold text-white">To do list</h2>
             </div>
-            <p className="mb-6 text-xs text-white/50">Coche quand c’est fait.</p>
+            <p className="mb-6 text-xs text-white/50">Coche quand c'est fait.</p>
             <div className="mb-6 flex gap-2">
               <input
                 value={todoInput}
@@ -850,7 +850,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
           </div>
         </section>
 
-        {/* Raccourcis — liste type “réglages” */}
+        {/* Raccourcis — liste type "réglages" */}
         <section>
           <div className="mb-4 flex items-center gap-4">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">Raccourcis</h2>
