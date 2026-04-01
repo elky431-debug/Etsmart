@@ -317,7 +317,6 @@ ${
 
     const svgOverlay = `<svg width="1200" height="300" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Vignette bords -->
     <linearGradient id="vig-h" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%"   stop-color="rgba(0,0,0,0.35)"/>
       <stop offset="18%"  stop-color="rgba(0,0,0,0.0)"/>
@@ -330,41 +329,22 @@ ${
       <stop offset="70%"  stop-color="rgba(0,0,0,0.0)"/>
       <stop offset="100%" stop-color="rgba(0,0,0,0.25)"/>
     </linearGradient>
-    <!-- Shadow pour le texte -->
-    <filter id="tshadow" x="-20%" y="-40%" width="140%" height="180%">
-      <feDropShadow dx="0" dy="2" stdDeviation="${shadowSpread}" flood-color="rgba(0,0,0,${shadowOpacity})"/>
-    </filter>
-    ${isAnimeGaming ? `<filter id="glow" x="-30%" y="-60%" width="160%" height="220%">
-      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="${glowColor}"/>
-    </filter>` : ''}
   </defs>
 
-  <!-- Vignettes horizontale + verticale -->
   <rect width="1200" height="300" fill="url(#vig-h)"/>
   <rect width="1200" height="300" fill="url(#vig-v)"/>
 
-  <!-- Backdrop derrière le texte -->
-  <rect x="0" y="${backdropY}" width="1200" height="${backdropH}"
-        fill="${backdropFill}"/>
+  <rect x="0" y="${backdropY}" width="1200" height="${backdropH}" fill="${backdropFill}"/>
 
-  ${isAnimeGaming ? `<!-- Glow lumineux pour anime/gaming -->
-  <text x="600" y="${textY}" text-anchor="middle" dominant-baseline="middle"
+  <!-- Shadow via texte dupliqué décalé (feDropShadow non supporté par librsvg) -->
+  <text x="603" y="${textY + 3}" text-anchor="middle" dominant-baseline="middle"
     font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
-    fill="rgba(180,230,255,0.4)" letter-spacing="${tracking}"
-    filter="url(#glow)">${safeName}</text>` : ''}
+    fill="rgba(0,0,0,0.7)" letter-spacing="${tracking}">${safeName}</text>
 
   <!-- Texte principal -->
-  <text
-    x="600" y="${textY}"
-    text-anchor="middle"
-    dominant-baseline="middle"
-    font-family="Arial, Liberation Sans, sans-serif"
-    font-size="${fontSize}"
-    font-weight="700"
-    fill="${textColor}"
-    letter-spacing="${tracking}"
-    filter="url(#tshadow)"
-  >${safeName}</text>
+  <text x="600" y="${textY}" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="700"
+    fill="${textColor}" letter-spacing="${tracking}">${safeName}</text>
 </svg>`;
 
     const bannerBuffer = await sharp(bgBuffer)
