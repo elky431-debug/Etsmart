@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       const { getUserQuotaInfo, incrementAnalysisCount } = await import('@/lib/subscription-quota');
       const quotaInfo = await getUserQuotaInfo(user.id);
       
-      if (quotaInfo.status !== 'active') {
+      if (quotaInfo.status !== 'active' && quotaInfo.status !== 'free') {
         return NextResponse.json(
           { error: 'SUBSCRIPTION_REQUIRED', message: 'An active subscription is required to generate descriptions.' },
           { status: 403 }

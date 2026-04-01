@@ -328,14 +328,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
       {subscription && (
         <div className="p-5 rounded-xl bg-black border border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              typeof window !== 'undefined' && (
-                window.location.hostname === 'localhost' || 
-                window.location.hostname === '127.0.0.1'
-              )
-                ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]'
-                : 'bg-cyan-500'
-            }`}>
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] flex items-center justify-center">
               <Zap size={20} className="text-white" />
             </div>
             <div>
@@ -353,6 +346,7 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
             <p className="text-lg font-semibold text-white">
               {subscription.used % 1 === 0 ? subscription.used : subscription.used.toFixed(1)}
             </p>
+            <p className="text-xs text-white/40 mt-1">Listing = 1 crédit</p>
           </div>
         </div>
       )}
