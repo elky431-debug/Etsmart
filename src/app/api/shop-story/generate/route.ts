@@ -91,37 +91,10 @@ type ShopTone = 'luxury_professional' | 'chill_small';
 type Gender = 'female' | 'male';
 
 /**
- * Fetch a gender+age filtered AI portrait.
- * Primary: fakeface.rest (wrapper around StyleGAN with gender/age metadata, free, no key).
- * Fallback: thispersondoesnotexist.com (1024x1024, no gender filter).
+ * Fetch a 1024x1024 AI portrait from thispersondoesnotexist.com.
+ * Free, no key, always photorealistic. No gender filter (50/50).
  */
-async function fetchGeneratedPortrait(gender: Gender): Promise<string | null> {
-  // Primary: fakeface.rest — gender + age filtered
-  try {
-    const genderParam = gender === 'female' ? 'female' : 'male';
-    const metaRes = await fetch(
-      `https://fakeface.rest/face/json?gender=${genderParam}&minimum_age=20&maximum_age=32`,
-      { signal: AbortSignal.timeout(8_000) }
-    );
-    if (metaRes.ok) {
-      const meta = await metaRes.json() as { image_url?: string };
-      if (meta.image_url) {
-        const imgRes = await fetch(meta.image_url, { signal: AbortSignal.timeout(10_000) });
-        if (imgRes.ok) {
-          const buf = Buffer.from(await imgRes.arrayBuffer());
-          const png = await sharp(buf)
-            .resize(1024, 1024, { fit: 'cover', withoutEnlargement: true })
-            .png({ quality: 92 })
-            .toBuffer();
-          return `data:image/png;base64,${png.toString('base64')}`;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[shop-story] fakeface.rest portrait failed:', e);
-  }
-
-  // Fallback: thispersondoesnotexist.com (1024x1024, no gender filter)
+async function fetchGeneratedPortrait(_gender: Gender): Promise<string | null> {
   try {
     const seed = Math.random().toString(36).slice(2);
     const res = await fetch(`https://thispersondoesnotexist.com/?cb=${seed}`, {
