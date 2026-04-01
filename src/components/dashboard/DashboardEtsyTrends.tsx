@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, BarChart3, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, BarChart3, Zap, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
 
 // ─── Data — extracted from Etsy trending searches ────────────────────────────
 
@@ -16,6 +16,13 @@ interface TrendItem {
 
 interface BreakthroughItem {
   phrase: string;
+}
+
+interface EventItem {
+  name: string;
+  date: string; // ISO YYYY-MM-DD
+  emoji: string;
+  category: 'holiday' | 'shopping' | 'seasonal' | 'awareness' | 'celebration';
 }
 
 const TRENDING: TrendItem[] = [
@@ -134,6 +141,73 @@ const BREAKTHROUGH: BreakthroughItem[] = [
   { phrase: 'memorial day'         },
 ];
 
+const EVENTS: EventItem[] = [
+  // Janvier
+  { name: 'Nouvel An',                        date: '2026-01-01', emoji: '🎆', category: 'holiday'     },
+  { name: 'Martin Luther King Day',           date: '2026-01-19', emoji: '✊', category: 'holiday'     },
+  // Février
+  { name: 'Super Bowl',                       date: '2026-02-08', emoji: '🏈', category: 'celebration' },
+  { name: 'Saint-Valentin',                   date: '2026-02-14', emoji: '❤️', category: 'holiday'     },
+  { name: "President's Day",                  date: '2026-02-16', emoji: '🇺🇸', category: 'holiday'    },
+  { name: 'Nouvel An Lunaire',                date: '2026-02-17', emoji: '🐍', category: 'celebration' },
+  { name: 'Mardi Gras',                       date: '2026-02-17', emoji: '🎭', category: 'celebration' },
+  { name: 'Ramadan',                          date: '2026-02-18', emoji: '🌙', category: 'holiday'     },
+  // Mars
+  { name: 'Read Across America Day',          date: '2026-03-02', emoji: '📚', category: 'awareness'   },
+  { name: "Employee Appreciation Day",        date: '2026-03-06', emoji: '🙏', category: 'celebration' },
+  { name: "Journée Internationale des Femmes",date: '2026-03-08', emoji: '♀️', category: 'awareness'   },
+  { name: 'Pi Day',                           date: '2026-03-14', emoji: '🥧', category: 'celebration' },
+  { name: "St. Patrick's Day",                 date: '2026-03-17', emoji: '☘️', category: 'holiday'     },
+  { name: 'Équinoxe de Printemps',            date: '2026-03-20', emoji: '🌸', category: 'seasonal'    },
+  // Avril
+  { name: "April Fool's Day",                 date: '2026-04-01', emoji: '🃏', category: 'celebration' },
+  { name: 'Vendredi Saint',                   date: '2026-04-03', emoji: '✝️', category: 'holiday'     },
+  { name: 'Pâques',                           date: '2026-04-05', emoji: '🐣', category: 'holiday'     },
+  { name: 'Tax Day',                          date: '2026-04-15', emoji: '💸', category: 'celebration' },
+  { name: 'Earth Day',                        date: '2026-04-22', emoji: '🌍', category: 'awareness'   },
+  // Mai
+  { name: 'Cinco de Mayo',                    date: '2026-05-05', emoji: '🌮', category: 'celebration' },
+  { name: 'Fête des Mères',                   date: '2026-05-10', emoji: '💐', category: 'holiday'     },
+  { name: 'Teacher Appreciation Week',        date: '2026-05-04', emoji: '🍎', category: 'celebration' },
+  { name: 'Memorial Day',                     date: '2026-05-25', emoji: '🎖️', category: 'holiday'    },
+  // Juin
+  { name: "Journée de l'Environnement",       date: '2026-06-05', emoji: '🌿', category: 'awareness'   },
+  { name: 'Fête des Pères',                   date: '2026-06-21', emoji: '👔', category: 'holiday'     },
+  { name: "Solstice d'Été",                    date: '2026-06-21', emoji: '☀️', category: 'seasonal'   },
+  { name: 'Juneteenth',                       date: '2026-06-19', emoji: '✊', category: 'holiday'     },
+  // Juillet
+  { name: 'Independance Day',                 date: '2026-07-04', emoji: '🎇', category: 'holiday'     },
+  { name: 'Prime Day (approx.)',              date: '2026-07-15', emoji: '🛒', category: 'shopping'    },
+  // Août
+  { name: 'Rentrée Scolaire',                 date: '2026-08-24', emoji: '🎒', category: 'celebration' },
+  // Septembre
+  { name: 'Labor Day',                        date: '2026-09-07', emoji: '🔨', category: 'holiday'     },
+  { name: "Équinoxe d'Automne",               date: '2026-09-23', emoji: '🍂', category: 'seasonal'   },
+  // Octobre
+  { name: 'Breast Cancer Awareness Month',    date: '2026-10-01', emoji: '🎀', category: 'awareness'   },
+  { name: 'Columbus Day',                     date: '2026-10-12', emoji: '⚓', category: 'holiday'     },
+  { name: 'Halloween',                        date: '2026-10-31', emoji: '🎃', category: 'holiday'     },
+  // Novembre
+  { name: "Jour des Anciens Combattants",     date: '2026-11-11', emoji: '🎖️', category: 'holiday'    },
+  { name: 'Thanksgiving',                     date: '2026-11-26', emoji: '🦃', category: 'holiday'     },
+  { name: 'Black Friday',                     date: '2026-11-27', emoji: '🛍️', category: 'shopping'   },
+  { name: 'Cyber Monday',                     date: '2026-11-30', emoji: '💻', category: 'shopping'    },
+  // Décembre
+  { name: 'Hanukkah',                         date: '2026-12-05', emoji: '🕎', category: 'holiday'     },
+  { name: "Solstice d'Hiver",                  date: '2026-12-21', emoji: '❄️', category: 'seasonal'   },
+  { name: 'Noël',                             date: '2026-12-25', emoji: '🎄', category: 'holiday'     },
+  { name: 'Kwanzaa',                          date: '2026-12-26', emoji: '🕯️', category: 'holiday'    },
+  { name: 'Nouvel An (veille)',               date: '2026-12-31', emoji: '🥂', category: 'celebration' },
+];
+
+const CATEGORY_STYLES: Record<EventItem['category'], { bg: string; text: string; label: string }> = {
+  holiday:     { bg: 'bg-violet-500/15', text: 'text-violet-300',  label: 'Fête'       },
+  shopping:    { bg: 'bg-amber-500/15',  text: 'text-amber-300',   label: 'Shopping'   },
+  seasonal:    { bg: 'bg-emerald-500/15',text: 'text-emerald-300', label: 'Saison'     },
+  awareness:   { bg: 'bg-sky-500/15',    text: 'text-sky-300',     label: 'Sensib.'    },
+  celebration: { bg: 'bg-rose-500/15',   text: 'text-rose-300',    label: 'Célébration'},
+};
+
 const PER_PAGE = 10;
 
 // ─── Change badge ─────────────────────────────────────────────────────────────
@@ -171,31 +245,41 @@ function Pagination({
 }: { page: number; total: number; onPrev: () => void; onNext: () => void }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-white/10 text-xs text-white/40">
-      <span>Page {page} of {total}</span>
+      <span>Page {page} / {total}</span>
       <div className="flex gap-2">
         <button
           onClick={onPrev}
           disabled={page <= 1}
           className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
         >
-          <span className="flex items-center gap-1"><ChevronLeft size={12} /> Previous</span>
+          <span className="flex items-center gap-1"><ChevronLeft size={12} /> Précédent</span>
         </button>
         <button
           onClick={onNext}
           disabled={page >= total}
           className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
         >
-          <span className="flex items-center gap-1">Next <ChevronRight size={12} /></span>
+          <span className="flex items-center gap-1">Suivant <ChevronRight size={12} /></span>
         </button>
       </div>
     </div>
   );
 }
 
+// ─── Days until helper ────────────────────────────────────────────────────────
+function daysUntil(isoDate: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(isoDate);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function DashboardEtsyTrends() {
   const [trendPage, setTrendPage] = useState(1);
   const [breakPage, setBreakPage] = useState(1);
+  const [activeMonth, setActiveMonth] = useState<string | null>(null);
 
   const trendTotal = Math.ceil(TRENDING.length / PER_PAGE);
   const breakTotal = Math.ceil(BREAKTHROUGH.length / PER_PAGE);
@@ -203,13 +287,41 @@ export default function DashboardEtsyTrends() {
   const trendSlice = TRENDING.slice((trendPage - 1) * PER_PAGE, trendPage * PER_PAGE);
   const breakSlice = BREAKTHROUGH.slice((breakPage - 1) * PER_PAGE, breakPage * PER_PAGE);
 
+  // Sort events by date and compute days until
+  const sortedEvents = useMemo(() => {
+    return EVENTS
+      .map(e => ({ ...e, days: daysUntil(e.date) }))
+      .sort((a, b) => a.days - b.days);
+  }, []);
+
+  // Group by month label
+  const months = useMemo(() => {
+    const map = new Map<string, typeof sortedEvents>();
+    for (const e of sortedEvents) {
+      const label = new Date(e.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(e);
+    }
+    return Array.from(map.entries());
+  }, [sortedEvents]);
+
+  const filteredEvents = useMemo(() => {
+    if (!activeMonth) return sortedEvents;
+    return sortedEvents.filter(e =>
+      new Date(e.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) === activeMonth
+    );
+  }, [sortedEvents, activeMonth]);
+
+  // Next upcoming event
+  const nextEvent = sortedEvents.find(e => e.days >= 0);
+
   return (
     <div className="p-4 md:p-8 bg-black min-h-screen pb-12">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
@@ -218,18 +330,16 @@ export default function DashboardEtsyTrends() {
               <p className="text-white/50 text-sm mt-0.5">Recherches tendances sur Etsy — mises à jour mensuellement</p>
             </div>
           </div>
-
         </motion.div>
 
         {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
-          {/* ── Trending Monthly Searches ── */}
+          {/* ── Recherches Tendances du Mois ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
             className="bg-white/3 border border-white/10 rounded-xl overflow-hidden"
           >
-            {/* Panel header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <TrendingUp size={16} className="text-emerald-400" />
@@ -238,14 +348,12 @@ export default function DashboardEtsyTrends() {
               <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{TRENDING.length} phrases</span>
             </div>
 
-            {/* Column headers */}
             <div className="grid grid-cols-[48px_1fr_80px] px-5 py-2 border-b border-white/5">
-              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Rank</span>
-              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Search Phrase</span>
-              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Change</span>
+              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Rang</span>
+              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Expression</span>
+              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Évolution</span>
             </div>
 
-            {/* Rows */}
             <div className="divide-y divide-white/5">
               {trendSlice.map((item) => (
                 <div key={item.rank} className="grid grid-cols-[48px_1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
@@ -265,12 +373,11 @@ export default function DashboardEtsyTrends() {
             />
           </motion.div>
 
-          {/* ── Breakthrough Searches ── */}
+          {/* ── Recherches Émergentes ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-white/3 border border-white/10 rounded-xl overflow-hidden"
           >
-            {/* Panel header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Zap size={16} className="text-amber-400" />
@@ -279,13 +386,11 @@ export default function DashboardEtsyTrends() {
               <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{BREAKTHROUGH.length} phrases</span>
             </div>
 
-            {/* Column headers */}
             <div className="grid grid-cols-[1fr_80px] px-5 py-2 border-b border-white/5">
-              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Search Phrase</span>
-              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Change</span>
+              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Expression</span>
+              <span className="text-[11px] font-semibold text-white/30 uppercase tracking-wider text-right">Évolution</span>
             </div>
 
-            {/* Rows */}
             <div className="divide-y divide-white/5">
               {breakSlice.map((item) => (
                 <div key={item.phrase} className="grid grid-cols-[1fr_80px] px-5 py-3 hover:bg-white/3 transition-colors items-center">
@@ -309,8 +414,99 @@ export default function DashboardEtsyTrends() {
 
         </div>
 
-        {/* Info note */}
-        <p className="mt-4 text-xs text-white/20 text-center">
+        {/* ── Événements à Venir ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        >
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Calendar size={18} className="text-amber-400" />
+              Événements à Venir
+            </h2>
+            {nextEvent && (
+              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
+                <Clock size={12} className="text-amber-400" />
+                <span className="text-amber-300 text-xs font-medium">
+                  {nextEvent.emoji} {nextEvent.name} dans {nextEvent.days === 0 ? "aujourd'hui" : `${nextEvent.days}j`}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Month filter pills */}
+          <div className="flex gap-2 flex-wrap mb-4">
+            <button
+              onClick={() => setActiveMonth(null)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                activeMonth === null
+                  ? 'bg-violet-500/30 text-violet-200 border border-violet-500/40'
+                  : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+              }`}
+            >
+              Tous
+            </button>
+            {months.map(([label]) => (
+              <button
+                key={label}
+                onClick={() => setActiveMonth(label === activeMonth ? null : label)}
+                className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                  activeMonth === label
+                    ? 'bg-violet-500/30 text-violet-200 border border-violet-500/40'
+                    : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Events grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {filteredEvents.map((event) => {
+              const style = CATEGORY_STYLES[event.category];
+              const isPast = event.days < 0;
+              const isSoon = event.days >= 0 && event.days <= 14;
+              return (
+                <div
+                  key={event.date + event.name}
+                  className={`relative rounded-xl border p-4 transition-all ${
+                    isPast
+                      ? 'border-white/5 bg-white/2 opacity-40'
+                      : isSoon
+                      ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8'
+                      : 'border-white/10 bg-white/3 hover:bg-white/5'
+                  }`}
+                >
+                  {isSoon && !isPast && (
+                    <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  )}
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl leading-none mt-0.5">{event.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm leading-tight truncate">{event.name}</p>
+                      <p className="text-white/40 text-xs mt-1">
+                        {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
+                          {style.label}
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isPast ? 'text-white/20' : isSoon ? 'text-amber-400' : 'text-white/50'
+                        }`}>
+                          {isPast ? 'passé' : event.days === 0 ? "auj." : `J-${event.days}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        <p className="mt-6 text-xs text-white/20 text-center">
           Données basées sur les tendances de recherche Etsy · Mise à jour mensuelle
         </p>
       </div>
