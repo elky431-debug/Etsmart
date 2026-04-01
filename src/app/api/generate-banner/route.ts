@@ -4,6 +4,11 @@ import { getUserQuotaInfo, incrementAnalysisCount } from '@/lib/subscription-quo
 import { geminiGenerateImageBuffer, GEMINI_IMAGE_MODEL } from '@/lib/gemini-image-generate';
 import * as cheerio from 'cheerio';
 import sharp from 'sharp';
+import path from 'path';
+
+// Point librsvg (Sharp) to our bundled fonts — avoids missing font squares on Netlify Linux
+const FONTS_DIR = path.join(process.cwd(), 'src', 'fonts');
+process.env.FONTCONFIG_PATH = FONTS_DIR;
 
 const BANNER_CREDITS = 2;
 

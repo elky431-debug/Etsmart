@@ -3,6 +3,9 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { incrementAnalysisCount } from '@/lib/subscription-quota';
 import sharp from 'sharp';
 import { geminiGenerateImageBuffer, GEMINI_IMAGE_MODEL } from '@/lib/gemini-image-generate';
+import path from 'path';
+
+process.env.FONTCONFIG_PATH = path.join(process.cwd(), 'src', 'fonts');
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
