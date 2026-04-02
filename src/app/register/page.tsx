@@ -31,6 +31,18 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      const emailCheck = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!emailCheck.ok) {
+        const data = await emailCheck.json();
+        setError(data.error || 'Email temporaire non autorisé');
+        setIsLoading(false);
+        return;
+      }
+
       await signUp(email, password, name);
       // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
       // Rediriger vers le dashboard d'actions
