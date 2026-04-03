@@ -194,6 +194,8 @@ export function KeywordResearchResults({
 }: Props) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('keyword');
   const [chartView, setChartView] = useState<ChartView>('current');
+  const [kwPage, setKwPage] = useState(0);
+  const KW_PER_PAGE = 10;
 
   const { scores, metrics, listings } = result;
 
@@ -430,112 +432,73 @@ export function KeywordResearchResults({
               <p className="text-white/40 text-sm text-center py-6">
                 Aucun mot-clé similaire disponible.
               </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[560px]">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">
-                        Mot-clé
-                      </th>
-                      <th className="text-right py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">
-                        Volume recherche
-                      </th>
-                      <th className="text-right py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">
-                        Concurrence
-                      </th>
-                      <th className="text-right py-2 text-white/40 text-xs font-medium uppercase tracking-wider">
-                        Score
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displaySimilarKws.map((kw, i) => {
-                      const isPlaceholder = 'isPlaceholder' in kw && kw.isPlaceholder;
-                      return (
-                        <tr
-                          key={i}
-                          className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
-                        >
-                          <td className="py-2.5 pr-4">
-                            <button
-                              type="button"
-                              onClick={() => onUseSuggestion?.(kw.keyword)}
-                              className="flex items-center gap-1.5 text-white/80 hover:text-[#00d4ff] transition-colors text-left group"
-                            >
-                              <Search className="w-3 h-3 text-white/30 group-hover:text-[#00d4ff]/60 flex-shrink-0" />
-                              <span className="truncate max-w-[240px]">{kw.keyword}</span>
-                            </button>
-                          </td>
-                          <td className="py-2.5 pr-4 text-right">
-                            {isPlaceholder ? (
-                              <span className="text-white/25 text-xs">—</span>
-                            ) : (
-                              <span className="text-white/70 tabular-nums">
-                                {formatRawNumber(kw.searchVolume)}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 pr-4 text-right">
-                            {isPlaceholder ? (
-                              <span className="text-white/25 text-xs">—</span>
-                            ) : (
-                              <span className="text-white/70">
-                                {competitionLabel(kw.competitionIndex)}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 text-right">
-                            {isPlaceholder ? (
-                              <span className="text-white/25 text-xs">—</span>
-                            ) : (
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${scoreBadgeClass(kw.score)}`}
-                              >
-                                {kw.score}
-                              </span>
-                            )}
-                          </td>
+            ) : (() => {
+              const totalPages = Math.ceil(displaySimilarKws.length / KW_PER_PAGE);
+              const pageKws = displaySimilarKws.slice(kwPage * KW_PER_PAGE, (kwPage + 1) * KW_PER_PAGE);
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[560px]">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">Mot-clé</th>
+                          <th className="text-right py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">Volume recherche</th>
+                          <th className="text-right py-2 pr-4 text-white/40 text-xs font-medium uppercase tracking-wider">Concurrence</th>
+                          <th className="text-right py-2 text-white/40 text-xs font-medium uppercase tracking-wider">Score</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                      </thead>
+                      <tbody>
+                        {pageKws.map((kw, i) => {
+                          const isPlaceholder = 'isPlaceholder' in kw && kw.isPlaceholder;
+                          return (
+                            <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
+                              <td className="py-2.5 pr-4">
+                                <button type="button" onClick={() => onUseSuggestion?.(kw.keyword)}
+                                  className="flex items-center gap-1.5 text-white/80 hover:text-[#00d4ff] transition-colors text-left group">
+                                  <Search className="w-3 h-3 text-white/30 group-hover:text-[#00d4ff]/60 flex-shrink-0" />
+                                  <span className="truncate max-w-[240px]">{kw.keyword}</span>
+                                </button>
+                              </td>
+                              <td className="py-2.5 pr-4 text-right">
+                                {isPlaceholder ? <span className="text-white/25 text-xs">—</span>
+                                  : <span className="text-white/70 tabular-nums">{formatRawNumber(kw.searchVolume)}</span>}
+                              </td>
+                              <td className="py-2.5 pr-4 text-right">
+                                {isPlaceholder ? <span className="text-white/25 text-xs">—</span>
+                                  : <span className="text-white/70">{competitionLabel(kw.competitionIndex)}</span>}
+                              </td>
+                              <td className="py-2.5 text-right">
+                                {isPlaceholder ? <span className="text-white/25 text-xs">—</span>
+                                  : <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${scoreBadgeClass(kw.score)}`}>{kw.score}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
+                      <span className="text-white/40 text-xs">
+                        {kwPage * KW_PER_PAGE + 1}–{Math.min((kwPage + 1) * KW_PER_PAGE, displaySimilarKws.length)} sur {displaySimilarKws.length}
+                      </span>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setKwPage(p => p - 1)} disabled={kwPage === 0}
+                          className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-white/60 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition">
+                          ← Précédent
+                        </button>
+                        <button type="button" onClick={() => setKwPage(p => p + 1)} disabled={kwPage >= totalPages - 1}
+                          className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-white/60 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition">
+                          Suivant →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
-          {/* Strategic insights (collapsed section) */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-            <h3 className="text-white font-semibold text-sm mb-3">Analyse stratégique</h3>
-            <p className="text-white/70 text-sm leading-relaxed mb-4">
-              {result.strategicInsights.summary}
-            </p>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-emerald-400 text-xs uppercase tracking-wide mb-2 font-medium">Forces</p>
-                <ul className="space-y-1">
-                  {result.strategicInsights.strengths.slice(0, 3).map((s, idx) => (
-                    <li key={idx} className="text-white/65 text-xs leading-relaxed flex gap-2">
-                      <span className="text-emerald-400 mt-0.5">•</span>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-amber-400 text-xs uppercase tracking-wide mb-2 font-medium">Points à surveiller</p>
-                <ul className="space-y-1">
-                  {result.strategicInsights.weaknesses.slice(0, 3).map((s, idx) => (
-                    <li key={idx} className="text-white/65 text-xs leading-relaxed flex gap-2">
-                      <span className="text-amber-400 mt-0.5">•</span>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -543,8 +506,17 @@ export function KeywordResearchResults({
       {activeTab === 'listings' && (
         <div>
           {listings.length === 0 ? (
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center">
-              <p className="text-white/50 text-sm">Aucun listing disponible pour ce mot-clé.</p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center space-y-3">
+              <p className="text-white/50 text-sm">Les listings ne sont pas disponibles en aperçu direct.</p>
+              <a
+                href={`https://www.etsy.com/search?q=${encodeURIComponent(result.keyword)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium hover:bg-[#00d4ff]/20 transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Voir les listings sur Etsy
+              </a>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -611,8 +583,17 @@ export function KeywordResearchResults({
       {activeTab === 'shops' && (
         <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           {shopsData.length === 0 ? (
-            <div className="p-10 text-center">
-              <p className="text-white/50 text-sm">Aucune boutique à afficher pour ce mot-clé.</p>
+            <div className="p-10 text-center space-y-3">
+              <p className="text-white/50 text-sm">Données boutiques non disponibles pour ce mot-clé.</p>
+              <a
+                href={`https://www.etsy.com/search?q=${encodeURIComponent(result.keyword)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-medium hover:bg-[#00d4ff]/20 transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Rechercher sur Etsy
+              </a>
             </div>
           ) : (
             <div className="overflow-x-auto">
