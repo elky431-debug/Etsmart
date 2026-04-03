@@ -25,9 +25,24 @@ const KEYWORD_RESEARCH_CREDIT_COST = Number.parseFloat(
   process.env.KEYWORD_RESEARCH_CREDIT_COST || '1'
 );
 
-// ─── DataForSEO fetch ─────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-async function fetchDataForSeo(keyword: string): Promise<{ searchVolume: number; competitionIndex: number } | null> {
+interface DfsSearchVolumeResult {
+  searchVolume: number;
+  competitionIndex: number;
+  monthlySearches: Array<{ year: number; month: number; searchVolume: number }>;
+}
+
+interface SimilarKeyword {
+  keyword: string;
+  searchVolume: number;
+  competitionIndex: number;
+  score: number;
+}
+
+// ─── DataForSEO search volume fetch ──────────────────────────────────────────
+
+async function fetchDataForSeo(keyword: string): Promise<DfsSearchVolumeResult | null> {
   const login = process.env.DATAFORSEO_LOGIN?.trim();
   const password = process.env.DATAFORSEO_PASSWORD?.trim();
   if (!login || !password) return null;
@@ -44,12 +59,77 @@ async function fetchDataForSeo(keyword: string): Promise<{ searchVolume: number;
       signal: AbortSignal.timeout(12_000),
     });
     if (!res.ok) return null;
-    const json = await res.json() as { tasks?: Array<{ result?: Array<{ search_volume: number; competition_index: number }> }> };
+    const json = await res.json() as {
+      tasks?: Array<{
+        result?: Array<{
+          search_volume: number;
+          competition_index: number;
+          monthly_searches?: Array<{ year: number; month: number; search_volume: number }>;
+        }>;
+      }>;
+    };
     const result = json.tasks?.[0]?.result?.[0];
     if (!result) return null;
-    return { searchVolume: result.search_volume ?? 0, competitionIndex: result.competition_index ?? 0 };
+
+    const monthlySearches = (result.monthly_searches ?? []).map((m) => ({
+      year: m.year,
+      month: m.month,
+      searchVolume: m.search_volume ?? 0,
+    }));
+
+    return {
+      searchVolume: result.search_volume ?? 0,
+      competitionIndex: result.competition_index ?? 0,
+      monthlySearches,
+    };
   } catch {
     return null;
+  }
+}
+
+// ─── DataForSEO similar keywords fetch ───────────────────────────────────────
+
+async function fetchSimilarKeywords(keyword: string, credentials: string): Promise<SimilarKeyword[]> {
+  try {
+    const res = await fetch(
+      'https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([{ keywords: [keyword], location_code: 2840, language_code: 'en' }]),
+        signal: AbortSignal.timeout(15_000),
+      }
+    );
+    if (!res.ok) return [];
+    const json = await res.json() as {
+      tasks?: Array<{
+        result?: Array<{
+          keyword: string;
+          search_volume: number;
+          competition_index: number;
+        }>;
+      }>;
+    };
+    const items = json.tasks?.[0]?.result ?? [];
+    return items
+      .filter((item) => item.keyword && item.keyword !== keyword)
+      .slice(0, 30)
+      .map((item) => {
+        const demandScore = demandScoreFromSearchVolume(item.search_volume ?? 0);
+        const competitionScore = competitionScoreFromGoogleAds(item.competition_index ?? 0);
+        const score = Math.round(demandScore * 0.55 + (100 - competitionScore) * 0.45);
+        return {
+          keyword: item.keyword,
+          searchVolume: item.search_volume ?? 0,
+          competitionIndex: item.competition_index ?? 0,
+          score,
+        };
+      });
+  } catch {
+    return [];
   }
 }
 
@@ -121,9 +201,20 @@ export async function POST(request: NextRequest) {
     const sourceUrl = `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}`;
     const suggestions = generateKeywordSuggestions(keyword).slice(0, 12);
 
-    // Run DataForSEO + Etsy scraping in parallel (scraping is best-effort)
-    const [dfs, etsyResult] = await Promise.all([
+    // Build credentials once for reuse in similar keywords call
+    const dfsLogin = process.env.DATAFORSEO_LOGIN?.trim();
+    const dfsPassword = process.env.DATAFORSEO_PASSWORD?.trim();
+    const dfsCredentials =
+      dfsLogin && dfsPassword
+        ? Buffer.from(`${dfsLogin}:${dfsPassword}`).toString('base64')
+        : null;
+
+    // Run DataForSEO (search volume + monthly) + similar keywords + Etsy scraping in parallel
+    const [dfs, similarKwsRaw, etsyResult] = await Promise.all([
       fetchDataForSeo(keyword),
+      dfsCredentials
+        ? fetchSimilarKeywords(keyword, dfsCredentials)
+        : Promise.resolve([] as SimilarKeyword[]),
       scrapeEtsyKeywordListings(keyword, 24).catch(() => null),
     ]);
 
@@ -178,11 +269,16 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    const similarKws: SimilarKeyword[] | null =
+      similarKwsRaw && similarKwsRaw.length > 0 ? similarKwsRaw : null;
+
     return NextResponse.json({
       success: true,
       result,
       historyItem,
       credits: { used: deduction.used, quota: deduction.quota, remaining: deduction.remaining },
+      monthlySearches: dfs?.monthlySearches ?? null,
+      similarKeywords: similarKws ?? null,
     });
 
   } catch (error: unknown) {

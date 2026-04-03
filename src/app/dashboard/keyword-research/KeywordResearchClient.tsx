@@ -6,11 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { KeywordResearchResult } from '@/lib/keyword-research/types';
 import { KeywordResearchForm } from '@/components/dashboard/keyword-research/KeywordResearchForm';
 import { KeywordResearchResults } from '@/components/dashboard/keyword-research/KeywordResearchResults';
-import { KeywordResearchHistory } from '@/components/dashboard/keyword-research/KeywordResearchHistory';
+
+type MonthlySearch = { year: number; month: number; searchVolume: number };
+type SimilarKeyword = { keyword: string; searchVolume: number; competitionIndex: number; score: number };
 
 export default function KeywordResearchClient() {
   const [keyword, setKeyword] = useState('');
   const [result, setResult] = useState<KeywordResearchResult | null>(null);
+  const [monthlySearches, setMonthlySearches] = useState<MonthlySearch[] | null>(null);
+  const [similarKeywords, setSimilarKeywords] = useState<SimilarKeyword[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +44,16 @@ export default function KeywordResearchClient() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setResult(null);
+        setMonthlySearches(null);
+        setSimilarKeywords(null);
         setError(data?.message || data?.error || "Impossible d'analyser ce mot-clé.");
         return;
       }
 
       setError(null);
       setResult(data.result || null);
+      setMonthlySearches(data.monthlySearches ?? null);
+      setSimilarKeywords(data.similarKeywords ?? null);
       setKeyword(clean);
     } catch {
       setError('Erreur réseau. Réessaie.');
@@ -70,7 +78,7 @@ export default function KeywordResearchClient() {
             <div>
               <h1 className="text-3xl font-bold text-white">Keyword Research</h1>
               <p className="text-white/70 mt-1 text-sm">
-                Analyse la demande, la compétition et le potentiel de tes mots-clés Etsy en un coup d’œil.
+                Analyse la demande, la compétition et le potentiel de tes mots-clés Etsy en un coup d'œil.
               </p>
             </div>
           </div>
@@ -125,6 +133,8 @@ export default function KeywordResearchClient() {
               {result && (
                 <KeywordResearchResults
                   result={result}
+                  monthlySearches={monthlySearches}
+                  similarKeywords={similarKeywords}
                   onUseSuggestion={async (suggested) => {
                     setKeyword(suggested);
                     await runAnalyze(suggested);
@@ -151,4 +161,3 @@ export default function KeywordResearchClient() {
     </div>
   );
 }
-
