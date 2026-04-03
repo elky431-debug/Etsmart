@@ -56,7 +56,7 @@ async function fetchDataForSeo(keyword: string): Promise<DfsSearchVolumeResult |
         'Content-Type': 'application/json',
       },
       body: JSON.stringify([{ keywords: [keyword], location_code: 2840, language_code: 'en' }]),
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
     const json = await res.json() as {
@@ -100,7 +100,7 @@ async function fetchSimilarKeywords(keyword: string, credentials: string): Promi
           'Content-Type': 'application/json',
         },
         body: JSON.stringify([{ keywords: [keyword], location_code: 2840, language_code: 'en' }]),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(8_000),
       }
     );
     if (!res.ok) return [];
@@ -149,7 +149,7 @@ async function fetchEtsyCompetitionCount(keyword: string, credentials: string): 
         language_code: 'en',
         depth: 1,
       }]),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
     const json = await res.json() as {
