@@ -58,9 +58,16 @@ async function fetchDataForSeo(keyword: string): Promise<DfsSearchVolumeResult |
       body: JSON.stringify([{ keywords: [keyword], location_code: 2840, language_code: 'en' }]),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[DFS search_volume] HTTP ${res.status}`);
+      return null;
+    }
     const json = await res.json() as {
+      status_code?: number;
+      status_message?: string;
       tasks?: Array<{
+        status_code?: number;
+        status_message?: string;
         result?: Array<{
           search_volume: number;
           competition_index: number;
@@ -68,7 +75,9 @@ async function fetchDataForSeo(keyword: string): Promise<DfsSearchVolumeResult |
         }>;
       }>;
     };
-    const result = json.tasks?.[0]?.result?.[0];
+    const task = json.tasks?.[0];
+    console.log(`[DFS search_volume] status=${json.status_code} task_status=${task?.status_code} msg="${task?.status_message}"`);
+    const result = task?.result?.[0];
     if (!result) return null;
 
     const monthlySearches = (result.monthly_searches ?? []).map((m) => ({
