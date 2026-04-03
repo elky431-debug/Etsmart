@@ -22,7 +22,7 @@ export const maxDuration = 55;
 export const runtime = 'nodejs';
 
 const KEYWORD_RESEARCH_CREDIT_COST = Number.parseFloat(
-  process.env.KEYWORD_RESEARCH_CREDIT_COST || '1'
+  process.env.KEYWORD_RESEARCH_CREDIT_COST || '2'
 );
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -154,7 +154,7 @@ export default function KeywordResearchClient() {
               <span className="font-semibold">Competition</span> = difficulté pour se placer,{' '}
               <span className="font-semibold">Opportunity</span> = potentiel actionnable.
             </p>
-            <p className="mt-2 text-white/45">1 crédit par analyse.</p>
+            <p className="mt-2 text-white/45">2 crédits par analyse.</p>
           </div>
         </div>
       </div>
