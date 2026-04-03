@@ -133,16 +133,62 @@ async function fetchSimilarKeywords(keyword: string, credentials: string): Promi
   }
 }
 
+// ─── DataForSEO SERP fetch — real Etsy listing count ─────────────────────────
+
+async function fetchEtsyCompetitionCount(keyword: string, credentials: string): Promise<number | null> {
+  try {
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/advanced', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([{
+        keyword: `site:etsy.com ${keyword}`,
+        location_code: 2840,
+        language_code: 'en',
+        depth: 1,
+      }]),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as {
+      tasks?: Array<{ result?: Array<{ se_results_count?: number }> }>;
+    };
+    return json.tasks?.[0]?.result?.[0]?.se_results_count ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Competition score from real Etsy listing count ───────────────────────────
+
+function competitionScoreFromEtsyListings(count: number): number {
+  if (count >= 2_000_000) return 95;
+  if (count >= 1_000_000) return 88;
+  if (count >= 500_000) return 80;
+  if (count >= 200_000) return 70;
+  if (count >= 100_000) return 60;
+  if (count >= 50_000) return 48;
+  if (count >= 20_000) return 38;
+  if (count >= 5_000) return 28;
+  return 18;
+}
+
 // ─── Build scores from DataForSEO data ───────────────────────────────────────
 
 function buildScoresFromDfs(
   keyword: string,
   dfs: { searchVolume: number; competitionIndex: number },
   listings: EtsyKeywordListing[],
-  marketSize: number
+  marketSize: number,
+  realEtsyListingCount: number | null
 ): { metrics: KeywordMetrics; scores: KeywordScores } {
   const demandScore = demandScoreFromSearchVolume(dfs.searchVolume);
-  const competitionScore = competitionScoreFromGoogleAds(dfs.competitionIndex);
+  // Use real Etsy listing count for competition if available, else fall back to Google Ads index
+  const competitionScore = realEtsyListingCount !== null
+    ? competitionScoreFromEtsyListings(realEtsyListingCount)
+    : competitionScoreFromGoogleAds(dfs.competitionIndex);
   const opportunityScore = Math.round(demandScore * 0.55 + (100 - competitionScore) * 0.45);
   const globalScore = Math.round((opportunityScore + demandScore) / 2);
 
@@ -209,26 +255,30 @@ export async function POST(request: NextRequest) {
         ? Buffer.from(`${dfsLogin}:${dfsPassword}`).toString('base64')
         : null;
 
-    // Run DataForSEO (search volume + monthly) + similar keywords + Etsy scraping in parallel
-    const [dfs, similarKwsRaw, etsyResult] = await Promise.all([
+    // Run all 3 DataForSEO calls + Etsy scraping in parallel
+    const [dfs, similarKwsRaw, etsyCompetitionCount, etsyResult] = await Promise.all([
       fetchDataForSeo(keyword),
       dfsCredentials
         ? fetchSimilarKeywords(keyword, dfsCredentials)
         : Promise.resolve([] as SimilarKeyword[]),
+      dfsCredentials
+        ? fetchEtsyCompetitionCount(keyword, dfsCredentials)
+        : Promise.resolve(null),
       scrapeEtsyKeywordListings(keyword, 24).catch(() => null),
     ]);
 
     const listings: EtsyKeywordListing[] = etsyResult?.listings ?? [];
-    const marketSize = dfs
-      ? estimateEtsyListingsFromCompetitionIndex(dfs.competitionIndex)
-      : (etsyResult?.marketSizeEstimate ?? listings.length);
+    // Real Etsy listing count from SERP > scraping estimate > DataForSEO estimate
+    const marketSize = etsyCompetitionCount
+      ?? etsyResult?.marketSizeEstimate
+      ?? (dfs ? estimateEtsyListingsFromCompetitionIndex(dfs.competitionIndex) : listings.length);
 
     let metrics: KeywordMetrics;
     let scores: KeywordScores;
 
     if (dfs) {
-      // DataForSEO scores (reliable) + listing enrichment when available
-      ({ metrics, scores } = buildScoresFromDfs(keyword, dfs, listings, marketSize));
+      // DataForSEO scores with real Etsy competition when available
+      ({ metrics, scores } = buildScoresFromDfs(keyword, dfs, listings, marketSize, etsyCompetitionCount));
     } else {
       // Fallback: pure listing-based scores
       metrics = computeKeywordMetrics(listings, etsyResult?.marketSizeEstimate ?? null);
