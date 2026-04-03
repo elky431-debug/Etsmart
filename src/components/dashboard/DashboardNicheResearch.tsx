@@ -291,7 +291,7 @@ export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Recherche de Niche</h1>
-              <p className="text-white/50 text-sm mt-0.5">Analyse concurrence + demande — {isFreeUser ? '10 niches' : `${Object.keys(dataMap).length} niches`} disponibles</p>
+              <p className="text-white/50 text-sm mt-0.5">Données directement issues d'Etsy · Liste mise à jour chaque semaine · {isFreeUser ? '10 niches' : `${Object.keys(dataMap).length} niches`} disponibles</p>
             </div>
           </div>
         </motion.div>
