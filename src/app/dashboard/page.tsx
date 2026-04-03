@@ -90,6 +90,7 @@ import { DashboardCompetitorShop } from '@/components/dashboard/DashboardCompeti
 import { DashboardShopCompare } from '@/components/dashboard/DashboardShopCompare';
 import DashboardNicheResearch from '@/components/dashboard/DashboardNicheResearch';
 import DashboardEtsyTrends from '@/components/dashboard/DashboardEtsyTrends';
+import KeywordResearchClient from '@/app/dashboard/keyword-research/KeywordResearchClient';
 import { UpgradeGate } from '@/components/paywall/UpgradeGate';
 // Paywall is now handled by dashboard/layout.tsx
 type DashboardSection =
@@ -144,11 +145,11 @@ const LOCKED_FOR_FREE_INFO: Partial<Record<DashboardSection, { title: string; de
   banner: { title: 'Bannière de boutique', description: 'Créez une bannière professionnelle pour votre boutique Etsy.' },
   logo: { title: 'Logo de boutique', description: 'Générez un logo unique et professionnel pour votre boutique.' },
   'shop-story': { title: 'Histoire de boutique', description: 'Rédigez une histoire de boutique convaincante avec l\'aide de l\'IA.' },
+  'etsy-keyword-analyze': { title: 'Analyse de keywords', description: 'Analyse approfondie des mots-clés Etsy pour booster votre visibilité SEO.' },
 };
 
 /** Info shown for coming-soon sections (locked for everyone). */
 const COMING_SOON_INFO: Partial<Record<DashboardSection, { title: string; description: string }>> = {
-  'etsy-keyword-analyze': { title: 'Analyse de keywords', description: 'Analyse approfondie des mots-clés Etsy pour booster votre visibilité SEO.' },
   'apify-test': { title: 'Analyseur Listing Etsy', description: 'Auditez automatiquement vos listings Etsy pour les optimiser.' },
   'competitor-shop': { title: 'Boutique concurrente', description: 'Espionnez les meilleures boutiques de votre niche.' },
   'shop-compare': { title: 'Comparaison de boutiques', description: 'Comparez votre boutique face aux leaders de votre catégorie.' },
@@ -1587,7 +1588,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
       label: 'Analyse',
       items: [
         { id: 'analyse-simulation', label: 'Analyse et Simulation', icon: Calculator, lockedForFree: true },
-        { id: 'etsy-keyword-analyze', label: 'Analyse de keyword', icon: Search, comingSoon: true },
+        { id: 'etsy-keyword-analyze', label: 'Analyse de keyword', icon: Search, lockedForFree: true },
         { id: 'apify-test', label: 'Analyseur Listing Etsy', icon: BarChart3, comingSoon: true },
         { id: 'competitor-shop', label: 'Boutique concurrente', icon: Building2, comingSoon: true },
         { id: 'shop-compare', label: 'Comparaison de boutiques', icon: GitCompare, comingSoon: true },
@@ -2350,6 +2351,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
           {activeSection === 'niche-finder' && (
             <DashboardNicheResearch isFreeUser={isFreeUser} onUpgrade={() => { setActiveSection('subscription'); setSelectedAnalysis(null); }} />
           )}
+
+          {activeSection === 'etsy-keyword-analyze' && <KeywordResearchClient />}
 
           {activeSection === 'opportunity-map' && <OpportunityMapComingSoon />}
 
