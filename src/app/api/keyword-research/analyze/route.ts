@@ -144,7 +144,7 @@ async function fetchEtsyCompetitionCount(keyword: string, credentials: string): 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify([{
-        keyword: `site:etsy.com ${keyword}`,
+        keyword: `site:etsy.com/listing ${keyword}`,
         location_code: 2840,
         language_code: 'en',
         depth: 1,
