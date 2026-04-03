@@ -1,139 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import {
+  demandScoreFromSearchVolume,
+  competitionScoreFromGoogleAds,
+  estimateEtsyListingsFromCompetitionIndex,
+} from '@/lib/etsy-keyword-analytics';
 
 export const maxDuration = 26;
 export const runtime = 'nodejs';
 
 export interface NicheResult {
   keyword: string;
-  competitionCount: number | null;   // Etsy listing count via Google site:etsy.com
-  competitionScore: number;           // 0-100 (higher = more crowded)
-  trendsScore: number | null;         // Google Trends interest 0-100
-  demandScore: number;                // 0-100 (higher = more demand)
+  competitionCount: number | null;
+  competitionScore: number;           // 0-100
+  trendsScore: number | null;         // search volume (DataForSEO) or null
+  demandScore: number;                // 0-100
   opportunityScore: number;           // 0-100
+  searchVolume?: number;
+  competitionIndex?: number;
+  cachedAt?: number;
   error?: boolean;
 }
 
-// ─── Google Custom Search — competition (site:etsy.com keyword → listing count) ──
-async function getCompetitionCount(keyword: string): Promise<number | null> {
-  const key = process.env.GOOGLE_CSE_KEY?.trim();
-  const cx = process.env.GOOGLE_CSE_ID?.trim();
-  if (!key || !cx) return null;
+// ─── DataForSEO — volume Google Ads + competition index (source principale) ──
 
+async function fetchDataForSeo(keyword: string): Promise<{
+  searchVolume: number;
+  competitionIndex: number;
+} | null> {
+  const login = process.env.DATAFORSEO_LOGIN?.trim();
+  const password = process.env.DATAFORSEO_PASSWORD?.trim();
+  if (!login || !password) return null;
+
+  const credentials = Buffer.from(`${login}:${password}`).toString('base64');
   try {
-    const q = encodeURIComponent(`site:etsy.com ${keyword}`);
-    const res = await fetch(
-      `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${q}&num=1`,
-      { signal: AbortSignal.timeout(10_000) }
-    );
+    const res = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([{
+        keywords: [keyword],
+        location_code: 2840, // US
+        language_code: 'en',
+      }]),
+      signal: AbortSignal.timeout(12_000),
+    });
     if (!res.ok) return null;
-    const data = await res.json();
-    const total = data?.queries?.request?.[0]?.totalResults;
-    const n = parseInt(String(total ?? '0'), 10);
-    return n > 0 ? n : null;
+    const json = await res.json() as {
+      tasks?: Array<{
+        result?: Array<{
+          search_volume: number;
+          competition_index: number;
+        }>
+      }>
+    };
+    const result = json.tasks?.[0]?.result?.[0];
+    if (!result) return null;
+    return {
+      searchVolume: result.search_volume ?? 0,
+      competitionIndex: result.competition_index ?? 0,
+    };
   } catch {
     return null;
   }
-}
-
-// ─── Google Trends (unofficial, free) — demand: interest 0-100 over last 12 months ──
-async function getTrendsScore(keyword: string): Promise<number | null> {
-  const TRENDS_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Referer': 'https://trends.google.com/trends/explore',
-    'Accept-Language': 'en-US,en;q=0.9',
-  };
-
-  try {
-    // Step 1: get explore widget token
-    const req1 = encodeURIComponent(JSON.stringify({
-      comparisonItem: [{ keyword, geo: 'US', time: 'today 12-m' }],
-      category: 0,
-      property: '',
-    }));
-    const exploreRes = await fetch(
-      `https://trends.google.com/trends/api/explore?hl=en-US&tz=360&req=${req1}`,
-      { headers: TRENDS_HEADERS, signal: AbortSignal.timeout(8_000) }
-    );
-    if (!exploreRes.ok) return null;
-
-    const exploreText = await exploreRes.text();
-    const exploreJson = JSON.parse(exploreText.replace(/^\)\]\}'/, '').trim());
-    const widgets: Record<string, unknown>[] = exploreJson?.widgets ?? [];
-    const timeWidget = widgets.find((w) => w.id === 'TIMESERIES');
-    if (!timeWidget) return null;
-
-    // Step 2: fetch timeseries data
-    const dataReq = encodeURIComponent(JSON.stringify(timeWidget.request));
-    const token = encodeURIComponent(timeWidget.token as string);
-    const dataRes = await fetch(
-      `https://trends.google.com/trends/api/widgetdata/multiline?hl=en-US&tz=360&req=${dataReq}&token=${token}`,
-      { headers: TRENDS_HEADERS, signal: AbortSignal.timeout(8_000) }
-    );
-    if (!dataRes.ok) return null;
-
-    const dataText = await dataRes.text();
-    const dataJson = JSON.parse(dataText.replace(/^\)\]\}'/, '').trim());
-    const timeline: Record<string, unknown>[] = dataJson?.default?.timelineData ?? [];
-    if (!timeline.length) return null;
-
-    const values = timeline
-      .map((d) => (Array.isArray(d.value) ? (d.value[0] as number) : 0))
-      .filter((v) => typeof v === 'number' && v > 0);
-    if (!values.length) return null;
-
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    return Math.round(avg); // 0-100
-  } catch {
-    return null;
-  }
-}
-
-// ─── Scoring functions ────────────────────────────────────────────────────────
-
-function toCompetitionScore(count: number | null): number {
-  if (count === null) return 50;
-  if (count < 5_000)        return 10;
-  if (count < 20_000)       return 22;
-  if (count < 60_000)       return 35;
-  if (count < 200_000)      return 48;
-  if (count < 600_000)      return 60;
-  if (count < 1_500_000)    return 72;
-  if (count < 4_000_000)    return 83;
-  return 93;
-}
-
-function toDemandScore(trends: number | null): number {
-  // Google Trends 0-100 → demand score
-  if (trends === null) return 40; // neutral when unavailable
-  if (trends >= 75) return 92;
-  if (trends >= 55) return 78;
-  if (trends >= 35) return 63;
-  if (trends >= 20) return 48;
-  if (trends >= 10) return 33;
-  return 18;
 }
 
 // ─── Main analysis ────────────────────────────────────────────────────────────
 
 async function analyzeNiche(keyword: string): Promise<NicheResult> {
-  const [competitionCount, trendsScore] = await Promise.all([
-    getCompetitionCount(keyword),
-    getTrendsScore(keyword),
-  ]);
+  const dfs = await fetchDataForSeo(keyword);
 
-  const competitionScore = toCompetitionScore(competitionCount);
-  const demandScore = toDemandScore(trendsScore);
-  const opportunityScore = Math.round(demandScore * 0.55 + (100 - competitionScore) * 0.45);
+  if (dfs) {
+    const competitionScore = competitionScoreFromGoogleAds(dfs.competitionIndex);
+    const demandScore = demandScoreFromSearchVolume(dfs.searchVolume);
+    const competitionCount = estimateEtsyListingsFromCompetitionIndex(dfs.competitionIndex);
+    const opportunityScore = Math.round(demandScore * 0.55 + (100 - competitionScore) * 0.45);
+    return {
+      keyword,
+      competitionCount,
+      competitionScore,
+      trendsScore: dfs.searchVolume,
+      demandScore,
+      opportunityScore,
+      searchVolume: dfs.searchVolume,
+      competitionIndex: dfs.competitionIndex,
+      error: false,
+    };
+  }
 
+  // Fallback heuristique si DataForSEO indisponible
   return {
     keyword,
-    competitionCount,
-    competitionScore,
-    trendsScore,
-    demandScore,
-    opportunityScore,
-    error: competitionCount === null && trendsScore === null,
+    competitionCount: null,
+    competitionScore: 50,
+    trendsScore: null,
+    demandScore: 40,
+    opportunityScore: 45,
+    error: true,
   };
 }
 
@@ -161,9 +126,9 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
   if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-  if (!process.env.GOOGLE_CSE_KEY || !process.env.GOOGLE_CSE_ID) {
+  if (!process.env.DATAFORSEO_LOGIN || !process.env.DATAFORSEO_PASSWORD) {
     return NextResponse.json(
-      { error: 'GOOGLE_CSE_NOT_CONFIGURED', message: 'Ajoute GOOGLE_CSE_KEY et GOOGLE_CSE_ID dans les variables Netlify.' },
+      { error: 'DATAFORSEO_NOT_CONFIGURED', message: 'Ajoute DATAFORSEO_LOGIN et DATAFORSEO_PASSWORD dans les variables Netlify.' },
       { status: 503 }
     );
   }
@@ -178,9 +143,9 @@ export async function POST(request: NextRequest) {
 
   if (!keywords.length) return NextResponse.json({ error: 'No keywords' }, { status: 400 });
 
-  // Max 4 concurrent (Google CSE rate limiting)
+  // Max 3 concurrent (DataForSEO rate limiting)
   const tasks = keywords.map(kw => () => analyzeNiche(kw));
-  const data = await runWithConcurrency(tasks, 4);
+  const data = await runWithConcurrency(tasks, 3);
 
   return NextResponse.json({ success: true, data });
 }

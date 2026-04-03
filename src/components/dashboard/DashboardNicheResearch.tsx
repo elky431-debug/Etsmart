@@ -516,9 +516,11 @@ export default function DashboardNicheResearch({ isFreeUser = false, onUpgrade }
                             </div>
                             <span className={`text-xs font-semibold w-7 text-right ${demColor!.text}`}>{r.demandScore}</span>
                           </div>
-                          {r.trendsScore !== null && (
+                          {(r as NicheResult & { searchVolume?: number }).searchVolume != null ? (
+                            <span className="text-[10px] text-white/30 mt-0.5 block">{((r as NicheResult & { searchVolume?: number }).searchVolume ?? 0).toLocaleString('fr-FR')} rech/mois</span>
+                          ) : r.trendsScore !== null ? (
                             <span className="text-[10px] text-white/30 mt-0.5 block">Trends: {r.trendsScore}/100</span>
-                          )}
+                          ) : null}
                         </div>
                       )}
                     </div>
