@@ -940,11 +940,8 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                       {generatedImages.map((img, index) => (
-                        <motion.div
+                        <div
                           key={img.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.1 }}
                           className="group relative flex flex-col rounded-xl border border-white/10 bg-black transition-all hover:border-white/20"
                         >
                           <div className="relative aspect-square overflow-hidden rounded-t-xl">
@@ -980,7 +977,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
                           <div className="rounded-b-xl bg-black px-2 pb-2">
                             <ImageAltTextPanel imageUrl={img.url} />
                           </div>
-                        </motion.div>
+                        </div>
                       ))}
                     </div>
                   )}
