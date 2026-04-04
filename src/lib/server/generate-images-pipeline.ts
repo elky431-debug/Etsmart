@@ -289,9 +289,6 @@ export async function runGenerateImagesPipeline(opts: {
       const materialsStr = (materials && String(materials).trim()) ? String(materials).trim().substring(0, 150) : '';
       const keywordPart = [tagsList && `Keywords: ${tagsList}`, materialsStr && `Materials: ${materialsStr}`].filter(Boolean).join('. ') || '';
       const styleHint = geminiStyleHint(typeof style === 'string' ? style : undefined);
-      // Prod historique = prompts génériques ; l'heuristique titre/tags active les prompts textile (souvent plus de refus Gemini).
-      const apparelKeywordHeuristic =
-        process.env.APPAREL_IMAGE_PROMPTS === '1' || process.env.APPAREL_IMAGE_PROMPTS === 'true';
       const apparelMode = isLikelyApparelProduct({
         productTitle: productDesc,
         tags,
@@ -299,7 +296,6 @@ export async function runGenerateImagesPipeline(opts: {
         forceApparel: isApparelRaw === true,
         forceNotApparel: isApparelRaw === false,
         productKind: typeof productKind === 'string' ? productKind : null,
-        keywordHeuristicEnabled: apparelKeywordHeuristic,
       });
       const athleticImageSafeMode =
         apparelMode &&
