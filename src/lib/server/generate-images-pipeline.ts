@@ -384,10 +384,10 @@ export async function runGenerateImagesPipeline(opts: {
       const apparelContextNote = apparelMode
         ? athleticImageSafeMode
           ? `
-TEXTILE (ACTIVEWEAR / SPORT): Même article que les références. Présentation e-commerce SANS personne ni peau: ghost mannequin, cintre mural, flat-lay ou forme de couture — évite les refus API image sur sport / yoga. Tissu avec relief et plis naturels. Pas de table ronde type « miroir » ni cadre circulaire.
+TEXTILE (ACTIVEWEAR / SPORT): Même article EXACT que les références. AUCUN modèle humain visible, AUCUNE peau. Tissu avec relief et plis naturels. Suis exactement les instructions de chaque prompt pour la mise en scène.
 `
           : `
-TEXTILE: Même article que sur les références. Porté = cadrage buste / taille (épaules → hanches), jamais silhouette entière sans visage (évite artefacts). Ghost mannequin, cintre mural ou mannequin buste OK. Tissu avec relief et plis naturels. Pas de table ronde type « miroir » ni cadre circulaire autour du produit.
+TEXTILE: Même article EXACT que sur les références. Si le prompt demande un porté: cadrage buste/taille (épaules→hanches), jamais corps entier sans visage. Tissu avec relief et plis naturels. Suis exactement les instructions de chaque prompt pour la mise en scène.
 `
         : '';
       const scaleRealismHardGoods = apparelMode
@@ -398,10 +398,8 @@ SCALE & PHYSICAL PLAUSIBILITY (CRITICAL): The product must look like a normal re
       const baseContext = `Product: ${productDesc}.${keywordPart ? ` ${keywordPart}.` : ''} ${styleHint} ${realismBoost}${apparelContextNote}${scaleRealismHardGoods}
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.${
-        apparelMode
-          ? athleticImageSafeMode
-            ? ' Do not show human skin or photo-realistic models; use invisible mannequin, dress form, or hanger only.'
-            : ' A neutral fit model may wear the garment only to show the same item from references (not a substitute product).'
+        apparelMode && !athleticImageSafeMode
+          ? ' A neutral fit model may wear the garment only to show the same item from references (not a substitute product).'
           : ''
       }
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
@@ -566,28 +564,23 @@ Pas de texte. Pas de watermark.`
             const p1NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – LIFESTYLE ACTIVEWEAR SANS MODÈLE:
-Le vêtement EXACT des références sur ghost mannequin 3D avec volume et relief du tissu, placé dans un studio yoga/fitness lifestyle élégant.
-Décor: parquet en bois clair ou béton poli, lumière naturelle venant d'une fenêtre sur le côté, accessoires discrets yoga (bloc en bois, plante verte en pot, serviette pliée en fond).
-Ghost mannequin centré, textile avec épaisseur et plis naturels, tombé réaliste. Ambiance boutique activewear premium.
-INTERDIT: fond blanc vide ou fond studio uni sans décor, peau humaine ou silhouette réaliste.
+PROMPT 1 – FLAT-LAY ÉDITORIAL ACTIVEWEAR:
+Vue du dessus directe (caméra à 90° au-dessus). Le vêtement est soigneusement déployé à plat au centre sur une SURFACE SOMBRE (velours noir, lin anthracite foncé, ou plateau bois foncé wengé). Le textile occupe 65–75% du cadre, centré, légèrement froissé pour simuler volume. Lumière douce latérale gauche.
+AUCUNE personne. AUCUNE peau. Fond sombre uniquement.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p6NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – GOLDEN HOUR ACTIVEWEAR SANS MODÈLE:
-Le même vêtement sur ghost mannequin 3D ou cintre solide — lumière dorée chaude de golden hour (côté gauche), ambiance intérieur yoga studio ou loft avec grandes fenêtres.
-Fond: mur en béton clair ou bois naturel avec quelques plantes vertes floutées. Tons chauds, ombres longues et douces, tissu avec volume et relief visibles.
-INTERDIT: fond blanc uni vide, peau humaine ou silhouette réaliste, répéter le même décor que le prompt 1.
+PROMPT 6 – STUDIO DRAMATIQUE FOND SOMBRE:
+Le vêtement EXACT sur fond studio GRIS FONCÉ ou NOIR (pas blanc). Présentation droite face caméra, éclairage dramatique latéral fort créant des ombres marquées sur les plis du tissu. Contraste élevé, ambiance mode premium dark. Le vêtement occupe 80% du cadre.
+AUCUNE personne. AUCUNE peau. Fond sombre obligatoire.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p5Activewear =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – FLAT-LAY LIFESTYLE ACTIVEWEAR:
-Flat-lay éditorial vu du dessus ou en légère diagonale: le vêtement EXACT soigneusement plié ou déployé au centre, entouré d'accessoires sport lifestyle épurés (tapis de yoga enroulé, sneakers blanches propres, bouteille d'eau minimaliste, airpods).
-Surface: tapis de yoga gris/bleu clair, parquet bois clair ou béton lisse. Composition curatée et stylée — pas de désordre.
-Éclairage naturel zénithal ou légèrement latéral. Le vêtement occupe 55–65% du cadre.
-INTERDIT: peau humaine ou silhouette humaine, fond blanc uni sans texture ni accessoires, fond identique aux autres prompts.
+PROMPT 5 – FLAT-LAY SPORT LIFESTYLE:
+Vue du dessus légèrement en biais (75°). Le vêtement plié posé sur une SURFACE CLAIRE (marbre blanc veiné, parquet bois clair, ou béton lisse). À côté du vêtement: une paire de sneakers blanches propres et une bouteille d'eau mate noire ou blanche. Lumière naturelle froide zénithale.
+AUCUNE personne. AUCUNE peau. Surface claire uniquement (différente du prompt 1).
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 4 ? p5Activewear : i === 5 ? p6NoHuman : p));
           })()
