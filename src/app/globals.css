@@ -154,6 +154,11 @@ body::-webkit-scrollbar {
   outline-offset: 2px;
 }
 
+/* Suppress focus-visible ring for elements that opt out */
+.no-focus-ring:focus-visible {
+  outline: none;
+}
+
 /* Smooth transitions */
 button, a, input, textarea, select {
   transition: all 0.2s ease;

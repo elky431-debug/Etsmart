@@ -232,12 +232,12 @@ export function DashboardCoach() {
       )}
 
       {/* Main input container */}
-      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 transition-all">
+      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 transition-colors">
         {/* Paperclip */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="mb-0.5 flex-shrink-0 text-white/40 hover:text-[#00d4ff] transition-colors"
+          className="no-focus-ring mb-0.5 flex-shrink-0 text-white/40 hover:text-[#00d4ff] transition-colors outline-none"
           title="Joindre un fichier"
         >
           <Paperclip className="h-5 w-5" />
@@ -266,7 +266,7 @@ export function DashboardCoach() {
           placeholder="Pose ta question à EtSmart Coach…"
           rows={1}
           disabled={loading}
-          className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-white/35 focus:outline-none disabled:opacity-50 leading-6"
+          className="no-focus-ring flex-1 resize-none bg-transparent text-sm text-white placeholder:text-white/35 outline-none disabled:opacity-50 leading-6"
           style={{ maxHeight: '144px', overflowY: 'auto' }}
         />
 
@@ -275,7 +275,7 @@ export function DashboardCoach() {
           type="button"
           onClick={() => void send()}
           disabled={loading || !input.trim()}
-          className="mb-0.5 flex flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] p-2 text-black shadow-lg shadow-[#00d4ff]/20 transition-all hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:brightness-100"
+          className="no-focus-ring mb-0.5 flex flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] p-2 text-black shadow-lg shadow-[#00d4ff]/20 transition-all hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:brightness-100"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
