@@ -132,19 +132,24 @@ export function DashboardLogoGenerator({
       const brief = briefData as { imagePrompt?: string; bgR?: number; bgG?: number; bgB?: number } | null;
       if (!brief?.imagePrompt) throw new Error(formatLogoApiError(briefRaw, briefData));
 
-      // Step 2 — Image via Supabase Edge Function (150s timeout, no Netlify 26s limit)
-      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const edgeRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-logo-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ imagePrompt: brief.imagePrompt, bgR: brief.bgR, bgG: brief.bgG, bgB: brief.bgB }),
+      // Step 2 — Image via Supabase Edge Function (uses supabase client so token is always fresh)
+      const { data: imgData, error: edgeError } = await supabase.functions.invoke('generate-logo-image', {
+        body: { imagePrompt: brief.imagePrompt, bgR: brief.bgR, bgG: brief.bgG, bgB: brief.bgB },
       });
-      let imgRaw = '';
-      let imgData: unknown = null;
-      try { imgRaw = await edgeRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
-      if (!edgeRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
+      if (edgeError) {
+        let msg = edgeError.message || 'Erreur lors de la génération du logo. Réessaie.';
+        try {
+          const ctx = (edgeError as { context?: Response }).context;
+          if (ctx) {
+            const errBody = await ctx.json().catch(() => null) as { message?: string; error?: string } | null;
+            if (errBody?.message) msg = errBody.message;
+            else if (errBody?.error) msg = errBody.error;
+          }
+        } catch { /* use default msg */ }
+        throw new Error(msg);
+      }
       const ok = imgData as { imageDataUrl?: string } | null;
-      if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(imgRaw, imgData));
+      if (!ok?.imageDataUrl) throw new Error('Pas d\'image générée. Réessaie.');
 
       // Step 3 — Composite shop name client-side via Canvas (instant, no server needed)
       let finalUrl = ok.imageDataUrl;
