@@ -444,10 +444,10 @@ Surface neutre derrière (bois clair, lin, béton — pas de blanc uni). Produit
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 4 – PORTÉ VUE DE FACE:
-Le vêtement porté par une personne réelle, VUE DE FACE. Cadrage du buste aux genoux, visage hors-champ (coupé au-dessus du menton). Pose droite et naturelle.
-Lumière frontale douce et uniforme, fond lifestyle neutre (mur clair, béton léger, intérieur épuré) — pas de fond studio blanc. Coupe et tombé du tissu parfaitement visibles de face.
-INTERDIT: fond blanc studio, mannequin, visage reconnaissable.
+PROMPT 4 – PORTÉ VUE DE FACE (CORPS RÉEL):
+Une VRAIE PERSONNE porte le vêtement, photographiée DE FACE. Corps visible du buste aux genoux, visage hors-cadre (coupé au-dessus du menton). Le vêtement est effectivement enfilé sur le corps — tissu tendu sur les hanches, plis naturels du port.
+Lumière naturelle douce venant d'une fenêtre, fond neutre simple (mur clair, intérieur épuré). Posture décontractée.
+INTERDIT: mannequin fantôme, vêtement flottant sans corps, fond studio blanc, visage visible.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -459,10 +459,10 @@ INTERDIT: accessoires qui masquent le vêtement, fond identique aux prompts 1 et
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – PORTÉ VUE DE PROFIL / LATÉRALE:
-Le vêtement porté par une personne réelle, VUE DE CÔTÉ (profil strict à 90° ou 3/4). Cadrage buste–genoux, visage hors-champ. Pose naturelle debout ou en mouvement léger.
-Lumière latérale douce, fond lifestyle (mur texturé, béton, extérieur urbain flou) — pas de fond blanc. Coupe latérale, volume et silhouette du vêtement bien visibles.
-INTERDIT: fond blanc studio, mannequin, fond identique aux prompts 1 et 4.
+PROMPT 6 – PORTÉ VUE DE PROFIL / AMBIANCE MAISON ARTISANALE:
+Une VRAIE PERSONNE porte le vêtement, VUE DE CÔTÉ (profil à 90° ou 3/4). Cadrage buste–genoux, visage hors-champ. Tissu effectivement porté sur le corps, silhouette latérale visible.
+Fond ARTISANAL et CHALEUREUX façon Etsy: mur en brique apparente peinte blanc, boiseries naturelles, étagère en bois avec quelques plantes ou objets faits main, lumière naturelle douce de fenêtre. Ambiance maison cosy et authentique — pas de studio, pas d'urbain froid.
+INTERDIT: fond studio blanc, béton industriel, fond identique aux prompts 1 et 4, visage visible.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
