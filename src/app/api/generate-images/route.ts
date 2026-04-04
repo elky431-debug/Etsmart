@@ -444,10 +444,10 @@ Surface neutre derrière (bois clair, lin, béton — pas de blanc uni). Produit
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 4 – PORTÉ VUE DE FACE (CORPS RÉEL):
-Une VRAIE PERSONNE porte le vêtement, photographiée DE FACE. Corps visible du buste aux genoux, visage hors-cadre (coupé au-dessus du menton). Le vêtement est effectivement enfilé sur le corps — tissu tendu sur les hanches, plis naturels du port.
-Lumière naturelle douce venant d'une fenêtre, fond neutre simple (mur clair, intérieur épuré). Posture décontractée.
-INTERDIT: mannequin fantôme, vêtement flottant sans corps, fond studio blanc, visage visible.
+PROMPT 4 – PORTÉ VUE DE FACE (CORPS HUMAIN RÉEL):
+Photo réaliste d'une PERSONNE HUMAINE portant le vêtement, cadrage DE FACE du buste jusqu'aux genoux. Le vêtement est enfilé sur un vrai corps humain — jambes et hanches visibles dans le vêtement, tissu en contact avec le corps, plis naturels du port. Visage coupé au-dessus du menton (hors-cadre).
+Lumière naturelle douce, fond simple et clair (mur blanc cassé, intérieur minimaliste). Posture droite et naturelle.
+INTERDIT: mannequin fantôme invisible, vêtement suspendu sans corps, flat-lay, fond studio blanc pur, visage reconnaissable.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -484,23 +484,11 @@ PROMPT 1 – FLAT-LAY ÉDITORIAL VUE DU DESSUS:
 La caméra est DIRECTEMENT AU-DESSUS (vue à 90°, plongée verticale). Le vêtement est déployé à plat au centre d'une TABLE EN BOIS FONCÉ WENGÉ (grain du bois visible, surface mate). Le textile occupe 65% du cadre, légèrement froissé pour simuler le volume. Ombres légères sur les bords du tissu. Lumière latérale douce venant de la gauche.
 AUCUNE personne ni peau visible dans l'image. Fond: bois foncé uniquement, aucun blanc.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
-            if (i === 3) return `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 4 – FLAT-LAY VUE DE FACE SUR BÉTON:
-Le vêtement étalé à plat VUE DU DESSUS sur une SURFACE EN BÉTON GRIS CLAIR (texture visible). Cadrage frontal à 90°, vêtement centré et occupant 70% du cadre. Lumière naturelle douce et uniforme révélant la texture du tissu. Face avant visible.
-AUCUNE personne ni peau. Fond béton uniquement — pas de fond blanc.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             if (i === 4) return `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 5 – FLAT-LAY SPORT AVEC ACCESSOIRES:
 Le vêtement plié soigneusement posé SUR UN TAPIS DE YOGA BLEU/GRIS (texture caoutchouc visible). À droite du vêtement: une bouteille d'eau mate blanche. Lumière naturelle douce zénithale. Cadrage vue de dessus à 75°.
 AUCUNE personne ni peau. Surface: tapis de yoga uniquement — pas de fond blanc.
-Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
-            if (i === 5) return `${baseContext}
-${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – PRÉSENTATION FOND NOIR DRAMATIQUE:
-Le vêtement présenté debout ou suspendu sur FOND NOIR CHARBON. Éclairage latéral fort (rim light) venant de la droite, créant des reflets sur le tissu et des ombres marquées. Ambiance mode premium dark. Le vêtement occupe 80% du cadre.
-AUCUNE personne ni peau. Fond NOIR ou GRIS TRÈS FONCÉ obligatoire — aucun blanc visible.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             if (i === 6) return `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
