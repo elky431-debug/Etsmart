@@ -26,6 +26,32 @@ const MODES: ModeConfig[] = [
   { id: 'branding', label: 'Branding & boutique',  sublabel: 'Image de marque, visibilité',   icon: <Sparkles className="h-5 w-5" /> },
 ];
 
+// Compress + resize image to stay well under Netlify's 6 MB function body limit
+function compressImage(file: File, maxPx = 1024, quality = 0.82): Promise<{ dataUrl: string; type: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round((h * maxPx) / w); w = maxPx; }
+        else { w = Math.round((w * maxPx) / h); h = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no canvas')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), type: 'image/jpeg' });
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('load failed')); };
+    img.src = objectUrl;
+  });
+}
+
 export function DashboardCoach() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -72,21 +98,23 @@ export function DashboardCoach() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setAttachment({ name: file.name, dataUrl, type: file.type });
-    };
-    reader.readAsDataURL(file);
-    // Reset file input so same file can be re-selected
     e.target.value = '';
+    void loadFile(file);
   };
 
-  const loadFile = (file: File) => {
+  const loadFile = async (file: File) => {
+    if (file.type.startsWith('image/')) {
+      try {
+        const { dataUrl, type } = await compressImage(file);
+        setAttachment({ name: file.name, dataUrl, type });
+        return;
+      } catch {
+        // fallthrough to raw FileReader
+      }
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setAttachment({ name: file.name, dataUrl, type: file.type });
+      setAttachment({ name: file.name, dataUrl: ev.target?.result as string, type: file.type });
     };
     reader.readAsDataURL(file);
   };
@@ -112,7 +140,7 @@ export function DashboardCoach() {
     dragCounterRef.current = 0;
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) loadFile(file);
+    if (file) void loadFile(file);
   };
 
   const send = async () => {

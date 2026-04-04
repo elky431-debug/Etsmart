@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
     const mode = typeof body.mode === 'string' ? body.mode : 'general';
     const attachment = body.attachment ?? null;
     const isImageAttachment = attachment !== null && attachment.type.startsWith('image/');
+    console.log(`[coach/chat] attachment=${attachment?.type ?? 'none'} dataUrl_len=${attachment?.dataUrl?.length ?? 0} isImage=${isImageAttachment}`);
 
     // Build the system prompt with optional mode addition
     const systemPrompt = ETSMART_COACH_SYSTEM_PROMPT + getModeSystemAddition(mode);
