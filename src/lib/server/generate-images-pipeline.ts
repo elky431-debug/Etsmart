@@ -520,10 +520,10 @@ Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 3 – GHOST MANNEQUIN STUDIO PREMIUM:
-Même article exact sur ghost mannequin invisible 3D (volume creux visible au col et aux manches, textile avec épaisseur et relief réaliste). Fond studio neutre: papier seamless gris clair, blanc cassé ou beige discret.
-Tombé naturel, coutures et finitions visibles. Rendu boutique en ligne haut de gamme.
-INTERDIT: fond identique aux autres prompts, mannequin avec silhouette humaine, flat-lay, cintre, table ronde ou plateau circulaire.
+PROMPT 3 – GHOST MANNEQUIN LIFESTYLE:
+Même article exact sur ghost mannequin 3D invisible (volume creux au col/épaules visible, textile avec épaisseur et relief réaliste, tombé naturel).
+Décor lifestyle léger derrière: mur en brique peint clair, étagère en bois floutée, ou mur texturé beige — ambiance boutique indépendante premium. Lumière latérale douce, légère ombre portée au sol.
+INTERDIT: fond blanc uni vide ou fond studio sans aucune texture, mannequin avec silhouette humaine.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
@@ -556,8 +556,9 @@ Pas de texte. Pas de watermark.`
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 7 – GROS PLAN MATIÈRE / TEXTURE:
-Macro ou extrême gros plan sur la texture du tissu, les coutures, le motif ou la maille — identique aux références. Le tissu montre son volume réel sur une courbe ou un pli naturel.
-Netteté maximale sur les détails de surface, bokeh doux sur le fond. Lumière directionnelle révélant les reliefs du textile.
+Macro ou extrême gros plan sur la texture du tissu, les coutures, la ceinture ou la maille — identique aux références.
+ÉCLAIRAGE CRITIQUE: lumière directionnelle forte venant du côté (45°) pour révéler les reliefs du tissu — évite absolument le rendu sombre ou silhouette noire. Si le vêtement est de couleur foncée, utilise une lumière rim-light ou contre-jour doux qui dégage la texture sans rendre l'image noire.
+Le tissu suit une courbe ou un pli naturel (volume conservé, pas de tissu à plat). Fond neutre et clair flouté (blanc cassé, beige, gris clair). Netteté maximale sur les détails de surface.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
@@ -567,15 +568,19 @@ Pas de texte. Pas de watermark.`
             const p1NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – STUDIO SANS MODÈLE (SPORT / ACTIVEWEAR):
-Même article EXACT que les références sur ghost mannequin 3D (volume creux visible, intérieur de col visible, textile en relief) OU cintre mural sur fond studio neutre (gris clair, blanc cassé, beige). Rendu boutique sport/yoga sobre et professionnel.
-INTERDIT: peau humaine, silhouette réaliste, modèle fitness, mise en scène suggestive.
+PROMPT 1 – LIFESTYLE ACTIVEWEAR SANS MODÈLE:
+Le vêtement EXACT des références sur ghost mannequin 3D avec volume et relief du tissu, placé dans un studio yoga/fitness lifestyle élégant.
+Décor: parquet en bois clair ou béton poli, lumière naturelle venant d'une fenêtre sur le côté, accessoires discrets yoga (bloc en bois, plante verte en pot, serviette pliée en fond).
+Ghost mannequin centré, textile avec épaisseur et plis naturels, tombé réaliste. Ambiance boutique activewear premium.
+INTERDIT: fond blanc vide ou fond studio uni sans décor, peau humaine ou silhouette réaliste.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p6NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – LUMIÈRE CHAUDE STUDIO (SANS PERSONNE):
-Même vêtement sur ghost mannequin 3D ou sur cintre mural — lumière tamisée chaude (lampe indirecte dorée). Fond studio différent du prompt 1. Volume et drapé du tissu bien visibles. Aucun humain, aucune peau.
+PROMPT 6 – GOLDEN HOUR ACTIVEWEAR SANS MODÈLE:
+Le même vêtement sur ghost mannequin 3D ou cintre solide — lumière dorée chaude de golden hour (côté gauche), ambiance intérieur yoga studio ou loft avec grandes fenêtres.
+Fond: mur en béton clair ou bois naturel avec quelques plantes vertes floutées. Tons chauds, ombres longues et douces, tissu avec volume et relief visibles.
+INTERDIT: fond blanc uni vide, peau humaine ou silhouette réaliste, répéter le même décor que le prompt 1.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 5 ? p6NoHuman : p));
           })()
