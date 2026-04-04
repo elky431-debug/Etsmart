@@ -147,9 +147,11 @@ TITLE RULES:
 - If competitor title is provided: generate a similar but unique title, never copy.
 - If no competitor title: generate the best SEO title from product visuals only.
 - English only.
+- Target 13–14 words minimum (aim for ~100–130 characters to maximize Etsy SEO coverage).
 - Max 140 characters.
 - No special characters (no |, •, ★, —, emojis, etc.).
 - No unnecessary keyword repetition.
+- Include: product type + key adjectives + style/use case + target audience or occasion.
 
 TAGS RULES (STRICT):
 - English only.
