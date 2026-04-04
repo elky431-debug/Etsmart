@@ -1,14 +1,14 @@
 const MAX_LEN = 400;
 
 export function listingKeywordHintsDevEnabled(): boolean {
-  return process.env.NODE_ENV === 'development';
+  return true;
 }
 
 /**
  * Extrait les hints « style / mots-clés » du body JSON.
  */
 export function listingKeywordHintsFromRequestBody(body: unknown): string {
-  if (!listingKeywordHintsDevEnabled() || body == null || typeof body !== 'object') return '';
+  if (body == null || typeof body !== 'object') return '';
   const raw = (body as { listingKeywordHints?: unknown }).listingKeywordHints;
   if (typeof raw !== 'string') return '';
   const t = raw
