@@ -15,52 +15,15 @@ interface ModeConfig {
   label: string;
   sublabel: string;
   icon: React.ReactNode;
-  prompt: string;
 }
 
 const MODES: ModeConfig[] = [
-  {
-    id: 'general',
-    label: 'Coach général',
-    sublabel: 'Stratégie, conseils Etsy',
-    icon: <Bot className="h-5 w-5" />,
-    prompt: '',
-  },
-  {
-    id: 'client',
-    label: 'Réponse client',
-    sublabel: 'Litiges, avis, messages',
-    icon: <MessageCircle className="h-5 w-5" />,
-    prompt: 'Je dois répondre à un client. Voici la situation : ',
-  },
-  {
-    id: 'product',
-    label: 'Recherche produit',
-    sublabel: 'Trouver des niches à potentiel',
-    icon: <Search className="h-5 w-5" />,
-    prompt: 'Aide-moi à trouver des idées de produits ou niches Etsy à potentiel. ',
-  },
-  {
-    id: 'listing',
-    label: 'Optimiser un listing',
-    sublabel: 'Titre, tags, description SEO',
-    icon: <FileText className="h-5 w-5" />,
-    prompt: 'Aide-moi à optimiser ce listing Etsy (titre, tags, description) : ',
-  },
-  {
-    id: 'pricing',
-    label: 'Pricing & marges',
-    sublabel: 'Calcul de prix, rentabilité',
-    icon: <DollarSign className="h-5 w-5" />,
-    prompt: 'Aide-moi à définir le bon prix pour mon produit. Voici les infos : ',
-  },
-  {
-    id: 'branding',
-    label: 'Branding & boutique',
-    sublabel: 'Image de marque, visibilité',
-    icon: <Sparkles className="h-5 w-5" />,
-    prompt: "Aide-moi à améliorer le branding et l'image de ma boutique Etsy. ",
-  },
+  { id: 'general',  label: 'Coach général',       sublabel: 'Stratégie, conseils Etsy',      icon: <Bot className="h-5 w-5" /> },
+  { id: 'client',   label: 'Réponse client',       sublabel: 'Litiges, avis, messages',       icon: <MessageCircle className="h-5 w-5" /> },
+  { id: 'product',  label: 'Recherche produit',    sublabel: 'Trouver des niches à potentiel', icon: <Search className="h-5 w-5" /> },
+  { id: 'listing',  label: 'Optimiser un listing', sublabel: 'Titre, tags, description SEO',  icon: <FileText className="h-5 w-5" /> },
+  { id: 'pricing',  label: 'Pricing & marges',     sublabel: 'Calcul de prix, rentabilité',   icon: <DollarSign className="h-5 w-5" /> },
+  { id: 'branding', label: 'Branding & boutique',  sublabel: 'Image de marque, visibilité',   icon: <Sparkles className="h-5 w-5" /> },
 ];
 
 export function DashboardCoach() {
@@ -103,15 +66,7 @@ export function DashboardCoach() {
 
   const handleModeSelect = (mode: ModeConfig) => {
     setActiveMode(mode.id);
-    setInput(mode.prompt);
-    setTimeout(() => {
-      inputRef.current?.focus();
-      const el = inputRef.current;
-      if (el) {
-        el.selectionStart = el.value.length;
-        el.selectionEnd = el.value.length;
-      }
-    }, 0);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
