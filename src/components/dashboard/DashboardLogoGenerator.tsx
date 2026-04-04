@@ -132,31 +132,27 @@ export function DashboardLogoGenerator({
       const brief = briefData as { imagePrompt?: string; bgR?: number; bgG?: number; bgB?: number } | null;
       if (!brief?.imagePrompt) throw new Error(formatLogoApiError(briefRaw, briefData));
 
-      // Step 2 — Image via Supabase Edge Function (150s timeout, no Netlify 26s limit)
-      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      const edgeRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-logo-image`, {
+      // Step 2 — Image via Next.js API route (same server, no Edge Function / JWT Supabase)
+      const imgRes = await fetch('/api/generate-logo-image', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ imagePrompt: brief.imagePrompt, bgR: brief.bgR, bgG: brief.bgG, bgB: brief.bgB }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          imagePrompt: brief.imagePrompt,
+          bgR: brief.bgR,
+          bgG: brief.bgG,
+          bgB: brief.bgB,
+          shopName: withName ? shopName.trim() : '',
+          withName,
+        }),
       });
       let imgRaw = '';
       let imgData: unknown = null;
-      try { imgRaw = await edgeRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
-      if (!edgeRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
+      try { imgRaw = await imgRes.text(); imgData = imgRaw ? JSON.parse(imgRaw) : null; } catch { imgData = null; }
+      if (!imgRes.ok) throw new Error(formatLogoApiError(imgRaw, imgData));
       const ok = imgData as { imageDataUrl?: string } | null;
       if (!ok?.imageDataUrl) throw new Error(formatLogoApiError(imgRaw, imgData));
 
-      // Step 3 — Composite shop name client-side via Canvas (instant, no server needed)
-      let finalUrl = ok.imageDataUrl;
-      if (withName && shopName.trim()) {
-        finalUrl = await compositeNameOnCanvas(finalUrl, shopName.trim());
-      }
-      setLogoUrl(finalUrl);
+      setLogoUrl(ok.imageDataUrl);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur lors de la génération du logo');
     } finally {
