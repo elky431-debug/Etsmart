@@ -70,9 +70,11 @@ export function DashboardCoach() {
   const [error, setError] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<string>('general');
   const [attachment, setAttachment] = useState<{ name: string; dataUrl: string; type: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const dragCounterRef = useRef(0);
 
   const hasMessages = messages.length > 0;
 
@@ -123,6 +125,39 @@ export function DashboardCoach() {
     reader.readAsDataURL(file);
     // Reset file input so same file can be re-selected
     e.target.value = '';
+  };
+
+  const loadFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setAttachment({ name: file.name, dataUrl, type: file.type });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadFile(file);
   };
 
   const send = async () => {
@@ -302,7 +337,19 @@ export function DashboardCoach() {
   // ── EMPTY STATE ───────────────────────────────────────────────────────────
   if (!hasMessages) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col items-center justify-center bg-black px-4 py-8 text-white">
+      <div
+        className="relative flex min-h-[calc(100vh-4rem)] w-full flex-col items-center justify-center bg-black px-4 py-8 text-white"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#00d4ff] bg-[#00d4ff]/5 backdrop-blur-sm">
+            <Paperclip className="h-10 w-10 text-[#00d4ff] mb-3" />
+            <p className="text-[#00d4ff] font-semibold text-lg">Dépose ton fichier ici</p>
+          </div>
+        )}
         {/* Hero */}
         <div className="mb-8 flex flex-col items-center gap-4 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-xl shadow-[#00d4ff]/25">
@@ -346,9 +393,23 @@ export function DashboardCoach() {
     );
   }
 
+
+
   // ── CHAT STATE ────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-black text-white">
+    <div
+      className="relative flex h-full min-h-0 w-full flex-col bg-black text-white"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center border-2 border-dashed border-[#00d4ff] bg-[#00d4ff]/5 backdrop-blur-sm">
+          <Paperclip className="h-10 w-10 text-[#00d4ff] mb-3" />
+          <p className="text-[#00d4ff] font-semibold text-lg">Dépose ton fichier ici</p>
+        </div>
+      )}
       {/* Header */}
       <header className="shrink-0 border-b border-white/10 bg-zinc-950 shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
