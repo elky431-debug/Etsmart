@@ -1062,7 +1062,7 @@ export function DashboardQuickGenerate() {
         )}
 
         {/* Results */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {isGenerating ? (
             <motion.div
               key="generating"
