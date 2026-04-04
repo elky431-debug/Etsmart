@@ -232,7 +232,7 @@ export function DashboardCoach() {
       )}
 
       {/* Main input container */}
-      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 focus-within:border-[#00d4ff]/40 focus-within:ring-1 focus-within:ring-[#00d4ff]/20 transition-all">
+      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 transition-all">
         {/* Paperclip */}
         <button
           type="button"
