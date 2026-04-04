@@ -416,7 +416,9 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
         `ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. ` +
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
         `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
-        `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
+        (apparelMode
+          ? `FOND OBLIGATOIRE (RÈGLE ABSOLUE): ne jamais utiliser un fond blanc uni ou un fond studio blanc vide — chaque image doit montrer une surface ou un arrière-plan avec une couleur, une texture ou une matière clairement visible (bois, béton, tissu, mur coloré, surface sombre, etc.). Le fond blanc pur est INTERDIT sauf pour l'image de mensurations. `
+          : `Fond simple (table/mur clair/intérieur moderne ou studio léger). `) +
         `ANTI-COPIER STRICT: chaque prompt doit générer un arrière-plan + décor + éclairage clairement différents (pas un recadrage, pas un copier/coller, pas des éléments identiques). ` +
         `Ne réutilise pas la même disposition des rideaux/tapis/coussins/objets autour du produit d'une image à l'autre. ` +
         `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).` +
@@ -564,25 +566,32 @@ Pas de texte. Pas de watermark.`
             const p1NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – FLAT-LAY ÉDITORIAL ACTIVEWEAR:
-Vue du dessus directe (caméra à 90° au-dessus). Le vêtement est soigneusement déployé à plat au centre sur une SURFACE SOMBRE (velours noir, lin anthracite foncé, ou plateau bois foncé wengé). Le textile occupe 65–75% du cadre, centré, légèrement froissé pour simuler volume. Lumière douce latérale gauche.
-AUCUNE personne. AUCUNE peau. Fond sombre uniquement.
+PROMPT 1 – FLAT-LAY ÉDITORIAL VUE DU DESSUS:
+La caméra est DIRECTEMENT AU-DESSUS (vue à 90°, plongée verticale). Le vêtement est déployé à plat au centre d'une TABLE EN BOIS FONCÉ WENGÉ (grain du bois visible, surface mate). Le textile occupe 65% du cadre, légèrement froissé pour simuler le volume. Ombres légères sur les bords du tissu. Lumière latérale douce venant de la gauche.
+AUCUNE personne ni peau visible dans l'image. Fond: bois foncé uniquement, aucun blanc.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p6NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – STUDIO DRAMATIQUE FOND SOMBRE:
-Le vêtement EXACT sur fond studio GRIS FONCÉ ou NOIR (pas blanc). Présentation droite face caméra, éclairage dramatique latéral fort créant des ombres marquées sur les plis du tissu. Contraste élevé, ambiance mode premium dark. Le vêtement occupe 80% du cadre.
-AUCUNE personne. AUCUNE peau. Fond sombre obligatoire.
+PROMPT 6 – PRÉSENTATION FOND NOIR DRAMATIQUE:
+Le vêtement présenté debout ou suspendu sur FOND NOIR CHARBON. Éclairage latéral fort (rim light) venant de la droite, créant des reflets sur le tissu et des ombres marquées. Ambiance mode premium dark. Le vêtement occupe 80% du cadre.
+AUCUNE personne ni peau. Fond NOIR ou GRIS TRÈS FONCÉ obligatoire — aucun blanc visible.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p5Activewear =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – FLAT-LAY SPORT LIFESTYLE:
-Vue du dessus légèrement en biais (75°). Le vêtement plié posé sur une SURFACE CLAIRE (marbre blanc veiné, parquet bois clair, ou béton lisse). À côté du vêtement: une paire de sneakers blanches propres et une bouteille d'eau mate noire ou blanche. Lumière naturelle froide zénithale.
-AUCUNE personne. AUCUNE peau. Surface claire uniquement (différente du prompt 1).
+PROMPT 5 – FLAT-LAY SPORT AVEC ACCESSOIRES:
+Le vêtement plié soigneusement posé SUR UN TAPIS DE YOGA BLEU/GRIS (texture caoutchouc visible). À droite du vêtement: une bouteille d'eau mate blanche. Lumière naturelle douce zénithale. Cadrage vue de dessus à 75°.
+AUCUNE personne ni peau. Surface: tapis de yoga uniquement — pas de fond blanc.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
-            return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 4 ? p5Activewear : i === 5 ? p6NoHuman : p));
+            const p7Activewear =
+              `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – GROS PLAN CEINTURE / DÉTAIL TISSU:
+GROS PLAN sur la ceinture élastique du vêtement posée sur une SURFACE EN BÉTON GRIS CLAIR. La ceinture remplit 70% du cadre. On voit clairement la texture du tissu, les coutures et l'élastique. Lumière rasante latérale révélant les reliefs. Fond béton gris visible.
+AUCUNE personne ni peau. Surface béton gris — aucun fond blanc.
+Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 4 ? p5Activewear : i === 5 ? p6NoHuman : i === 6 ? p7Activewear : p));
           })()
         : IMAGE_PROMPTS_APPAREL;
 
