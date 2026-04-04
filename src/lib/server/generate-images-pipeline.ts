@@ -555,10 +555,12 @@ Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – GROS PLAN MATIÈRE / TEXTURE:
-Macro ou extrême gros plan sur la texture du tissu, les coutures, la ceinture ou la maille — identique aux références.
-ÉCLAIRAGE CRITIQUE: lumière directionnelle forte venant du côté (45°) pour révéler les reliefs du tissu — évite absolument le rendu sombre ou silhouette noire. Si le vêtement est de couleur foncée, utilise une lumière rim-light ou contre-jour doux qui dégage la texture sans rendre l'image noire.
-Le tissu suit une courbe ou un pli naturel (volume conservé, pas de tissu à plat). Fond neutre et clair flouté (blanc cassé, beige, gris clair). Netteté maximale sur les détails de surface.
+PROMPT 7 – MACRO EXTRÊME TISSU (TRÈS IMPORTANT: caméra ultra proche):
+Photo MACRO EXTRÊME: la caméra est à 3–8 cm du tissu. Le textile remplit 85–95% du cadre — on voit clairement les fils individuels, la trame du tissu, les mailles ou les coutures en très grand format. PAS un plan moyen avec le vêtement entier, PAS un lifestyle avec d'autres objets — uniquement la surface du tissu en gros plan macro.
+Focus: ceinture élastique, couture surpiquée, texture de maille ou relief du tissu selon l'article.
+ÉCLAIRAGE: lumière latérale forte à 45° (ou rim-light) révélant les micro-reliefs et la texture en 3D — si le vêtement est foncé, la lumière doit dégager les détails sans rendre l'image noire.
+Fond: totalement flouté (bokeh), ton neutre clair derrière.
+INTERDIT: plan moyen ou large du vêtement entier, objets décoratifs, lifestyle, tasse, plante, fond identique aux autres prompts.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
@@ -582,7 +584,16 @@ Le même vêtement sur ghost mannequin 3D ou cintre solide — lumière dorée c
 Fond: mur en béton clair ou bois naturel avec quelques plantes vertes floutées. Tons chauds, ombres longues et douces, tissu avec volume et relief visibles.
 INTERDIT: fond blanc uni vide, peau humaine ou silhouette réaliste, répéter le même décor que le prompt 1.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
-            return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 5 ? p6NoHuman : p));
+            const p5Activewear =
+              `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – FLAT-LAY LIFESTYLE ACTIVEWEAR:
+Flat-lay éditorial vu du dessus ou en légère diagonale: le vêtement EXACT soigneusement plié ou déployé au centre, entouré d'accessoires sport lifestyle épurés (tapis de yoga enroulé, sneakers blanches propres, bouteille d'eau minimaliste, airpods).
+Surface: tapis de yoga gris/bleu clair, parquet bois clair ou béton lisse. Composition curatée et stylée — pas de désordre.
+Éclairage naturel zénithal ou légèrement latéral. Le vêtement occupe 55–65% du cadre.
+INTERDIT: peau humaine ou silhouette humaine, fond blanc uni sans texture ni accessoires, fond identique aux autres prompts.
+Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 4 ? p5Activewear : i === 5 ? p6NoHuman : p));
           })()
         : IMAGE_PROMPTS_APPAREL;
 
