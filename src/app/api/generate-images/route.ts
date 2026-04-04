@@ -442,7 +442,13 @@ Photo très rapprochée sur les détails du tissu: texture, coutures, ceinture �
 Bokeh très doux sur les bords, mise au point maximale sur la matière principale. Lumière latérale douce révélant les reliefs.
 Surface neutre derrière (bois clair, lin, béton — pas de blanc uni). Produit occupe 80–85% du cadre.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
-        DIMENSIONS_PROMPT,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 – PORTÉ VUE DE FACE:
+Le vêtement porté par une personne réelle, VUE DE FACE. Cadrage du buste aux genoux, visage hors-champ (coupé au-dessus du menton). Pose droite et naturelle.
+Lumière frontale douce et uniforme, fond lifestyle neutre (mur clair, béton léger, intérieur épuré) — pas de fond studio blanc. Coupe et tombé du tissu parfaitement visibles de face.
+INTERDIT: fond blanc studio, mannequin, visage reconnaissable.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 5 – PORTÉ STYLED / TENUE COMPLÈTE:
@@ -453,10 +459,10 @@ INTERDIT: accessoires qui masquent le vêtement, fond identique aux prompts 1 et
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – AMBIANCE GOLDEN HOUR / LUMIÈRE CHAUDE:
-Le vêtement porté — lumière dorée chaude (golden hour intérieur ou extérieur au coucher de soleil, lampe tamisée chaude).
-Cadrage buste–hanches. Tons chauds dorés, ombres douces et longues, drapé et volume du tissu bien visibles. Ambiance cosy et premium.
-INTERDIT: silhouette corps entier sans visage ni tête, fond identique aux autres prompts.
+PROMPT 6 – PORTÉ VUE DE PROFIL / LATÉRALE:
+Le vêtement porté par une personne réelle, VUE DE CÔTÉ (profil strict à 90° ou 3/4). Cadrage buste–genoux, visage hors-champ. Pose naturelle debout ou en mouvement léger.
+Lumière latérale douce, fond lifestyle (mur texturé, béton, extérieur urbain flou) — pas de fond blanc. Coupe latérale, volume et silhouette du vêtement bien visibles.
+INTERDIT: fond blanc studio, mannequin, fond identique aux prompts 1 et 4.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -477,6 +483,12 @@ ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – FLAT-LAY ÉDITORIAL VUE DU DESSUS:
 La caméra est DIRECTEMENT AU-DESSUS (vue à 90°, plongée verticale). Le vêtement est déployé à plat au centre d'une TABLE EN BOIS FONCÉ WENGÉ (grain du bois visible, surface mate). Le textile occupe 65% du cadre, légèrement froissé pour simuler le volume. Ombres légères sur les bords du tissu. Lumière latérale douce venant de la gauche.
 AUCUNE personne ni peau visible dans l'image. Fond: bois foncé uniquement, aucun blanc.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            if (i === 3) return `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 – FLAT-LAY VUE DE FACE SUR BÉTON:
+Le vêtement étalé à plat VUE DU DESSUS sur une SURFACE EN BÉTON GRIS CLAIR (texture visible). Cadrage frontal à 90°, vêtement centré et occupant 70% du cadre. Lumière naturelle douce et uniforme révélant la texture du tissu. Face avant visible.
+AUCUNE personne ni peau. Fond béton uniquement — pas de fond blanc.
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             if (i === 4) return `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
