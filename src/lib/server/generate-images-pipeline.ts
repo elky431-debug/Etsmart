@@ -501,25 +501,29 @@ Pas de texte marketing. Pas de watermark.`
       const IMAGE_PROMPTS_APPAREL = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – PORTÉ / LOOKBOOK (CADRAGE BUSTE):
-Le vêtement EXACT des références est porté, pose calme type catalogue Etsy.
-OBLIGATOIRE: cadrage du milieu de poitrine au haut des hanches (buste / taille) OU épaules+torse uniquement — le textile occupe ~70–85% du cadre.
-INTERDIT: plan corps entier (tête aux pieds) avec tête absente, floutée ou coupée — provoque des corps irréalistes.
-Intérieur lumineux, lumière douce latérale. Plis naturels.
+PROMPT 1 – PORTÉ LIFESTYLE ÉDITORIAL:
+Photo mode éditorial: le vêtement EXACT des références est porté dans un contexte lifestyle élégant (rue chic, café, parc ensoleillé, appartement lumineux).
+Cadrage du milieu du buste aux hanches — torse + épaules bien visibles, visage hors-champ ou discret, pas de plan pied-tête complet.
+Pose naturelle et détendue (pas de pose raide catalogue), lumière naturelle dorée ou douce lumière intérieure.
+L'article occupe 65–80% du cadre. Plis et tombé naturels du tissu. Ambiance mode premium type boutique indépendante.
+INTERDIT: fond studio blanc vide, mannequin sans volume, fond identique au prompt 2 ou 3.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 2 – GHOST MANNEQUIN 3D:
-Même article sur ghost mannequin (volume creux visible au col, textile en relief). Tombé naturel type boutique premium. Fond studio gris clair ou blanc cassé.
-Pas de rendu « collage » sans épaisseur.
+PROMPT 2 – PORTÉ DÉTAIL FIT / ANGLE DIFFÉRENT:
+Le même vêtement porté, cadrage différent du prompt 1: de dos ou de côté (3/4 dos) pour montrer la coupe, la forme et le tombé depuis un autre angle.
+Lumière douce naturelle, intérieur clair ou extérieur urbain. Plis et détails de coupe bien visibles.
+Le textile doit montrer son volume réel: pas de rendu plat ou sans relief.
+INTERDIT: répéter exactement la même pose ou le même angle que le prompt 1.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 3 – CINTRE MURAL:
-Même vêtement sur cintre (bois ou métal sobre), suspendu face à un mur plat vertical studio (pas de vue plongeante). Plis dus à la gravité. Le textile occupe ~70% du cadre.
-INTERDIT: table ronde, plateau circulaire, surface « miroir », piédestal cylindrique, flat-lay pour ce prompt.
+PROMPT 3 – GHOST MANNEQUIN STUDIO PREMIUM:
+Même article exact sur ghost mannequin invisible 3D (volume creux visible au col et aux manches, textile avec épaisseur et relief réaliste). Fond studio neutre: papier seamless gris clair, blanc cassé ou beige discret.
+Tombé naturel, coutures et finitions visibles. Rendu boutique en ligne haut de gamme.
+INTERDIT: fond identique aux autres prompts, mannequin avec silhouette humaine, flat-lay, cintre, table ronde ou plateau circulaire.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
@@ -534,22 +538,27 @@ Texte uniquement pour les mensurations (pas de texte marketing).`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – GROS PLAN MATIÈRE:
-Extrême proximité sur texture, couture ou maille — identique aux références. Le tissu suit une courbe ou un pli (volume conservé). Fond neutre flouté.
+PROMPT 5 – PORTÉ STYLED / TENUE COMPLÈTE:
+Le vêtement porté dans une tenue coordonnée stylée: associé à 1–2 accessoires neutres et discrets (ceinture, sac simple, bijou léger) qui valorisent l'article sans le faire disparaître.
+Cadrage taille–épaules montrant le styling global. Lumière naturelle douce, fond lifestyle simple (mur clair, végétation floue, intérieur moderne).
+L'article principal des références doit rester le centre de l'image — les accessoires sont secondaires.
+INTERDIT: accessoires qui masquent le vêtement, fond identique aux prompts 1 et 2.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – AMBIANCE SOIR (BUSTE OU MANNEQUIN):
-Même article: soit porté en cadrage buste–hanches (comme prompt 1), soit sur ghost mannequin ou mannequin buste. Lumière tamisée chaude (lampe, golden hour intérieur). Drapé et volume visibles.
-INTERDIT: silhouette humaine entière sans tête.
+PROMPT 6 – AMBIANCE GOLDEN HOUR / LUMIÈRE CHAUDE:
+Le vêtement porté ou sur ghost mannequin — lumière dorée chaude (golden hour intérieur ou extérieur au coucher de soleil, lampe tamisée chaude).
+Cadrage buste–hanches. Tons chauds dorés, ombres douces et longues, drapé et volume du tissu bien visibles. Ambiance cosy et premium.
+INTERDIT: silhouette corps entier sans visage ni tête, fond identique aux autres prompts.
 Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – ÉCHELLE & VOLUME:
-Empilement plié avec épaisseur visible, OU même vêtement sur cintre à côté d'un livre fermé format poche pour l'échelle. Pas de mini-vêtement noyé dans un décor immense.
-Pas de texte marketing. Pas de watermark.`
+PROMPT 7 – GROS PLAN MATIÈRE / TEXTURE:
+Macro ou extrême gros plan sur la texture du tissu, les coutures, le motif ou la maille — identique aux références. Le tissu montre son volume réel sur une courbe ou un pli naturel.
+Netteté maximale sur les détails de surface, bokeh doux sur le fond. Lumière directionnelle révélant les reliefs du textile.
+Pas de texte. Pas de watermark.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
@@ -559,14 +568,14 @@ Pas de texte marketing. Pas de watermark.`
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – STUDIO SANS MODÈLE (SPORT / ACTIVEWEAR):
-Même article EXACT que les références sur **ghost mannequin** (volume 3D, intérieur de col visible) OU **cintre mural** sur fond studio neutre. Look fiche produit technique, sobre, familial — type boutique running / yoga en ligne.
-INTERDIT sur cette image: peau humaine, silhouette réaliste, modèle « fitness », mise en scène suggestive.
+Même article EXACT que les références sur ghost mannequin 3D (volume creux visible, intérieur de col visible, textile en relief) OU cintre mural sur fond studio neutre (gris clair, blanc cassé, beige). Rendu boutique sport/yoga sobre et professionnel.
+INTERDIT: peau humaine, silhouette réaliste, modèle fitness, mise en scène suggestive.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const p6NoHuman =
               `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 6 – LUMIÈRE CHAUDE (SANS PERSONNE):
-Même vêtement sur **ghost mannequin** ou **cintre**; lumière tamisée chaude (lampe indirecte). Arrière-plan discret. Aucun humain, aucune peau.
+PROMPT 6 – LUMIÈRE CHAUDE STUDIO (SANS PERSONNE):
+Même vêtement sur ghost mannequin 3D ou sur cintre mural — lumière tamisée chaude (lampe indirecte dorée). Fond studio différent du prompt 1. Volume et drapé du tissu bien visibles. Aucun humain, aucune peau.
 Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             return IMAGE_PROMPTS_APPAREL.map((p, i) => (i === 0 ? p1NoHuman : i === 5 ? p6NoHuman : p));
           })()
