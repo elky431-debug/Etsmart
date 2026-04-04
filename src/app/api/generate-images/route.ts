@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { geminiStyleHint, nanoStyleSuffixFr } from '@/lib/image-style-presets';
+import { isAthleticOrFormFittingApparel } from '@/lib/apparel-product-detection';
 
 let sharp: any;
 try { sharp = require('sharp'); } catch { sharp = null; }
@@ -308,6 +309,11 @@ export async function POST(request: NextRequest) {
         return 'general';
       }
       const productCategory = detectProductCategory();
+      const athleticSafeMode = productCategory === 'clothing' && isAthleticOrFormFittingApparel({
+        productTitle: productDesc,
+        tags,
+        materials,
+      });
 
       const refInputs: string[] = [];
       if (typeof sourceImage === 'string' && sourceImage.trim().length > 0) {
@@ -390,7 +396,9 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
         `ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. ` +
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
         `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
-        `Fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
+        (productCategory === 'clothing'
+          ? `FOND OBLIGATOIRE (RÈGLE ABSOLUE): ne jamais utiliser un fond blanc uni ou un fond studio blanc vide — chaque image doit montrer une surface ou un arrière-plan avec une couleur, une texture ou une matière clairement visible (bois, béton, tissu, mur coloré, surface sombre, etc.). Le fond blanc pur est INTERDIT sauf pour l'image de mensurations. `
+          : `Fond simple (table/mur clair/intérieur moderne ou studio léger). `) +
         `ANTI-COPIER STRICT: chaque prompt doit générer un arrière-plan + décor + éclairage clairement différents (pas un recadrage, pas un copier/coller, pas des éléments identiques). ` +
         `Ne réutilise pas la même disposition des rideaux/tapis/coussins/objets autour du produit d'une image à l'autre. ` +
         `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).`;
@@ -408,57 +416,89 @@ Flèches de dimension fines avec labels numériques nets. Style graphique minima
 Texte uniquement pour les mensurations (pas de texte marketing).
 \n${GLOBAL_PROMPT_RULES_GEMINI}`;
 
-      // Règle commune vêtements — ghost mannequin studio
-      const CLOTHING_STUDIO_RULE =
-        `Professional e-commerce product photography, photorealistic studio render. ` +
-        `Simple neutral background only (pure white, light gray, or cream): no room, no furniture visible. ` +
-        `Controlled softbox studio lighting, soft natural shadows. ` +
-        `The garment is displayed using the ghost mannequin technique: the clothing appears to be worn and shaped by an invisible form, showing natural drape, volume and 3D structure. ` +
-        `No flat or folded fabric. The garment fills the frame with lifelike shape.`;
-
-      // Prompts spécialisés VÊTEMENTS — flat lay + porté croppé (évite l'effet "flottant" du ghost mannequin)
-      const CLOTHING_PROMPTS = [
+      // Prompts spécialisés VÊTEMENTS — lifestyle éditorial, porté, fond non-blanc
+      const CLOTHING_PROMPTS_BASE = [
         `${baseContext}
-PROMPT 1 – FLAT LAY FOND BLANC ÉPURÉ:
-Professional e-commerce flat lay photo. The garment is laid FLAT on a pure white or very light gray surface, perfectly smooth and wrinkle-free, as if freshly pressed.
-The garment is centered and fills 75-80% of the frame. Overhead shot (90° top-down view), perfectly symmetrical.
-Softbox studio lighting from above, no harsh shadows. Colors accurate to reference.
-INTERDIT: no mannequin, no floating effect, no person. Just the flat garment on a clean surface.
-No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – PORTÉ LIFESTYLE ÉDITORIAL:
+Photo mode éditorial: le vêtement EXACT des références est porté dans un contexte lifestyle élégant (rue chic, café, parc ensoleillé, appartement lumineux).
+Cadrage du milieu du buste aux hanches — torse + épaules bien visibles, visage hors-champ ou discret, pas de plan pied-tête complet.
+Pose naturelle et détendue (pas de pose raide catalogue), lumière naturelle dorée ou douce lumière intérieure.
+L'article occupe 65–80% du cadre. Plis et tombé naturels du tissu. Ambiance mode premium type boutique indépendante.
+INTERDIT: fond studio blanc vide, mannequin sans volume, fond identique au prompt 2 ou 3.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 2 – PORTÉ CROPPÉ / VUE LIFESTYLE:
-The garment is worn by a model but CROPPED: only the body part wearing the garment is visible (waist to mid-thigh for bottoms, torso for tops). No face, no head in frame.
-Natural standing pose, soft natural daylight from a window, clean white or cream wall behind.
-The garment fits naturally on the body, showing drape, fit and volume realistically.
-INTERDIT: ghost mannequin, floating garment, full body shot with face.
-No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 – PORTÉ DÉTAIL FIT / ANGLE DIFFÉRENT:
+Le même vêtement porté, cadrage différent du prompt 1: de dos ou de côté (3/4 dos) pour montrer la coupe, la forme et le tombé depuis un autre angle.
+Lumière douce naturelle, intérieur clair ou extérieur urbain. Plis et détails de coupe bien visibles.
+Le textile doit montrer son volume réel: pas de rendu plat ou sans relief.
+INTERDIT: répéter exactement la même pose ou le même angle que le prompt 1.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
+${STYLE_EXPECTED_GEMINI}
 PROMPT 3 – GROS PLAN TEXTURE ET FINITIONS:
-Tight close-up photo on fabric details: texture, stitching, waistband, buttons, zipper, hem or embroidery.
-Very soft bokeh on edges, maximum sharpness on main material.
-Neutral clean background (white or matte beige), soft side lighting revealing texture and relief.
-Product fills 80-85% of frame. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+Photo très rapprochée sur les détails du tissu: texture, coutures, ceinture élastique, boutons, fermeture éclair, ourlet ou broderie.
+Bokeh très doux sur les bords, mise au point maximale sur la matière principale. Lumière latérale douce révélant les reliefs.
+Surface neutre derrière (bois clair, lin, béton — pas de blanc uni). Produit occupe 80–85% du cadre.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         DIMENSIONS_PROMPT,
         `${baseContext}
-PROMPT 5 – FLAT LAY FOND SOMBRE / ÉDITORIAL:
-Professional flat lay photo. The garment is laid perfectly flat on a dark surface (slate black, deep charcoal fabric, dark wood).
-Overhead shot (90° top-down), dramatic directional lighting from one side revealing texture and relief.
-Garment centered, 75% of frame, colors accurate. Editorial fashion mood.
-INTERDIT: no mannequin, no floating effect, no person.
-No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – PORTÉ STYLED / TENUE COMPLÈTE:
+Le vêtement porté dans une tenue coordonnée stylée: associé à 1–2 accessoires neutres et discrets (ceinture, sac simple, bijou léger) qui valorisent l'article sans le faire disparaître.
+Cadrage taille–épaules montrant le styling global. Lumière naturelle douce, fond lifestyle simple (mur clair, végétation floue, intérieur moderne).
+L'article principal des références doit rester le centre de l'image — les accessoires sont secondaires.
+INTERDIT: accessoires qui masquent le vêtement, fond identique aux prompts 1 et 2.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 6 – SUR CINTRE, MUR NEUTRE:
-The garment is hung on a simple natural wood hanger, hooked on a discrete wall peg on a clean white or light gray wall.
-Soft natural light from off-frame window, natural folds, authentic 3D shape of the garment.
-Garment falls freely, minimalist background, nothing else in frame.
-No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – AMBIANCE GOLDEN HOUR / LUMIÈRE CHAUDE:
+Le vêtement porté — lumière dorée chaude (golden hour intérieur ou extérieur au coucher de soleil, lampe tamisée chaude).
+Cadrage buste–hanches. Tons chauds dorés, ombres douces et longues, drapé et volume du tissu bien visibles. Ambiance cosy et premium.
+INTERDIT: silhouette corps entier sans visage ni tête, fond identique aux autres prompts.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
-PROMPT 7 – FLAT LAY VUE DOS / FINITIONS ARRIÈRE:
-Professional flat lay photo, BACK SIDE of the garment facing up.
-Laid flat on a pure white or very light gray surface, overhead 90° shot.
-Shows back finishes, seams, closure, label, back hem — everything a buyer wants to see from behind.
-Even softbox lighting, accurate colors. No text. No watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – MACRO EXTRÊME TISSU (TRÈS IMPORTANT: caméra ultra proche):
+Photo MACRO EXTRÊME: la caméra est à 3–8 cm du tissu. Le textile remplit 85–95% du cadre — on voit clairement les fils individuels, la trame du tissu, les mailles ou les coutures en très grand format.
+Focus: ceinture élastique, couture surpiquée, texture de maille ou relief du tissu selon l'article.
+ÉCLAIRAGE: lumière latérale forte à 45° révélant les micro-reliefs et la texture en 3D.
+Fond: totalement flouté (bokeh), ton neutre clair derrière. Pas de fond blanc uni.
+INTERDIT: plan moyen ou large du vêtement entier, objets décoratifs, lifestyle.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
+
+      // Mode athletic (yoga, leggings, sportswear) : remplacer les prompts avec modèle humain par des flat-lays
+      const CLOTHING_PROMPTS = athleticSafeMode
+        ? CLOTHING_PROMPTS_BASE.map((p, i) => {
+            if (i === 0) return `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – FLAT-LAY ÉDITORIAL VUE DU DESSUS:
+La caméra est DIRECTEMENT AU-DESSUS (vue à 90°, plongée verticale). Le vêtement est déployé à plat au centre d'une TABLE EN BOIS FONCÉ WENGÉ (grain du bois visible, surface mate). Le textile occupe 65% du cadre, légèrement froissé pour simuler le volume. Ombres légères sur les bords du tissu. Lumière latérale douce venant de la gauche.
+AUCUNE personne ni peau visible dans l'image. Fond: bois foncé uniquement, aucun blanc.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            if (i === 4) return `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – FLAT-LAY SPORT AVEC ACCESSOIRES:
+Le vêtement plié soigneusement posé SUR UN TAPIS DE YOGA BLEU/GRIS (texture caoutchouc visible). À droite du vêtement: une bouteille d'eau mate blanche. Lumière naturelle douce zénithale. Cadrage vue de dessus à 75°.
+AUCUNE personne ni peau. Surface: tapis de yoga uniquement — pas de fond blanc.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            if (i === 5) return `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – PRÉSENTATION FOND NOIR DRAMATIQUE:
+Le vêtement présenté debout ou suspendu sur FOND NOIR CHARBON. Éclairage latéral fort (rim light) venant de la droite, créant des reflets sur le tissu et des ombres marquées. Ambiance mode premium dark. Le vêtement occupe 80% du cadre.
+AUCUNE personne ni peau. Fond NOIR ou GRIS TRÈS FONCÉ obligatoire — aucun blanc visible.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            if (i === 6) return `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – GROS PLAN CEINTURE / DÉTAIL TISSU:
+GROS PLAN sur la ceinture élastique du vêtement posée sur une SURFACE EN BÉTON GRIS CLAIR. La ceinture remplit 70% du cadre. On voit clairement la texture du tissu, les coutures et l'élastique. Lumière rasante latérale révélant les reliefs. Fond béton gris visible.
+AUCUNE personne ni peau. Surface béton gris — aucun fond blanc.
+Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
+            return p;
+          })
+        : CLOTHING_PROMPTS_BASE;
 
       // Règle commune meubles — toujours ancré dans la pièce, jamais flottant
       const FURNITURE_ANCHOR_RULE =
@@ -681,7 +721,7 @@ Style fiche produit e-commerce propre et précis. Pas de texte. Pas de watermark
         : productCategory === 'lighting' ? LIGHTING_PROMPTS
         : GENERAL_PROMPTS;
 
-      console.log(`[IMAGE GEN] Catégorie détectée: ${productCategory}`);
+      console.log(`[IMAGE GEN] Catégorie détectée: ${productCategory}, athleticSafe=${athleticSafeMode}`);
 
       const geminiExtra =
         customInstructions && String(customInstructions).trim()
