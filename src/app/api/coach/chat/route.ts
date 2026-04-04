@@ -119,9 +119,10 @@ export async function POST(request: NextRequest) {
 
     // Handle the last user message — add vision content if image attachment present
     if (isImageAttachment && attachment) {
+      const userText = last.content.trim() || "Analyse cette image et donne-moi des conseils pertinents pour mon activité Etsy.";
       const visionContent: OpenAI.Chat.ChatCompletionUserMessageParam['content'] = [
-        { type: 'text', text: last.content },
-        { type: 'image_url', image_url: { url: attachment.dataUrl } },
+        { type: 'text', text: userText },
+        { type: 'image_url', image_url: { url: attachment.dataUrl, detail: 'high' } },
       ];
       apiMessages.push({ role: 'user', content: visionContent });
     } else {
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: isImageAttachment ? 'gpt-4o' : 'gpt-4o-mini',
       messages: apiMessages,
       max_tokens: isImageAttachment ? 1000 : 700,
       temperature: 0.55,
