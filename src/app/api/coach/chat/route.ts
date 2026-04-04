@@ -24,13 +24,31 @@ function sanitizeMessages(raw: unknown): ChatMessage[] {
   for (const m of raw) {
     if (!m || typeof m !== 'object') continue;
     const role = (m as { role?: string }).role;
-    const content = (m as { content?: string }).content;
+    // Accept content as string only — attachments are stripped before sending
+    const content = (m as { content?: unknown }).content;
     if (role !== 'user' && role !== 'assistant') continue;
     if (typeof content !== 'string' || !content.trim()) continue;
     const trimmed = content.trim().slice(0, 12000);
     out.push({ role, content: trimmed });
   }
   return out.slice(-24);
+}
+
+function getModeSystemAddition(mode: string): string {
+  switch (mode) {
+    case 'client':
+      return '\n\nMODE ACTIF: Réponse client. Tu aides à rédiger des réponses professionnelles et empathiques à des clients Etsy (litiges, avis négatifs, questions). Propose directement un texte de réponse réutilisable.';
+    case 'product':
+      return '\n\nMODE ACTIF: Recherche produit. Tu aides à trouver des niches et produits à potentiel sur Etsy. Sois concret : donne des idées précises avec volume estimé, concurrence et angle de différenciation.';
+    case 'listing':
+      return '\n\nMODE ACTIF: Optimisation listing. Tu aides à améliorer titres, tags et descriptions Etsy pour le SEO. Propose directement le texte optimisé.';
+    case 'pricing':
+      return '\n\nMODE ACTIF: Pricing & marges. Tu aides à calculer le bon prix de vente, les marges et la rentabilité. Sois précis avec des chiffres.';
+    case 'branding':
+      return "\n\nMODE ACTIF: Branding & boutique. Tu aides à améliorer l'image de marque, la cohérence visuelle et la stratégie de boutique Etsy.";
+    default:
+      return ''; // general mode
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -65,7 +83,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body: { messages?: unknown };
+    let body: { messages?: unknown; mode?: string; attachment?: { name: string; dataUrl: string; type: string } | null };
     try {
       body = await request.json();
     } catch {
@@ -82,11 +100,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'BAD_REQUEST', message: 'Le dernier message doit être le tien.' }, { status: 400 });
     }
 
+    const mode = typeof body.mode === 'string' ? body.mode : 'general';
+    const attachment = body.attachment ?? null;
+    const isImageAttachment = attachment !== null && attachment.type.startsWith('image/');
+
+    // Build the system prompt with optional mode addition
+    const systemPrompt = ETSMART_COACH_SYSTEM_PROMPT + getModeSystemAddition(mode);
+
+    // Build messages array for OpenAI
+    const apiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+      // All history except the last user message
+      ...history.slice(0, -1).map((m): OpenAI.Chat.ChatCompletionMessageParam => ({
+        role: m.role,
+        content: m.content,
+      })),
+    ];
+
+    // Handle the last user message — add vision content if image attachment present
+    if (isImageAttachment && attachment) {
+      const visionContent: OpenAI.Chat.ChatCompletionUserMessageParam['content'] = [
+        { type: 'text', text: last.content },
+        { type: 'image_url', image_url: { url: attachment.dataUrl } },
+      ];
+      apiMessages.push({ role: 'user', content: visionContent });
+    } else {
+      apiMessages.push({ role: 'user', content: last.content });
+    }
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [{ role: 'system', content: ETSMART_COACH_SYSTEM_PROMPT }, ...history],
-      // Réponses courtes côté produit (Coach) — évite les pavés type tutoriel markdown
-      max_tokens: 700,
+      messages: apiMessages,
+      max_tokens: isImageAttachment ? 1000 : 700,
       temperature: 0.55,
     });
 
