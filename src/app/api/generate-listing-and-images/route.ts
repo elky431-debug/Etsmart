@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
+import { listingKeywordHintsFromRequestBody } from '@/lib/listing-keyword-hints-dev';
 
 /** Netlify / hébergeurs : laisser assez de marge pour 2 appels OpenAI + vision (évite 504 + chargement infini côté client). */
 export const maxDuration = 60;
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 }); }
 
     const { sourceImage, competitorTitle, competitorDescription, competitorHashtags } = body;
+    const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
     if (!sourceImage) return NextResponse.json({ error: 'MISSING_IMAGE' }, { status: 400 });
 
     // Credits already deducted by frontend via /api/deduct-credits
@@ -138,46 +140,46 @@ Return ONLY the final description text.`,
             },
             {
               role: 'user',
-              content: `I will send Etsy product photos, sometimes a high-converting competitor title, and sometimes competitor hashtags.
-Your role:
-1) Generate an optimized Etsy SEO title for my shop.
-2) Generate optimized Etsy tags (hashtags) for my shop.
+              content: `You are an Etsy SEO expert. Return valid JSON only.
+
+ROLE: Generate an Etsy-native title, 13 high-quality tags, and materials for a handmade/artisan shop.
 
 TITLE RULES:
-- If competitor title is provided: generate a similar but unique title, never copy.
-- If no competitor title: generate the best SEO title from product visuals only.
 - English only.
-- Target 13–14 words minimum (aim for ~100–130 characters to maximize Etsy SEO coverage).
-- Max 140 characters.
+- Target 13–14 words (aim for 100–130 characters). Max 140 characters.
 - No special characters (no |, •, ★, —, emojis, etc.).
-- No unnecessary keyword repetition.
-- Include: product type + key adjectives + style/use case + target audience or occasion.
+- Write in authentic Etsy shop tone — creative, specific, niche-aware.
+- NEVER use AliExpress/Amazon/dropshipping-style language (no "high quality", "hot sale", "fashion women", "new arrival", "free shipping", "best price", "wholesale").
+- If competitor title provided: generate a unique original title inspired by the same niche, never copy.
+- Structure: [product type] + [key descriptors: material/color/style] + [use case or occasion] + [audience or niche keyword].
+- No unnecessary keyword repetition.${listingKeywordHints ? '\n- Integrate seller keyword hints into the title where naturally fitting.' : ''}
 
 TAGS RULES (STRICT):
 - English only.
 - Exactly 13 tags.
-- Return tags separated by commas only.
-- No # symbol.
-- No vertical list.
-- No explanatory text.
-- No emojis.
+- Return tags separated by commas only. No # symbol. No emojis. No explanatory text.
 - Max 20 characters per tag.
-- Readable and natural tags.
-- Relevant and searched keywords.
-- No useless generic tags.
+- NO generic filler tags: never use "handmade", "unique", "quality", "premium", "original", "trendy", "stylish", "etsy", "artisan", "bestseller", "aesthetic", "gift", "custom" alone — these are too vague to rank.
 - No duplicates.
-- Mix: product-specific + style/design + niche + buying-intent tags.
+- Build a DIVERSE, SPECIFIC mix of:
+  1. Exact product type (2–3 tags, e.g. "high waist leggings", "yoga pants")
+  2. Material or technique (1–2 tags, e.g. "ribbed fabric", "cotton knit")
+  3. Style / aesthetic (1–2 tags, e.g. "minimalist style", "boho chic")
+  4. Use case / activity (1–2 tags, e.g. "gym wear", "home workout")
+  5. Buyer intent / occasion (2–3 tags, e.g. "gift for her", "birthday gift", "everyday wear")
+  6. Target audience / niche (1–2 tags, e.g. "women activewear", "plus size yoga")
+- Each tag should be a real Etsy search phrase buyers actually type.${listingKeywordHints ? '\n- Include seller keyword hints as tags if they fit within 20 chars.' : ''}
 
 INPUTS:
 - Product visual description: ${productDesc}
 - Competitor title (optional): ${competitorTitle && String(competitorTitle).trim() ? String(competitorTitle).trim().substring(0, 180) : 'NONE'}
-- Competitor hashtags (optional): ${competitorHashtags && String(competitorHashtags).trim() ? String(competitorHashtags).trim().substring(0, 350) : 'NONE'}
+- Competitor hashtags (optional): ${competitorHashtags && String(competitorHashtags).trim() ? String(competitorHashtags).trim().substring(0, 350) : 'NONE'}${listingKeywordHints ? `\n- Seller keyword/style hints: ${listingKeywordHints}` : ''}
 
 Return JSON exactly:
 {"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`,
             },
           ],
-          temperature: 0.5, max_tokens: 360,
+          temperature: 0.5, max_tokens: 420,
           response_format: { type: 'json_object' },
         }),
       }).then(async r => {
@@ -243,7 +245,7 @@ Return JSON exactly:
     ]);
 
     const title = titleData.title || String(productDesc).replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 140);
-    const tags = titleData.tags.length > 0 ? titleData.tags : ['handmade', 'gift', 'unique', 'custom', 'personalized', 'etsy', 'artisan', 'quality', 'premium', 'special', 'original', 'trendy', 'stylish'];
+    const tags = titleData.tags.length > 0 ? titleData.tags : ['gift for her', 'birthday gift', 'everyday wear', 'boho style', 'minimalist style', 'made to order', 'gift for women', 'cozy fashion', 'casual style', 'fall fashion', 'spring style', 'women fashion', 'trendy outfit'];
     const listingDescription = sanitizeEtsyDescriptionPlainText(description || productDesc);
 
     console.log('[LISTING] Done');
