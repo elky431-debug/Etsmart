@@ -668,12 +668,11 @@ Fond épuré clair, lumière naturelle douce. Pas de texte marketing. Pas de wat
       const LIGHTING_PROMPTS = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 1 – PACKSHOT FOND NOIR STUDIO:
+PROMPT 1 – LIFESTYLE CHAMBRE / COIN LECTURE:
 ${LIGHTING_ANCHOR_RULE}
-La lampe est suspendue sur fond NOIR profond (studio photo haut de gamme).
-Éclairage directionnel fin révélant chaque détail: texture de l'abat-jour, finition du métal, cordon ou câble tressé.
-La lampe occupe 65-70% du cadre, suspension visible en haut du cadre.
-Rendu premium, contraste fort, zéro accessoire autour. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+La lampe est suspendue dans une CHAMBRE COSY ou un COIN LECTURE: mur en teinte douce (taupe, gris perle ou blanc cassé), tête de lit en bois ou rotin visible en bas du cadre, linge blanc et quelques coussins neutres.
+Lumière chaude tamisée émanant de la lampe elle-même, ambiance soir douce et apaisante. La lampe occupe 55-65% du cadre, suspendue au-dessus du lit.
+Fond intérieur visible mais flou. Pas de fond noir uni. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 – LIFESTYLE SALLE À MANGER:
@@ -710,12 +709,11 @@ Plan moyen: la lampe suspendue est bien visible, le décor cuisine en arrière-p
 Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 7 – PACKSHOT FOND BLANC ÉPURÉ:
+PROMPT 7 – LIFESTYLE ENTRÉE OU COULOIR DESIGN:
 ${LIGHTING_ANCHOR_RULE}
-La lampe est suspendue sur fond BLANC PUR ou gris très clair (style catalogue produit).
-Éclairage studio homogène, softbox doux des deux côtés, ombres portées très légères.
-La lampe occupe 65-70% du cadre, suspension visible, couleurs fidèles à la référence.
-Style fiche produit e-commerce propre et précis. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+La lampe est suspendue dans une ENTRÉE ou un COULOIR DESIGN: mur à enduit blanc ou béton ciré, console en bois ou marbre dessous avec un miroir arrondi ou une plante verte, sol en parquet ou carrelage clair.
+Lumière chaude émanant de la lampe, ambiance accueil premium. La lampe occupe 55-65% du cadre.
+Fond intérieur visible et net — aucun fond blanc uni ou studio. Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`,
       ];
 
       // Sélection des prompts selon la catégorie détectée
