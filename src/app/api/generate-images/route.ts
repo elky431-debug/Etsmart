@@ -777,7 +777,6 @@ Style fiche produit e-commerce propre et précis. Pas de texte. Pas de watermark
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
-                  aspectRatio: '1:1',
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),

@@ -651,7 +651,6 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
-                  aspectRatio: '1:1',
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),
