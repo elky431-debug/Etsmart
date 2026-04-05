@@ -61,7 +61,7 @@ const formatCredits = (n: number) => {
 const creditLabel = (n: number) => (roundToTenth(n) === 1 ? 'crédit' : 'crédits');
 
 /**
- * Maintenance **dashboard uniquement** (`/dashboard` → Génération rapide), opt-in.
+ * Maintenance **dashboard uniquement** (`/dashboard` → Listing complet), opt-in.
  * Par défaut : flux complet actif. Pour remettre l'écran maintenance : `NEXT_PUBLIC_DASHBOARD_QUICK_GENERATE_MAINTENANCE=true`.
  */
 const DASHBOARD_QUICK_GENERATE_MAINTENANCE =
@@ -726,7 +726,7 @@ export function DashboardQuickGenerate() {
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-400/20">
             <Zap className="h-7 w-7 text-amber-300" />
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Génération rapide en maintenance</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Listing complet en maintenance</h1>
           <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-4">
             Le service est temporairement indisponible sur cette page. Merci pour ta patience.
           </p>
@@ -750,7 +750,7 @@ export function DashboardQuickGenerate() {
             <Zap className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Génération rapide</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Listing complet</h1>
             <p className="text-white/60 text-sm sm:text-base max-w-xl">
               Générez le listing et les images en une seule fois à partir d'un seul screenshot produit.
             </p>

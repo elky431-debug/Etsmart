@@ -874,7 +874,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
                 target: 'competitors' as const,
               },
               {
-                label: 'Génération rapide',
+                label: 'Listing complet',
                 icon: ClipboardList,
                 target: 'quick-generate' as const,
               },

@@ -740,7 +740,7 @@ export default function LabQuickPage() {
             <Zap className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Génération rapide</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Listing complet</h1>
             <p className="text-white/60 text-sm sm:text-base max-w-xl">
               Générez le listing et les images en une seule fois à partir d’un seul screenshot produit.
             </p>
