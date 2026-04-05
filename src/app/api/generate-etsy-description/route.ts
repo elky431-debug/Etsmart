@@ -40,14 +40,16 @@ export async function POST(request: NextRequest) {
 
     const {
       productVisualDescription,
+      sourceTitle,
       niche,
       positioning,
       psychologicalTriggers,
       buyerMirror,
       recommendedPrice,
-      skipCreditDeduction = true, // ⚠️ CHANGÉ: Par défaut true car les crédits sont déjà déduits lors du parsing de l'image
+      skipCreditDeduction = true,
     } = body;
     const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
+    const sourceTitleClean = sourceTitle && typeof sourceTitle === 'string' ? String(sourceTitle).trim().substring(0, 250) : '';
 
     // ⚠️ CRITICAL VALIDATION: Vérifier que productVisualDescription est présent et non vide
     if (!productVisualDescription || productVisualDescription.trim().length === 0) {
@@ -158,10 +160,11 @@ TAGS RULES (STRICT):
   4. Use case / activity (1–2 tags, e.g. "gym wear", "home workout")
   5. Buyer intent / occasion (2–3 tags, e.g. "gift for her", "birthday gift", "everyday wear")
   6. Target audience / niche (1–2 tags, e.g. "women activewear", "plus size yoga")
-- Each tag should be a real Etsy search phrase buyers actually type.${listingKeywordHints ? '\n- Include seller keyword hints as tags if they fit within 20 chars.' : ''}
+- Each tag should be a real Etsy search phrase buyers actually type.
+- If an original product title is provided: extract the specific product keywords from it (material, style, type, color) and use them as tags — ignore generic words like "fashion", "women", "high quality", "new".${listingKeywordHints ? '\n- Include seller keyword hints as tags if they fit within 20 chars.' : ''}
 
 INPUTS:
-- Product visual description: ${productVisualDescription}
+- Product visual description: ${productVisualDescription}${sourceTitleClean ? `\n- Original product title (keyword reference — extract relevant product terms, ignore generic/dropshipping words): ${sourceTitleClean}` : ''}
 - Niche: ${niche || 'general'}${listingKeywordHints ? `\n- Seller keyword/style hints: ${listingKeywordHints}` : ''}
 
 MATERIALS RULES:

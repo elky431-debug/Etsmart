@@ -102,12 +102,13 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
             },
             body: JSON.stringify({
               productVisualDescription: productDescription,
+              sourceTitle: analysis.product?.title || '',
               niche: currentNicheValue,
               positioning: analysis.marketing?.strategic?.positioning?.mainPositioning,
               psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
               buyerMirror: undefined,
               recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
-              skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation
+              skipCreditDeduction: false,
               ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
                 ? { listingKeywordHints: listingKeywordHints.trim() }
                 : {}),
@@ -200,12 +201,13 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
         },
         body: JSON.stringify({
           productVisualDescription: analysis.verdict?.productVisualDescription || analysis.product?.title || '',
+          sourceTitle: analysis.product?.title || '',
           niche: selectedNiche === 'custom' ? customNiche : (selectedNiche || analysis.niche || ''),
           positioning: analysis.marketing?.strategic?.positioning?.mainPositioning,
           psychologicalTriggers: analysis.marketing?.strategic?.psychologicalTriggers,
-          buyerMirror: undefined, // buyerMirror not available in current structure
+          buyerMirror: undefined,
           recommendedPrice: analysis.pricing?.recommendedPrice?.optimal || 0,
-          skipCreditDeduction: false, // ⚠️ MANDATORY: Always deduct 1 credit for listing generation (independent from analysis)
+          skipCreditDeduction: false,
           ...(listingKeywordHintsDevEnabled() && listingKeywordHints.trim()
             ? { listingKeywordHints: listingKeywordHints.trim() }
             : {}),
