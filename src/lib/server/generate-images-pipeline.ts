@@ -167,7 +167,7 @@ export async function runGenerateImagesPipeline(opts: {
       sourceImage,
       backgroundImage,
       quantity = 1,
-      aspectRatio = '1:1',
+      aspectRatio: _aspectRatioRaw = '1:1',
       customInstructions,
       productTitle,
       tags,
@@ -410,6 +410,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
       const GLOBAL_PROMPT_RULES_GEMINI =
+        `FORMAT OBLIGATOIRE: image CARRÉE 1:1 — aucune image verticale ni horizontale. ` +
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
         `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
         `Pas de watermark. ` +
@@ -650,6 +651,7 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
+                  aspectRatio: '1:1',
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),

@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       sourceImage,
       backgroundImage,
       quantity = 1,
-      aspectRatio = '1:1',
+      aspectRatio: aspectRatioRaw = '1:1',
       customInstructions,
       productTitle,
       tags,
@@ -171,6 +171,9 @@ export async function POST(request: NextRequest) {
       promptStartIndex: promptStartIndexRaw,
       forceNanobanana,
     } = body;
+    // Always force 1:1 — Etsy listings must be square
+    const aspectRatio = '1:1';
+    void aspectRatioRaw; // client value ignored
     const clientChunkedSingleFlag = clientChunkedSingle === true;
     const singlePromptIndex =
       typeof singlePromptIndexRaw === 'number' && Number.isFinite(singlePromptIndexRaw)
@@ -389,6 +392,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
       const GLOBAL_PROMPT_RULES_GEMINI =
+        `FORMAT OBLIGATOIRE: image CARRÉE 1:1 — aucune image verticale ni horizontale. ` +
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
         `PRODUIT CENTRÉ ET DOMINANT: le produit principal est TOUJOURS au centre du cadre, net, et occupe 65-75% de la surface totale de l'image. Le fond et le décor sont secondaires — jamais plus importants que le produit lui-même. ` +
         `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
@@ -773,6 +777,7 @@ Style fiche produit e-commerce propre et précis. Pas de texte. Pas de watermark
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
+                  aspectRatio: '1:1',
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),
