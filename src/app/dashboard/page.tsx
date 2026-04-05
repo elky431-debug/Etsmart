@@ -252,6 +252,7 @@ export default function DashboardPage() {
   
   // Cache pour éviter les rechargements inutiles
   const lastLoadTimeRef = useRef<number>(0);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
   const CACHE_DURATION = 60000; // 1 minute
   const CACHE_KEY = 'etsmart-analyses-cache';
   
@@ -458,6 +459,11 @@ export default function DashboardPage() {
       }
     }
   }, [activeSection, analyses.length]);
+
+  // Remettre le scroll en haut UNIQUEMENT quand on change de section (pas à chaque re-render)
+  useEffect(() => {
+    if (contentScrollRef.current) contentScrollRef.current.scrollTop = 0;
+  }, [activeSection]);
 
   // Fermer le menu au clic en dehors
   useEffect(() => {
@@ -2013,8 +2019,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
 
         {/* Content — Coach remplit la hauteur et gère son scroll interne (évite chevauchement header / messages) */}
         <div
-          ref={(el) => { if (el) el.scrollTop = 0; }}
-          key={activeSection}
+          ref={contentScrollRef}
           className={
             activeSection === 'coach'
               ? 'flex min-h-0 flex-1 flex-col overflow-hidden bg-black'
