@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { 
-  PenTool, 
-  FileText, 
-  Hash, 
-  Copy, 
+import {
+  PenTool,
+  FileText,
+  Hash,
+  Copy,
   Check,
   Zap,
   Sparkles,
-  Package
+  Package,
+  ArrowRight,
+  ImageIcon
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { ProductAnalysis, Niche } from '@/types';
@@ -21,9 +23,11 @@ import { listingKeywordHintsDevEnabled } from '@/lib/listing-keyword-hints-dev';
 
 interface DashboardListingProps {
   analysis: ProductAnalysis;
+  isFreeUser?: boolean;
+  onUpgrade?: () => void;
 }
 
-export function DashboardListing({ analysis }: DashboardListingProps) {
+export function DashboardListing({ analysis, isFreeUser, onUpgrade }: DashboardListingProps) {
   // Vérifier que analysis est valide avec toutes les propriétés nécessaires
   if (!analysis || !analysis.product || !analysis.verdict) {
     console.error('[DashboardListing] Invalid analysis prop:', analysis);
@@ -531,6 +535,31 @@ export function DashboardListing({ analysis }: DashboardListingProps) {
         </div>
         ) : null;
       })()}
+
+      {/* CTA IMAGES — visible uniquement pour les utilisateurs gratuits */}
+      {isFreeUser && (
+        <div className="rounded-xl border border-[#00d4ff]/30 bg-gradient-to-br from-[#00d4ff]/8 to-[#00c9b7]/5 p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] shadow-lg shadow-[#00d4ff]/20">
+              <ImageIcon className="h-5 w-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-white mb-1">Génère aussi les 7 visuels produit</h3>
+              <p className="text-xs text-white/60 leading-relaxed mb-4">
+                Avec un plan payant, génère 7 photos produit IA stylisées (lifestyle, porté, macro texture…) directement à partir de ce listing — en un clic.
+              </p>
+              <button
+                type="button"
+                onClick={onUpgrade}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] px-4 py-2 text-sm font-bold text-white shadow-md shadow-[#00d4ff]/20 transition hover:opacity-90"
+              >
+                Passer au plan payant
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MATÉRIAUX */}
       {etsyMaterials && (

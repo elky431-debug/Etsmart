@@ -133,45 +133,44 @@ INPUTS:
 Return ONLY the final description text.`;
 
     // ⚠️ PROMPT 2: Titre, Tags et Matériaux
-    const titleTagsMaterialsPrompt = `You are an Etsy SEO expert. Return valid JSON only.
+    const titleTagsMaterialsPrompt = `You are a senior Etsy SEO strategist. Return valid JSON only — no markdown, no explanation.
 
-ROLE: Generate an Etsy-native title, 13 high-quality tags, and materials for a handmade/artisan shop.
+CONTEXT: You are writing for a real Etsy shop that sells physical products. Your job is to generate a title and 13 tags that will actually rank in Etsy search and convert buyers.${sourceTitleClean ? `\nThe original supplier title is: "${sourceTitleClean}" — mine it for specific product keywords (material, type, color, style, size) but NEVER copy it directly and NEVER use its generic/dropshipping words.` : ''}
 
-TITLE RULES:
-- English only.
-- Target 13–14 words (aim for 100–130 characters). Max 140 characters.
-- No special characters (no |, •, ★, —, emojis, etc.).
-- Write in authentic Etsy shop tone — creative, specific, niche-aware.
-- NEVER use AliExpress/Amazon/dropshipping-style language (no "high quality", "hot sale", "fashion women", "new arrival", "free shipping", "best price", "wholesale").
-- Structure: [product type] + [key descriptors: material/color/style] + [use case or occasion] + [audience or niche keyword].
-- No unnecessary keyword repetition.${listingKeywordHints ? '\n- Integrate seller keyword hints into the title where naturally fitting.' : ''}
+━━━ TITLE ━━━
+- English only. 13–14 words. 100–130 characters. Hard max: 140 characters.
+- NO special characters (no |, •, ★, —, /, emojis).
+- Sound like a real Etsy seller — conversational, specific, niche-aware. NOT a product listing on AliExpress.
+- FORBIDDEN words: "high quality", "hot sale", "fashion", "new arrival", "free shipping", "best price", "wholesale", "women's fashion", "2024", "popular".
+- Formula: [specific product name] + [material or key feature] + [style/aesthetic] + [use case or occasion] + [buyer/niche keyword]
+- Examples of GOOD titles:
+  • "Ribbed High Waist Leggings Women Seamless Yoga Pants Workout Gym Tummy Control Gift for Her"
+  • "Handwoven Bamboo Pendant Light Boho Ceiling Lamp Wicker Shade Dining Room Rattan Chandelier"
+- Examples of BAD titles (never do this):
+  • "High Quality Fashion Women Leggings New Arrival Hot Sale Best Price"${listingKeywordHints ? `\n- Weave in seller hint naturally: "${listingKeywordHints}"` : ''}
 
-TAGS RULES (STRICT):
-- English only.
-- Exactly 13 tags.
-- Return tags separated by commas only. No # symbol. No emojis. No explanatory text.
-- Max 20 characters per tag.
-- NO generic filler tags: never use "handmade", "unique", "quality", "premium", "original", "trendy", "stylish", "etsy", "artisan", "bestseller", "aesthetic", "gift", "custom" alone — these are too vague to rank.
-- No duplicates.
-- Build a DIVERSE, SPECIFIC mix of:
-  1. Exact product type (2–3 tags, e.g. "high waist leggings", "yoga pants")
-  2. Material or technique (1–2 tags, e.g. "ribbed fabric", "cotton knit")
-  3. Style / aesthetic (1–2 tags, e.g. "minimalist style", "boho chic")
-  4. Use case / activity (1–2 tags, e.g. "gym wear", "home workout")
-  5. Buyer intent / occasion (2–3 tags, e.g. "gift for her", "birthday gift", "everyday wear")
-  6. Target audience / niche (1–2 tags, e.g. "women activewear", "plus size yoga")
-- Each tag should be a real Etsy search phrase buyers actually type.
-- If an original product title is provided: extract the specific product keywords from it (material, style, type, color) and use them as tags — ignore generic words like "fashion", "women", "high quality", "new".${listingKeywordHints ? '\n- Include seller keyword hints as tags if they fit within 20 chars.' : ''}
+━━━ TAGS (13 required) ━━━
+- Exactly 13 tags. Comma-separated. No #. No emojis. Max 20 chars each. No duplicates.
+- Every tag = a real search phrase someone types on Etsy. Think: what does the buyer google?
+- FORBIDDEN tags (too vague, never rank): handmade, unique, quality, premium, original, trendy, stylish, etsy, artisan, bestseller, aesthetic, gift alone, custom alone, fashion, item, product.
+- REQUIRED diversity — cover ALL 6 angles:
+  1. [2 tags] Exact product type: specific noun phrases (e.g. "ribbed leggings", "pendant lamp")
+  2. [2 tags] Material / construction (e.g. "bamboo shade", "seamless fabric", "rattan weave")
+  3. [2 tags] Style / aesthetic (e.g. "boho decor", "minimalist style", "cottagecore")
+  4. [2 tags] Use case / room / activity (e.g. "yoga wear", "dining room lamp", "home workout")
+  5. [2 tags] Buyer intent / occasion (e.g. "gift for her", "housewarming gift", "birthday gift")
+  6. [3 tags] Long-tail niche phrases buyers search (e.g. "high waist yoga pants", "bohemian ceiling light", "wicker pendant light")
+- Extract specific terms from the original title if provided.${listingKeywordHints ? `\n- Include seller hint as tag(s) if ≤20 chars: "${listingKeywordHints}"` : ''}
 
-INPUTS:
-- Product visual description: ${productVisualDescription}${sourceTitleClean ? `\n- Original product title (keyword reference — extract relevant product terms, ignore generic/dropshipping words): ${sourceTitleClean}` : ''}
-- Niche: ${niche || 'general'}${listingKeywordHints ? `\n- Seller keyword/style hints: ${listingKeywordHints}` : ''}
+━━━ MATERIALS ━━━
+Material names only. Comma-separated. English. No sentences.
 
-MATERIALS RULES:
-- Only material names (no sentences). Separated by commas. In English.
+━━━ INPUTS ━━━
+Product description: ${productVisualDescription}${sourceTitleClean ? `\nOriginal title: ${sourceTitleClean}` : ''}
+Niche: ${niche || 'general'}${listingKeywordHints ? `\nSeller hints: ${listingKeywordHints}` : ''}
 
-Return JSON exactly:
-{"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`;
+Return JSON:
+{"title":"...","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     

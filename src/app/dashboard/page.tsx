@@ -137,6 +137,7 @@ interface MenuItem {
 
 /** Info shown in the lock gate for FREE-gated sections. */
 const LOCKED_FOR_FREE_INFO: Partial<Record<DashboardSection, { title: string; description: string }>> = {
+  'quick-generate': { title: 'Listing complet', description: 'Générez le listing complet (titre, description, tags) + 7 visuels IA en une seule fois à partir d\'un screenshot produit.' },
   coach: { title: 'Coach IA', description: 'Votre assistant IA dédié pour optimiser votre boutique Etsy au quotidien.' },
   tracking: { title: 'Suivi de colis', description: 'Suivez vos livraisons et commandes Etsy en temps réel.' },
   images: { title: 'Génération d\'images', description: 'Créez des visuels produits professionnels par IA en quelques secondes.' },
@@ -1584,7 +1585,7 @@ The final image should look like a high-quality Etsy listing photo and naturally
     {
       label: 'Création de listings',
       items: [
-        { id: 'quick-generate', label: 'Listing complet', icon: Zap },
+        { id: 'quick-generate', label: 'Listing complet', icon: Zap, lockedForFree: true },
         { id: 'images', label: 'Image', icon: Sparkles, lockedForFree: true },
         { id: 'listing', label: 'Listing', icon: FileText },
         { id: 'video-generator', label: 'Vidéo', icon: Play },
@@ -2153,7 +2154,11 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'listing' && selectedAnalysis && (
-            <DashboardListing analysis={selectedAnalysis} />
+            <DashboardListing
+              analysis={selectedAnalysis}
+              isFreeUser={isFreeUser}
+              onUpgrade={() => setActiveSection('subscription')}
+            />
           )}
 
           {activeSection === 'listing' && !selectedAnalysis && (
