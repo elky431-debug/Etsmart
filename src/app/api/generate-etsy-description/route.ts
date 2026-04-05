@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { sanitizeEtsyDescriptionPlainText } from '@/lib/etsy-description-plain';
+import { listingKeywordHintsFromRequestBody, listingKeywordHintsPromptAppendix } from '@/lib/listing-keyword-hints-dev';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       recommendedPrice,
       skipCreditDeduction = true, // ⚠️ CHANGÉ: Par défaut true car les crédits sont déjà déduits lors du parsing de l'image
     } = body;
+    const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
 
     // ⚠️ CRITICAL VALIDATION: Vérifier que productVisualDescription est présent et non vide
     if (!productVisualDescription || productVisualDescription.trim().length === 0) {
@@ -128,42 +130,42 @@ INPUTS:
 
 Return ONLY the final description text.`;
 
-    // ⚠️ PROMPT 2: Titre, Tags et Matériaux (même template que la génération rapide)
+    // ⚠️ PROMPT 2: Titre, Tags et Matériaux
     const titleTagsMaterialsPrompt = `You are an Etsy SEO expert. Return valid JSON only.
 
-I will send Etsy product photos (in your place: product visuals described by a product visual description).
-Your role:
-1) Generate an optimized Etsy SEO title for my shop.
-2) Generate optimized Etsy tags (hashtags) for my shop.
-3) Generate materials used in the product based ONLY on what is mentioned in the product visual description.
+ROLE: Generate an Etsy-native title, 13 high-quality tags, and materials for a handmade/artisan shop.
 
 TITLE RULES:
-- English only
-- Max 140 characters
-- No special characters (no |, •, ★, —, emojis, etc.)
-- No unnecessary keyword repetition
+- English only.
+- Target 13–14 words (aim for 100–130 characters). Max 140 characters.
+- No special characters (no |, •, ★, —, emojis, etc.).
+- Write in authentic Etsy shop tone — creative, specific, niche-aware.
+- NEVER use AliExpress/Amazon/dropshipping-style language (no "high quality", "hot sale", "fashion women", "new arrival", "free shipping", "best price", "wholesale").
+- Structure: [product type] + [key descriptors: material/color/style] + [use case or occasion] + [audience or niche keyword].
+- No unnecessary keyword repetition.${listingKeywordHints ? '\n- Integrate seller keyword hints into the title where naturally fitting.' : ''}
 
 TAGS RULES (STRICT):
-- English only
-- Exactly 13 tags
-- Return tags separated by commas only
-- No # symbol
-- No vertical list
-- No explanatory text
-- No emojis
-- Max 20 characters per tag
-- Relevant and searched keywords
-- No useless generic tags
-- No duplicates
+- English only.
+- Exactly 13 tags.
+- Return tags separated by commas only. No # symbol. No emojis. No explanatory text.
+- Max 20 characters per tag.
+- NO generic filler tags: never use "handmade", "unique", "quality", "premium", "original", "trendy", "stylish", "etsy", "artisan", "bestseller", "aesthetic", "gift", "custom" alone — these are too vague to rank.
+- No duplicates.
+- Build a DIVERSE, SPECIFIC mix of:
+  1. Exact product type (2–3 tags, e.g. "high waist leggings", "yoga pants")
+  2. Material or technique (1–2 tags, e.g. "ribbed fabric", "cotton knit")
+  3. Style / aesthetic (1–2 tags, e.g. "minimalist style", "boho chic")
+  4. Use case / activity (1–2 tags, e.g. "gym wear", "home workout")
+  5. Buyer intent / occasion (2–3 tags, e.g. "gift for her", "birthday gift", "everyday wear")
+  6. Target audience / niche (1–2 tags, e.g. "women activewear", "plus size yoga")
+- Each tag should be a real Etsy search phrase buyers actually type.${listingKeywordHints ? '\n- Include seller keyword hints as tags if they fit within 20 chars.' : ''}
 
 INPUTS:
 - Product visual description: ${productVisualDescription}
-- Niche: ${niche || '[YOUR NICHE]'}
+- Niche: ${niche || 'general'}${listingKeywordHints ? `\n- Seller keyword/style hints: ${listingKeywordHints}` : ''}
 
 MATERIALS RULES:
-- Only material names (no sentences)
-- Separated by commas
-- In English
+- Only material names (no sentences). Separated by commas. In English.
 
 Return JSON exactly:
 {"title":"optimized etsy title","tags":"tag1,tag2,...,tag13","materials":"mat1,mat2"}`;
@@ -286,7 +288,7 @@ Return JSON exactly:
             .slice(0, 13);
           // Enforce EXACTLY 13 tags
           if (tags.length < 13) {
-            const padTags = ['handmade', 'gift idea', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'home decor', 'special', 'creative', 'personalized', 'vintage style', 'boho', 'minimalist', 'aesthetic', 'bestseller'];
+            const padTags = ['gift for her', 'birthday gift', 'everyday wear', 'boho style', 'minimalist style', 'made to order', 'gift for women', 'cozy fashion', 'casual style', 'fall fashion', 'spring style', 'women fashion', 'trendy outfit'];
             for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map(t => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
           }
 
@@ -319,7 +321,7 @@ Return JSON exactly:
             .slice(0, 13);
           // Enforce EXACTLY 13 tags
           if (tags.length < 13) {
-            const padTags = ['handmade', 'gift idea', 'unique', 'custom', 'etsy', 'artisan', 'quality', 'premium', 'original', 'trendy', 'stylish', 'home decor', 'special', 'creative', 'personalized', 'vintage style', 'boho', 'minimalist', 'aesthetic', 'bestseller'];
+            const padTags = ['gift for her', 'birthday gift', 'everyday wear', 'boho style', 'minimalist style', 'made to order', 'gift for women', 'cozy fashion', 'casual style', 'fall fashion', 'spring style', 'women fashion', 'trendy outfit'];
             for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map(t => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
           }
 
