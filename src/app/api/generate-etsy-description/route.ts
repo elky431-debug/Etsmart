@@ -244,15 +244,16 @@ Return JSON exactly:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert in Etsy SEO and optimized product listing creation.',
+            content: 'You are an Etsy SEO expert. Return valid JSON only — no markdown, no code fences, no extra text.',
           },
           {
             role: 'user',
             content: titleTagsMaterialsPrompt,
           },
         ],
-        temperature: 0.7,
+        temperature: 0.4,
         max_tokens: 500,
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -280,16 +281,17 @@ Return JSON exactly:
           const tagsString = parsedTitleTagsData.tags || '';
           const materialsString = parsedTitleTagsData.materials || '';
           
-          // Parse tags from comma-separated string
+          // Parse + normalize tags
+          const normalize = (s: string) => s.replace(/#/g, '').replace(/[^A-Za-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+          const seen = new Set<string>();
           tags = tagsString
             .split(',')
-            .map(t => t.trim())
-            .filter(t => t && t.length <= 20)
+            .map((t: string) => normalize(t))
+            .filter((t: string) => { if (t.length < 2 || t.length > 20 || seen.has(t)) return false; seen.add(t); return true; })
             .slice(0, 13);
-          // Enforce EXACTLY 13 tags
           if (tags.length < 13) {
             const padTags = ['gift for her', 'birthday gift', 'everyday wear', 'boho style', 'minimalist style', 'made to order', 'gift for women', 'cozy fashion', 'casual style', 'fall fashion', 'spring style', 'women fashion', 'trendy outfit'];
-            for (const pt of padTags) { if (tags.length >= 13) break; if (!tags.map(t => t.toLowerCase()).includes(pt.toLowerCase())) tags.push(pt); }
+            for (const pt of padTags) { if (tags.length >= 13) break; if (!seen.has(pt)) { seen.add(pt); tags.push(pt); } }
           }
 
           // Parse materials from comma-separated string
