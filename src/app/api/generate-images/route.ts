@@ -544,10 +544,10 @@ Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
-PROMPT 5 – ANIMAL PORTÉ VUE DE FACE PORTRAIT:
-Portrait cadré du buste de l'animal portant le vêtement, VUE DE FACE. On voit clairement le visage et le haut du vêtement (capuche, oreilles, fermeture, motif).
-Fond lifestyle simple (mur clair, végétation floue). Lumière naturelle frontale douce. Expression naturelle de l'animal.
-INTERDIT: humain, fond studio blanc, cadrage trop serré ne montrant pas le vêtement.
+PROMPT 5 – ANIMAL AMBIANCE CAFÉ / MARCHÉ OUTDOOR:
+L'animal porte le vêtement, assis sur un TROTTOIR EN PIERRE PAVÉE ou une terrasse de café extérieure. En arrière-plan: chaises en métal dépoli, un mur en pierre ou en brique peint en blanc cassé, lumière de fin d'après-midi dorée.
+Cadrage mi-corps montrant le vêtement ET le décor urbain lifestyle. Ambiance boutique pet shop indépendante en ville — jamais fleurs, jamais fond blanc, jamais décor identique à une photo fournisseur.
+INTERDIT: fleurs blanches ou bouquet au premier plan, fond studio, fond blanc uni, décor identique aux autres prompts.
 Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
