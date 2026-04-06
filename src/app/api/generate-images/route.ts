@@ -291,9 +291,12 @@ export async function POST(request: NextRequest) {
       const styleHint = geminiStyleHint(typeof style === 'string' ? style : undefined);
 
       // Détection automatique de la catégorie produit pour des prompts adaptés
-      type ProductCategory = 'clothing' | 'furniture' | 'jewelry' | 'lighting' | 'home_decor' | 'general';
+      type ProductCategory = 'clothing' | 'pet' | 'furniture' | 'jewelry' | 'lighting' | 'home_decor' | 'general';
       function detectProductCategory(): ProductCategory {
         const text = `${productTitle || ''} ${tagsList} ${materialsStr}`.toLowerCase();
+        if (/\b(dog|cat|pet|puppy|kitten|canine|feline|pooch|pup|doggy|kitty|chien|chat|mascotte|fur baby|paw|pawprint|collar|leash|harness|dog coat|dog hoodie|cat sweater|pet costume|dog dress|pet clothes|dog jacket|cat jacket|dog sweater|dog clothing|cat clothing|pet clothing|dog outfit|cat outfit|pet outfit|dog wear|pet wear|dog apparel|cat apparel|pet apparel|dog accessories|cat accessories|small dog|medium dog|large dog|puppy clothes|kitten clothes|pet hoodie|dog romper|dog pajamas|dog costume|cat costume|bear ears|dog hat|cat hat|puppy hat|pet hat|animal clothing|animal outfit|animal costume|tenue chien|costume chien|manteau chien|pull chien|vêtement chien|sweat chien|vêtement chat)\b/i.test(text)) {
+          return 'pet';
+        }
         if (/\b(shirt|dress|jacket|pant|jeans|hoodie|sweatshirt|vest|coat|blouse|top|skirt|shorts|tshirt|t-shirt|legging|cardigan|sweater|pullover|suit|trouser|sock|boot|shoe|sneaker|hat|cap|scarf|glove|belt|bag|purse|handbag|backpack|wallet|clothing|apparel|garment|wearable|wear|vêtement|chemise|robe|manteau|pantalon|jean|sweat|pull|veste|jupe|short|chaussure|botte|chapeau|écharpe|bonnet|sac)\b/.test(text)) {
           return 'clothing';
         }
@@ -503,6 +506,67 @@ Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             return p;
           })
         : CLOTHING_PROMPTS_BASE;
+
+      // Prompts spécialisés ANIMAUX DE COMPAGNIE — vêtements/accessoires pour chiens et chats
+      const PET_PROMPTS = [
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 1 – ANIMAL PORTÉ LIFESTYLE EXTÉRIEUR:
+Le vêtement/accessoire EXACT des références est porté par UN VRAI ANIMAL (chien ou chat) dans un décor extérieur lifestyle élégant (terrasse de café, rue pavée, parc ensoleillé).
+L'animal est au centre du cadre, vêtement bien visible et ajusté. Pose naturelle, expression détendue.
+Lumière naturelle dorée. Ambiance premium boutique pet shop indépendante.
+INTERDIT: humain portant le vêtement, fond studio blanc, animal sans le vêtement.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 2 – ANIMAL PORTÉ ANGLE DIFFÉRENT (DOS / 3/4):
+Le même animal porte le vêtement/accessoire exact, vu DE DOS ou DE CÔTÉ (3/4 dos) pour montrer la coupe, la forme et le tombé.
+Lumière naturelle douce, extérieur ou intérieur clair. Détails du vêtement (coutures, capuche, oreilles, fermeture) bien visibles.
+INTERDIT: même angle que le prompt 1, humain portant le vêtement.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 3 – FLAT-LAY PRODUIT SEUL:
+Le vêtement/accessoire étalé à plat, VU DU DESSUS (vue à 90°), sur une SURFACE NEUTRE TEXTURÉE (bois clair, lin beige, béton gris clair).
+Vêtement centré, occupe 70% du cadre. Lumière naturelle douce et uniforme. Tous les détails (oreilles, capuche, pattes) bien déployés.
+INTERDIT: animal, humain, fond blanc uni vide.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 4 – ANIMAL PORTÉ INTÉRIEUR COSY:
+L'animal porte le vêtement dans un INTÉRIEUR COSY et chaleureux: canapé beige, tapis moelleux, coussin, lumière de fenêtre douce.
+L'animal est assis ou allongé confortablement, vêtement bien ajusté visible. Ambiance maison premium, tons chauds.
+INTERDIT: humain dans le cadre, fond studio blanc.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 5 – ANIMAL PORTÉ VUE DE FACE PORTRAIT:
+Portrait cadré du buste de l'animal portant le vêtement, VUE DE FACE. On voit clairement le visage et le haut du vêtement (capuche, oreilles, fermeture, motif).
+Fond lifestyle simple (mur clair, végétation floue). Lumière naturelle frontale douce. Expression naturelle de l'animal.
+INTERDIT: humain, fond studio blanc, cadrage trop serré ne montrant pas le vêtement.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 6 – FLAT-LAY ÉDITORIAL FOND SOMBRE:
+Le vêtement/accessoire étalé à plat sur une SURFACE SOMBRE (ardoise noire, bois wengé foncé, velours gris anthracite).
+Vue du dessus à 90°, lumière latérale forte révélant les textures et reliefs du tissu. Vêtement occupe 70% du cadre.
+INTERDIT: animal, humain, fond blanc.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+        `${baseContext}
+${STYLE_EXPECTED_GEMINI}
+PROMPT 7 – MACRO TEXTURE TISSU:
+Photo MACRO EXTRÊME: la caméra est à 3–8 cm du tissu/matière du vêtement. On voit clairement les fibres, la fourrure, le motif ou la broderie en très grand format.
+Lumière latérale forte à 45° révélant les micro-reliefs. Fond totalement flouté (bokeh), ton neutre derrière.
+INTERDIT: vue du vêtement entier, animal, humain, fond blanc uni.
+Pas de texte. Pas de watermark.
+\n${GLOBAL_PROMPT_RULES_GEMINI}`,
+      ];
 
       // Règle commune meubles — toujours ancré dans la pièce, jamais flottant
       const FURNITURE_ANCHOR_RULE =
@@ -718,6 +782,7 @@ Fond intérieur visible et net — aucun fond blanc uni ou studio. Pas de texte.
 
       // Sélection des prompts selon la catégorie détectée
       const IMAGE_PROMPTS_GEMINI = productCategory === 'clothing' ? CLOTHING_PROMPTS
+        : productCategory === 'pet' ? PET_PROMPTS
         : productCategory === 'furniture' ? FURNITURE_PROMPTS
         : productCategory === 'jewelry' ? JEWELRY_PROMPTS
         : productCategory === 'lighting' ? LIGHTING_PROMPTS

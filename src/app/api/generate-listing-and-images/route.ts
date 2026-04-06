@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: [
-          { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. 80-120 words, concise.' },
+          { type: 'text', text: 'Analyze this product image. Describe the product type, materials, colors, design, key features in English. If the product is clothing or accessories intended for a dog, cat, or other pet/animal, explicitly mention that it is a pet product (e.g. "dog hoodie", "cat collar"). 80-120 words, concise.' },
           { type: 'image_url', image_url: { url: imageForAnalysis, detail: 'low' } },
         ]}],
         max_tokens: 240,
@@ -55,6 +55,12 @@ export async function POST(request: NextRequest) {
     const analysisData = await analysisResp.json();
     const productDesc = analysisData.choices?.[0]?.message?.content?.trim() || '';
     if (!productDesc) return NextResponse.json({ error: 'IMAGE_ANALYSIS_FAILED' }, { status: 500 });
+
+    // Detect pet products to avoid writing human-clothing copy for dog/cat items
+    const isPetProduct = /\b(dog|cat|pet|puppy|kitten|canine|feline|paw|pooch|fur.?baby|doggie|doggy|bunny|hamster|rabbit|parrot|animal wear|pet wear|dog clothes|cat clothes|dog hoodie|cat hoodie|dog costume|pet costume|dog jacket|cat jacket|dog sweater|cat sweater|dog coat|pet collar|dog collar|cat collar|dog leash|pet leash|dog harness|pet harness)\b/i.test(productDesc);
+    const petProductNote = isPetProduct
+      ? '\n⚠️ PET PRODUCT: This item is for dogs/cats/animals. Write ALL copy for pet owners — describe it as clothing or accessories FOR THEIR PET. Never imply it is worn by a human.'
+      : '';
 
     // STEP 2: Listing (description + titre) EN PARALLÈLE (~3-5s)
     console.log('[LISTING] Generating listing...');
@@ -75,7 +81,7 @@ export async function POST(request: NextRequest) {
               role: 'user',
               content:
                 `I will provide Etsy product photos, and sometimes a competitor Etsy description.
-Your role is to generate a professional, convincing, SEO-optimized Etsy description ready to publish.
+Your role is to generate a professional, convincing, SEO-optimized Etsy description ready to publish.${petProductNote}
 
 WORKING RULES:
 - If a competitor description is provided: write a similar but unique description inspired by tone/structure/marketing, never copy, and adapt to the product in the photos.
@@ -140,7 +146,7 @@ Return ONLY the final description text.`,
             },
             {
               role: 'user',
-              content: `You are an Etsy SEO expert. Return valid JSON only.
+              content: `You are an Etsy SEO expert. Return valid JSON only.${petProductNote}
 
 ROLE: Generate an Etsy-native title, 13 high-quality tags, and materials for a handmade/artisan shop.
 

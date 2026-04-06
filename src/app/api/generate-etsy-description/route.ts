@@ -51,6 +51,14 @@ export async function POST(request: NextRequest) {
     const listingKeywordHints = listingKeywordHintsFromRequestBody(body);
     const sourceTitleClean = sourceTitle && typeof sourceTitle === 'string' ? String(sourceTitle).trim().substring(0, 250) : '';
 
+    // Detect pet products to avoid writing human-clothing copy for dog/cat items
+    const isPetProduct = /\b(dog|cat|pet|puppy|kitten|canine|feline|paw|pooch|fur.?baby|doggie|doggy|bunny|hamster|rabbit|parrot|animal wear|pet wear|dog clothes|cat clothes|dog hoodie|cat hoodie|dog costume|pet costume|dog jacket|cat jacket|dog sweater|cat sweater|dog coat|pet collar|dog collar|cat collar|dog leash|pet leash|dog harness|pet harness)\b/i.test(
+      (productVisualDescription || '') + ' ' + (sourceTitleClean || '')
+    );
+    const petProductNote = isPetProduct
+      ? '\n⚠️ PET PRODUCT: This item is for dogs/cats/animals. Write ALL copy for pet owners — describe it as clothing or accessories FOR THEIR PET. Never imply it is worn by a human.'
+      : '';
+
     // ⚠️ CRITICAL VALIDATION: Vérifier que productVisualDescription est présent et non vide
     if (!productVisualDescription || productVisualDescription.trim().length === 0) {
       console.error('[DESCRIPTION GENERATION] ❌ productVisualDescription is missing or empty');
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
     console.log('[DESCRIPTION GENERATION] Product visual description length:', productVisualDescription.length);
     
     // ⚠️ PROMPT 1: Description (même template que la génération rapide)
-    const descriptionPrompt = `I will provide Etsy product photos (in your place: a product visual description). Your role is to generate a professional, convincing, SEO-optimized Etsy description ready to publish.
+    const descriptionPrompt = `I will provide Etsy product photos (in your place: a product visual description). Your role is to generate a professional, convincing, SEO-optimized Etsy description ready to publish.${petProductNote}
 
 WORKING RULES:
 - If no competitor description is provided: write the best complete SEO description from the product visual description.
@@ -133,7 +141,7 @@ INPUTS:
 Return ONLY the final description text.`;
 
     // ⚠️ PROMPT 2: Titre, Tags et Matériaux
-    const titleTagsMaterialsPrompt = `You are a senior Etsy SEO strategist. Return valid JSON only — no markdown, no explanation.
+    const titleTagsMaterialsPrompt = `You are a senior Etsy SEO strategist. Return valid JSON only — no markdown, no explanation.${petProductNote}
 
 CONTEXT: You are writing for a real Etsy shop that sells physical products. Your job is to generate a title and 13 tags that will actually rank in Etsy search and convert buyers.${sourceTitleClean ? `\nThe original supplier title is: "${sourceTitleClean}" — mine it for specific product keywords (material, type, color, style, size) but NEVER copy it directly and NEVER use its generic/dropshipping words.` : ''}
 
