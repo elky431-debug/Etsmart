@@ -1831,9 +1831,8 @@ The final image should look like a high-quality Etsy listing photo and naturally
         </div>
       </aside>
 
-      {/* Mobile Menu */}
-      {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10 lg:hidden">
+      {/* Mobile Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white/10 lg:hidden">
           <div className="flex items-center justify-between gap-2 p-4">
             <div className="min-w-0 flex-1">
               <Logo size="sm" showText={true} />
@@ -2001,10 +2000,46 @@ The final image should look like a high-quality Etsy listing photo and naturally
             )}
           </AnimatePresence>
         </div>
-      )}
+
+      {/* Bottom navigation — mobile only */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-stretch border-t border-white/10 bg-black/95 backdrop-blur-md lg:hidden">
+        {[
+          { id: 'dashboard-home' as DashboardSection, icon: Home, label: 'Accueil' },
+          { id: 'quick-generate' as DashboardSection, icon: Zap, label: 'Listing' },
+          { id: 'analyse-simulation' as DashboardSection, icon: BarChart3, label: 'Analyse' },
+          { id: 'images' as DashboardSection, icon: ImageIcon, label: 'Images' },
+          { id: 'coach' as DashboardSection, icon: Bot, label: 'Coach' },
+        ].map(({ id, icon: Icon, label }) => {
+          const isActive = activeSection === id;
+          const isLocked = isFreeUser && isLockedForFreeSection(id);
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setActiveSection(id);
+                setSelectedAnalysis(null);
+                setIsMenuOpen(false);
+              }}
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors ${
+                isActive ? 'text-[#00d4ff]' : 'text-white/45 hover:text-white/70'
+              }`}
+            >
+              <div className="relative">
+                <Icon size={22} />
+                {isLocked && <Lock size={7} className="absolute -top-1 -right-1.5 text-[#00d4ff]" />}
+              </div>
+              <span className="text-[10px] font-medium leading-none">{label}</span>
+              {isActive && (
+                <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#00d4ff] to-[#00c9b7]" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Main content */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-black pt-16 lg:ml-16 lg:pt-0">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-black pb-16 pt-16 lg:ml-16 lg:pb-0 lg:pt-0">
         {/* Crédits restants — desktop (haut à droite) */}
         <div className="z-30 hidden h-11 shrink-0 items-center justify-end border-b border-white/10 bg-black/95 px-4 backdrop-blur-sm lg:flex lg:px-6">
           <DashboardCreditsBadge
@@ -2154,11 +2189,13 @@ The final image should look like a high-quality Etsy listing photo and naturally
           )}
 
           {activeSection === 'listing' && selectedAnalysis && (
-            <DashboardListing
-              analysis={selectedAnalysis}
-              isFreeUser={isFreeUser}
-              onUpgrade={() => setActiveSection('subscription')}
-            />
+            <div className="px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 max-w-4xl mx-auto w-full">
+              <DashboardListing
+                analysis={selectedAnalysis}
+                isFreeUser={isFreeUser}
+                onUpgrade={() => setActiveSection('subscription')}
+              />
+            </div>
           )}
 
           {activeSection === 'listing' && !selectedAnalysis && (

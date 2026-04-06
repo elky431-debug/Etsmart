@@ -743,15 +743,15 @@ export function DashboardQuickGenerate() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 lg:py-10">
         {/* Header */}
-        <div className="mb-8 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/25 flex-shrink-0">
-            <Zap className="w-6 h-6 text-white" />
+        <div className="mb-5 sm:mb-8 flex items-start gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#00d4ff] to-[#00c9b7] flex items-center justify-center shadow-lg shadow-[#00d4ff]/25 flex-shrink-0">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Listing complet</h1>
-            <p className="text-white/60 text-sm sm:text-base max-w-xl">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1">Listing complet</h1>
+            <p className="text-white/60 text-xs sm:text-sm lg:text-base max-w-xl">
               Générez le listing et les images en une seule fois à partir d'un seul screenshot produit.
             </p>
           </div>
@@ -784,7 +784,7 @@ export function DashboardQuickGenerate() {
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 ${
+                  className={`relative border-2 border-dashed rounded-2xl p-4 sm:p-8 text-center cursor-pointer transition-all duration-200 ${
                     isDragging
                       ? 'border-[#00d4ff] bg-[#00d4ff]/10'
                       : 'border-white/20 hover:border-[#00c9b7]/50 hover:bg-white/[0.02] bg-black/40'

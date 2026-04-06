@@ -478,7 +478,7 @@ export function DashboardHome({ onNavigate, userId }: DashboardHomeProps) {
 
   return (
     <div className="min-h-full bg-black text-white">
-      <div className="mx-auto max-w-7xl space-y-12 px-4 py-8 md:px-8 md:py-10 lg:px-10">
+      <div className="mx-auto max-w-7xl space-y-8 px-3 py-4 sm:px-6 sm:py-6 md:px-8 md:py-10 lg:px-10 lg:space-y-12">
         <header className="flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">Vue d'ensemble</p>
