@@ -19,6 +19,31 @@ export default function RegisterPage() {
   const { signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
 
+  const planParam = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('plan')
+    : null;
+
+  const redirectAfterRegister = async () => {
+    if (planParam) {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token && session.user) {
+          const res = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ planId: planParam, userId: session.user.id, userEmail: session.user.email }),
+          });
+          const data = await res.json();
+          if (data.url) { window.location.href = data.url; return; }
+        }
+      } catch (e) {
+        console.error('[Register] Checkout redirect failed:', e);
+      }
+    }
+    router.push('/dashboard');
+  };
+
   const passwordStrength = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -44,9 +69,7 @@ export default function RegisterPage() {
       }
 
       await signUp(email, password, name);
-      // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-      // Rediriger vers le dashboard d'actions
-      router.push('/dashboard');
+      await redirectAfterRegister();
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue lors de la création du compte');
       setIsLoading(false);

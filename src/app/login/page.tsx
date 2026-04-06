@@ -6,7 +6,7 @@ import { Mail, Lock, ArrowRight, Eye, EyeOff, AlertCircle, HelpCircle } from 'lu
 import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,42 +17,39 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const { signIn, signInWithGoogle, user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const planParam = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('plan')
+    : searchParams?.get('plan');
+
+  const redirectAfterLogin = async () => {
+    if (planParam) {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token && session.user) {
+          const res = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ planId: planParam, userId: session.user.id, userEmail: session.user.email }),
+          });
+          const data = await res.json();
+          if (data.url) { window.location.href = data.url; return; }
+        }
+      } catch (e) {
+        console.error('[Login] Checkout redirect failed:', e);
+      }
+    }
+    router.push('/dashboard');
+  };
 
   // Rediriger si l'utilisateur est déjà connecté
   useEffect(() => {
     if (user) {
-      // Vérifier si l'utilisateur a un abonnement actif avant de rediriger
-      const checkSubscription = async () => {
-        try {
-          const { supabase } = await import('@/lib/supabase');
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.access_token) {
-            // Vérifier le statut d'abonnement
-            const response = await fetch('/api/check-stripe-subscription', {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            });
-            
-            const data = await response.json();
-            
-            // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing après un rafraîchissement
-            // Toujours rediriger vers le dashboard d'actions
-            router.push('/dashboard');
-          } else {
-            router.push('/dashboard');
-          }
-        } catch (error) {
-          console.error('Error checking subscription:', error);
-          // En cas d'erreur, rediriger quand même vers le dashboard
-          router.push('/dashboard');
-        }
-      };
-      
-      checkSubscription();
+      redirectAfterLogin();
     }
-  }, [user, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Vérifier les paramètres d'erreur dans l'URL
   useEffect(() => {
@@ -76,34 +73,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      // Vérifier l'abonnement avant de rediriger
-      const checkSubscription = async () => {
-        try {
-          const { supabase } = await import('@/lib/supabase');
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.access_token) {
-            const response = await fetch('/api/check-stripe-subscription', {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            });
-            
-            const data = await response.json();
-            
-            // ⚠️ CRITICAL: Ne JAMAIS rediriger vers /pricing
-            // Toujours rediriger vers le dashboard d'actions
-            router.push('/dashboard');
-          } else {
-            router.push('/dashboard');
-          }
-        } catch (error) {
-          console.error('Error checking subscription:', error);
-          router.push('/dashboard');
-        }
-      };
-      
-      checkSubscription();
+      await redirectAfterLogin();
     } catch (err: any) {
       setError(err.message || 'Email ou mot de passe incorrect');
       setIsLoading(false);
@@ -297,7 +267,10 @@ export default function LoginPage() {
 
           <p className="text-center text-white/70 mt-8">
             Pas encore de compte ?{' '}
-            <Link href="/register" className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors">
+            <Link
+              href={planParam ? `/register?plan=${planParam}` : '/register'}
+              className="text-[#00d4ff] hover:text-[#00c9b7] font-semibold transition-colors"
+            >
               Créer un compte
             </Link>
           </p>
