@@ -315,6 +315,20 @@ export async function POST(request: NextRequest) {
         return 'general';
       }
       const productCategory = detectProductCategory();
+
+      // Détecte l'espèce précise (chat ou chien) pour les produits pet
+      function detectPetSpecies(): 'cat' | 'dog' {
+        const text = `${productTitle || ''} ${tagsList} ${materialsStr}`.toLowerCase();
+        const catScore = (text.match(/\b(cat|cats|kitten|kittens|feline|felines|kitty|kitties|chat|chats|chaton|chatons|félin|féline|pour chat|tenue chat|vêtement chat|cat clothes|cat hoodie|cat sweater|cat costume|cat jacket|cat outfit|cat wear|cat collar|cat harness)\b/gi) || []).length;
+        const dogScore = (text.match(/\b(dog|dogs|puppy|puppies|pup|pups|canine|canines|pooch|pooches|doggy|doggies|chien|chiens|chiot|chiots|canin|pour chien|tenue chien|vêtement chien|dog clothes|dog hoodie|dog sweater|dog coat|dog costume|dog jacket|dog outfit|dog wear|dog collar|dog harness|dog leash)\b/gi) || []).length;
+        return catScore > dogScore ? 'cat' : 'dog';
+      }
+      const petSpecies = productCategory === 'pet' ? detectPetSpecies() : 'dog';
+      // Texte à injecter dans les prompts pour forcer l'espèce correcte
+      const petAnimalFR = petSpecies === 'cat' ? 'CHAT (félin domestique)' : 'CHIEN (canin domestique)';
+      const petAnimalArticleFR = petSpecies === 'cat' ? 'un CHAT' : 'un CHIEN';
+      const petAnimalPortraitFR = petSpecies === 'cat' ? 'un CHAT (félin, oreilles pointues, museau félin)' : 'un CHIEN (canin)';
+
       const athleticSafeMode = productCategory === 'clothing' && isAthleticOrFormFittingApparel({
         productTitle: productDesc,
         tags,
@@ -512,18 +526,20 @@ Pas de texte. Pas de watermark.\n${GLOBAL_PROMPT_RULES_GEMINI}`;
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 1 – ANIMAL PORTÉ LIFESTYLE EXTÉRIEUR:
-Le vêtement/accessoire EXACT des références est porté par UN VRAI ANIMAL (chien ou chat) dans un décor extérieur lifestyle élégant (terrasse de café, rue pavée, parc ensoleillé).
+ESPÈCE OBLIGATOIRE: l'animal dans cette image est ${petAnimalArticleFR} — ${petAnimalFR}. PAS un chien si c'est un chat, PAS un chat si c'est un chien.
+Le vêtement/accessoire EXACT des références est porté par ${petAnimalArticleFR} dans un décor extérieur lifestyle élégant (terrasse de café, rue pavée, parc ensoleillé).
 L'animal est au centre du cadre, vêtement bien visible et ajusté. Pose naturelle, expression détendue.
 Lumière naturelle dorée. Ambiance premium boutique pet shop indépendante.
-INTERDIT: humain portant le vêtement, fond studio blanc, animal sans le vêtement.
+INTERDIT: humain portant le vêtement, fond studio blanc, animal sans le vêtement, mauvaise espèce animale.
 Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 2 – ANIMAL PORTÉ ANGLE DIFFÉRENT (DOS / 3/4):
-Le même animal porte le vêtement/accessoire exact, vu DE DOS ou DE CÔTÉ (3/4 dos) pour montrer la coupe, la forme et le tombé.
+ESPÈCE OBLIGATOIRE: l'animal dans cette image est ${petAnimalArticleFR} — ${petAnimalFR}.
+Le même animal (${petAnimalArticleFR}) porte le vêtement/accessoire exact, vu DE DOS ou DE CÔTÉ (3/4 dos) pour montrer la coupe, la forme et le tombé.
 Lumière naturelle douce, extérieur ou intérieur clair. Détails du vêtement (coutures, capuche, oreilles, fermeture) bien visibles.
-INTERDIT: même angle que le prompt 1, humain portant le vêtement.
+INTERDIT: même angle que le prompt 1, humain portant le vêtement, mauvaise espèce animale.
 Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
@@ -537,17 +553,19 @@ Pas de texte. Pas de watermark.
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 4 – ANIMAL PORTÉ INTÉRIEUR COSY:
-L'animal porte le vêtement dans un INTÉRIEUR COSY et chaleureux: canapé beige, tapis moelleux, coussin, lumière de fenêtre douce.
+ESPÈCE OBLIGATOIRE: l'animal dans cette image est ${petAnimalArticleFR} — ${petAnimalFR}.
+${petAnimalArticleFR.charAt(0).toUpperCase() + petAnimalArticleFR.slice(1)} porte le vêtement dans un INTÉRIEUR COSY et chaleureux: canapé beige, tapis moelleux, coussin, lumière de fenêtre douce.
 L'animal est assis ou allongé confortablement, vêtement bien ajusté visible. Ambiance maison premium, tons chauds.
-INTERDIT: humain dans le cadre, fond studio blanc.
+INTERDIT: humain dans le cadre, fond studio blanc, mauvaise espèce animale.
 Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 5 – ANIMAL AMBIANCE CAFÉ / MARCHÉ OUTDOOR:
-L'animal porte le vêtement, assis sur un TROTTOIR EN PIERRE PAVÉE ou une terrasse de café extérieure. En arrière-plan: chaises en métal dépoli, un mur en pierre ou en brique peint en blanc cassé, lumière de fin d'après-midi dorée.
-Cadrage mi-corps montrant le vêtement ET le décor urbain lifestyle. Ambiance boutique pet shop indépendante en ville — jamais fleurs, jamais fond blanc, jamais décor identique à une photo fournisseur.
-INTERDIT: fleurs blanches ou bouquet au premier plan, fond studio, fond blanc uni, décor identique aux autres prompts.
+ESPÈCE OBLIGATOIRE: l'animal dans cette image est ${petAnimalArticleFR} — ${petAnimalFR}.
+${petAnimalArticleFR.charAt(0).toUpperCase() + petAnimalArticleFR.slice(1)} porte le vêtement, assis sur un TROTTOIR EN PIERRE PAVÉE ou une terrasse de café extérieure. En arrière-plan: chaises en métal dépoli, un mur en pierre ou en brique peint en blanc cassé, lumière de fin d'après-midi dorée.
+Cadrage mi-corps montrant le vêtement ET le décor urbain lifestyle. Ambiance boutique pet shop indépendante en ville.
+INTERDIT: fleurs blanches ou bouquet au premier plan, fond studio, fond blanc uni, mauvaise espèce animale.
 Pas de texte. Pas de watermark.
 \n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
