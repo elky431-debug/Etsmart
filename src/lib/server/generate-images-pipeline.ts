@@ -5,6 +5,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { geminiStyleHint } from '@/lib/image-style-presets';
+import { GEMINI_IMAGE_PROMPT_APPENDIX } from '@/lib/image-prompt-appendix';
 import { isAthleticOrFormFittingApparel, isLikelyApparelProduct } from '@/lib/apparel-product-detection';
 
 let sharp: any;
@@ -309,8 +310,14 @@ export async function runGenerateImagesPipeline(opts: {
       if (typeof sourceImage === 'string' && sourceImage.trim().length > 0) {
         refInputs.push(sourceImage.startsWith('data:image/') ? sourceImage : `data:image/jpeg;base64,${sourceImage}`);
       }
+      const bgRaw = typeof backgroundImage === 'string' ? backgroundImage.trim() : '';
+      const hasCustomBackground = bgRaw.length > 0;
+      if (hasCustomBackground) {
+        refInputs.push(bgRaw.startsWith('data:image/') ? bgRaw : `data:image/jpeg;base64,${bgRaw}`);
+      }
       if (productContext && typeof productContext === 'object' && Array.isArray(productContext.referenceImages)) {
-        for (const ref of productContext.referenceImages.slice(0, 2)) {
+        const maxExtraRefs = hasCustomBackground ? 1 : 2;
+        for (const ref of productContext.referenceImages.slice(0, maxExtraRefs)) {
           if (typeof ref === 'string' && ref.trim().length > 0) refInputs.push(ref.trim());
         }
       }
@@ -322,7 +329,10 @@ export async function runGenerateImagesPipeline(opts: {
       const isProEngine = engineSafe === 'pro';
       const geminiImageEditModel =
         engineSafe === 'pro' ? GEMINI_IMAGE_MODEL_PRO : GEMINI_IMAGE_MODEL_FLASH;
-      const toInlineImagePart = async (input: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
+      const toInlineImagePart = async (
+        input: string,
+        refIndex: number
+      ): Promise<{ inlineData: { mimeType: string; data: string } } | null> => {
         try {
           const raw = input.trim();
           const dataUrl = raw.startsWith('data:image/') ? raw : `data:image/jpeg;base64,${raw}`;
@@ -334,20 +344,27 @@ export async function runGenerateImagesPipeline(opts: {
             const buf = Buffer.from(b64, 'base64');
             const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
             // Netlify : image plus légère = moins de temps sharp + payload Gemini + upload (marge pour le plafond ~26 s).
-            const maxSide = isNetlifyFastSingle
+            // Chunked 1 image / requête : références un peu plus légères = Sharp + POST + Gemini plus rapides.
+            let maxSide = isNetlifyFastSingle
               ? 640
               : isFastChunkedSingle
-                ? (isProEngine ? 1024 : 896)
+                ? (isProEngine ? 832 : 768)
                 : isProEngine
                   ? 1024
                   : 768;
-            const jpegQ = isNetlifyFastSingle
+            let jpegQ = isNetlifyFastSingle
               ? 72
               : isFastChunkedSingle
-                ? (isProEngine ? 88 : 80)
+                ? (isProEngine ? 84 : 78)
                 : isProEngine
                   ? 85
                   : 72;
+            // Fond personnalisé (2e image) : réduire taille pour accélérer Sharp + Gemini sans changer les prompts.
+            const isBackgroundSlot = hasCustomBackground && refIndex === 1;
+            if (isBackgroundSlot) {
+              maxSide = Math.min(maxSide, isNetlifyFastSingle ? 512 : isFastChunkedSingle ? 640 : 800);
+              jpegQ = Math.min(jpegQ, 78);
+            }
             const c = await sharp(buf)
               .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: jpegQ, mozjpeg: true })
@@ -361,7 +378,10 @@ export async function runGenerateImagesPipeline(opts: {
         }
       };
 
-      const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map(toInlineImagePart))).filter((p): p is { inlineData: { mimeType: string; data: string } } => !!p);
+      const inlineImageParts = (
+        await Promise.all(refInputs.slice(0, 3).map((inp, idx) => toInlineImagePart(inp, idx)))
+      ).filter((p): p is { inlineData: { mimeType: string; data: string } } => !!p);
+      const customBackgroundActive = hasCustomBackground && inlineImageParts.length >= 2;
       if (inlineImageParts.length === 0) {
         return {
           status: 200,
@@ -403,9 +423,11 @@ Never replace the main product with another object/person.${
           : ''
       }
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
+PRODUCT GRAPHICS LOCK (ALL SHOTS INCLUDING 3 AND 4): Any printing on the product itself — cover title, spine text, patterns, foil, labels baked into the object — must match the reference images exactly. Do not replace the product with a plain generic version, a different colorway, an untextured 3D primitive, or a "clean" blank mockup. Close-ups and dimension shots still show the same real product identity.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
-ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
-SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text — DO NOT reproduce any of them. Remove them completely.
+ANTI-TEXT (MARKETPLACE / UI ONLY): Remove overlaid marketplace UI, captions, price tags, promo banners, watermarks, QR codes, and screenshot chrome — never copy those. Exception: typography and graphics that are physically printed or embossed ON the product (e.g. book cover words, spine lettering, packaging art) must be reproduced faithfully — do not erase them. Do not invent new marketing slogans. Only add new letters/numbers where prompt 4 explicitly requires dimension labels.
+SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid UI — DO NOT reproduce any of them. Remove them completely; keep the product's own printed design.
+OUTPUT CANVAS: strictly square 1:1 aspect ratio (equal width and height), standard Etsy listing main image format — no letterboxing, no portrait or landscape frame.
 Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
       // Prompts alignés sur le flow "génération rapide" :
       // 5 visuels différents (contexte, équilibre, zoom, mensurations, stratégique) + règles globales.
@@ -414,12 +436,15 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
         `RÈGLES GLOBALES (TRÈS IMPORTANT): ` +
         `Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrusté ou badges en coin : NE JAMAIS les recopier — les effacer entièrement sur l'image générée (photo produit propre, sans marque tierce). ` +
         `Pas de watermark. ` +
-        `ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. ` +
+        `ZERO TEXTE / ZERO TYPOGRAPHIE: aucun texte de marketplace, UI, promo ou prix; sauf (1) les labels numériques de DIMENSIONS sur l'image mensurations et (2) les mots/chiffres déjà imprimés SUR le produit (couverture, tranche, packaging) — à reproduire fidèlement comme sur la référence. ` +
         `Rendu photo réaliste type Etsy haut de gamme, pas de style trop "IA". ` +
         `Style visuel: tons chauds et naturels, lumière douce (daylight ou warm indoor light), ambiance propre et élégante, univers premium mais accessible. ` +
+        `Si des directives complémentaires décrivent un environnement thématique, les appliquer: décor + accessoires cohérents avec le produit, arrière-plan nettement plus doux/flouté que le produit (le produit reste l’élément le plus net). Sinon fond simple (table/mur clair/intérieur moderne ou studio léger). ` +
+        `Même identité produit sur toutes les images: interdit de « simplifier » en objet générique sans les graphismes/couleurs des références. ` +
+        `Format de sortie: image carrée stricte 1:1. ` +
         (apparelMode
           ? `FOND OBLIGATOIRE (RÈGLE ABSOLUE): ne jamais utiliser un fond blanc uni ou un fond studio blanc vide — chaque image doit montrer une surface ou un arrière-plan avec une couleur, une texture ou une matière clairement visible (bois, béton, tissu, mur coloré, surface sombre, etc.). Le fond blanc pur est INTERDIT sauf pour l'image de mensurations. `
-          : `Fond simple (table/mur clair/intérieur moderne ou studio léger). `) +
+          : ``) +
         `ANTI-COPIER STRICT: chaque prompt doit générer un arrière-plan + décor + éclairage clairement différents (pas un recadrage, pas un copier/coller, pas des éléments identiques). ` +
         `Ne réutilise pas la même disposition des rideaux/tapis/coussins/objets autour du produit d'une image à l'autre. ` +
         `Cohérence visuelle entre toutes les images générées (même produit, même style global, mais décors distincts).` +
@@ -428,7 +453,7 @@ Final image must be a clean, premium, seller-neutral Etsy listing photo with zer
           : ` ÉCHELLE: le produit reste à une taille crédible par rapport aux meubles et accessoires (jamais « produit géant » dans une pièce normale). `);
 
       const STYLE_EXPECTED_GEMINI =
-        `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante, fond simple et élégant.`;
+        `Style visuel attendu: tons chauds et naturels, lumière douce, ambiance propre et rassurante; profondeur de champ courte si scène lifestyle (arrière-plan plus flou que le produit).`;
 
       const IMAGE_PROMPTS_DEFAULT = [
         `${baseContext}
@@ -452,19 +477,19 @@ Pas de texte. Pas de watermark.`
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 3 – GROS PLAN / TEXTURE ET FINITIONS:
-Photo rapprochée focalisée sur la texture, les matériaux et les finitions du produit.
-Netteté maximale sur les détails de surface, léger bokeh sur le fond.
-Fond épuré (surface neutre mate ou studio clair), lumière douce directionnelle révélant les reliefs.
-Produit occupant 60-70% du cadre, sans distorsion de perspective.
-Pas de texte. Pas de watermark.`
+Photo rapprochée sur la texture et les finitions, mais le sujet reste le MÊME article que sur les références: même couleurs, même impression/couverture/tranche visibles (pas un livre ou objet générique neutre).
+Netteté maximale sur le produit, bokeh marqué sur l’arrière-plan; environnement peut être thématique et légèrement flou (cohérent avec le produit), pas seulement mur gris vide.
+INTERDIT: substituer une autre matière, une couverture vierge, ou une primitive 3D sans graphisme.
+Produit occupant 60-70% du cadre, sans distorsion.
+Pas de watermark ni de texte hors champ marketplace. Les textes imprimés SUR le produit restent identiques aux références.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 4 – PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
-Image type fiche produit sur fond clair et épuré: dimensions clairement visibles.
+Photo réaliste du produit IDENTIQUE aux références (même couverture, titres imprimés, couleurs) — jamais un bloc noir abstrait, un gabarit CAD sans visuel produit, ni un mockup sans graphisme.
+Placer le produit dans une scène cohérente avec son univers, arrière-plan doux et légèrement flou; le produit reste parfaitement lisible. Puis superposer flèches de cote et labels numériques (style sobre).
 ${dimensionsStrictBlock}
-Flèches de dimension fines avec labels numériques nets. Style graphique minimaliste.
-Texte uniquement pour les mensurations (pas de texte marketing).`
+Texte chiffré uniquement pour les mensurations (pas de texte marketing). Les titres/décors déjà imprimés sur le produit restent visibles comme sur la source.`
           + `\n${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -622,9 +647,27 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
+      if (customBackgroundActive) {
+        const customBgBlock =
+          `\n\nFOND PERSONNALISÉ (image 2): cette image est uniquement l’arrière-plan choisi par l’utilisateur. ` +
+          `Garde-la comme décor de fond (ne la remplace pas par une autre scène). ` +
+          `L’image 1 = produit (référence). ` +
+          `Exception aux consignes « arrière-plan différent par image » / ANTI-COPIER sur le fond : le fond reste celui de l’image 2; ` +
+          `varie seulement cadrage, angle et placement du produit si plusieurs visuels. ` +
+          `Intègre le produit avec ombres et lumière cohérents avec ce fond.`;
+        promptsToUse = promptsToUse.map((p) => p + customBgBlock);
+      }
+      const promptAppendix =
+        typeof GEMINI_IMAGE_PROMPT_APPENDIX === 'string' ? GEMINI_IMAGE_PROMPT_APPENDIX.trim() : '';
+      if (promptAppendix.length > 0) {
+        const appendixBlock =
+          `\n\n─── DIRECTIVES COMPLÉMENTAIRES (en plus du prompt ci-dessus ; ne pas contredire les règles Etsmart) ───\n\n` +
+          promptAppendix;
+        promptsToUse = promptsToUse.map((p) => p + appendixBlock);
+      }
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProEngine, netlifyBackgroundWorker);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, customBg=${customBackgroundActive}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
       );
 
       const geminiErrors: string[] = [];
@@ -651,6 +694,10 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
                 ],
                 generationConfig: {
                   responseModalities: ['TEXT', 'IMAGE'],
+                  // Toujours 1:1 (Etsy) — indépendant du champ `aspectRatio` éventuel dans le body.
+                  imageConfig: {
+                    aspectRatio: '1:1',
+                  },
                 },
               }),
               signal: geminiFetchSignal(timeoutMs),
@@ -735,11 +782,13 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
 
       const generateOne = async (prompt: string, promptIndex: number): Promise<string | null> => {
-        const mainPart = [inlineImageParts[0]].filter(
-          (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
-        );
+        const partsForGemini = customBackgroundActive
+          ? inlineImageParts.slice(0, Math.min(3, inlineImageParts.length))
+          : [inlineImageParts[0]].filter(
+              (part): part is { inlineData: { mimeType: string; data: string } } => Boolean(part)
+            );
         const isMensurationsPrompt = promptIndex === 3;
-        const maxStandardAttempts = netlifyFastSingle ? 1 : 3;
+        const maxStandardAttempts = netlifyFastSingle ? 1 : isFastChunkedSingle ? 2 : 3;
 
         const apparelMensurationsFallback = apparelMode
           ? `\n\nSIMPLIFY: Top-down flat-lay on plain rectangular off-white paper; straight edges; dimension arrows only; no round table, no mirror, no circle frame.`
@@ -750,23 +799,41 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
 
         if (isMensurationsPrompt) {
           if (netlifyFastSingle) {
-            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             if (apparelMensurationsFallback) {
               img = await tryGeminiOnce(
                 prompt + apparelMensurationsFallback,
                 geminiImageEditModel,
-                mainPart,
+                partsForGemini,
                 geminiHttpCapMs
               );
             }
             return img;
           }
+          // Chunked (dashboard / lab) : 1 image / requête — éviter jusqu’à 6 appels Gemini pour une seule mensuration.
+          if (isFastChunkedSingle) {
+            for (let attempt = 0; attempt < 2; attempt++) {
+              let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
+              if (img) return img;
+              if (attempt < 1) await new Promise((r) => setTimeout(r, 900));
+            }
+            if (apparelMensurationsFallback) {
+              const imgFb = await tryGeminiOnce(
+                prompt + apparelMensurationsFallback,
+                geminiImageEditModel,
+                partsForGemini,
+                geminiHttpCapMs
+              );
+              if (imgFb) return imgFb;
+            }
+            return null;
+          }
           for (let round = 0; round < 3; round++) {
-            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             await new Promise((r) => setTimeout(r, 1500));
-            img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             if (round < 2) await new Promise((r) => setTimeout(r, 1000 * (round + 1)));
           }
@@ -774,7 +841,7 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             const imgFb = await tryGeminiOnce(
               prompt + apparelMensurationsFallback,
               geminiImageEditModel,
-              mainPart,
+              partsForGemini,
               geminiHttpCapMs
             );
             if (imgFb) return imgFb;
@@ -783,7 +850,7 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
         }
 
         for (let attempt = 0; attempt < maxStandardAttempts; attempt++) {
-          const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
+          const img = await tryGeminiOnce(prompt, geminiImageEditModel, partsForGemini, geminiHttpCapMs);
           if (img) return img;
           if (attempt < maxStandardAttempts - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
         }
@@ -791,7 +858,7 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
           const imgFb = await tryGeminiOnce(
             prompt + apparelGenericFallback,
             geminiImageEditModel,
-            mainPart,
+            partsForGemini,
             geminiHttpCapMs
           );
           if (imgFb) return imgFb;
@@ -861,6 +928,7 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
         }
         // ── Upload to Supabase Storage to avoid Netlify 6MB response limit ──
         const uploadedUrls: string[] = [];
+        let storageFailures = 0;
         for (let i = 0; i < imageDataUrls.length; i++) {
           const url = await uploadBase64ToSupabase(supabase, imageDataUrls[i], user.id, i);
           if (url) {
@@ -870,25 +938,28 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             uploadedUrls.push(imageDataUrls[i]);
             console.warn(`[IMAGE GEN] Upload failed for image ${i + 1}, falling back to base64 (dev only)`);
           } else {
+            storageFailures += 1;
             console.error(
-              `[IMAGE GEN] Upload failed for image ${i + 1}; refusing base64 in prod (réponse JSON > limite gateway)`
+              `[IMAGE GEN] Upload failed for image ${i + 1}; skipping this image in prod (base64 fallback disabled)`
             );
-            return {
-              status: 500,
-              json: {
-                success: false,
-                imageTaskIds: [],
-                imageDataUrls: [],
-                error: 'IMAGE_STORAGE_FAILED',
-                message:
-                  'Enregistrement des images impossible (Supabase). Vérifie le bucket « generated-images », les droits du service role, et NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY sur Netlify.',
-              },
-            };
           }
+        }
+        if (uploadedUrls.length === 0) {
+          return {
+            status: 500,
+            json: {
+              success: false,
+              imageTaskIds: [],
+              imageDataUrls: [],
+              error: 'IMAGE_STORAGE_FAILED',
+              message:
+                'Enregistrement des images impossible (Supabase). Vérifie le bucket « generated-images », les droits du service role, et NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY sur Netlify.',
+            },
+          };
         }
         const partial = uploadedUrls.length < numImages;
         console.log(
-          `[IMAGE GEN] Gemini image-edit: ${uploadedUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ' (partial)' : ''}`
+          `[IMAGE GEN] Gemini image-edit: ${uploadedUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ` (partial, storage failures: ${storageFailures})` : ''}`
         );
         return {
           status: 200,
@@ -900,7 +971,10 @@ Pas de texte. Pas de watermark.` + `\n${GLOBAL_PROMPT_RULES_GEMINI}`;
             model: geminiImageEditModel,
             requestedEngine: engineSafe,
             ...(partial && {
-              message: `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
+              message:
+                storageFailures > 0
+                  ? `Seulement ${uploadedUrls.length} image(s) sur ${numImages} : ${storageFailures} image(s) n'ont pas pu être enregistrées sur le stockage. Réessaie « Nouvelle génération » pour compléter.`
+                  : `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
             }),
           },
         };

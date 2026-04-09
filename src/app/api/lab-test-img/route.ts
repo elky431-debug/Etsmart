@@ -26,11 +26,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'JSON invalide' }, { status: 400 });
   }
 
-  const { sourceImage, prompt, engine = 'flash', aspectRatio = '1:1' } = body as {
+  const { sourceImage, prompt, engine = 'flash' } = body as {
     sourceImage?: string;
     prompt?: string;
     engine?: 'flash' | 'pro';
-    aspectRatio?: string;
   };
 
   if (!sourceImage) {
@@ -51,8 +50,7 @@ export async function POST(request: NextRequest) {
   const finalPrompt = prompt?.trim() ||
     'Professional product photo, clean white background, studio lighting, sharp focus, high quality e-commerce shot';
 
-  const sizeMap: Record<string, string> = { '16:9': '16:9', '9:16': '9:16', '4:3': '4:3', '3:4': '3:4' };
-  const imgSize = sizeMap[aspectRatio as string] || '1:1';
+  const imgSize = '1:1';
 
   const url =
     engine === 'pro'

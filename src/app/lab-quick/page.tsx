@@ -548,11 +548,11 @@ export default function LabQuickPage() {
         return;
       }
 
-      // Compresser le fond si présent (512x512 car utilisé uniquement pour description)
+      // Fond personnalisé : 2e image côté Gemini (référence de scène)
       let bgBase64: string | undefined;
       if (backgroundImage) {
         try {
-          bgBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+          bgBase64 = await compressImageToBase64(backgroundImage, 768, 768, 0.7);
         } catch {
           bgBase64 = undefined;
         }
@@ -582,7 +582,7 @@ export default function LabQuickPage() {
           referenceImages: extraSourcePreviews.slice(0, 2),
         },
         customInstructions: bgBase64
-          ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${variationSeed}).`
+          ? `Variation entre visuels (cadrage / angle / placement du produit). seed: ${variationSeed}`
           : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
       };
 
@@ -1070,12 +1070,20 @@ export default function LabQuickPage() {
                   : 'Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels.'}
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
-                <p className="text-xs text-[#00d4ff]/80 mt-3">
-                  Jusqu’à {quantity} image{quantity > 1 ? 's' : ''} —{' '}
-                  {engine === 'pro'
-                    ? 'avec Pro, prévois environ 2–3 min sur le site.'
-                    : 'avec Flash, souvent ~1–2 min.'}
-                </p>
+                <div className="text-xs text-[#00d4ff]/90 mt-4 text-center space-y-1 max-w-md">
+                  {pendingImagesCount > 0 ? (
+                    <p className="font-semibold text-white">
+                      Visuel {quantity - pendingImagesCount + 1} / {quantity} en cours…
+                    </p>
+                  ) : (
+                    <p className="text-white/80">Préparation des requêtes…</p>
+                  )}
+                  <p className="text-white/60">
+                    {engine === 'pro'
+                      ? 'Nano Banana 2 : ~45–120 s par image (2 requêtes en parallèle). Plusieurs minutes au total si tu en demandes beaucoup.'
+                      : 'Flash : souvent ~30–90 s par image (2 en parallèle).'}
+                  </p>
+                </div>
               )}
             </motion.div>
           ) : (listingData || generatedImages.length > 0) ? (
@@ -1214,8 +1222,17 @@ export default function LabQuickPage() {
                 <div className="bg-black rounded-xl border border-white/10 p-6">
                   <div className="flex flex-col items-center justify-center py-12">
                     <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
-                    <p className="text-base font-semibold text-white">Génération des images en cours...</p>
-                    <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+                    <p className="text-base font-semibold text-white">Génération des images en cours…</p>
+                    {pendingImagesCount > 0 ? (
+                      <p className="text-sm text-[#00d4ff] mt-2">
+                        Visuel {quantity - pendingImagesCount + 1} / {quantity}
+                      </p>
+                    ) : null}
+                    <p className="text-sm text-white/50 mt-2 text-center max-w-sm">
+                      {engine === 'pro'
+                        ? 'Pro : compte ~1–2 min par image ; plusieurs images peuvent prendre plusieurs minutes.'
+                        : 'Souvent ~30–90 s par image.'}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1290,7 +1307,8 @@ export default function LabQuickPage() {
                   {pendingImagesCount > 0 && (
                     <p className="text-sm text-[#00d4ff] mb-4 flex items-center gap-2">
                       <Loader2 size={14} className="animate-spin" />
-                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} en cours de génération… (jusqu’à ~90 s)
+                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} restante
+                      {pendingImagesCount > 1 ? 's' : ''}…
                     </p>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

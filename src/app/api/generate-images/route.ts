@@ -981,6 +981,7 @@ Fond intérieur visible et net — aucun fond blanc uni ou studio. Pas de texte.
         }
         // ── Upload to Supabase Storage to avoid Netlify 6MB response limit ──
         const uploadedUrls: string[] = [];
+        let storageFailures = 0;
         for (let i = 0; i < imageDataUrls.length; i++) {
           const url = await uploadBase64ToSupabase(supabase, imageDataUrls[i], user.id, i);
           if (url) {
@@ -990,25 +991,28 @@ Fond intérieur visible et net — aucun fond blanc uni ou studio. Pas de texte.
             uploadedUrls.push(imageDataUrls[i]);
             console.warn(`[IMAGE GEN] Upload failed for image ${i + 1}, falling back to base64 (dev only)`);
           } else {
+            storageFailures += 1;
             console.error(
-              `[IMAGE GEN] Upload failed for image ${i + 1}; refusing base64 in prod (réponse JSON > limite gateway)`
-            );
-            return NextResponse.json(
-              {
-                success: false,
-                imageTaskIds: [],
-                imageDataUrls: [],
-                error: 'IMAGE_STORAGE_FAILED',
-                message:
-                  'Enregistrement des images impossible (Supabase). Vérifie le bucket « generated-images », les droits du service role, et NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY sur Netlify.',
-              },
-              { status: 500 }
+              `[IMAGE GEN] Upload failed for image ${i + 1}; skipping this image in prod (base64 fallback disabled)`
             );
           }
         }
+        if (uploadedUrls.length === 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              imageTaskIds: [],
+              imageDataUrls: [],
+              error: 'IMAGE_STORAGE_FAILED',
+              message:
+                'Enregistrement des images impossible (Supabase). Vérifie le bucket « generated-images », les droits du service role, et NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY sur Netlify.',
+            },
+            { status: 500 }
+          );
+        }
         const partial = uploadedUrls.length < numImages;
         console.log(
-          `[IMAGE GEN] Gemini image-edit: ${uploadedUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ' (partial)' : ''}`
+          `[IMAGE GEN] Gemini image-edit: ${uploadedUrls.length}/${numImages} image(s) in ${Date.now() - startTime}ms${partial ? ` (partial, storage failures: ${storageFailures})` : ''}`
         );
         return NextResponse.json({
           success: true,
@@ -1018,7 +1022,10 @@ Fond intérieur visible et net — aucun fond blanc uni ou studio. Pas de texte.
           model: GEMINI_IMAGE_EDIT_MODEL,
           requestedEngine: engineSafe,
           ...(partial && {
-            message: `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
+            message:
+              storageFailures > 0
+                ? `Seulement ${uploadedUrls.length} image(s) sur ${numImages} : ${storageFailures} image(s) n'ont pas pu être enregistrées sur le stockage. Réessaie « Nouvelle génération » pour compléter.`
+                : `Seulement ${uploadedUrls.length} image(s) sur ${numImages} (temps ou quota). Réessaie « Nouvelle génération » pour compléter.`,
           }),
         });
       } catch (e: any) {

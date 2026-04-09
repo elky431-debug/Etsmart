@@ -16,11 +16,26 @@ export function normalizeQuotaMessage(msg: string | undefined | null): string {
   return msg;
 }
 
-/** Concurrence par mode :
- *  - Flash : 2 en parallèle.
- *  - Pro : 2 en parallèle — moins de slots simultanés = plus de bande passante API par image.
+/**
+ * Concurrence par mode (défaut : 2 en parallèle, aligné sur la branche principale).
+ * `NEXT_PUBLIC_IMAGE_CHUNK_CONCURRENCY` (1–4) force Flash et Pro.
+ * `NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY=1` force Pro en série (429 / API saturée).
  */
 export function getImageChunkConcurrency(engineMode: ImageEngineMode): number {
+  const raw = typeof process.env.NEXT_PUBLIC_IMAGE_CHUNK_CONCURRENCY === 'string'
+    ? Number.parseInt(process.env.NEXT_PUBLIC_IMAGE_CHUNK_CONCURRENCY.trim(), 10)
+    : NaN;
+  if (Number.isFinite(raw) && raw >= 1 && raw <= 4) {
+    return Math.floor(raw);
+  }
+  if (engineMode === 'pro') {
+    const forceSerial =
+      typeof process.env.NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY === 'string' &&
+      (process.env.NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY.trim() === '1' ||
+        process.env.NEXT_PUBLIC_IMAGE_PRO_CONCURRENCY.trim().toLowerCase() === 'true');
+    if (forceSerial) return 1;
+    return 2;
+  }
   return 2;
 }
 
@@ -119,6 +134,8 @@ export async function runChunkedImageGeneration(opts: {
   engineMode: ImageEngineMode;
   retryAttemptsPerSlot?: number;
   onPendingDecrement?: () => void;
+  /** Appelé dès qu’un visuel est prêt (ordre d’index 0..n-1), avant la fin du lot. */
+  onImageReady?: (image: ChunkedGeneratedImage, index: number) => void;
 }): Promise<{ images: ChunkedGeneratedImage[]; warning: string | null }> {
   const {
     token,
@@ -127,6 +144,7 @@ export async function runChunkedImageGeneration(opts: {
     engineMode,
     retryAttemptsPerSlot = 2,
     onPendingDecrement,
+    onImageReady,
   } = opts;
 
   const slots: Array<ChunkedGeneratedImage | null> = Array.from({ length: imageCount }, () => null);
@@ -194,7 +212,13 @@ export async function runChunkedImageGeneration(opts: {
         url = await pollSingleTaskImage(parsed.imageTaskIds[0], 1, customDeadline);
       }
       if (url) {
-        slots[index] = { id: `img-${Date.now()}-${index}`, url };
+        const item: ChunkedGeneratedImage = { id: `img-${Date.now()}-${index}`, url };
+        slots[index] = item;
+        try {
+          onImageReady?.(item, index);
+        } catch (e) {
+          console.warn('[CHUNKED] onImageReady error', e);
+        }
         markDone(index);
         console.log(`[CHUNKED] Slot ${index} done — success=${!!slots[index]}`);
         return;

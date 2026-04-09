@@ -7983,7 +7983,7 @@ var require_helpers = __commonJS({
       return timeNow + expiresIn;
     }
     function generateCallbackId() {
-      return Symbol("auth-callback");
+      return /* @__PURE__ */ Symbol("auth-callback");
     }
     var isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
     exports2.isBrowser = isBrowser;
@@ -13939,7 +13939,7 @@ var require_shams = __commonJS({
         return true;
       }
       var obj = {};
-      var sym = Symbol("test");
+      var sym = /* @__PURE__ */ Symbol("test");
       var symObj = Object(sym);
       if (typeof sym === "string") {
         return false;
@@ -13998,7 +13998,7 @@ var require_has_symbols = __commonJS({
       if (typeof origSymbol("foo") !== "symbol") {
         return false;
       }
-      if (typeof Symbol("bar") !== "symbol") {
+      if (typeof /* @__PURE__ */ Symbol("bar") !== "symbol") {
         return false;
       }
       return hasSymbolSham();
@@ -22257,6 +22257,19 @@ function geminiStyleHint(style) {
   return GEMINI_HINTS[key] ?? GEMINI_HINTS[DEFAULT_IMAGE_STYLE];
 }
 
+// src/lib/image-prompt-appendix.ts
+var GEMINI_IMAGE_PROMPT_APPENDIX = `
+THEMATIC ENVIRONMENT (apply on every shot unless a user custom background is specified above):
+Place the product in an environment and with props that clearly belong to the same universe as the product
+(e.g. book \u2192 reading nook, library shelves, or writer\u2019s desk softly behind; candle \u2192 cozy bedroom or bath; jewelry \u2192 marble, velvet, or vanity context).
+The background and supporting props must feel intentional and on-theme, not generic empty gray voids.
+Use shallow depth of field: background noticeably softer and more blurred than the product; the product must stay the sharpest, clearest subject.
+
+PRODUCT FIDELITY: Never swap the product for a simpler stand-in on any shot \u2014 especially close-ups and dimension diagrams must still show the real item from the reference (same cover art, printed text, colors, materials).
+
+If the instructions above already specify a user-provided custom background image, keep that image as the environment and do not replace it with a different thematic scene.
+`.trim();
+
 // src/lib/apparel-product-detection.ts
 var KIND_APPAREL = /^(apparel|clothing|vetement|vêtement|textile|fashion)$/i;
 var NON_APPAREL_HINT = /\b(phone\s*case|coque|charger|câble|cable|puzzle|figurine|statue|pop\s*socket|support\s*téléphone|mug|tasse|vase|lampe(?!tte)|bougie\s*(?!parfum)|sticker|autocollant|affiche|poster|cadre\s*photo|imprimante|outil|drill|bit|cheville)\b/i;
@@ -22389,7 +22402,6 @@ async function runGenerateImagesPipeline(opts) {
       sourceImage,
       backgroundImage,
       quantity = 1,
-      aspectRatio = "1:1",
       customInstructions,
       productTitle,
       tags,
@@ -22498,8 +22510,14 @@ async function runGenerateImagesPipeline(opts) {
       if (typeof sourceImage === "string" && sourceImage.trim().length > 0) {
         refInputs.push(sourceImage.startsWith("data:image/") ? sourceImage : `data:image/jpeg;base64,${sourceImage}`);
       }
+      const bgRaw = typeof backgroundImage === "string" ? backgroundImage.trim() : "";
+      const hasCustomBackground = bgRaw.length > 0;
+      if (hasCustomBackground) {
+        refInputs.push(bgRaw.startsWith("data:image/") ? bgRaw : `data:image/jpeg;base64,${bgRaw}`);
+      }
       if (productContext && typeof productContext === "object" && Array.isArray(productContext.referenceImages)) {
-        for (const ref of productContext.referenceImages.slice(0, 2)) {
+        const maxExtraRefs = hasCustomBackground ? 1 : 2;
+        for (const ref of productContext.referenceImages.slice(0, maxExtraRefs)) {
           if (typeof ref === "string" && ref.trim().length > 0) refInputs.push(ref.trim());
         }
       }
@@ -22509,7 +22527,7 @@ async function runGenerateImagesPipeline(opts) {
       const engineSafe = engine === "pro" ? "pro" : "flash";
       const isProEngine = engineSafe === "pro";
       const geminiImageEditModel = engineSafe === "pro" ? GEMINI_IMAGE_MODEL_PRO : GEMINI_IMAGE_MODEL_FLASH;
-      const toInlineImagePart = async (input) => {
+      const toInlineImagePart = async (input, refIndex) => {
         try {
           const raw = input.trim();
           const dataUrl = raw.startsWith("data:image/") ? raw : `data:image/jpeg;base64,${raw}`;
@@ -22520,8 +22538,13 @@ async function runGenerateImagesPipeline(opts) {
           if (sharp) {
             const buf = Buffer.from(b64, "base64");
             const isNetlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
-            const maxSide = isNetlifyFastSingle ? 640 : isFastChunkedSingle ? isProEngine ? 1024 : 896 : isProEngine ? 1024 : 768;
-            const jpegQ = isNetlifyFastSingle ? 72 : isFastChunkedSingle ? isProEngine ? 88 : 80 : isProEngine ? 85 : 72;
+            let maxSide = isNetlifyFastSingle ? 640 : isFastChunkedSingle ? isProEngine ? 832 : 768 : isProEngine ? 1024 : 768;
+            let jpegQ = isNetlifyFastSingle ? 72 : isFastChunkedSingle ? isProEngine ? 84 : 78 : isProEngine ? 85 : 72;
+            const isBackgroundSlot = hasCustomBackground && refIndex === 1;
+            if (isBackgroundSlot) {
+              maxSide = Math.min(maxSide, isNetlifyFastSingle ? 512 : isFastChunkedSingle ? 640 : 800);
+              jpegQ = Math.min(jpegQ, 78);
+            }
             const c = await sharp(buf).resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: jpegQ, mozjpeg: true }).toBuffer();
             mime = "image/jpeg";
             b64 = c.toString("base64");
@@ -22531,7 +22554,8 @@ async function runGenerateImagesPipeline(opts) {
           return null;
         }
       };
-      const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map(toInlineImagePart))).filter((p) => !!p);
+      const inlineImageParts = (await Promise.all(refInputs.slice(0, 3).map((inp, idx) => toInlineImagePart(inp, idx)))).filter((p) => !!p);
+      const customBackgroundActive = hasCustomBackground && inlineImageParts.length >= 2;
       if (inlineImageParts.length === 0) {
         return {
           status: 200,
@@ -22557,12 +22581,14 @@ SCALE & PHYSICAL PLAUSIBILITY (CRITICAL): The product must look like a normal re
 CRITICAL: Use ONLY the provided reference images for the product source of truth (main physical object only). Keep EXACT same shape, silhouette, geometry, proportions, colors and materials for the main product object.
 Never replace the main product with another object/person.${apparelMode ? athleticImageSafeMode ? " Do not show human skin or photo-realistic models; use invisible mannequin, dress form, or hanger only." : " A neutral fit model may wear the garment only to show the same item from references (not a substitute product)." : ""}
 Only change scene/background/camera angle/focal length. The rest of the scene (lighting, decor, small props around the product) can change.
+PRODUCT GRAPHICS LOCK (ALL SHOTS INCLUDING 3 AND 4): Any printing on the product itself \u2014 cover title, spine text, patterns, foil, labels baked into the object \u2014 must match the reference images exactly. Do not replace the product with a plain generic version, a different colorway, an untextured 3D primitive, or a "clean" blank mockup. Close-ups and dimension shots still show the same real product identity.
 ANTI-ALlEXPRESS TEMPLATE BREAKER: do not preserve any AliExpress page layout cues (borders, rounded-corner marketplace widgets, promo strips, corner badges, corner labels).
-ANTI-TEXT (VERY IMPORTANT): if the reference contains ANY text/letters/numbers-like glyphs (titles, subtitles, promo words, captions, overlays), REMOVE it completely. Never generate new words or typography (except dimension labels on image 4).
-SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid text \u2014 DO NOT reproduce any of them. Remove them completely.
+ANTI-TEXT (MARKETPLACE / UI ONLY): Remove overlaid marketplace UI, captions, price tags, promo banners, watermarks, QR codes, and screenshot chrome \u2014 never copy those. Exception: typography and graphics that are physically printed or embossed ON the product (e.g. book cover words, spine lettering, packaging art) must be reproduced faithfully \u2014 do not erase them. Do not invent new marketing slogans. Only add new letters/numbers where prompt 4 explicitly requires dimension labels.
+SOURCE CLEANUP (MANDATORY): Reference screenshots often include watermarks, AliExpress/Amazon-style logos, supplier brand marks, price tags, QR codes, overlaid UI \u2014 DO NOT reproduce any of them. Remove them completely; keep the product's own printed design.
+OUTPUT CANVAS: strictly square 1:1 aspect ratio (equal width and height), standard Etsy listing main image format \u2014 no letterboxing, no portrait or landscape frame.
 Final image must be a clean, premium, seller-neutral Etsy listing photo with zero third-party branding or embedded marketplace UI.`;
-      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucune lettre, aucun mot, aucun chiffre, aucun symbole de prix/labels/UI, sauf UNIQUEMENT les labels de DIMENSIONS sur l'image 4. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).` + (apparelMode ? ` PRIORIT\xC9 TEXTILE: relief du tissu, plis cr\xE9dibles, chute naturelle \u2014 pas d'article raide ou sans volume. \xC9viter table ronde, plateau circulaire et effet miroir circulaire sur le produit.` : ` \xC9CHELLE: le produit reste \xE0 une taille cr\xE9dible par rapport aux meubles et accessoires (jamais \xAB produit g\xE9ant \xBB dans une pi\xE8ce normale). `);
-      const STYLE_EXPECTED_GEMINI = `Style visuel attendu: tons chauds et naturels, lumi\xE8re douce, ambiance propre et rassurante, fond simple et \xE9l\xE9gant.`;
+      const GLOBAL_PROMPT_RULES_GEMINI = `R\xC8GLES GLOBALES (TR\xC8S IMPORTANT): Si la photo source contient logos fournisseur, filigranes, bandeaux AliExpress/marketplace, TEXTE incrust\xE9 ou badges en coin : NE JAMAIS les recopier \u2014 les effacer enti\xE8rement sur l'image g\xE9n\xE9r\xE9e (photo produit propre, sans marque tierce). Pas de watermark. ZERO TEXTE / ZERO TYPOGRAPHIE: aucun texte de marketplace, UI, promo ou prix; sauf (1) les labels num\xE9riques de DIMENSIONS sur l'image mensurations et (2) les mots/chiffres d\xE9j\xE0 imprim\xE9s SUR le produit (couverture, tranche, packaging) \u2014 \xE0 reproduire fid\xE8lement comme sur la r\xE9f\xE9rence. Rendu photo r\xE9aliste type Etsy haut de gamme, pas de style trop "IA". Style visuel: tons chauds et naturels, lumi\xE8re douce (daylight ou warm indoor light), ambiance propre et \xE9l\xE9gante, univers premium mais accessible. Si des directives compl\xE9mentaires d\xE9crivent un environnement th\xE9matique, les appliquer: d\xE9cor + accessoires coh\xE9rents avec le produit, arri\xE8re-plan nettement plus doux/flout\xE9 que le produit (le produit reste l\u2019\xE9l\xE9ment le plus net). Sinon fond simple (table/mur clair/int\xE9rieur moderne ou studio l\xE9ger). M\xEAme identit\xE9 produit sur toutes les images: interdit de \xAB simplifier \xBB en objet g\xE9n\xE9rique sans les graphismes/couleurs des r\xE9f\xE9rences. Format de sortie: image carr\xE9e stricte 1:1. ANTI-COPIER STRICT: chaque prompt doit g\xE9n\xE9rer un arri\xE8re-plan + d\xE9cor + \xE9clairage clairement diff\xE9rents (pas un recadrage, pas un copier/coller, pas des \xE9l\xE9ments identiques). Ne r\xE9utilise pas la m\xEAme disposition des rideaux/tapis/coussins/objets autour du produit d'une image \xE0 l'autre. Coh\xE9rence visuelle entre toutes les images g\xE9n\xE9r\xE9es (m\xEAme produit, m\xEAme style global, mais d\xE9cors distincts).` + (apparelMode ? ` PRIORIT\xC9 TEXTILE: relief du tissu, plis cr\xE9dibles, chute naturelle \u2014 pas d'article raide ou sans volume. \xC9viter table ronde, plateau circulaire et effet miroir circulaire sur le produit.` : ` \xC9CHELLE: le produit reste \xE0 une taille cr\xE9dible par rapport aux meubles et accessoires (jamais \xAB produit g\xE9ant \xBB dans une pi\xE8ce normale). `);
+      const STYLE_EXPECTED_GEMINI = `Style visuel attendu: tons chauds et naturels, lumi\xE8re douce, ambiance propre et rassurante; profondeur de champ courte si sc\xE8ne lifestyle (arri\xE8re-plan plus flou que le produit).`;
       const IMAGE_PROMPTS_DEFAULT = [
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -22585,19 +22611,19 @@ ${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 3 \u2013 GROS PLAN / TEXTURE ET FINITIONS:
-Photo rapproch\xE9e focalis\xE9e sur la texture, les mat\xE9riaux et les finitions du produit.
-Nettet\xE9 maximale sur les d\xE9tails de surface, l\xE9ger bokeh sur le fond.
-Fond \xE9pur\xE9 (surface neutre mate ou studio clair), lumi\xE8re douce directionnelle r\xE9v\xE9lant les reliefs.
-Produit occupant 60-70% du cadre, sans distorsion de perspective.
-Pas de texte. Pas de watermark.
+Photo rapproch\xE9e sur la texture et les finitions, mais le sujet reste le M\xCAME article que sur les r\xE9f\xE9rences: m\xEAme couleurs, m\xEAme impression/couverture/tranche visibles (pas un livre ou objet g\xE9n\xE9rique neutre).
+Nettet\xE9 maximale sur le produit, bokeh marqu\xE9 sur l\u2019arri\xE8re-plan; environnement peut \xEAtre th\xE9matique et l\xE9g\xE8rement flou (coh\xE9rent avec le produit), pas seulement mur gris vide.
+INTERDIT: substituer une autre mati\xE8re, une couverture vierge, ou une primitive 3D sans graphisme.
+Produit occupant 60-70% du cadre, sans distorsion.
+Pas de watermark ni de texte hors champ marketplace. Les textes imprim\xE9s SUR le produit restent identiques aux r\xE9f\xE9rences.
 ${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
 PROMPT 4 \u2013 PHOTO AVEC MENSURATIONS / DIMENSIONS (OBLIGATOIRE):
-Image type fiche produit sur fond clair et \xE9pur\xE9: dimensions clairement visibles.
+Photo r\xE9aliste du produit IDENTIQUE aux r\xE9f\xE9rences (m\xEAme couverture, titres imprim\xE9s, couleurs) \u2014 jamais un bloc noir abstrait, un gabarit CAD sans visuel produit, ni un mockup sans graphisme.
+Placer le produit dans une sc\xE8ne coh\xE9rente avec son univers, arri\xE8re-plan doux et l\xE9g\xE8rement flou; le produit reste parfaitement lisible. Puis superposer fl\xE8ches de cote et labels num\xE9riques (style sobre).
 ${dimensionsStrictBlock}
-Fl\xE8ches de dimension fines avec labels num\xE9riques nets. Style graphique minimaliste.
-Texte uniquement pour les mensurations (pas de texte marketing).
+Texte chiffr\xE9 uniquement pour les mensurations (pas de texte marketing). Les titres/d\xE9cors d\xE9j\xE0 imprim\xE9s sur le produit restent visibles comme sur la source.
 ${GLOBAL_PROMPT_RULES_GEMINI}`,
         `${baseContext}
 ${STYLE_EXPECTED_GEMINI}
@@ -22720,9 +22746,24 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
       if (geminiExtra) {
         promptsToUse = promptsToUse.map((p) => p + geminiExtra);
       }
+      if (customBackgroundActive) {
+        const customBgBlock = `
+
+FOND PERSONNALIS\xC9 (image 2): cette image est uniquement l\u2019arri\xE8re-plan choisi par l\u2019utilisateur. Garde-la comme d\xE9cor de fond (ne la remplace pas par une autre sc\xE8ne). L\u2019image 1 = produit (r\xE9f\xE9rence). Exception aux consignes \xAB arri\xE8re-plan diff\xE9rent par image \xBB / ANTI-COPIER sur le fond : le fond reste celui de l\u2019image 2; varie seulement cadrage, angle et placement du produit si plusieurs visuels. Int\xE8gre le produit avec ombres et lumi\xE8re coh\xE9rents avec ce fond.`;
+        promptsToUse = promptsToUse.map((p) => p + customBgBlock);
+      }
+      const promptAppendix = typeof GEMINI_IMAGE_PROMPT_APPENDIX === "string" ? GEMINI_IMAGE_PROMPT_APPENDIX.trim() : "";
+      if (promptAppendix.length > 0) {
+        const appendixBlock = `
+
+\u2500\u2500\u2500 DIRECTIVES COMPL\xC9MENTAIRES (en plus du prompt ci-dessus ; ne pas contredire les r\xE8gles Etsmart) \u2500\u2500\u2500
+
+` + promptAppendix;
+        promptsToUse = promptsToUse.map((p) => p + appendixBlock);
+      }
       const chunkSingleWallMs = readGeminiChunkSingleWallMs(isProEngine, netlifyBackgroundWorker);
       console.log(
-        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
+        `[IMAGE GEN] Gemini engine=${engineSafe}, apparel=${apparelMode}, athleticSafe=${athleticImageSafeMode}, refs=${inlineImageParts.length}, customBg=${customBackgroundActive}, fastSingle=${isFastChunkedSingle}, chunkWall=${chunkSingleWallMs}, model=${geminiImageEditModel}`
       );
       const geminiErrors = [];
       const tryGeminiOnce = async (prompt, model, partsForAttempt, timeoutMs) => {
@@ -22741,7 +22782,11 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
                   }
                 ],
                 generationConfig: {
-                  responseModalities: ["TEXT", "IMAGE"]
+                  responseModalities: ["TEXT", "IMAGE"],
+                  // Toujours 1:1 (Etsy) — indépendant du champ `aspectRatio` éventuel dans le body.
+                  imageConfig: {
+                    aspectRatio: "1:1"
+                  }
                 }
               }),
               signal: geminiFetchSignal(timeoutMs)
@@ -22803,11 +22848,11 @@ INSTRUCTIONS SUPPL\xC9MENTAIRES (\xE0 respecter en priorit\xE9 si coh\xE9rent av
       const netlifyFastSingle = isNetlifyHost && isFastChunkedSingle;
       const geminiHttpCapMs = netlifyFastSingle ? readGeminiNetlifyFastHttpMs() : isNetlifyHost ? Math.min(GEMINI_IMAGE_FETCH_TIMEOUT_MS, engineSafe === "pro" ? 25e3 : 2e4) : engineSafe === "pro" ? 95e3 : GEMINI_IMAGE_FETCH_TIMEOUT_MS;
       const generateOne = async (prompt, promptIndex) => {
-        const mainPart = [inlineImageParts[0]].filter(
+        const partsForGemini = customBackgroundActive ? inlineImageParts.slice(0, Math.min(3, inlineImageParts.length)) : [inlineImageParts[0]].filter(
           (part) => Boolean(part)
         );
         const isMensurationsPrompt = promptIndex === 3;
-        const maxStandardAttempts = netlifyFastSingle ? 1 : 3;
+        const maxStandardAttempts = netlifyFastSingle ? 1 : isFastChunkedSingle ? 2 : 3;
         const apparelMensurationsFallback = apparelMode ? `
 
 SIMPLIFY: Top-down flat-lay on plain rectangular off-white paper; straight edges; dimension arrows only; no round table, no mirror, no circle frame.` : "";
@@ -22816,23 +22861,40 @@ SIMPLIFY: Top-down flat-lay on plain rectangular off-white paper; straight edges
 SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene \u2014 professional Etsy product shot.` : "";
         if (isMensurationsPrompt) {
           if (netlifyFastSingle) {
-            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             if (apparelMensurationsFallback) {
               img = await tryGeminiOnce(
                 prompt + apparelMensurationsFallback,
                 geminiImageEditModel,
-                mainPart,
+                partsForGemini,
                 geminiHttpCapMs
               );
             }
             return img;
           }
+          if (isFastChunkedSingle) {
+            for (let attempt = 0; attempt < 2; attempt++) {
+              let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
+              if (img) return img;
+              if (attempt < 1) await new Promise((r) => setTimeout(r, 900));
+            }
+            if (apparelMensurationsFallback) {
+              const imgFb = await tryGeminiOnce(
+                prompt + apparelMensurationsFallback,
+                geminiImageEditModel,
+                partsForGemini,
+                geminiHttpCapMs
+              );
+              if (imgFb) return imgFb;
+            }
+            return null;
+          }
           for (let round = 0; round < 3; round++) {
-            let img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            let img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             await new Promise((r) => setTimeout(r, 1500));
-            img = await tryGeminiForMensurations(prompt, mainPart, geminiHttpCapMs);
+            img = await tryGeminiForMensurations(prompt, partsForGemini, geminiHttpCapMs);
             if (img) return img;
             if (round < 2) await new Promise((r) => setTimeout(r, 1e3 * (round + 1)));
           }
@@ -22840,7 +22902,7 @@ SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene
             const imgFb = await tryGeminiOnce(
               prompt + apparelMensurationsFallback,
               geminiImageEditModel,
-              mainPart,
+              partsForGemini,
               geminiHttpCapMs
             );
             if (imgFb) return imgFb;
@@ -22848,7 +22910,7 @@ SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene
           return null;
         }
         for (let attempt = 0; attempt < maxStandardAttempts; attempt++) {
-          const img = await tryGeminiOnce(prompt, geminiImageEditModel, mainPart, geminiHttpCapMs);
+          const img = await tryGeminiOnce(prompt, geminiImageEditModel, partsForGemini, geminiHttpCapMs);
           if (img) return img;
           if (attempt < maxStandardAttempts - 1) await new Promise((r) => setTimeout(r, 900 + attempt * 700));
         }
@@ -22856,7 +22918,7 @@ SIMPLIFY: Same garment, soft studio light, clean neutral backdrop, minimal scene
           const imgFb = await tryGeminiOnce(
             prompt + apparelGenericFallback,
             geminiImageEditModel,
-            mainPart,
+            partsForGemini,
             geminiHttpCapMs
           );
           if (imgFb) return imgFb;

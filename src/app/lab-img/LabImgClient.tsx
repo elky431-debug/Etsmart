@@ -62,7 +62,6 @@ export default function LabImgClient() {
 
   const [engine, setEngine] = useState<Engine>('flash');
   const [prompt, setPrompt] = useState('');
-  const [aspectRatio, setAspectRatio] = useState('1:1');
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
   const [sourceBase64, setSourceBase64] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('idle');
@@ -170,7 +169,6 @@ export default function LabImgClient() {
           sourceImage: sourceBase64,
           prompt: prompt.trim() || undefined,
           engine,
-          aspectRatio,
         }),
       });
       const data = (await res.json()) as { taskId?: string; error?: string; raw?: string };
@@ -284,26 +282,9 @@ export default function LabImgClient() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-white mb-2">Format</label>
-            <div className="flex gap-2 flex-wrap">
-              {['1:1', '16:9', '9:16', '4:3', '3:4'].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setAspectRatio(r)}
-                  type="button"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    aspectRatio === r
-                      ? 'bg-[#00d4ff] text-black border-transparent'
-                      : 'bg-black border-white/10 text-white hover:border-white/30'
-                  }`}
-                >
-                  {r}
-                  {r === '1:1' ? ' (Etsy)' : ''}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs text-zinc-500">
+            Format de sortie : <span className="text-[#00d4ff] font-semibold">1:1</span> (carré, imposé)
+          </p>
 
           <div>
             <label className="block text-sm font-bold text-white mb-2">

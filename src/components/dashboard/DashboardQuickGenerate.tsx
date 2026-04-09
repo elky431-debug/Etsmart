@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, startTransition } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, startTransition } from 'react';
 import { 
   Upload,
   Download,
@@ -43,6 +43,12 @@ type ImageEngine = ImageEngineMode;
 interface GeneratedImage {
   url: string;
   id: string;
+}
+
+function filterReadyImages(images: (GeneratedImage | null)[]): GeneratedImage[] {
+  return images.filter(
+    (img): img is GeneratedImage => img != null && typeof img.url === 'string' && img.url.length > 0
+  );
 }
 
 interface ListingData {
@@ -117,7 +123,9 @@ export function DashboardQuickGenerate() {
   const imagesOnlyCredits = imagesOnlyTotalCredits(effectiveQuantity, billingEngine);
   const quickGenerateCredits = quickGenerateTotalCredits(effectiveQuantity, billingEngine);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<(GeneratedImage | null)[]>([]);
+  const readyGeneratedImages = useMemo(() => filterReadyImages(generatedImages), [generatedImages]);
+  const readyImageCount = readyGeneratedImages.length;
   const [listingData, setListingData] = useState<ListingData | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -416,12 +424,21 @@ export function DashboardQuickGenerate() {
       }
 
       setPendingImagesCount(quantity);
+      setGeneratedImages(Array(quantity).fill(null));
       const chunkedResult = await runChunkedImageGeneration({
         token,
         imageBase,
         imageCount: quantity,
         engineMode: engineForApi,
         onPendingDecrement: () => setPendingImagesCount((c) => Math.max(0, c - 1)),
+        onImageReady: (img, index) => {
+          setGeneratedImages((prev) => {
+            const next = [...prev];
+            while (next.length < quantity) next.push(null);
+            next[index] = img;
+            return next;
+          });
+        },
       });
       setPendingImagesCount(0);
       setIsGenerating(false);
@@ -435,7 +452,7 @@ export function DashboardQuickGenerate() {
             sessionStorage.removeItem(`${storageKey}-images`);
           }
         } else {
-          setGeneratedImages(chunkedResult.images);
+          setGeneratedImages(chunkedResult.images as GeneratedImage[]);
           setError(chunkedResult.warning);
           if (typeof window !== 'undefined') {
             const toPersist = chunkedResult.images;
@@ -537,11 +554,11 @@ export function DashboardQuickGenerate() {
         return;
       }
 
-      // Compresser le fond si présent (512x512 car utilisé uniquement pour description)
+      // Fond personnalisé : 2e image côté Gemini (référence de scène)
       let bgBase64: string | undefined;
       if (backgroundImage) {
         try {
-          bgBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+          bgBase64 = await compressImageToBase64(backgroundImage, 768, 768, 0.7);
         } catch {
           bgBase64 = undefined;
         }
@@ -571,7 +588,7 @@ export function DashboardQuickGenerate() {
           referenceImages: extraSourcePreviews.slice(0, 2),
         },
         customInstructions: bgBase64
-          ? `Use the provided custom background image as the ONLY background. Place the product naturally into this exact background scene. Try a different camera angle or product placement (variation seed: ${variationSeed}).`
+          ? `Variation entre visuels (cadrage / angle / placement du produit). seed: ${variationSeed}`
           : `Each image MUST have a COMPLETELY DIFFERENT background from the others. The background MUST be appropriate for this specific product — choose a setting where this product would naturally be found or displayed. Every image must look unique. (variation seed: ${variationSeed})`,
       };
 
@@ -589,7 +606,7 @@ export function DashboardQuickGenerate() {
       startTransition(() => {
         if (chunkedResult.images.length > 0) {
           setGeneratedImages((prev) => {
-            const next = [...prev, ...chunkedResult.images];
+            const next = [...filterReadyImages(prev), ...chunkedResult.images];
             if (typeof window !== 'undefined') {
               setTimeout(() => saveImagesToSession(next), 0);
             }
@@ -699,14 +716,13 @@ export function DashboardQuickGenerate() {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const downloadAllImages = async () => {
-    const withUrl = generatedImages.filter(
-      (img) => img && typeof img.url === 'string' && img.url.trim().length > 0
-    );
+    const withUrl = readyGeneratedImages;
     if (withUrl.length === 0) return;
     setIsDownloadingAll(true);
     try {
       for (let i = 0; i < withUrl.length; i++) {
-        await downloadImage(withUrl[i].url, i);
+        const item = withUrl[i]!;
+        await downloadImage(item.url, i);
         // Délai entre chaque fichier pour limiter le blocage « pop-ups » du navigateur
         if (i < withUrl.length - 1) {
           await new Promise((resolve) => setTimeout(resolve, 450));
@@ -995,7 +1011,7 @@ export function DashboardQuickGenerate() {
             <div className="mt-8 pt-6 border-t border-white/10">
               <button
                 onClick={generateEverything}
-                disabled={isGenerating || !sourceImagePreview || hasGenerated || (generatedImages.length > 0 && !!listingData)}
+                disabled={isGenerating || !sourceImagePreview || hasGenerated || (readyImageCount > 0 && !!listingData)}
                 className="w-full py-4 bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white font-bold rounded-2xl hover:opacity-95 hover:shadow-xl hover:shadow-[#00d4ff]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00d4ff]/25 flex items-center justify-center gap-3"
               >
                 {isGenerating ? (
@@ -1003,7 +1019,7 @@ export function DashboardQuickGenerate() {
                     <Loader2 size={20} className="animate-spin" />
                     Génération en cours...
                   </>
-                ) : hasGenerated || (generatedImages.length > 0 && !!listingData) ? (
+                ) : hasGenerated || (readyImageCount > 0 && !!listingData) ? (
                   <>
                     <Sparkles size={20} />
                     Génération déjà effectuée
@@ -1018,7 +1034,7 @@ export function DashboardQuickGenerate() {
                   </>
                 )}
               </button>
-              {!isGenerating && (hasGenerated || (generatedImages.length > 0 && listingData)) && (
+              {!isGenerating && (hasGenerated || (readyImageCount > 0 && listingData)) && (
                 <button
                   onClick={() => {
                     // Reset tout l'état pour permettre une nouvelle génération
@@ -1063,7 +1079,7 @@ export function DashboardQuickGenerate() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {isGenerating ? (
+          {isGenerating && !(quickGenPhase === 'images' && readyImageCount > 0) ? (
             <motion.div
               key="generating"
               initial={{ opacity: 0 }}
@@ -1083,15 +1099,23 @@ export function DashboardQuickGenerate() {
                   : "Étape 1 : compréhension du produit et rédaction du listing. Ensuite : génération des visuels."}
               </p>
               {quickGenPhase === 'images' && quantity > 0 && (
-                <p className="text-xs text-[#00d4ff]/80 mt-3">
-                  Jusqu'à {quantity} image{quantity > 1 ? 's' : ''} —{' '}
-                  {engine === 'pro'
-                    ? 'avec Pro, prévois environ 2–3 min sur le site.'
-                    : 'avec Flash, souvent ~1–2 min.'}
-                </p>
+                <div className="text-xs text-[#00d4ff]/90 mt-4 text-center space-y-1 max-w-md">
+                  {pendingImagesCount > 0 ? (
+                    <p className="font-semibold text-white">
+                      Visuel {quantity - pendingImagesCount + 1} / {quantity} en cours…
+                    </p>
+                  ) : (
+                    <p className="text-white/80">Préparation des requêtes…</p>
+                  )}
+                  <p className="text-white/60">
+                    {engine === 'pro'
+                      ? 'Nano Banana 2 : ~45–120 s par image (2 requêtes en parallèle). Plusieurs minutes au total si tu en demandes beaucoup.'
+                      : 'Flash : souvent ~30–90 s par image (2 en parallèle).'}
+                  </p>
+                </div>
               )}
             </motion.div>
-          ) : (listingData || generatedImages.length > 0) ? (
+          ) : (listingData || readyImageCount > 0) ? (
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 20 }}
@@ -1223,18 +1247,27 @@ export function DashboardQuickGenerate() {
               )}
 
               {/* Images Loading State (listing shown, images loading) */}
-              {isGenerating && listingData && generatedImages.length === 0 && (
+              {isGenerating && listingData && readyImageCount === 0 && (
                 <div className="bg-black rounded-xl border border-white/10 p-6">
                   <div className="flex flex-col items-center justify-center py-12">
                     <Loader2 size={36} className="text-[#00d4ff] animate-spin mb-4" />
-                    <p className="text-base font-semibold text-white">Génération des images en cours...</p>
-                    <p className="text-sm text-white/50 mt-2">Cela peut prendre 20 à 40 secondes</p>
+                    <p className="text-base font-semibold text-white">Génération des images en cours…</p>
+                    {pendingImagesCount > 0 ? (
+                      <p className="text-sm text-[#00d4ff] mt-2">
+                        Visuel {quantity - pendingImagesCount + 1} / {quantity}
+                      </p>
+                    ) : null}
+                    <p className="text-sm text-white/50 mt-2 text-center max-w-sm">
+                      {engine === 'pro'
+                        ? 'Pro : compte ~1–2 min par image ; plusieurs images peuvent prendre plusieurs minutes.'
+                        : 'Souvent ~30–90 s par image.'}
+                    </p>
                   </div>
                 </div>
               )}
 
               {/* Listing OK but no images yet: force image generation CTA */}
-              {!isGenerating && listingData && generatedImages.length === 0 && (
+              {!isGenerating && listingData && readyImageCount === 0 && (
                 <div className="bg-black rounded-xl border border-amber-500/30 p-6">
                   <h3 className="text-xl font-bold text-white mb-2">Aucune image générée</h3>
                   <p className="text-sm text-white/70 mb-4">Le listing est prêt. Génère les images pour compléter.</p>
@@ -1284,19 +1317,24 @@ export function DashboardQuickGenerate() {
               )}
 
               {/* Images Section */}
-              {generatedImages.length > 0 && (
+              {readyImageCount > 0 && (
                 <div className="bg-black rounded-xl border border-white/10 p-6">
                   <h3 className="text-xl font-bold text-white mb-2">
-                    {generatedImages.length} image{generatedImages.length > 1 ? 's' : ''} générée{generatedImages.length > 1 ? 's' : ''}
+                    {readyImageCount} image{readyImageCount > 1 ? 's' : ''} générée{readyImageCount > 1 ? 's' : ''}
+                    {isGenerating && pendingImagesCount > 0 ? (
+                      <span className="ml-2 text-sm font-normal text-[#00d4ff]">(affichage au fil de l’eau)</span>
+                    ) : null}
                   </h3>
                   {pendingImagesCount > 0 && (
                     <p className="text-sm text-[#00d4ff] mb-4 flex items-center gap-2">
                       <Loader2 size={14} className="animate-spin" />
-                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} en cours de génération… (jusqu'à ~90 s)
+                      {pendingImagesCount} image{pendingImagesCount > 1 ? 's' : ''} restante
+                      {pendingImagesCount > 1 ? 's' : ''}…
                     </p>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {generatedImages.filter((img) => img && typeof img.url === 'string' && img.url.length > 0).map((img, index) => (
+                    {generatedImages.map((img, index) =>
+                      img && typeof img.url === 'string' && img.url.length > 0 ? (
                       <motion.div
                         key={img.id || `img-${index}`}
                         initial={{ opacity: 0, scale: 0.9 }}
@@ -1331,13 +1369,22 @@ export function DashboardQuickGenerate() {
                           <ImageAltTextPanel imageUrl={img.url} />
                         </div>
                       </motion.div>
-                    ))}
+                      ) : (
+                        <div
+                          key={`img-slot-${index}`}
+                          className="flex aspect-square flex-col items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.03]"
+                        >
+                          <Loader2 size={28} className="animate-spin text-[#00d4ff]/80 mb-2" />
+                          <span className="text-xs text-white/45">Visuel {index + 1}…</span>
+                        </div>
+                      )
+                    )}
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 mt-6">
                     {/* Download All Button */}
-                    {generatedImages.length > 1 && (
+                    {readyImageCount > 1 && (
                       <button
                         type="button"
                         onClick={() => void downloadAllImages()}
@@ -1352,7 +1399,7 @@ export function DashboardQuickGenerate() {
                         ) : (
                           <>
                             <Download size={18} />
-                            Tout télécharger ({generatedImages.length} images)
+                            Tout télécharger ({readyImageCount} images)
                           </>
                         )}
                       </button>

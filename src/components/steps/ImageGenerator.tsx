@@ -62,7 +62,6 @@ interface ImageGeneratorProps {
   hasListing?: boolean; // Indique si le listing est déjà généré (pour affichage uniquement, n'affecte pas la génération)
 }
 
-type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 type ImageEngine = 'flash' | 'pro';
 
 interface GeneratedImage {
@@ -86,7 +85,6 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const [customInstructions, setCustomInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [engine, setEngine] = useState<ImageEngine>('flash');
   const [style, setStyle] = useState<ImageStyleId>(DEFAULT_IMAGE_STYLE);
   /** Comme génération rapide dashboard : API + crédits toujours flash (2.5) ; `engine` = boutons uniquement. */
@@ -361,10 +359,10 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
       // The listing can be generated separately in the "Listing" tab
       // This allows users to generate images without needing a listing first
       
-      // Compresser le fond si présent (512x512 car utilisé uniquement pour description GPT-4o)
+      // Fond personnalisé : envoyé au pipeline Gemini comme 2e image (référence de scène)
       let backgroundBase64: string | undefined;
       if (backgroundImage) {
-        backgroundBase64 = await compressImageToBase64(backgroundImage, 512, 512, 0.6);
+        backgroundBase64 = await compressImageToBase64(backgroundImage, 768, 768, 0.7);
         console.log('[IMAGE GENERATION] ✅ Background image compressed:', Math.round(backgroundBase64.length / 1024), 'KB');
       }
 
@@ -392,7 +390,7 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
         sourceImage: imageBase64,
         backgroundImage: backgroundBase64,
         customInstructions: customInstructions.trim() || undefined,
-        aspectRatio,
+        aspectRatio: '1:1',
         engine: engineForApi,
         style,
         productTitle: analysis.product.title || undefined,
@@ -787,26 +785,12 @@ export function ImageGenerator({ analysis, hasListing = false }: ImageGeneratorP
               </div>
             </div>
 
-            {/* D. Aspect Ratio */}
+            {/* D. Format fixe Etsy */}
             <div>
-              <label className="block text-sm font-bold text-white mb-3">
-                Format
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['1:1', '16:9', '9:16', '4:3', '3:4'] as AspectRatio[]).map((ratio) => (
-                  <button
-                    key={ratio}
-                    onClick={() => setAspectRatio(ratio)}
-                    className={`py-3 rounded-lg font-semibold text-sm transition-all ${
-                      aspectRatio === ratio
-                        ? 'bg-gradient-to-r from-[#00d4ff] to-[#00c9b7] text-white shadow-lg'
-                        : 'bg-black border border-white/10 text-white hover:border-white/20'
-                    }`}
-                  >
-                    {ratio}
-                    {ratio === '1:1' && ' (Etsy)'}
-                  </button>
-                ))}
+              <label className="block text-sm font-bold text-white mb-3">Format</label>
+              <div className="py-3 px-4 rounded-lg bg-black border border-white/10 text-sm text-white/90">
+                <span className="font-semibold text-[#00d4ff]">1:1</span>
+                <span className="text-white/60"> — carré imposé pour toutes les images (liste Etsy)</span>
               </div>
             </div>
 
